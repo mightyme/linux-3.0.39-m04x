@@ -56,7 +56,10 @@ obj-$(CONFIG_MACH_NURI)			+= mach-nuri.o
 obj-$(CONFIG_MACH_SMDK4X12)		+= mach-smdk4x12.o
 obj-$(CONFIG_MACH_SMDK5210)		+= mach-smdk5210.o
 obj-$(CONFIG_MACH_SMDK5250)		+= mach-smdk5250.o
-obj-$(CONFIG_MX_SERIAL_TYPE)		+= gpio-common.o gpio-mx.o  usb-detect.o mx_reboot.o
+
+obj-$(CONFIG_MX_SERIAL_TYPE)		+= gpio-common.o usb-detect.o gpio-mx.o mx_reboot.o
+obj-$(CONFIG_MX2_SERIAL_TYPE)		+= gpio-common.o usb-detect.o gpio-mx2.o mx2_reboot.o
+obj-$(CONFIG_MACH_M040)			+= mach-m040.o  i2c-m040.o
 obj-$(CONFIG_MACH_M032)			+= mach-m032.o i2c-m032.o
 obj-$(CONFIG_MACH_M030)			+= mach-m030.o i2c-m030.o
 
@@ -121,5 +124,8 @@ obj-$(CONFIG_EXYNOS_C2C)		+= setup-c2c.o
 obj-$(CONFIG_UBLOX_GPS)			+= ublox-gps.o
 obj-$(CONFIG_BT)					+= mx-rfkill.o
 obj-$(CONFIG_BCM4329)			+= mx-wifi.o
+
+obj-$(CONFIG_MX2_SERIAL_TYPE)	+= mx2_cma.o
+
 obj-$(CONFIG_MX_SERIAL_TYPE)		+= mx_fb.o mx_camera.o mx_cma.o mx_tsp.o mx_mshci.o mx_tvout.o
 obj-$(CONFIG_MX_SERIAL_TYPE)		+= mx_leds.o mx_factory.o mx_ehci.o
