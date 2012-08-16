@@ -135,15 +135,91 @@ static inline void m032_set_wakeup_type(mx_int_type group, int pending)
 		break;
 	}
 }
+static inline void m040_set_wakeup_type(unsigned int group, unsigned int mask)
+{
+	switch(group) {
+	case 0:
+		if (mask & (1 << 0)) {
+			mx_set_wakeup_type(MX_KEY_POWER_WAKE);
+		}
+		if (mask & (1 << 2)) {
+			mx_set_wakeup_type(MX_USB_WAKE);
+		}
+		if (mask & (1 << 3)) {
+			mx_set_wakeup_type(MX_CHARG_WAKE);//PIMC1 IRQ
+		}
+		if (mask & (1 << 4)) {
+			mx_set_wakeup_type(MX_ALARM_WAKE);//PIMC IRQ
+		}
+		if (mask & (1 << 5)) {
+			mx_set_wakeup_type(MX_KEY_HOME_WAKE);
+		}	
+		if (mask & (1 << 6)) {
+			mx_set_wakeup_type(MX_IR_WAKE);
+		}			
+		break;
+	case 1:
+		if (mask & (1 << 0)) {
+			mx_set_wakeup_type(MX_KEY_HOME_WAKE);//TOUCH PAD
+		}
+		if (mask & (1 << 4)) {
+			mx_set_wakeup_type(MX_WIFI_WAKE);//
+		}	
+		break;
+	case 2:
+		if (mask & (1 << 1)) {
+			mx_set_wakeup_type(MX_BLUETOOTH_WAKE);
+		}
+		if (mask & (1 << 2)) {
+			mx_set_wakeup_type(MX_USB_WAKE);
+		}
+		if (mask & (1 << 4)) {
+			mx_set_wakeup_type(MX_MODEM_WAKE);
+		}		
+		if (mask & (1 << 5)) {
+			mx_set_wakeup_type(MX_PLUS_KEY_WAKE);
+		}
+		break;
+	case 3:
+		if (mask & (1 << 0)) {
+			mx_set_wakeup_type(MX_LOWBAT_WAKE);
+		}
+		if (mask & (1 << 2)) {
+			mx_set_wakeup_type(MX_MINUS_KEY_WAKE);
+		}
+		if (mask & (1 << 3)) {
+			mx_set_wakeup_type(MX_MODEM_RST_WAKE);
+		}
+		break;
+	case 5:
+		if (mask & 0x2) {
+			mx_set_wakeup_type(MX_ALARM_WAKE);
+		} else if (mask & 0x4) {
+			mx_set_wakeup_type(MX_TICK_WAKE);
+		} else if (mask & 0x2000) {
+			mx_set_wakeup_type(MX_I2S_WAKE);
+		} else if (mask & 0x4000) {
+			mx_set_wakeup_type(MX_SYSTIMER_WAKE);
+		} else {
+			mx_set_wakeup_type(MX_UNKNOW_WAKE);
+		}
+	default:
+		break;
+	}
+
+}
 
 static inline void set_wakeup_type(mx_int_type group, int pending)
 {
-	if(machine_is_m030())
+#ifdef CONFIG_MACH_M040
+	m040_set_wakeup_type(group, pending);
+#else
+	if(machine_is_m030()){
 		m030_set_wakeup_type(group, pending);
-	else if (machine_is_m032() || machine_is_m031())
+	}else{
 		m032_set_wakeup_type(group, pending);
-	else
-		pr_err("Unknow machine type\n");
+	}
+#endif
 }
 #endif
 

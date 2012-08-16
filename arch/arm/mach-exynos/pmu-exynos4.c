@@ -354,7 +354,7 @@ void exynos4_sys_powerdown_conf(enum sys_powerdown mode)
 	unsigned int tmp;
 		
 #ifdef CONFIG_WM8958_ALWAYS_ON_SUSPEND	
-	if (machine_is_m031() || machine_is_m032()) {
+	if (machine_is_m031() || machine_is_m032() || machine_is_m040()) {
 		if(wm8994_isalwayson(NULL))
 			exynos4_pmu_config[entry_cnt-1].val[SYS_SLEEP] = 1;
 		else
