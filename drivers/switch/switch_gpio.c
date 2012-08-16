@@ -426,7 +426,7 @@ static void __exit gpio_switch_exit(void)
 	platform_driver_unregister(&gpio_switch_driver);
 }
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 late_initcall(gpio_switch_init);
 #else
 module_init(gpio_switch_init);

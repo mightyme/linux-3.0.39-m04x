@@ -914,7 +914,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		}
 	}
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	if (!rdev->constraints->always_on && !rdev->constraints->boot_on &&
 	   ops->disable) {
 		ret = ops->disable(rdev);

@@ -30,7 +30,7 @@
 #include <linux/mutex.h>
 #include <linux/syscore_ops.h>
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 #include <linux/exynos-cpufreq.h>
 #include <asm/mach-types.h>
 #endif
@@ -363,7 +363,7 @@ static ssize_t show_##file_name				\
 	return sprintf(buf, "%u\n", policy->object);	\
 }
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 static ssize_t show_cpuinfo_min_freq(struct cpufreq_policy *policy, char *buf)
 {
 	return sprintf(buf, "%u\n", 200000);
@@ -972,7 +972,7 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	}
 #endif
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	do {
 		struct exynos_dvfs_info *info;
 		info = list_entry(cpufreq_driver, struct exynos_dvfs_info, driver);

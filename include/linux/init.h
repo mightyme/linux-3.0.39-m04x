@@ -148,25 +148,6 @@ typedef void (*ctor_fn_t)(void);
 extern int do_one_initcall(initcall_t fn);
 extern char __initdata boot_command_line[];
 extern char *saved_command_line;
-#ifdef CONFIG_MX_SERIAL_TYPE
-typedef struct part_info {
-	unsigned int start_sec;
-	unsigned int sec_num;
-} part_info_t, part_info_p_t;
-struct boot_bootinfo {
-	/* if (signed_check == 1); then ckeck */
-	unsigned int signed_check;
-	/* mark for lost */
-	unsigned int lost_mark;
-	/* uboot svn version */
-	unsigned int uboot_svn_version;
-	/* Eng, Release, Oversea */
-	char uboot_release_version[10];
-	part_info_t part_info[7];
-};
-extern struct boot_bootinfo bootinfo;
-extern char saved_uboot_version[10];
-#endif
 extern unsigned int reset_devices;
 
 /* used by init/main.c */

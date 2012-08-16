@@ -33,7 +33,7 @@ MODULE_LICENSE("GPL");
 				    SNDRV_PCM_FMTBIT_IEC958_SUBFRAME |\
 				    SNDRV_PCM_FMTBIT_S24 |\
 				    SNDRV_PCM_FMTBIT_U24)
-#ifdef 	CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 extern void audio_spdif_output_en(int on);
 #endif
 static int spdif_set_bias_level(struct snd_soc_codec *codec,
@@ -50,18 +50,18 @@ static int spdif_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-#ifdef 	CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	audio_spdif_output_en(1);
 #endif
 		break;
 	case SND_SOC_BIAS_PREPARE:
 	case SND_SOC_BIAS_STANDBY:
-#ifdef 	CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	audio_spdif_output_en(0);
 #endif
 		break;
 	case SND_SOC_BIAS_OFF:
-#ifdef 	CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	audio_spdif_output_en(0);
 #endif
 		break;

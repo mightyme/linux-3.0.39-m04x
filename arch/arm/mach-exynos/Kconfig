@@ -98,6 +98,44 @@ config MX_SERIAL_TYPE
 	select EXYNOS4_DEV_PPMU
 	help
 	  Enable Meizu M030/M031/M032 Platform support
+
+config MX2_SERIAL_TYPE
+	bool
+	select S3C_DEV_HWMON if S3C_ADC
+	select S3C_DEV_WDT
+	select S3C_DEV_RTC
+	select S3C_DEV_HSMMC3
+	select S3C_DEV_I2C1
+	select S3C_DEV_I2C5
+	select S3C_DEV_I2C6
+	select S3C_DEV_I2C7
+	select S5P_GPIO_INT
+	select S5P_DEV_MFC
+	select S5P_DEV_FIMG2D
+	select S5P_DEV_ROTATOR
+	select S5P_DEV_USB_EHCI
+	select S5P_DEV_USBGADGET
+	select S5P_DEV_DSIM
+	select S5P_DEV_FIMD_S5P
+	select S5P_DEV_JPEG
+	select S5P_DEV_I2C_HDMIPHY
+	select EXYNOS_DEV_PD
+	select EXYNOS4_DEV_SYSMMU
+	select S5P_SETUP_MIPIPHY
+	select EXYNOS4_SETUP_SDHCI
+	select EXYNOS4_SETUP_FB_S5P
+	select EXYNOS4_SETUP_MFC
+	select EXYNOS4_SETUP_USB_PHY
+	select EXYNOS4_SETUP_I2C1
+	select EXYNOS4_SETUP_I2C5
+	select EXYNOS4_SETUP_I2C6
+	select EXYNOS4_SETUP_I2C7
+	select SAMSUNG_DEV_ADC
+	select SAMSUNG_DEV_BACKLIGHT
+	select SAMSUNG_DEV_PWM
+	select EXYNOS4_DEV_PPMU
+	help
+	  Enable Meizu MX2 Platform support
 	
 choice
 	prompt "EXYNOS5210 core type"
@@ -117,7 +155,7 @@ endchoice
 
 choice
        prompt "Kernel type selection for MEIZU MX"
-       depends on MX_SERIAL_TYPE
+       depends on MX_SERIAL_TYPE || MX2_SERIAL_TYPE
 
 config MX_ENG_KERNEL
        bool "Build MX Eng Kernel"
@@ -676,6 +714,17 @@ config MACH_SMDK4X12
 	select SAMSUNG_DEV_KEYPAD
 	help
 	  Machine support for Samsung SMDK4X12
+	  
+config MACH_M040
+	bool "MEIZU M040 Board"
+	select MX2_SERIAL_TYPE
+	select CPU_EXYNOS4212	
+	select CPU_EXYNOS4412
+	select S3C_DEV_I2C4
+	select EXYNOS4_SETUP_I2C4
+	select LEDS_GPIO_REGISTER
+	help
+	  Machine support for Meizu M040 SmartPhone based on EXYNOS4x12
 
 config MACH_M032
 	bool "MEIZU M032/M031 Board"

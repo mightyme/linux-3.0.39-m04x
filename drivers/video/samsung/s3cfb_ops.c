@@ -999,13 +999,13 @@ int s3cfb_ioctl(struct fb_info *fb, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case FBIO_WAITFORVSYNC:
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 		/* Enable Vsync */
 		s3cfb_set_vsync_interrupt(fbdev, 1);
 #endif
 		/* Wait for Vsync */
 		s3cfb_wait_for_vsync(fbdev);
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 		/* Disable Vsync */
 		s3cfb_set_vsync_interrupt(fbdev, 0);
 #endif

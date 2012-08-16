@@ -32,7 +32,7 @@ static inline int s3c_pm_init(void)
 #endif
 
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 typedef enum {
 	MX_USB_WAKE		= 1<<0,
 	MX_LOWBAT_WAKE 	= 1<<1,

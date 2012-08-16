@@ -331,7 +331,7 @@ static int exynos4_pm_prepare(void)
 {
 	int ret = 0;
 
-#if defined(CONFIG_REGULATOR) && defined(CONFIG_MX_SERIAL_TYPE)
+#if defined(CONFIG_REGULATOR) && (defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE))
 	ret = regulator_suspend_prepare(PM_SUSPEND_MEM);
 #endif
 
@@ -344,7 +344,7 @@ static int exynos4_pm_prepare(void)
 
 static void exynos4_pm_finish(void)
 {
-#if defined(CONFIG_REGULATOR) && defined(CONFIG_MX_SERIAL_TYPE)
+#if defined(CONFIG_REGULATOR) && (defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE))
 	regulator_suspend_finish();
 #endif
 }

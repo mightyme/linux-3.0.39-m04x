@@ -62,7 +62,7 @@ static inline void cache_sync(void)
 {
 	void __iomem *base = l2x0_base;
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	if (soc_is_exynos4210()) {
 		writel_relaxed(0, base + L2X0_DUMMY_REG);
 	} else {

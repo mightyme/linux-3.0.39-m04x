@@ -51,7 +51,7 @@ struct sdhci_s3c {
 
 	struct clk		*clk_io;
 	struct clk		*clk_bus[MAX_BUS_CLK];
-#if defined(CONFIG_MX_SERIAL_TYPE)	
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	unsigned char	power_mode;
 #endif	
 };
@@ -125,7 +125,7 @@ static void sdhci_s3c_set_ios(struct sdhci_host *host,
 	int width;
 	u8 tmp;
 
-#if defined(CONFIG_MX_SERIAL_TYPE)
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	if(ourhost->power_mode != ios->power_mode) {
 		switch(ios->power_mode){
 			case MMC_POWER_UP:

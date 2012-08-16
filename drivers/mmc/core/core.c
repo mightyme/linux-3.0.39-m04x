@@ -884,8 +884,8 @@ void mmc_release_host(struct mmc_host *host)
 
 EXPORT_SYMBOL(mmc_release_host);
 
-#if defined(CONFIG_MMC_SDHCI) && defined (CONFIG_MX_SERIAL_TYPE)
-extern int is_sdhci_host(const struct mmc_host_ops *ops);
+#if defined(CONFIG_MMC_SDHCI) && (defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE))
+extern int is_sdhci_host(const struct mmc_host_ops *ops); 
 #endif
 
 /*
@@ -906,7 +906,7 @@ static inline void mmc_set_ios(struct mmc_host *host)
 		mmc_set_ungated(host);
 	host->ops->set_ios(host, ios);
 
-#if defined(CONFIG_MMC_SDHCI) && defined (CONFIG_MX_SERIAL_TYPE)
+#if defined(CONFIG_MMC_SDHCI) && (defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE))
 	if(is_sdhci_host(host->ops) &&
 	   ios->power_mode == MMC_POWER_UP)
 		msleep_interruptible(200);
@@ -1547,7 +1547,7 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 
 	host->detect_change = 1;
 	wake_lock(&host->detect_wake_lock);
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	if (delay)
 		cancel_delayed_work(&host->detect);
 #endif

@@ -85,7 +85,7 @@
 		sub   \base, \base, #0x10000
 #endif
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 		ldr	\tmp, =trustzone_flag
 		ldr	\tmp, [\tmp]
 		teq	\tmp, #1

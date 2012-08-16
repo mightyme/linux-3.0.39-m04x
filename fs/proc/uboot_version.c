@@ -3,6 +3,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <plat/cpu.h>
+#include <mach/mx-boot-type.h>
 
 static int uboot_version_proc_show(struct seq_file *m, void *v)
 {

@@ -45,7 +45,7 @@ extern void md_autodetect_dev(dev_t dev);
 
 int warn_no_part = 1; /*This is ugly: should make genhd removable media aware*/
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 u64 system_part_start, system_part_size;
 #endif
 
@@ -675,7 +675,7 @@ rescan:
 
 		if (state->parts[p].has_info)
 			info = &state->parts[p].info;
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 		/* p == 2 for system partition */
 		if (p == 2) {
 			system_part_start = from;

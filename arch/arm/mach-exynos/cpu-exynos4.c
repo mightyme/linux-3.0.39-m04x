@@ -293,7 +293,7 @@ void __init exynos4_map_io(void)
 	s5p_ace_setname("exynos4-ace");
 #endif
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	if (soc_is_exynos4212() || soc_is_exynos4412())
 		trustzone_flag = !!(__raw_readl(S5P_INFORM2) & 0x1);
 #endif

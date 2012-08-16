@@ -68,7 +68,7 @@ static int __devexit wakeup_assist_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 static unsigned long mx_wakeup_type;
 unsigned long mx_get_wakeup_type(void)
 {

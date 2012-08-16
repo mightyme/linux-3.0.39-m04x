@@ -27,7 +27,7 @@
  * configure all external interrupt pins
 */
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 static inline int s3c_clear_pending(unsigned long mask)
 {
 	unsigned int tmp, i;

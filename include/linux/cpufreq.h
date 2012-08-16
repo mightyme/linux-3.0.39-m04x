@@ -107,7 +107,7 @@ struct cpufreq_policy {
 	struct kobject		kobj;
 	struct completion	kobj_unregister;
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	struct device *dev;
 #endif
 #ifdef CONFIG_CPU_THERMAL

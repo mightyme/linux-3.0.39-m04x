@@ -351,7 +351,7 @@ static unsigned int s3c24xx_serial_get_mctrl(struct uart_port *port)
 static void s3c24xx_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
 	/* todo - possibly remove AFC and do manual CTS */
-#if defined(CONFIG_MX_SERIAL_TYPE)
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	/* uart2 and uart3 do not support AFC feature */
 	if (port->line == 0 || port->line == 1) {
 		unsigned int umcon = 0;
@@ -756,7 +756,7 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	if (termios->c_cflag & CSTOPB)
 		ulcon |= S3C2410_LCON_STOPB;
 
-#if defined(CONFIG_MX_SERIAL_TYPE)
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	umcon = rd_regl(port, S3C2410_UMCON);
 	umcon |= (termios->c_cflag & CRTSCTS) ? S3C2410_UMCOM_AFC : 0;
 #else
@@ -871,7 +871,7 @@ s3c24xx_serial_verify_port(struct uart_port *port, struct serial_struct *ser)
 	return 0;
 }
 
-#if defined(CONFIG_BT) && defined(CONFIG_MX_SERIAL_TYPE)
+#if defined(CONFIG_BT) && (defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE))
 static void
 s3c24xx_serial_wake_peer(struct uart_port *port)
 {
@@ -915,7 +915,7 @@ static struct uart_ops s3c24xx_serial_ops = {
 	.request_port	= s3c24xx_serial_request_port,
 	.config_port	= s3c24xx_serial_config_port,
 	.verify_port	= s3c24xx_serial_verify_port,
-#if defined(CONFIG_BT) && defined(CONFIG_MX_SERIAL_TYPE)
+#if defined(CONFIG_BT) && (defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE))
 	.wake_peer		= s3c24xx_serial_wake_peer,
 #endif	
 #ifdef CONFIG_CONSOLE_POLL

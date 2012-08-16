@@ -268,7 +268,7 @@ static int fimc_init_camera(struct fimc_control *ctrl)
 	struct s3c_platform_fimc *pdata;
 	struct s3c_platform_camera *cam;
 	int ret = 0;
-#ifndef CONFIG_MX_SERIAL_TYPE
+#if !defined (CONFIG_MX_SERIAL_TYPE) && !defined(CONFIG_MX2_SERIAL_TYPE)
 	int retry_cnt = 0;
 	struct fimc_global *fimc = get_fimc_dev();
 #endif
@@ -320,7 +320,7 @@ static int fimc_init_camera(struct fimc_control *ctrl)
 		return 0;
 	}
 
-#ifdef CONFIG_MX_SERIAL_TYPE	
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	ret = v4l2_subdev_call(ctrl->cam->sd, core, s_power, 1);
 	if (ret) {
 		fimc_err("s_power failed: %d", ret);
@@ -338,8 +338,7 @@ static int fimc_init_camera(struct fimc_control *ctrl)
 		pm_runtime_put_sync(&pdev->dev);
 #endif		
 		return ret;
-	}
-	else {
+	} else {
 		cam->initialized = 1;
 	}
 #else
@@ -749,7 +748,7 @@ int fimc_release_subdev(struct fimc_control *ctrl)
 	struct fimc_global *fimc = get_fimc_dev();
 	struct s3c_platform_fimc *pdata = to_fimc_plat(ctrl->dev);
 	int ret;
-#ifndef CONFIG_MX_SERIAL_TYPE
+#if !defined (CONFIG_MX_SERIAL_TYPE) && !defined(CONFIG_MX2_SERIAL_TYPE)
 	struct i2c_client *client;
 #endif
 
@@ -765,7 +764,7 @@ int fimc_release_subdev(struct fimc_control *ctrl)
 			return 0;
 		}
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 		ret = v4l2_subdev_call(ctrl->cam->sd, core, s_power, 0);
 		if (ret)
 			fimc_err("s_power failed: %d", ret);
@@ -801,7 +800,9 @@ int fimc_release_subdev(struct fimc_control *ctrl)
 /*static */int fimc_configure_subdev(struct fimc_control *ctrl)
 {
 	int ret = 0;
-#ifndef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+	ctrl->cam->sd = fimc_get_cam_subdev(ctrl->cam->info->type);
+#else
 	struct i2c_adapter *i2c_adap;
 	struct i2c_board_info *i2c_info;
 	struct v4l2_subdev *sd;
@@ -845,11 +846,10 @@ int fimc_release_subdev(struct fimc_control *ctrl)
 	}
 	/* Assign subdev to proper camera device pointer */
 	ctrl->cam->sd = sd;
-#else
-	ctrl->cam->sd = get_v4l2_i2c_subdev(ctrl->cam->info->type);
+#endif
+
 	if (ctrl->cam->sd == NULL)
 		return -ENODEV;
-#endif
 
 	if (!ctrl->cam->initialized) {
 		ret = fimc_init_camera(ctrl);

@@ -37,7 +37,7 @@
 #define TX_REQ_MAX 4
 
 static const char adb_shortname[] = "android_adb";
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 static struct wake_lock adb_wake_lock;
 static struct mutex lock_mutex;
 static int charger_status;
@@ -460,7 +460,7 @@ static int adb_open(struct inode *ip, struct file *fp)
 
 	/* clear the error latch */
 	_adb_dev->error = 0;
-#ifdef CONFIG_MX_SERIAL_TYPE	
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	check_adb_lock();
 #endif
 	return 0;
@@ -470,7 +470,7 @@ static int adb_release(struct inode *ip, struct file *fp)
 {
 	printk(KERN_INFO "adb_release\n");
 	adb_unlock(&_adb_dev->open_excl);
-#ifdef CONFIG_MX_SERIAL_TYPE	
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	check_adb_lock();
 #endif
 	return 0;
@@ -660,7 +660,7 @@ static void adb_cleanup(void)
 	kfree(_adb_dev);
 	_adb_dev = NULL;
 }
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 #ifdef CONFIG_CHARGER_MAX8997
 extern int register_max8997_charger_notifier(struct notifier_block *nb);
 #else

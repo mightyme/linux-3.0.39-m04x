@@ -464,7 +464,7 @@ do_cache_op(unsigned long start, unsigned long end, int flags)
 }
 
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 #define HASH_DIGEST_SIZE		16
 #define HASH_HMAC_BLOCK_SIZE	64
 #define HASH_BLOCK_WORDS		16
@@ -758,7 +758,7 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 		do_DataAbort(addr, 15 + (1 << 11), regs);
 	}
 #endif
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	case NR(machine_verify):
 		return machine_verify((struct verify_ctx __user *)regs->ARM_r0);
 		break;

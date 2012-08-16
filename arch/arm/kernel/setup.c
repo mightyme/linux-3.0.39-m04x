@@ -680,20 +680,26 @@ static int __init parse_tag_cmdline(const struct tag *tag)
 
 __tagtable(ATAG_CMDLINE, parse_tag_cmdline);
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+struct tag_bootinfo bootinfo;
+/* Untouched uboot version saved by arch-specific code. */
+/* Untouched saved uboot version (eg. for /proc) */
+char saved_uboot_version[UBOOT_VERSION_SIZE];
 static int __init parse_tag_bootinfo(const struct tag *tag)
 {
 	int i;
 
 	strcpy(saved_uboot_version, tag->u.uboot_version.uboot_version);
-
+#ifdef CONFIG_MX2_SERIAL_TYPE
+	bootinfo.uboot_magic_number = tag->u.bootinfo.uboot_magic_number;
+#endif
 	bootinfo.signed_check = tag->u.bootinfo.signed_check;
 	bootinfo.lost_mark = tag->u.bootinfo.lost_mark;
 	bootinfo.uboot_svn_version = tag->u.bootinfo.uboot_svn_version;
 	strcpy(bootinfo.uboot_release_version, tag->u.bootinfo.uboot_release_version);
 
-	for (i = 0; i < 7; i++)
-		memcpy(&bootinfo.part_info[i], &tag->u.bootinfo.part_info[i], sizeof(struct tag_part_info));
+	for (i = 0; i < PART_INFO_SIZE; i++)
+		memcpy(&bootinfo.partinfo[i], &tag->u.bootinfo.partinfo[i], sizeof(struct tag_partinfo));
 
 	return 0;
 }
@@ -1008,7 +1014,7 @@ static const char *hwcap_str[] = {
 	NULL
 };
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 extern unsigned int samsung_rev(void);
 extern unsigned int exynos_result_of_asv;
 #endif
@@ -1063,21 +1069,21 @@ static int c_show(struct seq_file *m, void *v)
 		seq_printf(m, "CPU part\t: 0x%03x\n",
 			   (read_cpuid_id() >> 4) & 0xfff);
 	}
-#ifndef CONFIG_MX_SERIAL_TYPE
-	seq_printf(m, "CPU revision\t: %d\n", read_cpuid_id() & 15);
-#else
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	seq_printf(m, "CPU revision\t: %x.%x\n", samsung_rev()>>4, samsung_rev()&0xf);
+#else
+	seq_printf(m, "CPU revision\t: %d\n", read_cpuid_id() & 15);
 #endif
 	seq_puts(m, "\n");
 
 	seq_printf(m, "Hardware\t: %s\n", machine_name);
 	seq_printf(m, "Revision\t: %04x\n", system_rev);
-#ifndef CONFIG_MX_SERIAL_TYPE	
-	seq_printf(m, "Serial\t\t: %08x%08x\n",
-		   system_serial_high, system_serial_low);
-#else
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	seq_printf(m, "Serial\t\t: %08x%08x\n",
 		   exynos_result_of_asv, system_serial_low);
+#else
+	seq_printf(m, "Serial\t\t: %08x%08x\n",
+		   system_serial_high, system_serial_low);
 #endif
 
 	return 0;

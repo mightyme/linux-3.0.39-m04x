@@ -15,7 +15,9 @@
 #define __ASMARM_SETUP_H
 
 #include <linux/types.h>
-
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+#include <mach/mx-boot-type.h>
+#endif
 #define COMMAND_LINE_SIZE 1024
 
 /* The list ends with an ATAG_NONE node. */
@@ -126,25 +128,6 @@ struct tag_cmdline {
 	char	cmdline[1];	/* this is the minimum size */
 };
 
-#ifdef CONFIG_MX_SERIAL_TYPE
-#define ATAG_BOOTINFO	0x5441000A
-struct tag_uboot_version {
-	char uboot_version[10];
-};
-
-typedef struct tag_part_info {
-	u32 start_sec;
-	u32 sec_num;
-} tag_part_info_t, tag_part_info_p_t;
-struct tag_bootinfo {
-	unsigned int signed_check;
-	unsigned int lost_mark;
-	unsigned int uboot_svn_version;
-	char uboot_release_version[10];	/* this is the minimum size */
-	tag_part_info_t part_info[7];
-};
-#endif
-
 /* acorn RiscPC specific information */
 #define ATAG_ACORN	0x41000101
 struct tag_acorn {
@@ -173,7 +156,7 @@ struct tag {
 		struct tag_revision	revision;
 		struct tag_videolfb	videolfb;
 		struct tag_cmdline	cmdline;
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 		struct tag_bootinfo		bootinfo;
 		struct tag_uboot_version	uboot_version;
 #endif

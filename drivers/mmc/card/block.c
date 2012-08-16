@@ -45,6 +45,8 @@
 #include <asm/uaccess.h>
 #include <asm/mach-types.h>
 
+#include <mach/mx-boot-type.h>
+
 #include "queue.h"
 
 MODULE_ALIAS("mmc:block");
@@ -2051,7 +2053,7 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 	return md;
 }
 
-#ifndef CONFIG_MX_SERIAL_TYPE
+#if !defined(CONFIG_MX_SERIAL_TYPE) && !defined(CONFIG_MX2_SERIAL_TYPE)
 static int mmc_blk_alloc_part(struct mmc_card *card,
 			      struct mmc_blk_data *md,
 			      unsigned int part_type,
@@ -2105,7 +2107,7 @@ static int mmc_blk_alloc_parts(struct mmc_card *card, struct mmc_blk_data *md)
 
 	return ret;
 }
-#endif /* !CONFIG_MX_SERIAL_TYPE */
+#endif /* !CONFIG_MX_SERIAL_TYPE && CONFIG_MX2_SERIAL_TYPE*/
 
 static int
 mmc_blk_set_blksize(struct mmc_blk_data *md, struct mmc_card *card)
@@ -2237,7 +2239,7 @@ static int mmc_blk_probe(struct mmc_card *card)
 		md->disk->disk_name, mmc_card_id(card), mmc_card_name(card),
 		cap_str, md->read_only ? "(ro)" : "");
 
-#ifndef CONFIG_MX_SERIAL_TYPE
+#if !defined(CONFIG_MX_SERIAL_TYPE) && !defined(CONFIG_MX2_SERIAL_TYPE)
 	if (mmc_blk_alloc_parts(card, md))
 		goto out;
 #endif

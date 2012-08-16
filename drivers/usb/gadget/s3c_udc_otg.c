@@ -382,7 +382,7 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 	printk(KERN_INFO "Registered gadget driver '%s'\n",
 			driver->driver.name);
 
-#ifndef CONFIG_MX_SERIAL_TYPE
+#if !defined (CONFIG_MX_SERIAL_TYPE) && !defined(CONFIG_MX2_SERIAL_TYPE)
 	udc_enable(dev);
 #endif
 	return 0;
@@ -411,7 +411,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	device_del(&dev->gadget.dev);
 	printk(KERN_INFO "Unregistered gadget driver '%s'\n",
 			driver->driver.name);
-#ifndef CONFIG_MX_SERIAL_TYPE
+#if !defined (CONFIG_MX_SERIAL_TYPE) && !defined(CONFIG_MX2_SERIAL_TYPE)
 	udc_disable(dev);
 #endif
 	return 0;

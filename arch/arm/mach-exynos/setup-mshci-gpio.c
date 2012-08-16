@@ -116,7 +116,7 @@ void exynos4_setup_mshci_init_card(struct platform_device *dev)
 	exynos4_setup_mshci_cfg_gpio(dev, 8);
 
 	/* power to moviNAND on */
-#ifndef CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	gpio_set_value(EXYNOS4_GPK0(2), 1);
 #endif
 

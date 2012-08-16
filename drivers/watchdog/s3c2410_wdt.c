@@ -252,7 +252,7 @@ static int s3c2410wdt_cpufreq_transition(struct notifier_block *nb,
 		s3c2410wdt_keepalive(&s3c2410_wdd);
 	} else if (val == CPUFREQ_POSTCHANGE) {
 	/* Exynos4 do not change pclk freq after boot, so don't need to do this */
-#ifndef CONFIG_MX_SERIAL_TYPE
+#if !defined (CONFIG_MX_SERIAL_TYPE) && !defined(CONFIG_MX2_SERIAL_TYPE)
 		int ret;
 		s3c2410wdt_stop(&s3c2410_wdd);
 		ret = s3c2410wdt_set_heartbeat(&s3c2410_wdd, s3c2410_wdd.timeout);
@@ -296,7 +296,7 @@ static inline void s3c2410wdt_cpufreq_deregister(void)
 }
 #endif
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 #include <linux/delay.h>
 #include <linux/kthread.h>
 static int watchdog_thread(void *data)
@@ -423,7 +423,7 @@ static int __devinit s3c2410wdt_probe(struct platform_device *pdev)
 		 (wtcon & S3C2410_WTCON_RSTEN) ? "en" : "dis",
 		 (wtcon & S3C2410_WTCON_INTEN) ? "en" : "dis");
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	if (tmr_atboot) {
 		struct task_struct *watchdog_task;
 		watchdog_task = kthread_run(watchdog_thread, NULL, "watchdog/daemon");

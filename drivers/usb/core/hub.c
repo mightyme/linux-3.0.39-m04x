@@ -767,7 +767,7 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 				}
 			}
 			hub_power_on(hub, true);
-#if defined(CONFIG_MX_SERIAL_TYPE)
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 			if (hcd->driver->wait_for_device)
 				hcd->driver->wait_for_device(hcd);
 #endif	
@@ -889,7 +889,7 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 	 * If any port-status changes do occur during this delay, khubd
 	 * will see them later and handle them normally.
 	 */
-#if defined(CONFIG_MX_SERIAL_TYPE)
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	if (need_debounce_delay && type != HUB_RESET_RESUME) {
 #else
 	if (need_debounce_delay) {
@@ -2545,7 +2545,7 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 		/* drive resume for at least 20 msec */
 		dev_dbg(&udev->dev, "usb %sresume\n",
 				(msg.event & PM_EVENT_AUTO ? "auto-" : ""));
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 		/* Add the 5msec delay for XMM6260 resume fail case; learn from Samsung I9100*/
 		msleep(30);
 #else
@@ -2560,7 +2560,7 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 
 		/* TRSMRCY = 10 msec */
 		msleep(10);
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 		/* If portstatus's still resuming, retry GET_PORT_STATUS */
                 /*
 		 *if (portstatus & USB_PORT_STAT_SUSPEND)
@@ -2983,7 +2983,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 					buf->bMaxPacketSize0;
 			kfree(buf);
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 #else
 			retval = hub_port_reset(hub, port1, udev, delay);
 			if (retval < 0)		/* error or disconnect */

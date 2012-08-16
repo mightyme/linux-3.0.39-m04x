@@ -75,7 +75,6 @@
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
-
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/smp.h>
 #endif
@@ -126,14 +125,6 @@ char __initdata boot_command_line[COMMAND_LINE_SIZE];
 char *saved_command_line;
 /* Command line for parameter parsing */
 static char *static_command_line;
-
-#ifdef CONFIG_MX_SERIAL_TYPE
-struct boot_bootinfo bootinfo;
-/* Untouched uboot version saved by arch-specific code. */
-/* Untouched saved uboot version (eg. for /proc) */
-char saved_uboot_version[10];
-#endif
-
 static char *execute_command;
 static char *ramdisk_execute_command;
 

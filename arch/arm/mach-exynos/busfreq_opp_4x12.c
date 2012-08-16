@@ -55,9 +55,9 @@
 #define UP_CPU_THRESHOLD		11
 #define MAX_CPU_THRESHOLD		20
 #define CPU_SLOPE_SIZE			7
-#define PPMU_THRESHOLD		5
+#define PPMU_THRESHOLD			5
 
-#ifdef CONFIG_MACH_M032
+#if defined(CONFIG_REGULATOR_MAX77686)
 extern int max77686_update_dvs_voltage(struct regulator_dev *,
 			const int *,const unsigned int);
 #endif
@@ -857,7 +857,7 @@ int exynos4x12_init(struct device *dev, struct busfreq_data *data)
 		return -ENODEV;
 	}
 
-#ifdef CONFIG_MACH_M032
+#if defined(CONFIG_REGULATOR_MAX77686)
 	do {
 		int volt_table[8] = {0};
 		for (i = 0 ; i < LV_END ; i++)

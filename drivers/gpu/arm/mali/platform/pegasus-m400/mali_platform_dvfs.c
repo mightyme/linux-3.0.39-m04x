@@ -602,7 +602,7 @@ void mali_pegasus_default_step_set(int step, mali_bool boostup)
 		set_mali_pegasus_dvfs_status(step, boostup);
 }
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 extern int max77686_update_dvs_voltage(struct regulator_dev *,
 			const int *,const unsigned int);
 int mali_pegasus_update_voltage(void)

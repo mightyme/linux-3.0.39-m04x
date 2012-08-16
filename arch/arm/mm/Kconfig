@@ -631,7 +631,7 @@ comment "Processor Features"
 
 config ARM_TRUSTZONE
 	bool "Support TrustZone-enabled Trusted Execution Environment"
-	depends on !MX_SERIAL_TYPE
+	depends on !(MX_SERIAL_TYPE || MX2_SERIAL_TYPE)
 	default n
 	help
 	  Select if you want a kernel to be executed at non-secure world.

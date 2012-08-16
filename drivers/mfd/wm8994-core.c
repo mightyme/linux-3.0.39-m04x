@@ -642,7 +642,7 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 	wm8994->write_dev = wm8994_i2c_write_device;
 	wm8994->irq = i2c->irq;
 	wm8994->type = id->driver_data;
-
+#ifdef CONFIG_MACH_M030
 	if(machine_is_m030())
 	{
 		wm8994->crystal_regulator = regulator_get(wm8994->dev, "audio_crystal");
@@ -651,7 +651,7 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 		else
 			regulator_enable(wm8994->crystal_regulator);
 	}
-
+#endif
 	return wm8994_device_init(wm8994, i2c->irq);
 }
 

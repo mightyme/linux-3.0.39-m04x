@@ -36,7 +36,7 @@
 #include "u_ether.h"
 #include "rndis.h"
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 static void rndis_wake_lock(void);
 static void rndis_wake_unlock(void);
 #ifdef CONFIG_HAS_WAKELOCK
@@ -650,7 +650,7 @@ static void rndis_disable(struct usb_function *f)
 	usb_ep_disable(rndis->notify);
 	rndis->notify->driver_data = NULL;
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	rndis_wake_unlock();
 #endif	
 }
@@ -674,7 +674,7 @@ static void rndis_open(struct gether *geth)
 	rndis_set_param_medium(rndis->config, NDIS_MEDIUM_802_3,
 				bitrate(cdev->gadget) / 100);
 	rndis_signal_connect(rndis->config);
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	rndis_wake_lock();
 #endif
 }
@@ -687,7 +687,7 @@ static void rndis_close(struct gether *geth)
 
 	rndis_set_param_medium(rndis->config, NDIS_MEDIUM_802_3, 0);
 	rndis_signal_disconnect(rndis->config);
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	rndis_wake_unlock();
 #endif	
 }
@@ -988,7 +988,7 @@ fail:
 	}
 	return status;
 }
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 static void rndis_wake_lock(void)
 {
 #ifdef CONFIG_HAS_WAKELOCK

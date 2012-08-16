@@ -72,7 +72,7 @@ DEFINE_LED_TRIGGER(didle_led_trigger);
 static struct led_trigger *idle_led_trigger[4];
 #endif
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 #define CPUDILE_ENABLE_MASK (ENABLE_LPA | ENABLE_AFTR)
 #define M032_CPUDILE_ENABLE_MASK (ENABLE_LPA | ENABLE_AFTR)
 #define M030_CPUDILE_ENABLE_MASK (ENABLE_LPA)
@@ -935,7 +935,7 @@ static int __init exynos4_init_cpuidle(void)
 	struct platform_device *pdev;
 	struct resource *res;
 	
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	if(soc_is_exynos4210())
 		enable_mask = M030_CPUDILE_ENABLE_MASK;
 	else

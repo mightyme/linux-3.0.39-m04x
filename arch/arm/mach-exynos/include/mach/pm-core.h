@@ -21,7 +21,7 @@
 #include <mach/regs-gpio.h>
 #include <asm/mach-types.h>
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 
 typedef enum {
 	EINT_GROUP0,
@@ -173,7 +173,7 @@ static inline void s3c_pm_arch_stop_clocks(void)
 
 static inline void s3c_pm_arch_show_resume_irqs(void)
 {
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	unsigned int state;
 
 	/* first: clean wakeup mark lastime */

@@ -163,7 +163,7 @@ static inline void arch_enable_uart_fifo(void)
 #else
 #define arch_enable_uart_fifo() do { } while(0)
 #endif
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 #undef S5P_PA_INFORM2
 #undef S5P_PA_CHIPID
 #undef EXYNOS4210_CHIPID
@@ -199,7 +199,7 @@ arch_decomp_setup(void)
 
 	arch_enable_uart_fifo();
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	if(arch_is_exynos4210())
 		__raw_writel(0, S5P_PA_INFORM2);//set zore to inform2 register
 #endif

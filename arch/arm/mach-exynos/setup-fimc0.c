@@ -29,7 +29,7 @@ struct platform_device; /* don't need the contents */
 void s3c_fimc0_cfg_gpio(struct platform_device *pdev)
 {
 	if (soc_is_exynos4210()) {
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 		/* CAM A port(b0010) : PCLK, VSYNC, HREF, DATA[0-4] */
 		s3c_gpio_cfgrange_nopull(EXYNOS4210_GPJ0(0), 8, S3C_GPIO_SFN(2));
 		/* CAM A port(b0010) : DATA[5-7], CLKOUT(MIPI CAM also), FIELD */
@@ -46,10 +46,14 @@ void s3c_fimc0_cfg_gpio(struct platform_device *pdev)
 #endif
 	} else {
 		/* CAM A port(b0010) : PCLK, VSYNC, HREF, DATA[0-4] */
-		s3c_gpio_cfgrange_nopull(EXYNOS4212_GPJ0(0), 8, S3C_GPIO_SFN(2));
+		s3c_gpio_cfgrange_nopull(EXYNOS4212_GPJ0(0), 8, S3C_GPIO_SFN(2));		
 		/* CAM A port(b0010) : DATA[5-7], CLKOUT(MIPI CAM also), FIELD */
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+#if defined(CONFIG_MX_SERIAL_TYPE)
 		s3c_gpio_cfgrange_nopull(EXYNOS4212_GPJ1(0), 4, S3C_GPIO_SFN(2));
+#else
+		s3c_gpio_cfgrange_nopull(EXYNOS4212_GPJ1(1), 5, S3C_GPIO_SFN(2));
+#endif
 #else
 		s3c_gpio_cfgrange_nopull(EXYNOS4212_GPJ1(0), 5, S3C_GPIO_SFN(2));
 #endif

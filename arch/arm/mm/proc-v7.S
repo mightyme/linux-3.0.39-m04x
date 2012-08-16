@@ -347,7 +347,7 @@ __v7_setup:
 2:	ldr	r10, =0x00000c09		@ Cortex-A9 primary part number
 	teq	r0, r10
 	bne	3f
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	ldr	r10, =0x10020808		@ paddr of S5P_INFORM2
 	ldr	r10, [r10]
 	and	r10, r10, #1

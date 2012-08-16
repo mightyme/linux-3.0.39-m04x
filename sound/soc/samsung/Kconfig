@@ -72,7 +72,7 @@ config SND_SOC_SAMSUNG_SMDK_WM8994
 
 config SND_SOC_MX_WM8958
 	tristate "SoC I2S Audio support for WM8958 on MEIZU MX"
-	depends on SND_SOC_SAMSUNG && MX_SERIAL_TYPE
+	depends on SND_SOC_SAMSUNG && (MX_SERIAL_TYPE || MX2_SERIAL_TYPE)
 	select SND_SOC_WM8994
 	select SND_SAMSUNG_I2S
 	select SND_SAMSUNG_PCM
@@ -225,7 +225,7 @@ config SND_SOC_GONI_AQUILA_WM8994
 
 config SND_SOC_SAMSUNG_SMDK_SPDIF
 	tristate "SoC S/PDIF Audio support for SMDK"
-	depends on SND_SOC_SAMSUNG && (MACH_SMDKV310 || MACH_SMDK4X12 || MX_SERIAL_TYPE)
+	depends on SND_SOC_SAMSUNG && (MACH_SMDKV310 || MACH_SMDK4X12 || MX_SERIAL_TYPE || MX2_SERIAL_TYPE)
 	select SND_SAMSUNG_SPDIF
 	help
 	  Say Y if you want to add support for SoC S/PDIF audio on the SMDK.

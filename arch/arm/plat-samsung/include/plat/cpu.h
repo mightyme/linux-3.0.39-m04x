@@ -227,7 +227,7 @@ extern struct sysdev_class exynos5_sysclass;
 
 extern void (*s5pc1xx_idle)(void);
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 #ifndef __ASSEMBLY__
 extern bool trustzone_flag;
 #endif

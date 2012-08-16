@@ -221,7 +221,7 @@ config TOUCHSCREEN_EGALAX
 
 config TOUCHSCREEN_MX
 	tristate "ATMEL 2240E touchscreen driver for MEIZU MX"
-	depends on I2C && MX_SERIAL_TYPE
+	depends on I2C
 	help
 	  Say Y here if you have Atmel mXT series I2C touchscreen,
 	  such as AT42QT602240/ATMXT224, connected to your system.

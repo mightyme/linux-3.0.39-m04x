@@ -2520,7 +2520,7 @@ int s5p_hdmi_ctrl_constructor(struct platform_device *pdev)
 	s5p_hdmi_ctrl_init_private();
 	s5p_hdmi_init(reg_mem[HDMI].base, reg_mem[HDMI_PHY].base);
 
-#if defined(CONFIG_MACH_SMDKC210) || defined(CONFIG_MACH_SMDKV310) || defined(CONFIG_MACH_SMDK4X12) || defined(CONFIG_MX_SERIAL_TYPE)
+#if defined(CONFIG_MACH_SMDKC210) || defined(CONFIG_MACH_SMDKV310) || defined(CONFIG_MACH_SMDK4X12) || defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	/* set initial state of HDMI PHY power to off */
 	s5p_hdmi_ctrl_phy_power(1);
 	s5p_hdmi_ctrl_phy_power(0);

@@ -318,7 +318,7 @@ static int s3c_pm_enter(suspend_state_t state)
 	cpu_init();
 
 	s3c_pm_restore_core();
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	s3c_pm_clear_uarts();
 #endif		
 	s3c_pm_restore_uarts();
@@ -356,7 +356,7 @@ static int s3c_pm_prepare(void)
 {
 	int ret = 0;
 	/* prepare check area if configured */
-#ifdef CONFIG_MX_SERIAL_TYPE	
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	disable_hlt();
 #endif
 
@@ -375,7 +375,7 @@ static void s3c_pm_finish(void)
 
 	s3c_pm_check_cleanup();
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	enable_hlt();
 #endif
 }

@@ -413,7 +413,7 @@
 #define __ARM_NR_usr32			(__ARM_NR_BASE+4)
 #define __ARM_NR_set_tls		(__ARM_NR_BASE+5)
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 #define __ARM_NR_machine_verify		(__ARM_NR_BASE+105)
 #define __ARM_NR_set_machine_info	(__ARM_NR_BASE+101)
 #define __ARM_NR_get_recovery_key	(__ARM_NR_BASE+102)

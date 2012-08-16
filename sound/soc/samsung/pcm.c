@@ -505,7 +505,7 @@ static int s3c_pcm_resume(struct snd_soc_dai *dai)
 #define s3c_pcm_resume  NULL
 #endif
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 static int s3c_pcm_wr_startup(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *cpu_dai) {
 		
@@ -528,7 +528,7 @@ static struct snd_soc_dai_ops s3c_pcm_dai_ops = {
 	.trigger	= s3c_pcm_trigger,
 	.hw_params	= s3c_pcm_hw_params,
 	.set_fmt	= s3c_pcm_set_fmt,
-#ifdef CONFIG_MX_SERIAL_TYPE	
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	.startup	= s3c_pcm_wr_startup,
 	.shutdown	= s3c_pcm_wr_shutdown,
 #endif	
@@ -670,7 +670,7 @@ static __devinit int s3c_pcm_dev_probe(struct platform_device *pdev)
 	pcm->dma_capture = &s3c_pcm_stereo_in[pdev->id];
 	pcm->dma_playback = &s3c_pcm_stereo_out[pdev->id];
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	clk_disable(pcm->pclk);
 #endif
 

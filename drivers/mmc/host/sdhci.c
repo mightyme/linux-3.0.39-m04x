@@ -1827,7 +1827,7 @@ static const struct mmc_host_ops sdhci_ops = {
 	.enable_preset_value		= sdhci_enable_preset_value,
 };
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 int is_sdhci_host(const struct mmc_host_ops *ops)
 {
 	return ops == &sdhci_ops;

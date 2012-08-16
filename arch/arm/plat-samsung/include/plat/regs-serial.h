@@ -275,7 +275,7 @@ struct s3c24xx_uart_clksrc {
  * the pointer is setup by the machine specific initialisation from the
  * arch/arm/mach-s3c2410/ directory.
 */
-#if defined(CONFIG_BT) && defined(CONFIG_MX_SERIAL_TYPE)
+#if defined(CONFIG_BT) && (defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE))
 struct uart_port;
 #endif
 struct s3c2410_uartcfg {
@@ -292,7 +292,7 @@ struct s3c2410_uartcfg {
 
 	struct s3c24xx_uart_clksrc *clocks;
 	unsigned int		    clocks_size;
-#if defined(CONFIG_BT) && defined(CONFIG_MX_SERIAL_TYPE)
+#if defined(CONFIG_BT) && (defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE))
 	void (*wake_peer)(struct uart_port *);
 #endif	
 };

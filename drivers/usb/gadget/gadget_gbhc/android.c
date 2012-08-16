@@ -110,7 +110,7 @@ static struct usb_device_descriptor device_desc = {
 
 static struct list_head _functions = LIST_HEAD_INIT(_functions);
 static bool _are_functions_bound;
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 int android_usb_set_machine_info(char *mfg, char *prod, char *sn)
 {
 	strings_dev[STRING_MANUFACTURER_IDX].s = mfg;

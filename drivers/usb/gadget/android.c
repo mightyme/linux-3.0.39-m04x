@@ -156,7 +156,7 @@ static struct usb_configuration android_config_driver = {
 	.bmAttributes	= USB_CONFIG_ATT_ONE | USB_CONFIG_ATT_SELFPOWER,
 	.bMaxPower	= 0xFA, /* 500ma */
 };
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 int android_usb_set_machine_info(char *mfg, char *prod, char *sn)
 {
 	strings_dev[STRING_MANUFACTURER_IDX].s = mfg;
@@ -1197,7 +1197,7 @@ static int __init init(void)
 	INIT_WORK(&dev->work, android_work);
 	mutex_init(&dev->mutex);
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	rndis_wake_lock_init();
 	fsg_wake_lock_init();
 	adb_wake_lock_init();

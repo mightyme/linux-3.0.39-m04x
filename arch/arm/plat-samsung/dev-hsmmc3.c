@@ -80,7 +80,7 @@ void s3c_sdhci3_set_platdata(struct s3c_sdhci_platdata *pd)
 		set->host_caps |= pd->host_caps;
 	if (pd->clk_type)
 		set->clk_type = pd->clk_type;
-#if defined(CONFIG_MX_SERIAL_TYPE)
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	if (pd->set_power)
 		set->set_power = pd->set_power;
 #endif	

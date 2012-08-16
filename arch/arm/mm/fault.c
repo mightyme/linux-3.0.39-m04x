@@ -162,7 +162,7 @@ __do_kernel_fault(struct mm_struct *mm, unsigned long addr, unsigned int fsr,
 	do_exit(SIGKILL);
 }
 
-#if defined(CONFIG_MX_SERIAL_TYPE)
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 /*
  * This function can be used while current pointer is invalid.
  */
@@ -308,7 +308,7 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		return 0;
 
 	tsk = current;
-#if defined(CONFIG_MX_SERIAL_TYPE)
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	/*
 	 * If current pointer is NULL, infinite abort can occur.
 	 * It make us get correct debug information in the situation.

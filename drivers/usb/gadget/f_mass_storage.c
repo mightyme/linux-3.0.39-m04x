@@ -454,7 +454,7 @@ struct fsg_dev {
 };
 
 /*-------------------------------------------------------------------------*/
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 static void fsg_adjust_wake_lock(struct fsg_common *common);
 static void fsg_wake_lock(void);
 static void fsg_wake_unlock(void);
@@ -942,7 +942,7 @@ static int do_write(struct fsg_common *common)
 			curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 			return -EINVAL;
 		}
-#ifndef CONFIG_MX_SERIAL_TYPE
+#if !defined (CONFIG_MX_SERIAL_TYPE) && !defined(CONFIG_MX2_SERIAL_TYPE)
 		if (!curlun->nofua && (common->cmnd[1] & 0x08)) { /* FUA */
 			spin_lock(&curlun->filp->f_lock);
 			curlun->filp->f_flags |= O_SYNC;
@@ -2664,7 +2664,7 @@ static void handle_exception(struct fsg_common *common)
 		do_set_interface(common, common->new_fsg);
 		if (common->new_fsg)
 			usb_composite_setup_continue(common->cdev);
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 		fsg_adjust_wake_lock(common);
 #endif			
 		break;
@@ -2675,7 +2675,7 @@ static void handle_exception(struct fsg_common *common)
 		spin_lock_irq(&common->lock);
 		common->state = FSG_STATE_TERMINATED;	/* Stop the thread */
 		spin_unlock_irq(&common->lock);
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 		fsg_adjust_wake_lock(common);
 #endif		
 		break;
@@ -2792,7 +2792,7 @@ static ssize_t __fsg_store_file(struct device *dev, struct device_attribute *att
 
 	rc = fsg_store_file(dev, attr, buf, count);
 
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	fsg_adjust_wake_lock(common);
 #endif
 	return rc;
@@ -3307,7 +3307,7 @@ fsg_common_from_params(struct fsg_common *common,
 	fsg_config_from_params(&cfg, params);
 	return fsg_common_init(common, cdev, &cfg);
 }
-#ifdef CONFIG_MX_SERIAL_TYPE
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 static void fsg_adjust_wake_lock(struct fsg_common *common)
 {
 	int i;
