@@ -998,18 +998,6 @@ static struct platform_pwm_backlight_data m032_bl_data = {
 };
 #endif
 
-/* USB EHCI */
-#ifdef CONFIG_USB_EHCI_S5P
-static struct s5p_ehci_platdata m032_ehci_pdata;
-
-static void __init m032_ehci_init(void)
-{
-	struct s5p_ehci_platdata *pdata = &m032_ehci_pdata;
-
-	s5p_ehci_set_platdata(pdata);
-}
-#endif
-
 #ifdef CONFIG_VIDEO_FIMG2D
 static struct fimg2d_platdata __initdata fimg2d_data = {
 	.hw_ver = 0x41,
@@ -1105,10 +1093,6 @@ static void __init m032_machine_init(void)
 #ifndef CONFIG_PM_GENERIC_DOMAINS
 	s5p_device_jpeg.dev.parent = &exynos4_device_pd[PD_CAM].dev;
 #endif
-#endif
-
-#ifdef CONFIG_USB_EHCI_S5P
-	m032_ehci_init();
 #endif
 
 #ifdef CONFIG_CPU_FREQ

@@ -777,17 +777,7 @@ static struct platform_device m030_spdif_device={
 	},
 };
 #endif
-/* USB EHCI */
-#ifdef CONFIG_USB_EHCI_S5P
-static struct s5p_ehci_platdata m030_ehci_pdata;
 
-static void __init m030_ehci_init(void)
-{
-	struct s5p_ehci_platdata *pdata = &m030_ehci_pdata;
-
-	s5p_ehci_set_platdata(pdata);
-}
-#endif
 #if defined(CONFIG_SWITCH_GPIO)
 static struct gpio_switch_platform_data m030_earphone_pd = {
 	.name = "h2w",
@@ -1159,9 +1149,6 @@ static void __init m030_machine_init(void)
 #endif
 #ifdef CONFIG_EXYNOS_IOMMU
 	m030_sysmmu_init();
-#endif
-#ifdef CONFIG_USB_EHCI_S5P
-	m030_ehci_init();
 #endif
 
 #ifdef CONFIG_CPU_FREQ
