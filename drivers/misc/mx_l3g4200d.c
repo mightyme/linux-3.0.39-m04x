@@ -114,6 +114,11 @@ int l3g4200d_set_mode(char mode)
 	int res = 0;
 	unsigned char data;
 
+	if (!gyro || !gyro->client) {
+		pr_err("%s(), Sorry, Gyro driver L3G4200D has not been initialized properly!\n", __func__);
+		return -1;
+	}	
+
 	res = i2c_smbus_read_word_data(gyro->client, CTRL_REG1);
 	if (res >= 0)
 		data = res & 0x00F7;
@@ -129,6 +134,11 @@ int l3g4200d_set_range(char range)
 	int res = 0;
 	unsigned char data;
 
+	if (!gyro || !gyro->client) {
+		pr_err("%s(), Sorry, Gyro driver L3G4200D has not been initialized properly!\n", __func__);
+		return -1;
+	}
+
 	res = i2c_smbus_read_word_data(gyro->client, CTRL_REG4);
 	if (res >= 0)
 		data = res & 0x00CF;
@@ -142,10 +152,17 @@ int l3g4200d_set_range(char range)
 /* gyroscope data readout */
 static int l3g4200d_read_gyro_values(struct l3g4200d_t *data)
 {
-	struct l3g4200d_platform_data *pdata = gyro->pdata;
+	struct l3g4200d_platform_data *pdata;
 	int res;
 	/* x,y,z hardware data */
 	short hw_d[3] = { 0 };
+
+	if (!gyro || !gyro->client) {
+		pr_err("%s(), Sorry, Gyro driver L3G4200D has not been initialized properly!\n", __func__);
+		return -1;
+	}
+
+	pdata = gyro->pdata;
 
 	res = l3g4200d_i2c_read(AXISDATA_REG, (unsigned char *)hw_d, 6);
 	if (res < 0) {
@@ -333,8 +350,11 @@ static char l3g4200d_i2c_write(unsigned char reg_addr,
 	int dummy;
 	int i;
 
-	if (gyro->client == NULL)  /*  No global client pointer? */
+	if (!gyro || !gyro->client) {
+		pr_err("%s(), Sorry, Gyro driver L3G4200D has not been initialized properly!\n", __func__);
 		return -1;
+	}
+
 	for (i = 0; i < len; i++) {
 		dummy = i2c_smbus_write_byte_data(gyro->client,
 						  reg_addr++, data[i]);
@@ -353,12 +373,17 @@ static char l3g4200d_i2c_read(unsigned char reg_addr,
 				   unsigned char *data,
 				   unsigned char len)
 {
-	struct i2c_client *client = gyro->client;
+	struct i2c_client *client;
 	int dummy = 0;
 	int i = 0;
 
-	if (client == NULL)  /*  No global client pointer? */
+	if (!gyro || !gyro->client) {
+		pr_err("%s(), Sorry, Gyro driver L3G4200D has not been initialized properly!\n", __func__);
 		return -1;
+	}
+
+	client = gyro->client;
+
 	while (i < len) {
 		dummy = i2c_smbus_read_word_data(client, reg_addr++);
 		if (dummy >= 0) {
@@ -395,8 +420,10 @@ static ssize_t l3g4200d_read(struct file *file, char __user *buf,
 static ssize_t l3g4200d_write(struct file *file, const char __user *buf,
 				   size_t count, loff_t *offset)
 {
-	if (gyro->client == NULL)
+	if (!gyro || !gyro->client) {
+		pr_err("%s(), Sorry, Gyro driver L3G4200D has not been initialized properly!\n", __func__);
 		return -1;
+	}
 	#if DEBUG
 	printk(KERN_INFO "l3g4200d should be accessed with ioctl command\n");
 	#endif
@@ -406,7 +433,7 @@ static ssize_t l3g4200d_write(struct file *file, const char __user *buf,
 /*  open command for l3g4200d device file  */
 static int l3g4200d_open(struct inode *inode, struct file *file)
 {
-	if (gyro->client == NULL) {
+	if (!gyro || gyro->client == NULL) {
 		#if DEBUG
 		printk(KERN_ERR "I2C driver not install\n");
 		#endif
@@ -630,7 +657,7 @@ static long l3g4200d_ioctl_int(struct file *file, unsigned int cmd, unsigned lon
 	int status;
 
 	/* check l3g4200d_client */
-	if (gyro->client == NULL) {
+	if (!gyro || gyro->client == NULL) {
 		#if DEBUG
 		printk(KERN_ERR "I2C driver not install\n");
 		#endif
@@ -873,6 +900,11 @@ static int l3g4200d_suspend(struct device *dev)
 	int ret;
 	pr_debug("%s\n", __func__);
 
+	if (!gyro || !gyro->client) {
+		pr_err("%s(), Sorry, Gyro driver L3G4200D has not been initialized properly!\n", __func__);
+		return -1;
+	}
+
 	if (gyro->mode == PM_NORMAL) {
 		ret = l3g4200d_set_mode(PM_OFF);
 		if (ret < 0)
@@ -885,6 +917,11 @@ static int l3g4200d_resume(struct device *dev)
 {
 	int ret;
 	pr_debug("%s\n", __func__);
+
+	if (!gyro || !gyro->client) {
+		pr_err("%s(), Sorry, Gyro driver L3G4200D has not been initialized properly!\n", __func__);
+		return -1;
+	}
 
 	if (gyro->mode == PM_NORMAL) {
 		ret = l3g4200d_set_mode(PM_NORMAL);
@@ -953,7 +990,9 @@ static int __devinit l3g4200d_probe(struct i2c_client *client,
 		goto exit_kfree_pdata;
 	}
 
-	if (i2c_smbus_read_byte(client) < 0) {
+	err = i2c_smbus_read_byte(client);
+
+	if (err < 0) {
 		#if DEBUG
 		printk(KERN_ERR "i2c_smbus_read_byte error!!\n");
 		#endif
@@ -972,6 +1011,7 @@ static int __devinit l3g4200d_probe(struct i2c_client *client,
 		#endif
 	} else {
 		data->client = NULL;
+		err = -ENODEV;
 		goto exit_kfree_pdata;
 	}
 
@@ -1011,6 +1051,7 @@ exit_kfree_pdata:
 exit_kfree:
 	kfree(data);
 exit:
+	gyro = NULL;
 	#if DEBUG
 	printk(KERN_ERR "%s: Driver Initialization failed\n", __FILE__);
 	#endif
