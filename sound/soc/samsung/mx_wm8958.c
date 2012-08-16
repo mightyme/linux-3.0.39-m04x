@@ -125,18 +125,21 @@ static int mx_wm8958_aif1_hw_params(struct snd_pcm_substream *substream,
 					SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		return ret;
-
+#ifdef CONFIG_MACH_M030
 	if (machine_is_m030()) {
 		ret = snd_soc_dai_set_pll(codec_dai, WM8994_FLL1, WM8994_FLL_SRC_MCLK1,
 						WM8994_FREQ_12000000, rclk);
 		if (ret < 0)
 			return ret;
 	} else {
+#endif
 		ret = snd_soc_dai_set_pll(codec_dai, WM8994_FLL1, WM8994_FLL_SRC_MCLK1,
 						WM8994_FREQ_24000000, rclk);
 		if (ret < 0)
 			return ret;
+#ifdef CONFIG_MACH_M030
 	}
+#endif
 
 	ret = snd_soc_dai_set_sysclk(cpu_dai, SAMSUNG_I2S_OPCLK,
 					rclk, MOD_OPCLK_PCLK);//select audio bus clock
@@ -279,19 +282,21 @@ static int mx_wm8958_aif2_hw_params(struct snd_pcm_substream *substream,
 				SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		return ret;
-
+#ifdef CONFIG_MACH_M030
 	if (machine_is_m030()) {
 		ret = snd_soc_dai_set_pll(codec_dai, WM8994_FLL2,
 					WM8994_FLL_SRC_MCLK1,
 					WM8994_FREQ_12000000,
 					params_rate(params)*rfs);
-	}
-	else{
+	}else{
+#endif
 		ret = snd_soc_dai_set_pll(codec_dai, WM8994_FLL2,
 					WM8994_FLL_SRC_MCLK1,
 					WM8994_FREQ_24000000,
 					params_rate(params)*rfs);
+#ifdef CONFIG_MACH_M030
 	}
+#endif
 		
 	if (ret < 0)
 		return ret;

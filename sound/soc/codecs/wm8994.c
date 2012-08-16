@@ -43,6 +43,10 @@
 #ifdef CONFIG_SND_SOC_MX_WM8958
 #include "wm8958_path.h"
 #endif
+#ifdef CONFIG_AUDIENCE_ES305B
+#include <linux/es305b_soc.h>
+extern int es305b_setmode(int mode);
+#endif
 #ifdef CONFIG_AUDIENCE_A1028
 #include <linux/a1028_soc.h>
 extern int (*a1028_setmode)(struct a1028_soc *, int);
@@ -360,31 +364,31 @@ static int mx_set_playback_path(struct snd_kcontrol *kcontrol,
 	struct wm8994_priv *wm8958 = snd_soc_codec_get_drvdata(codec);
 	int user_value = ucontrol->value.integer.value[0];
 	int ret = 0;
-	
-	if(ARRAY_SIZE(playback_path_name) <= user_value)
-	{
+
+	if(ARRAY_SIZE(playback_path_name) <= user_value) {
 		printk ("%s:Invalid input\n",__func__);
 		return -EINVAL;
 	}
 
-	printk(KERN_INFO "playback: %s => %s\n", playback_path_name[wm8958->playback_path],playback_path_name[user_value]);	
-	if(wm8958->playback_path != user_value)
-	{
+	printk(KERN_INFO "playback: %s => %s\n", playback_path_name[wm8958->playback_path],playback_path_name[user_value]);
+	if(wm8958->playback_path != user_value) {
 		mutex_lock(&wm8958_setnr_lock);
 		ret = set_playback_path(codec, user_value);	
 		mutex_unlock(&wm8958_setnr_lock);
 		if(ret >= 0)	
 			wm8958->playback_path= user_value;
-	}
-	else
-	{		
-		#ifdef CONFIG_AUDIENCE_A1028
+	} else {	
 		if((wm8958->playback_path >= PLAYBACK_SPK_INCALL && wm8958->playback_path <= PLAYBACK_SPK_HP_INCALL)
 			||(wm8958->playback_path >= PLAYBACK_SPK_VOIP && wm8958->playback_path <= PLAYBACK_SPK_HP_VOIP)
 			|| wm8958->playback_path == PLAYBACK_BT_INCALL
-			|| wm8958->playback_path == PLAYBACK_BT_VOIP)
-		a1028_setmode(NULL,A1028_LASTMODE);
-		#endif
+			|| wm8958->playback_path == PLAYBACK_BT_VOIP){
+#ifdef CONFIG_AUDIENCE_ES305B
+			es305b_setmode(ES305B_LASTMODE);
+#endif
+#ifdef CONFIG_AUDIENCE_A1028
+			a1028_setmode(NULL,A1028_LASTMODE);
+#endif
+		}
 	}
 	return ret;
 }
@@ -407,15 +411,13 @@ static int mx_set_capture_path(struct snd_kcontrol *kcontrol,
 	int user_value = ucontrol->value.integer.value[0];
 	int ret = 0;
 
-	if(ARRAY_SIZE(capture_path_name) <= user_value)
-	{
+	if(ARRAY_SIZE(capture_path_name) <= user_value) {
 		printk ("%s:Invalid input\n",__func__);
 		return -EINVAL;
 	}
-	
-	printk(KERN_INFO "%s(): path => %s\n", __func__,capture_path_name[user_value]);	
-	if(wm8958->capture_path != user_value)
-	{
+
+	printk(KERN_INFO "%s(): path => %s\n", __func__,capture_path_name[user_value]);
+	if(wm8958->capture_path != user_value) {
 		ret = set_capture_path(codec,user_value);
 		if(ret >= 0)
 			wm8958->capture_path= user_value;
@@ -625,9 +627,8 @@ static ssize_t wm8958_show_property(struct device *dev,
 	unsigned int reg,value;
 	struct snd_soc_codec *codec;
 	ptrdiff_t off;
-	
-	if(!wm8994_codec)
-	{
+
+	if(!wm8994_codec) {
 		pr_err("%s(): failed!!!\n", __func__);
 		return -ENODEV;
 	}
@@ -638,16 +639,14 @@ static ssize_t wm8958_show_property(struct device *dev,
 	switch(off){
 	case WM8958_LOOPBACK_AIF2:
 		i = scnprintf(buf+i, PAGE_SIZE-i, "%d\n",snd_soc_read(codec, WM8994_AIF2_CONTROL_2)&WM8994_AIF2_LOOPBACK_MASK);
-		break;	
+		break;
 	case WM8958_REG_PROGRAM:
-		for(reg=0; reg<WM8994_CACHE_SIZE; reg++)
-		{
-			value = snd_soc_read(codec, reg);				
+		for(reg=0; reg<WM8994_CACHE_SIZE; reg++) {
+			value = snd_soc_read(codec, reg);
 			printk("Codec Reg 0x%.4X = 0x%.4X\n", reg,value);
 		}
-		for(reg=WM8994_GPIO_1; reg<= WM8994_GPIO_11; reg++)
-		{
-			value = snd_soc_read(codec, reg);				
+		for(reg=WM8994_GPIO_1; reg<= WM8994_GPIO_11; reg++) {
+			value = snd_soc_read(codec, reg);
 			printk("Codec Reg 0x%.4X = 0x%.4X\n", reg,value);
 		}
 		i += scnprintf(buf+i, PAGE_SIZE-i, "End Read\n");
@@ -671,9 +670,8 @@ static ssize_t wm8958_store(struct device *dev,
 	int ret = 0;
 	struct snd_soc_codec *codec;
 	ptrdiff_t off;
-	
-	if(!wm8994_codec)
-	{
+
+	if(!wm8994_codec) {
 		pr_err("%s(): failed!!!\n", __func__);
 		return -ENODEV;
 	}
@@ -2446,7 +2444,10 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 			wm8994->cur_fw = NULL;
 
 			pm_runtime_put(codec->dev);
-		#ifdef CONFIG_AUDIENCE_A1028
+#ifdef CONFIG_AUDIENCE_ES305B
+			es305b_setmode(ES305B_SUSPEND);
+#endif
+#ifdef CONFIG_AUDIENCE_A1028
 			a1028_setmode(NULL,A1028_SUSPEND);
 		#endif
 		}

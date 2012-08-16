@@ -25,6 +25,10 @@
 #ifdef CONFIG_SND_SOC_MX_WM8958
 #include "wm8958_path.h"
 
+#ifdef CONFIG_AUDIENCE_ES305B
+#include <linux/es305b_soc.h>
+extern int es305b_setmode(int mode);
+#endif
 #ifdef CONFIG_AUDIENCE_A1028
 #include <linux/a1028_soc.h>
 extern int (*a1028_setmode)(struct a1028_soc *, int);
@@ -504,6 +508,7 @@ void OpenAIF2(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, WM8994_CLOCKING_1,WM8994_SYSCLK_SRC_MASK, 0x00);// Set the core clock source to AIF1CLK
 	
 	// FLL2 Setting
+#ifdef CONFIG_MACH_M030
 	if(machine_is_m030()){
 		snd_soc_write(codec, WM8994_AIF2_RATE, 0x0005 );		// AIF2 Sample Rate = 8 kHz, AIF2CLK/Fs ratio = 512
 		snd_soc_write(codec,WM8994_FLL2_CONTROL_1, 0);			// Disable the FLL while reconfiguring 
@@ -513,6 +518,7 @@ void OpenAIF2(struct snd_soc_codec *codec)
 		snd_soc_write(codec,WM8994_FLL2_CONTROL_5, 0x0C80 );	
 		snd_soc_write(codec,WM8994_FLL2_CONTROL_1, WM8994_FLL2_ENA);	
 	}else{
+#endif
 		snd_soc_write(codec, WM8994_AIF2_RATE, 0x0001 );		// AIF2 Sample Rate = 8 kHz, AIF2CLK/Fs ratio = 128
 		snd_soc_write(codec,WM8994_FLL2_CONTROL_1, 0);			// Disable the FLL while reconfiguring 
 		snd_soc_write(codec,WM8994_FLL2_CONTROL_2, 0x2F01 );		// FLL2 Control (2)(241H):  2F01  FLL2_OUTDIV=48, FLL2_FRATIO=2
@@ -520,7 +526,9 @@ void OpenAIF2(struct snd_soc_codec *codec)
 		snd_soc_write(codec,WM8994_FLL2_CONTROL_4, 0x1740 );		// FLL2 Control (4)(243H):  1740  FLL2_N=186
 		snd_soc_write(codec,WM8994_FLL2_CONTROL_5, 0x0C83 );		// FLL2 Control (5)(244H):  0C83  FLL2_BYP=FLL2, FLL2_FRC_NCO_VAL=01_1001, FLL2_FRC_NCO=0, FLL2_REFCLK_DIV=MCLK / 1, FLL2_REFCLK_SRC=BCLK2
 		snd_soc_write(codec,WM8994_FLL2_CONTROL_1, WM8994_FLL2_ENA);	
+#ifdef CONFIG_MACH_M030
 	}
+#endif
 	snd_soc_write(codec,WM8994_AIF2_CLOCKING_1, 0x0019 );	// Enable AIF2 Clock, AIF2 Clock Source = FLL2/BCLK2
 	
 	// Unmutes
@@ -558,6 +566,9 @@ void CloseAIF2(struct snd_soc_codec *codec)
 	
 	snd_soc_update_bits(codec, WM8994_AIF2_CLOCKING_1,WM8994_AIF2CLK_ENA_MASK, 0x00); // Disable AIF2 Clock
 
+#ifdef CONFIG_AUDIENCE_ES305B
+	es305b_setmode(ES305B_SUSPEND);
+#endif
 #ifdef CONFIG_AUDIENCE_A1028
 	//a1028_setmode(NULL,A1028_SUSPEND);
 #endif
@@ -664,7 +675,10 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetAIF3_2_AIF2(codec,false);
 		OpenAIF2(codec);
 		audio_switch(SWTICH_TO_BB);	
-		#ifdef CONFIG_AUDIENCE_A1028
+#ifdef CONFIG_AUDIENCE_ES305B
+		es305b_setmode(ES305B_INCALL_SPEAKER_NB);
+#endif
+#ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_SPEAKER);
 		#endif	
 		SetVolume_Incall(codec);
@@ -678,7 +692,10 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetAIF3_2_AIF2(codec,false);
 		OpenAIF2(codec);
 		audio_switch(SWTICH_TO_BB);		
-		#ifdef CONFIG_AUDIENCE_A1028
+#ifdef CONFIG_AUDIENCE_ES305B
+		es305b_setmode(ES305B_INCALL_SPEAKER_NB);
+#endif
+#ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_SPEAKER);
 		#endif
 		SetVolume_Incall(codec);
@@ -691,7 +708,10 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetAIF3_2_AIF2(codec,false);
 		OpenAIF2(codec);
 		audio_switch(SWTICH_TO_BB);
-		#ifdef CONFIG_AUDIENCE_A1028
+#ifdef CONFIG_AUDIENCE_ES305B
+		es305b_setmode(ES305B_INCALL_HEADPHONE_NB);
+#endif
+#ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_HEADSET);
 		#endif
 		SetVolume_Incall(codec);
@@ -704,7 +724,10 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetAIF3_2_AIF2(codec,false);
 		OpenAIF2(codec);
 		audio_switch(SWTICH_TO_BB);
-		#ifdef CONFIG_AUDIENCE_A1028
+#ifdef CONFIG_AUDIENCE_ES305B
+		es305b_setmode(ES305B_INCALL_HEADPHONE_NB);
+#endif
+#ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_HEADSET);
 		#endif
 		SetVolume_Incall(codec);
@@ -717,7 +740,10 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetAIF3_2_AIF2(codec,false);
 		OpenAIF2(codec);
 		audio_switch(SWTICH_TO_BB);	
-		#ifdef CONFIG_AUDIENCE_A1028
+#ifdef CONFIG_AUDIENCE_ES305B
+		es305b_setmode(ES305B_INCALL_HEADPHONE_NB);
+#endif
+#ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_HEADSET);
 		#endif	
 		SetVolume_Incall(codec);
@@ -731,7 +757,10 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetAIF3_2_AIF2(codec,false);
 		OpenAIF2(codec);
 		audio_switch(SWTICH_TO_BB);	
-		#ifdef CONFIG_AUDIENCE_A1028
+#ifdef CONFIG_AUDIENCE_ES305B
+		es305b_setmode(ES305B_INCALL_RECEIVER_NB);
+#endif
+#ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_RECEIVER);
 		#endif
 		SetVolume_Incall(codec);
@@ -744,7 +773,10 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		OpenAIF2(codec);
 		SetAIF3_2_AIF2(codec,true);
 		audio_switch(SWTICH_TO_BB);	
-		#ifdef CONFIG_AUDIENCE_A1028
+#ifdef CONFIG_AUDIENCE_ES305B
+		es305b_setmode(ES305B_INCALL_BT);
+#endif
+#ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_BT);
 		#endif
 		
@@ -752,7 +784,10 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 				
 	case PLAYBACK_SPK_HP_VOIP:
 		audio_switch(SWTICH_TO_AP);		
-		#ifdef CONFIG_AUDIENCE_A1028
+#ifdef CONFIG_AUDIENCE_ES305B
+		es305b_setmode(ES305B_VOIP_SPEAKER_NB);
+#endif
+#ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_SPEAKER);
 		#endif
 		SetAIF3_2_AIF2(codec,false);
@@ -765,7 +800,10 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		
 	case PLAYBACK_SPK_VOIP:
 		audio_switch(SWTICH_TO_AP);		
-		#ifdef CONFIG_AUDIENCE_A1028
+#ifdef CONFIG_AUDIENCE_ES305B
+		es305b_setmode(ES305B_VOIP_SPEAKER_NB);
+#endif
+#ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_SPEAKER);
 		#endif
 		SetAIF3_2_AIF2(codec,false);
@@ -776,7 +814,10 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		break;
 	case PLAYBACK_HP_VOIP:
 		audio_switch(SWTICH_TO_AP);
-		#ifdef CONFIG_AUDIENCE_A1028
+#ifdef CONFIG_AUDIENCE_ES305B
+		es305b_setmode(ES305B_VOIP_HEADPHONE_NB);
+#endif
+#ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_HEADSET);
 		#endif
 		SetAIF3_2_AIF2(codec,false);
@@ -788,7 +829,10 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 			
 	case PLAYBACK_HS_VOIP:
 		audio_switch(SWTICH_TO_AP);
-		#ifdef CONFIG_AUDIENCE_A1028
+#ifdef CONFIG_AUDIENCE_ES305B
+		es305b_setmode(ES305B_VOIP_HEADPHONE_NB);
+#endif
+#ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_HEADSET);
 		#endif
 		SetAIF3_2_AIF2(codec,false);
@@ -800,7 +844,10 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 
 	case PLAYBACK_SPK_HS_VOIP:	
 		audio_switch(SWTICH_TO_AP);		
-		#ifdef CONFIG_AUDIENCE_A1028
+#ifdef CONFIG_AUDIENCE_ES305B
+		es305b_setmode(ES305B_VOIP_HEADPHONE_NB);
+#endif
+#ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_HEADSET);
 		#endif
 		SetAIF3_2_AIF2(codec,false);
@@ -814,7 +861,10 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 
 	case PLAYBACK_REC_VOIP:	
 		audio_switch(SWTICH_TO_AP);	
-		#ifdef CONFIG_AUDIENCE_A1028
+#ifdef CONFIG_AUDIENCE_ES305B
+		es305b_setmode(ES305B_VOIP_RECEIVER_NB);
+#endif
+#ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_RECEIVER);
 		#endif
 		SetAIF3_2_AIF2(codec,false);
@@ -827,7 +877,10 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 	case PLAYBACK_BT_VOIP:	
 		audio_switch(SWTICH_TO_AP);	
 		SetAIF3_2_AIF2(codec,true);
-		#ifdef CONFIG_AUDIENCE_A1028
+#ifdef CONFIG_AUDIENCE_ES305B
+		es305b_setmode(ES305B_VOIP_BT);
+#endif
+#ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_BT);
 		#endif
 		
