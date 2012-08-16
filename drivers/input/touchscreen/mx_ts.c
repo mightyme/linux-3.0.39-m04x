@@ -1587,6 +1587,15 @@ static int __devinit mxt_probe(struct i2c_client *client,
 	error = mxt_initialize(data);
 	if (error)
 		goto err_free_object;
+	
+#ifdef	CONFIG_RMI4_I2C     
+	if(1)
+	{
+		mxt_make_highchg(data);
+		mxt_stop(data);
+		goto err_free_object;
+	}
+#endif
 
 	error = request_threaded_irq(client->irq, NULL, mxt_interrupt,
 			pdata->irqflags, client->dev.driver->name, data);
