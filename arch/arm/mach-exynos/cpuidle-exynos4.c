@@ -332,6 +332,17 @@ extern int srp_get_op_level(void);	/* By srp driver */
 extern int check_bt_running(void);
 #endif
 
+#ifdef CONFIG_BRCM_GPS
+static inline int check_gps_running(void)
+{
+	extern int gps_is_running;
+
+	return gps_is_running;
+}
+#else
+#define check_gps_running()	(0)
+#endif
+
 static int exynos4_check_operation(void)
 {
 	if (check_power_domain())
@@ -359,6 +370,8 @@ static int exynos4_check_operation(void)
 	if (check_bt_running())
 		return 1;
 #endif
+	if (check_gps_running())
+		return 1;
 
 	return 0;
 }

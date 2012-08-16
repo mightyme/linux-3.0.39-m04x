@@ -122,6 +122,7 @@ obj-$(CONFIG_WAKEUP_ASSIST)		+= wakeup_assist.o
 obj-$(CONFIG_ION_EXYNOS)		+= dev-ion.o
 obj-$(CONFIG_EXYNOS_C2C)		+= setup-c2c.o
 obj-$(CONFIG_UBLOX_GPS)			+= ublox-gps.o
+obj-$(CONFIG_BRCM_GPS)			+= brcm-gps.o
 ifeq ($(CONFIG_MX_SERIAL_TYPE),y)
 obj-$(CONFIG_BT)			+= mx-rfkill.o
 obj-$(CONFIG_BCM4329)			+= mx-wifi.o

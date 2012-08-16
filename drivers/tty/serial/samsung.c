@@ -352,17 +352,24 @@ static void s3c24xx_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
 	/* todo - possibly remove AFC and do manual CTS */
 #if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
-	/* uart2 and uart3 do not support AFC feature */
+	unsigned int umcon = 0;
+	umcon = rd_regl(port, S3C2410_UMCON);
+
+	/* uart2 and uart3 do not support AFC feature ?? */
 	if (port->line == 0 || port->line == 1) {
-		unsigned int umcon = 0;
-		umcon = rd_regl(port, S3C2410_UMCON);
 		if (mctrl & TIOCM_RTS)
 			umcon |= S3C2410_UMCOM_AFC;
 		else
 			umcon &= ~(S3C2410_UMCOM_AFC | S3C2410_UMCOM_RTS_LOW);
-
-		wr_regl(port, S3C2410_UMCON, umcon);
+#if defined(CONFIG_MACH_M040)
+	} else if (port->line == 2) {	/* enable AFC for gps on m040 */
+		umcon |= S3C2410_UMCOM_AFC;
+#endif
+	} else {
+		umcon &= ~S3C2410_UMCOM_AFC;
 	}
+
+	wr_regl(port, S3C2410_UMCON, umcon);
 #endif
 }
 
@@ -385,6 +392,16 @@ static void s3c24xx_serial_break_ctl(struct uart_port *port, int break_state)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
+static inline int set_gps_uart_op(int onoff)
+{
+#ifdef CONFIG_BRCM_GPS
+	extern int gps_is_running;
+
+	gps_is_running = onoff;
+#endif
+	return 0;
+}
+
 static void s3c24xx_serial_shutdown(struct uart_port *port)
 {
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
@@ -402,6 +419,9 @@ static void s3c24xx_serial_shutdown(struct uart_port *port)
 		ourport->rx_claimed = 0;
 		rx_enabled(port) = 0;
 	}
+
+	if (s3c24xx_port_to_cfg(port)->hwport == 2)
+		set_gps_uart_op(0);
 }
 
 
@@ -412,6 +432,9 @@ static int s3c24xx_serial_startup(struct uart_port *port)
 
 	dbg("s3c24xx_serial_startup: port=%p (%08lx,%p)\n",
 	    port, port->mapbase, port->membase);
+
+	if (s3c24xx_port_to_cfg(port)->hwport == 2)
+		set_gps_uart_op(1);
 
 	rx_enabled(port) = 1;
 

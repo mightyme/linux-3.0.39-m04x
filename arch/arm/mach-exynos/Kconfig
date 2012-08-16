@@ -822,6 +822,12 @@ config UBLOX_GPS
 	help
          control uart2 to use for ublox gps
 
+config BRCM_GPS
+	bool "Broadcom47511 gps support"
+	depends on MX2_SERIAL_TYPE
+	help
+         control uart2 to use for broadcom gps
+
 menu "MMC/SD slot setup"
 depends on PLAT_S5P
 
