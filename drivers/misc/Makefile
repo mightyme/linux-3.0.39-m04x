@@ -54,7 +54,8 @@ obj-$(CONFIG_SENSORS_AK8975)	+= akm8975.o
 obj-$(CONFIG_SAMSUNG_C2C)	+= c2c/
 
 obj-$(CONFIG_SENSORS_GP2AP020A00F)   += mx_gp2ap.o
-obj-$(CONFIG_SENSORS_AKM8975C) += mx_akm8975.o
-obj-$(CONFIG_SENSORS_LIS3DH) += mx_lis3dh.o
-obj-$(CONFIG_SENSORS_L3G4200D)   += mx_l3g4200d.o
+obj-$(CONFIG_SENSORS_AKM8975C)       += mx_akm8975.o
+obj-$(CONFIG_SENSORS_AKM8963N)       += mx_akm8963.o
+obj-$(CONFIG_SENSORS_LIS3DH)         += mx_lis3dh.o
+obj-$(CONFIG_SENSORS_L3G4200D)       += mx_l3g4200d.o
 obj-$(CONFIG_MAX77665A_MUIC)         += max77665a-muic.o 
