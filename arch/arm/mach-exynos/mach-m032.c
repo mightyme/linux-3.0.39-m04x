@@ -87,7 +87,8 @@
 #include <mach/mx_battery.h>
 #endif
 
-#include "m032_regulator.c"
+#include <mach/m032_regulator.h>
+#include <mach/m032_regulator_fixed.h>
 
 extern void __init mx_reserve_mem(void);
 

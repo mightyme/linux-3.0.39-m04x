@@ -16,14 +16,16 @@
 #include <linux/i2c-gpio.h>
 #include <linux/input.h>
 #include <linux/regulator/machine.h>
+#ifdef CONFIG_REGULATOR_FIXED_VOLTAGE
 #include <linux/regulator/fixed.h>
-#include <linux/regulator/fixed-m030.h>
+#include <mach/m030_regulator_fixed.h>
+#endif
 #include <linux/memblock.h>
 #include <linux/delay.h>
 #include <linux/cma.h>
 #ifdef CONFIG_REGULATOR_MAX8997
 #include <linux/mfd/max8997.h>
-#include <linux/mfd/max8997-m030.h>
+#include <mach/m030_regulator.h>
 #endif
 #ifdef CONFIG_BATTERY_MX
 #include <mach/mx_battery.h>
