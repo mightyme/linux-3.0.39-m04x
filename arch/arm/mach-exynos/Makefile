@@ -125,7 +125,7 @@ obj-$(CONFIG_UBLOX_GPS)			+= ublox-gps.o
 obj-$(CONFIG_BT)					+= mx-rfkill.o
 obj-$(CONFIG_BCM4329)			+= mx-wifi.o
 
-obj-$(CONFIG_MX2_SERIAL_TYPE)	+= mx2_cma.o
+obj-$(CONFIG_MX2_SERIAL_TYPE)	+= mx2_cma.o mx2_fb.o mx2_tsp.o
 
 obj-$(CONFIG_MX_SERIAL_TYPE)		+= mx_fb.o mx_camera.o mx_cma.o mx_tsp.o mx_mshci.o mx_tvout.o
 obj-$(CONFIG_MX_SERIAL_TYPE)		+= mx_leds.o mx_factory.o mx_ehci.o

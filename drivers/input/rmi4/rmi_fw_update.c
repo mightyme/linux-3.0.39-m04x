@@ -614,7 +614,7 @@ void rmi4_fw_update(struct rmi_device *rmi_dev,
 		return;
 	}
 	snprintf(firmware_name, sizeof(firmware_name), "rmi4/%s.img",
-			img_name ? img_name : data.product_id);
+			img_name ? img_name : (char*)data.product_id);
 	dev_info(&rmi_dev->dev, "Requesting %s.\n", firmware_name);
 	retval = request_firmware(&fw_entry, firmware_name, &rmi_dev->dev);
 	if (retval != 0) {
