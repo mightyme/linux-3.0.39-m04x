@@ -18,6 +18,8 @@
 #include <linux/led-lm3530.h>
 #include <linux/types.h>
 #include <linux/regulator/consumer.h>
+#include <linux/gpio.h>
+#include <linux/earlysuspend.h>
 
 #define LM3530_LED_DEV "lcd-backlight"
 #define LM3530_NAME "lm3530-led"
@@ -109,6 +111,11 @@ struct lm3530_data {
 	struct regulator *regulator;
 	enum led_brightness brightness;
 	bool enable;
+	struct mutex mutex_lock;
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	atomic_t suspended;
+	struct early_suspend early_suspend;
+#endif
 };
 
 static const u8 lm3530_reg[LM3530_REG_MAX] = {
@@ -227,6 +234,14 @@ static void lm3530_brightness_set(struct led_classdev *led_cdev,
 	struct lm3530_data *drvdata =
 	    container_of(led_cdev, struct lm3530_data, led_dev);
 
+//	pr_info("%s brt %d mode %d\n", __func__, brt_val, drvdata->mode);
+	mutex_lock(&drvdata->mutex_lock);
+	if (atomic_read(&drvdata->suspended)) {
+		drvdata->brightness = brt_val;
+		mutex_unlock(&drvdata->mutex_lock);
+		return;
+	}
+
 	switch (drvdata->mode) {
 	case LM3530_BL_MODE_MANUAL:
 
@@ -241,12 +256,12 @@ static void lm3530_brightness_set(struct led_classdev *led_cdev,
 
 		/* set the brightness in brightness control register*/
 		err = i2c_smbus_write_byte_data(drvdata->client,
-				LM3530_BRT_CTRL_REG, brt_val / 2);
+				LM3530_BRT_CTRL_REG, brt_val/2);
 		if (err)
 			dev_err(&drvdata->client->dev,
 				"Unable to set brightness: %d\n", err);
 		else
-			drvdata->brightness = brt_val / 2;
+			drvdata->brightness = brt_val;
 
 		if (brt_val == 0) {
 			err = regulator_disable(drvdata->regulator);
@@ -263,6 +278,8 @@ static void lm3530_brightness_set(struct led_classdev *led_cdev,
 	default:
 		break;
 	}
+
+	mutex_unlock(&drvdata->mutex_lock);
 }
 
 
@@ -301,6 +318,42 @@ static ssize_t lm3530_mode_set(struct device *dev, struct device_attribute
 
 static DEVICE_ATTR(mode, 0644, NULL, lm3530_mode_set);
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void lm3530_early_suspend(struct early_suspend *h)
+{
+	struct lm3530_data *drvdata = container_of(h, struct lm3530_data, early_suspend);
+	int err;
+
+	mutex_lock(&drvdata->mutex_lock);
+
+	atomic_set(&drvdata->suspended, 1);
+
+	if (drvdata->brightness != 0) {
+		err = i2c_smbus_write_byte_data(drvdata->client,
+				LM3530_BRT_CTRL_REG, 0);
+		if (err)
+			dev_err(&drvdata->client->dev,
+					"Unable to set brightness: %d\n", err);
+
+		drvdata->brightness = 0;
+
+		err = regulator_disable(drvdata->regulator);
+		if (err)
+			dev_err(&drvdata->client->dev,
+					"Disable regulator failed\n");
+		drvdata->enable = false;
+	}
+	mutex_unlock(&drvdata->mutex_lock);
+}
+
+static void lm3530_late_resume(struct early_suspend *h)
+{
+	struct lm3530_data *drvdata = container_of(h, struct lm3530_data, early_suspend);
+
+	atomic_set(&drvdata->suspended, 0);
+	lm3530_brightness_set(&drvdata->led_dev,drvdata->brightness);
+}
+#endif
 static int __devinit lm3530_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
 {
@@ -341,9 +394,11 @@ static int __devinit lm3530_probe(struct i2c_client *client,
 	drvdata->led_dev.name = LM3530_LED_DEV;
 	drvdata->led_dev.brightness_set = lm3530_brightness_set;
 
+	mutex_init(&drvdata->mutex_lock);
+
 	i2c_set_clientdata(client, drvdata);
 
-	drvdata->regulator = regulator_get(&client->dev, "vin");
+	drvdata->regulator = regulator_get(NULL, "lcd-backlight");
 	if (IS_ERR(drvdata->regulator)) {
 		dev_err(&client->dev, "regulator get failed\n");
 		err = PTR_ERR(drvdata->regulator);
@@ -373,6 +428,13 @@ static int __devinit lm3530_probe(struct i2c_client *client,
 		err = -ENODEV;
 		goto err_create_file;
 	}
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	atomic_set(&drvdata->suspended, 0);
+	drvdata->early_suspend.suspend = lm3530_early_suspend;
+	drvdata->early_suspend.resume = lm3530_late_resume;
+	drvdata->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
+	register_early_suspend(&drvdata->early_suspend);
+#endif
 
 	return 0;
 
