@@ -771,10 +771,10 @@ static void akm8963_create_input(struct akm8963_data *akm)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void akm8963_early_suspend(struct early_suspend *handler)
 {
-	AKMFUNC("akm8963_early_suspend");
 	struct akm8963_data *akm = container_of(handler, struct akm8963_data, 
 			akm_early_suspend);
 
+	AKMFUNC("akm8963_early_suspend");
 	atomic_set(&suspend_flag, 1);
 	atomic_set(&akm->reserve_open_flag, atomic_read(&akm->open_flag));
 	atomic_set(&akm->open_flag, 0);
@@ -785,10 +785,10 @@ static void akm8963_early_suspend(struct early_suspend *handler)
 
 static void akm8963_early_resume(struct early_suspend *handler)
 {
-	AKMFUNC("akm8963_early_resume");
 	struct akm8963_data *akm = container_of(handler, struct akm8963_data,
 		       	akm_early_suspend);
 	
+	AKMFUNC("akm8963_early_resume");
 	atomic_set(&akm->open_flag, atomic_read(&akm->reserve_open_flag));
 	wake_up(&akm->open_wq);
 	AKMDBG("resumed with flag=%d", 
