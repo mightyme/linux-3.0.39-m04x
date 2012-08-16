@@ -268,7 +268,7 @@ static int fimc_init_camera(struct fimc_control *ctrl)
 	struct s3c_platform_fimc *pdata;
 	struct s3c_platform_camera *cam;
 	int ret = 0;
-#if !defined (CONFIG_MX_SERIAL_TYPE) && !defined(CONFIG_MX2_SERIAL_TYPE)
+#if !(defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE))
 	int retry_cnt = 0;
 	struct fimc_global *fimc = get_fimc_dev();
 #endif
@@ -748,7 +748,7 @@ int fimc_release_subdev(struct fimc_control *ctrl)
 	struct fimc_global *fimc = get_fimc_dev();
 	struct s3c_platform_fimc *pdata = to_fimc_plat(ctrl->dev);
 	int ret;
-#if !defined (CONFIG_MX_SERIAL_TYPE) && !defined(CONFIG_MX2_SERIAL_TYPE)
+#if !(defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE))
 	struct i2c_client *client;
 #endif
 
@@ -801,7 +801,7 @@ int fimc_release_subdev(struct fimc_control *ctrl)
 {
 	int ret = 0;
 #if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
-	ctrl->cam->sd = fimc_get_cam_subdev(ctrl->cam->info->type);
+	ctrl->cam->sd = get_v4l2_i2c_subdev(ctrl->cam->info->type);
 #else
 	struct i2c_adapter *i2c_adap;
 	struct i2c_board_info *i2c_info;

@@ -2268,11 +2268,11 @@ static int mmc_blk_probe(struct mmc_card *card)
 		}
 	} else if (machine_is_m031() || machine_is_m032()) {
 		for (i = 0; i < 7; i++) {
-			hd = add_partition(md->disk, i + 5, bootinfo.part_info[i].start_sec,
-					bootinfo.part_info[i].sec_num, ADDPART_FLAG_NONE, NULL);
+			hd = add_partition(md->disk, i + 5, bootinfo.partinfo[i].start_sec,
+					bootinfo.partinfo[i].sec_num, ADDPART_FLAG_NONE, NULL);
 			printk("add extra partion at mmcblk0p%d, \
 					start_sec = %u, sec_num = %u\n", \
-					i + 5, bootinfo.part_info[i].start_sec, bootinfo.part_info[i].sec_num);
+					i + 5, bootinfo.partinfo[i].start_sec, bootinfo.partinfo[i].sec_num);
 		}
 	}
 #else
@@ -2282,11 +2282,11 @@ static int mmc_blk_probe(struct mmc_card *card)
 			hd = add_partition(md->disk, 5, extra_partition[0].start_sec,
 							extra_partition[0].sec_num, ADDPART_FLAG_NONE, NULL);
 	} else if (machine_is_m031() || machine_is_m032()) {
-		hd = add_partition(md->disk, 5, bootinfo.part_info[0].start_sec,
-				bootinfo.part_info[0].sec_num, ADDPART_FLAG_NONE, NULL);
+		hd = add_partition(md->disk, 5, bootinfo.partinfo[0].start_sec,
+				bootinfo.partinfo[0].sec_num, ADDPART_FLAG_NONE, NULL);
 		printk("add extra partion at mmcblk0p%d, \
 				start_sec = %u, sec_num = %u\n", \
-				5, bootinfo.part_info[0].start_sec, bootinfo.part_info[0].sec_num);
+				5, bootinfo.partinfo[0].start_sec, bootinfo.partinfo[0].sec_num);
 	}
 #endif
 
