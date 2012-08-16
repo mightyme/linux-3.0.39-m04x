@@ -216,10 +216,12 @@ static void max77665_work_func(struct work_struct *work)
 	struct max77665_charger *charger =
 		container_of(work, struct max77665_charger, dwork.work);
 	enum cable_status_t cable_status = CABLE_TYPE_NONE;
+	enum cable_status_t last_cable_status = charger->cable_status;
 
 	mutex_lock(&charger->mutex_t);
 
 	if (charger->chgin) {
+#ifndef CONFIG_MACH_M040
 		if(mx_is_usb_dock_insert()) {
 			pr_info("found dock inserted, treat it as AC\n");
 			cable_status = CABLE_TYPE_AC;
@@ -234,8 +236,26 @@ static void max77665_work_func(struct work_struct *work)
 				}
 			}
 		}
+#else
+		do {
+			u8 reg_data;
+			max77665_read_reg(charger->iodev->muic, MAX77665_MUIC_REG_CDETCTRL1, &reg_data);
+			max77665_write_reg(charger->iodev->muic, MAX77665_MUIC_REG_CDETCTRL1, reg_data | 0x02);
+			pr_info("#############usb start detect\n");
+			msleep(500);
+
+			max77665_read_reg(charger->iodev->muic, MAX77665_MUIC_REG_STATUS2, &reg_data);
+			pr_info("#############usb end detect (0x%02x)\n", reg_data);
+			if((reg_data & 0x07) == 0x01) {
+				cable_status = CABLE_TYPE_USB;
+				charger->usb_attach(true);
+			} else {
+				cable_status = CABLE_TYPE_AC;
+			}
+		} while(0);
+#endif
 	} else {
-		charger->cable_status = CABLE_TYPE_NONE;
+		cable_status = CABLE_TYPE_NONE;
 	}
 
 	charger->cable_status = cable_status;
@@ -451,12 +471,14 @@ static __devinit int max77665_init(struct max77665_charger *charger)
 		goto error;
 	}
 
+#ifndef CONFIG_MACH_M040
 	/* disable muic ctrl */
 	ret = max77665_write_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_00, 0x24);
 	if (unlikely(ret)) {
 		dev_err(charger->dev, "Failed to set MAX77665_CHG_REG_CHG_CNFG_00: %d\n", ret);
 		goto error;
 	}
+#endif
 
 	// Maximum Input Current Limit Selection.
 	pdata->chgin_ilim_usb = min(MAX_USB_CURRENT, pdata->chgin_ilim_usb);

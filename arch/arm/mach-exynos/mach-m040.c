@@ -90,8 +90,8 @@
 #include <plat/jpeg.h>
 #include <plat/sdhci.h>
 #include <plat/mshci.h>
-#ifdef CONFIG_BATTERY_MEIZU
-#include <mach/meizu_battery.h>
+#ifdef CONFIG_BATTERY_MX
+#include <mach/mx_battery.h>
 #endif
 #include <mach/m040_regulator.h>
 #include <mach/m040_regulator_fixed.h>
@@ -550,14 +550,14 @@ static struct i2c_board_info __initdata i2c_devs11[]  = {
 #endif
 };
 
-#if defined(CONFIG_BATTERY_MEIZU)
-static struct meizu_bat_platform_data m040_bat_pdata = {
+#if defined(CONFIG_BATTERY_MX)
+static struct mx_bat_platform_data m040_bat_pdata = {
 	.fuel_gauge_name	= "fuelgauge",
 	.charger_name		= "charger",
 };
 
 static struct platform_device m040_battery_device = {
-	.name = "meizu-battery",
+	.name = "m032-battery",
 	.id = -1,
 	.dev.platform_data = &m040_bat_pdata,
 };
@@ -1085,7 +1085,7 @@ static struct platform_device __initdata *m040_devices[]  = {
 	&s5p_device_rotator,
 #endif
 
-#if defined(CONFIG_BATTERY_MEIZU)
+#if defined(CONFIG_BATTERY_MX)
 	&m040_battery_device,
 #endif
 };
