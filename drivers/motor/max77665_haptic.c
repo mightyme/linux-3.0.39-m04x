@@ -67,7 +67,8 @@ struct haptic_data {
 	u16 duty;
 	u16 period;
 };
-
+#ifndef CONFIG_MACH_M040
+/* this function is useless when external pwm is applied*/
 static int haptic_clk_on(struct device *dev, bool en)
 {
 	struct clk *vibetonz_clk = NULL;
@@ -93,7 +94,7 @@ err_clk_get:
 	clk_put(vibetonz_clk);
 	return -EINVAL;
 }
-
+#endif
 static int max77665_haptic_on(struct haptic_data *chip, bool en)
 {
 	int ret = 0;
@@ -230,8 +231,10 @@ static __devinit int max77665_haptic_probe(struct platform_device *pdev)
 	ret = max77665_write_reg(chip->client,
 				 MAX77665_HAPTIC_REG_CONFIG2, config);
 	/* init done */
+#ifndef CONFIG_MACH_M040
+	/*comment the function call for better performance*/
 	haptic_clk_on(chip->dev, true);
-
+#endif
 	chip->name = "vibrator";
 	chip->max_timeout = MAX_TIMEOUT;
 	chip->tdev.name = chip->name;
@@ -275,14 +278,20 @@ static int max77665_haptic_suspend(struct device *dev)
 	struct haptic_data *chip = dev_get_drvdata(dev);
 	hrtimer_cancel(&chip->timer);
 	max77665_haptic_on(chip, false);
+#ifndef CONFIG_MACH_M040
+	/*comment the function call for better performance*/
 	haptic_clk_on(chip->dev, false);
+#endif
 	return 0;
 }
 
 static int max77665_haptic_resume(struct device *dev)
 {
 	struct haptic_data *chip = dev_get_drvdata(dev);
+#ifndef CONFIG_MACH_M040
+	/*comment the function call for better performance*/
 	haptic_clk_on(chip->dev, true);
+#endif
 	return 0;
 }
 
