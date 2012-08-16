@@ -373,8 +373,8 @@ static int s5p_mipi_probe(struct platform_device *pdev)
 	struct mipi_dsim_lcd_driver *dsim_lcd_drv;
 	int ret = -1;
 
-	if (mx_is_factory_test_mode(MX_FACTORY_TEST_ALL))
-		return 0;
+//	if (mx_is_factory_test_mode(MX_FACTORY_TEST_ALL))
+//		return 0;
 	
 	dsim = kzalloc(sizeof(struct mipi_dsim_device), GFP_KERNEL);
 	if (!dsim) {
