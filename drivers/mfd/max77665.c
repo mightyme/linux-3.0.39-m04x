@@ -33,16 +33,18 @@
 #include <linux/mfd/max77665.h>
 #include <linux/mfd/max77665-private.h>
 #include <linux/regulator/machine.h>
+#include <linux/delay.h>
 
 #define I2C_ADDR_PMIC	(0xCC >> 1)	/* Charger, Flash LED */
+#define I2C_ADDR_MUIC	(0x4A >> 1)	/* MUIC */
 #define I2C_ADDR_HAPTIC	(0x90 >> 1)	/* Haptic Moto */
 
 static struct mfd_cell max77665_devs[] = {
-	{ .name = "max77665-pmic", },
 	{ .name = "max77665-charger", },
 	{ .name = "max77665-haptic", },
 	{ .name = "torch-led", },
 	{ .name = "max77665-safeout", },
+	{ .name = "max77665-muic", },
 };
 
 int max77665_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)
@@ -187,6 +189,9 @@ static int max77665_i2c_probe(struct i2c_client *i2c,
 	max77665->haptic = i2c_new_dummy(i2c->adapter, I2C_ADDR_HAPTIC);
 	i2c_set_clientdata(max77665->haptic, max77665);
 
+	max77665->muic = i2c_new_dummy(i2c->adapter, I2C_ADDR_MUIC);
+	i2c_set_clientdata(max77665->muic, max77665);
+
 	ret = max77665_irq_init(max77665);
 	if (ret < 0)
 		goto err_mfd;
@@ -205,6 +210,7 @@ static int max77665_i2c_probe(struct i2c_client *i2c,
 	return ret;
 
 err_mfd:
+	i2c_unregister_device(max77665->muic);
 	i2c_unregister_device(max77665->haptic);
 err:
 	kfree(max77665);
@@ -216,6 +222,7 @@ static int max77665_i2c_remove(struct i2c_client *i2c)
 	struct max77665_dev *max77665 = i2c_get_clientdata(i2c);
 
 	mfd_remove_devices(max77665->dev);
+	i2c_unregister_device(max77665->muic);
 	i2c_unregister_device(max77665->haptic);
 	kfree(max77665);
 

@@ -85,6 +85,27 @@ enum max77665_pmic_reg {
 	MAX77665_PMIC_REG_END,
 };
 
+/* Slave addr = 0x4A: MUIC */
+enum max77665_muic_reg {
+	MAX77665_MUIC_REG_ID		= 0x00,
+	MAX77665_MUIC_REG_INT1		= 0x01,
+	MAX77665_MUIC_REG_INT2		= 0x02,
+	MAX77665_MUIC_REG_INT3		= 0x03,
+	MAX77665_MUIC_REG_STATUS1	= 0x04,
+	MAX77665_MUIC_REG_STATUS2	= 0x05,
+	MAX77665_MUIC_REG_STATUS3	= 0x06,
+	MAX77665_MUIC_REG_INTMASK1	= 0x07,
+	MAX77665_MUIC_REG_INTMASK2	= 0x08,
+	MAX77665_MUIC_REG_INTMASK3	= 0x09,
+	MAX77665_MUIC_REG_CDETCTRL1	= 0x0A,
+	MAX77665_MUIC_REG_CDETCTRL2	= 0x0B,
+	MAX77665_MUIC_REG_CTRL1		= 0x0C,
+	MAX77665_MUIC_REG_CTRL2		= 0x0D,
+	MAX77665_MUIC_REG_CTRL3		= 0x0E,
+
+	MAX77665_MUIC_REG_END,
+};
+
 /* Slave addr = 0x90: Haptic */
 enum max77665_haptic_reg {
 	MAX77665_HAPTIC_REG_STATUS		= 0x00,
@@ -143,6 +164,7 @@ struct max77665_dev {
 	struct device *dev;
 	struct i2c_client *i2c; /* 0xCC / PMIC, Charger, Flash LED */
 	struct i2c_client *haptic; /* 0x90 / Haptic */
+	struct i2c_client *muic; /* 0x4A / MUIC */
 	struct mutex iolock;
 
 	int type;
@@ -163,7 +185,7 @@ enum max77665_types {
 #define MAX77665_FLASH_ENABLE_MASK		(0x05)
 #define MAX77665_FLASH_ENABLE_SHIFT		(0x04)
 #define MAX77665_TORCH_ENABLE_MASK		(0x0f)
-#define MAX77665_TORCH_ENABLE_SHIFT 		(0x00)
+#define MAX77665_TORCH_ENABLE_SHIFT     (0x00)
 #define MAX77665_FLASH1_CURRENT_MASK 	(0x3f)
 #define MAX77665_FLASH1_CURRENT_SHIFT 	(0x00)
 #define MAX77665_FLASH2_CURRENT_MASK 	(0x3f)
@@ -175,6 +197,16 @@ enum max77665_types {
 #define MAX77665_BOOST_VOUT_FLASH_FROM_VOLT(mV) \
 		((mV) <= 3300 ? 0x00 :					\
 		((mV) <= 5500 ? (((mV) - 3300) / 25 + 0x0C) : 0x7F))
+
+/* MAX77665 CONTROL1 register */
+#define COMN1SW_SHIFT				(0x0)
+#define COMP2SW_SHIFT				(0x3)
+#define MICEN_SHIFT					(0x6)
+#define IDBEN_SHIFT					(0x7)
+#define COMN1SW_MASK				(0x7 << COMN1SW_SHIFT)
+#define COMP2SW_MASK				(0x7 << COMP2SW_SHIFT)
+#define MICEN_MASK					(0x1 << MICEN_SHIFT)
+#define IDBEN_MASK					(0x1 << IDBEN_SHIFT)
 
 /*boost mode*/
 enum max77665_boost_control_mode {
