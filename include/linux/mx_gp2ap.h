@@ -153,6 +153,9 @@ struct gp2ap_data {
 	u16 ps_near_threshold;	/* The count when barrier is at about 3 ~ 4cm */
 	u16 ps_far_threshold;	/* The count when barrier is at about 4 ~ 5cm */
 	u16 ps_calib_value;	/* The count when no barrier */
+	u8 ps_thresholds[4];
+	int init_threshold_flag;
+	int reset_threshold_flag;
 	bool irq_wake_enabled;
 	bool calib_value_readed;
 

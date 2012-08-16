@@ -58,9 +58,6 @@
 static u16 read_ps_calibvalue(struct gp2ap_data *gp2ap);
 static u8 ps_intval[2] = {PS_NEAR_INTVAL_TIME, PS_FAR_INTVAL_TIME};
 static u8 ps_measure_cycles[2] = {PS_NEAR_MEASURE_CYCLE, PS_FAR_MEASURE_CYCLE};
-static u8 ps_thresholds[4];
-static int reset_threshold_flag = 1;
-static int init_threshold_flag = 1;
 static atomic_t gp2ap_als_start = ATOMIC_INIT(0);
 
 #define __ALS_RANGE_X2 0
@@ -271,10 +268,10 @@ static void get_ps_thresholds(struct gp2ap_data *gp2ap)
 	u16 ps_far_threshold, ps_near_threshold;
 
 	mutex_lock(&gp2ap->lock);
-	if (init_threshold_flag) {
+	if (gp2ap->init_threshold_flag) {
 		gp2ap->ps_near_threshold = PS_CALIB_TO_NEAR(read_ps_calibvalue(gp2ap));
 		gp2ap->ps_far_threshold = PS_NEAR_TO_FAR(gp2ap->ps_near_threshold);
-		init_threshold_flag = 0;
+		gp2ap->init_threshold_flag = 0;
 	}
 	ps_near_threshold = gp2ap->ps_near_threshold;
 	ps_far_threshold = gp2ap->ps_far_threshold;
@@ -283,10 +280,10 @@ static void get_ps_thresholds(struct gp2ap_data *gp2ap)
 	pr_info("%s: ps_near_threshold = %d, ps_far_threshold = %d\n",
 		__func__, ps_near_threshold, ps_far_threshold);
 
-	ps_thresholds[0] = LSB(ps_far_threshold);	/* low threshold */
-	ps_thresholds[1] = MSB(ps_far_threshold);
-	ps_thresholds[2] = LSB(ps_near_threshold);	/* high threshold */
-	ps_thresholds[3] = MSB(ps_near_threshold);
+	gp2ap->ps_thresholds[0] = LSB(ps_far_threshold);	/* low threshold */
+	gp2ap->ps_thresholds[1] = MSB(ps_far_threshold);
+	gp2ap->ps_thresholds[2] = LSB(ps_near_threshold);	/* high threshold */
+	gp2ap->ps_thresholds[3] = MSB(ps_near_threshold);
 }
 
 static int gp2ap_set_ps_mode(struct gp2ap_data *gp2ap, int mode)
@@ -310,11 +307,11 @@ static int gp2ap_set_ps_mode(struct gp2ap_data *gp2ap, int mode)
 	}
 
 	if (PS_IRQ_MODE == mode) {
-		if (unlikely(reset_threshold_flag)) {
+		if (unlikely(gp2ap->reset_threshold_flag)) {
 			get_ps_thresholds(gp2ap);
-			reset_threshold_flag = 0;
+			gp2ap->reset_threshold_flag = 0;
 		}
-		ret = gp2ap_i2c_write_multibytes(gp2ap->client, REG_PTS_LLSB, ps_thresholds, 4);
+		ret = gp2ap_i2c_write_multibytes(gp2ap->client, REG_PTS_LLSB, gp2ap->ps_thresholds, 4);
 		if (ret < 0) {
 			pr_err("%s()->%d: gp2ap_i2c_write_multibytes fail!\n", __func__, __LINE__);
 			return ret;
@@ -590,8 +587,7 @@ static ssize_t gp2ap_report_time_show(struct device *dev,
 {
 	int report_time;
 
-	/*the intermittent time = RESOLUTION * INTVAL_TIME 
-	 ALS_RESOLUTION_14 refer to 25ms.*/
+	/*the intermittent time = RESOLUTION * INTVAL_TIME */
 	
 	report_time = ALS_DELAYTIME + (25 * 16); 
 	
@@ -622,8 +618,7 @@ static ssize_t gp2ap_ps_data_show(struct device *dev,
 	struct device_attribute *attr,
 	char *buf)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct gp2ap_data *gp2ap = i2c_get_clientdata(client);
+	struct gp2ap_data *gp2ap = dev_get_drvdata(dev);
 	int ret, ps_data;
 	u8 rbuf[2];
 
@@ -633,16 +628,18 @@ static ssize_t gp2ap_ps_data_show(struct device *dev,
 
 		return -EINVAL;
 	}
-
-	ret = gp2ap_i2c_read_multibytes(client, REG_D2_LSB, rbuf, 2);
+	/*
+	   pr_info("%s():client->addr = 0x%02x\n",__func__,gp2ap->client->addr);
+	*/
+	ret = gp2ap_i2c_read_multibytes(gp2ap->client, REG_D2_LSB, rbuf, 2);
+	
 	if (ret < 0) {
 		pr_err("%s()->%d:read REG_PS_D2_LSB reg fail!\n",
 			__func__, __LINE__);
 		return ret;
 	}
-	ps_data = rbuf[1] * 256 + rbuf[0];
-
-	pr_info("ps data is %d.\n", ps_data);
+	
+	ps_data = (rbuf[1] << 8) | rbuf[0];
 
 	return sprintf(buf, "%d\n", ps_data);
 }
@@ -786,6 +783,7 @@ static u16 read_ps_calibvalue(struct gp2ap_data *gp2ap)
 	else {
 		ps_calib_value = __read_ps_calibvalue();
 		gp2ap->calib_value_readed = 1;
+		pr_info("%s(), ps_calib_value is %d\n",__func__,ps_calib_value);
 	}
 	return ps_calib_value;
 }
@@ -828,7 +826,7 @@ static ssize_t gp2ap_CalibValue_store(struct device *dev,
 	gp2ap->ps_near_threshold = PS_CALIB_TO_NEAR(value);
 	gp2ap->ps_far_threshold = PS_NEAR_TO_FAR(gp2ap->ps_near_threshold);
 	/* should reset the thresholds while setting ps irq mode */
-	reset_threshold_flag = 1;
+	gp2ap->reset_threshold_flag = 1;
 	mutex_unlock(&gp2ap->lock);
 
 	pr_info("gp2ap proximity threshold is set to %d.\n", gp2ap->ps_near_threshold);
@@ -919,13 +917,12 @@ static unsigned long calculate_light_range8_lux(int d0, int d1)
 			/* Use the previous normal one while r > 0.98 for this condition
 			 * means the detection value is wrong
 			 */
-//			printk("%s(): prev_lux is %ld, c = %d\n",__func__, prev_lux, c);
 			lux = prev_lux;
 		}
 	}
-
-//	printk("range8: lux = %ld, d0 = %d, d1 = %d, a = %d, b = %d, c = %d\n", lux, d0, d1, a, b, c);
-
+/*
+	pr_info("range8: lux = %ld, d0 = %d, d1 = %d, a = %d, b = %d, c = %d\n", lux, d0, d1, a, b, c);
+*/
 	if (d1 * 100 <= d0 * 98) {
 		prev_lux = lux;
 	}
@@ -959,13 +956,12 @@ static unsigned long calculate_light_range2_lux(int d0, int d1)
 			/* Use the previous normal one while r > 0.98 for this condition
 			 * means the detection value is wrong
 			 */
-		//	printk("%s(): prev_lux is %ld, c = %d\n",__func__, prev_lux, c);
 			lux = prev_lux;
 		}
 	}
-
-//	printk("range2: lux = %ld, d0 = %d, d1 = %d, a = %d, b = %d, c = %d\n", lux, d0, d1, a, b, c);
-
+/*
+	pr_info("range2: lux = %ld, d0 = %d, d1 = %d, a = %d, b = %d, c = %d\n", lux, d0, d1, a, b, c);
+*/
 	if (d1 * 100 <= d0 * 98){
 		prev_lux = lux;
 	}
@@ -973,7 +969,7 @@ static unsigned long calculate_light_range2_lux(int d0, int d1)
 	return lux;
 }
 
-static unsigned long calculate_light_high_lux(int d0, int d1)
+static unsigned long __maybe_unused calculate_light_high_lux(int d0, int d1)
 {
 	int a = 0, b = 0;
 	int c = 1600; /* c = range@x128 /  (2 ^ (14bits - 11) = 128 / (2^(14-11) = 128 /8 =16 */
@@ -999,13 +995,13 @@ static unsigned long calculate_light_high_lux(int d0, int d1)
 			/* Use the previous normal one while r > 0.98 for this condition
 			 * means the detection value is wrong
 			 */
-			printk("%s(): prev_lux is %ld, c = %d\n",__func__, prev_lux, c);
+			pr_info("%s(): prev_lux is %ld, c = %d\n",__func__, prev_lux, c);
 			lux = prev_lux;
 		}
 	}
-
-	printk("%s(): lux = %ld, d0 = %d, d1 = %d, a = %d, b = %d, c = %d\n",__func__, lux, d0, d1, a, b, c);
-
+/*
+	pr_info("%s(): lux = %ld, d0 = %d, d1 = %d, a = %d, b = %d, c = %d\n",__func__, lux, d0, d1, a, b, c);
+*/
 	if (d1 * 100 <= d0 * 98){
 		prev_lux = lux;
 	}
@@ -1054,8 +1050,7 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 		light_lux = calculate_light_range8_lux(data0, data1);
 
 	light_lux /= 100000;
-//	printk("%s(),#########the report light_lux is % ld\n",__func__, light_lux);
-
+	
 	/* If the consecutive two are the same, the value will not be reported,
 	 * so, force to generate a difference.
 	 */
@@ -1070,6 +1065,7 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 	gp2ap->als_data[0] = data0;
 	gp2ap->als_data[1] = data1;
 	
+
 #if 1
 	/*when the gp2ap als enable the first time, set the intval_time is 0
 	  but after must set the intval_time as 16 times,so the intermittent operation
@@ -1471,6 +1467,8 @@ static int __devinit gp2ap_probe(struct i2c_client *client, const struct i2c_dev
 	gp2ap->debug = 0;
 	gp2ap->enabled_sensors = 0;
 	gp2ap->irq_wake_enabled = 0;
+	gp2ap->reset_threshold_flag = 1;
+	gp2ap->init_threshold_flag = 1;
 
 	/* We can not access the calib file in early boot, use our preset one
 	 * and reset it when enable the ps
