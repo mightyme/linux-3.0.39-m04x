@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_iw.c,v 1.132.2.18 2011-02-05 01:44:47 Exp $
+ * $Id: wl_iw.c,v 1.132.2.18 2011-02-05 01:44:47 $
  */
 
 #include <wlioctl.h>
@@ -64,7 +64,7 @@ typedef const struct si_pub  si_t;
 #endif
 
 
-#define JF2MS ((((jiffies / HZ) * 1000) + ((jiffies % HZ) * 1000) / HZ))
+#define JF2MS jiffies_to_msecs(jiffies)
 
 #ifdef COEX_DBG       
 #define WL_TRACE_COEX(x) printf("TS:%lu ", JF2MS); \
@@ -86,7 +86,38 @@ typedef const struct si_pub  si_t;
 
 
 
+#ifdef BCMWAPI_WPI
+/* these items should evetually go into wireless.h of the linux system headfile dir */
+#ifndef IW_ENCODE_ALG_SM4
+#define IW_ENCODE_ALG_SM4 0x20
+#endif
+
+#ifndef IW_AUTH_WAPI_ENABLED
+#define IW_AUTH_WAPI_ENABLED 0x20
+#endif
+
+#ifndef IW_AUTH_WAPI_VERSION_1
+#define IW_AUTH_WAPI_VERSION_1	0x00000008
+#endif
+
+#ifndef IW_AUTH_CIPHER_SMS4
+#define IW_AUTH_CIPHER_SMS4	0x00000020
+#endif
+
+#ifndef IW_AUTH_KEY_MGMT_WAPI_PSK
+#define IW_AUTH_KEY_MGMT_WAPI_PSK 4
+#endif
+
+#ifndef IW_AUTH_KEY_MGMT_WAPI_CERT
+#define IW_AUTH_KEY_MGMT_WAPI_CERT 8
+#endif
+#endif /* BCMWAPI_WPI */
+
+#ifdef BCMWAPI_WPI
+#define IW_WSEC_ENABLED(wsec)	((wsec) & (WEP_ENABLED | TKIP_ENABLED | AES_ENABLED | SMS4_ENABLED))
+#else /* BCMWAPI_WPI */
 #define IW_WSEC_ENABLED(wsec)	((wsec) & (WEP_ENABLED | TKIP_ENABLED | AES_ENABLED))
+#endif /* BCMWAPI_WPI */
 
 #include <linux/rtnetlink.h>
 
@@ -148,7 +179,7 @@ static struct mutex	wl_softap_lock;
 #include <bcmsdbus.h>
 extern void dhd_customer_gpio_wlan_ctrl(int onoff);
 extern uint dhd_dev_reset(struct net_device *dev, uint8 flag);
-extern void dhd_dev_init_ioctl(struct net_device *dev);
+extern int dhd_dev_init_ioctl(struct net_device *dev);
 
 uint wl_msg_level = WL_ERROR_VAL;
 
@@ -162,11 +193,8 @@ uint wl_msg_level = WL_ERROR_VAL;
 #define htodchanspec(i) i
 #define dtohchanspec(i) i
 
-#ifdef CONFIG_WIRELESS_EXT
-
 extern struct iw_statistics *dhd_get_wireless_stats(struct net_device *dev);
 extern int dhd_wait_pend8021x(struct net_device *dev);
-#endif 
 
 #if WIRELESS_EXT < 19
 #define IW_IOCTL_IDX(cmd)	((cmd) - SIOCIWFIRST)
@@ -1122,7 +1150,7 @@ wl_iw_set_btcoex_dhcp(
 }
 
 static int
-wl_iw_set_suspend(
+wl_iw_set_suspend_opt(
 struct net_device *dev,
 struct iw_request_info *info,
 union iwreq_data *wrqu,
@@ -1133,22 +1161,47 @@ char *extra
 	int ret_now;
 	int ret = 0;
 
-	suspend_flag = *(extra + strlen(SETSUSPEND_CMD) + 1) - '0';
+	suspend_flag = *(extra + strlen(SETSUSPENDOPT_CMD) + 1) - '0';
 
 	if (suspend_flag != 0)
 		suspend_flag = 1;
 
 	ret_now = net_os_set_suspend_disable(dev, suspend_flag);
 
-	
 	if (ret_now != suspend_flag) {
-		if (!(ret = net_os_set_suspend(dev, ret_now)))
+		if (!(ret = net_os_set_suspend(dev, ret_now, 1)))
 			WL_ERROR(("%s: Suspend Flag %d -> %d\n",
 			          __FUNCTION__, ret_now, suspend_flag));
 		else
 			WL_ERROR(("%s: failed %d\n", __FUNCTION__, ret));
 	}
 
+	return ret;
+}
+
+static int
+wl_iw_set_suspend_mode(
+struct net_device *dev,
+struct iw_request_info *info,
+union iwreq_data *wrqu,
+char *extra
+)
+{
+	int ret = 0;
+
+#if !defined(CONFIG_HAS_EARLYSUSPEND) || !defined(DHD_USE_EARLYSUSPEND)
+	int suspend_flag;
+
+	suspend_flag = *(extra + strlen(SETSUSPENDMODE_CMD) + 1) - '0';
+
+	if (suspend_flag != 0)
+		suspend_flag = 1;
+
+	if (!(ret = net_os_set_suspend(dev, suspend_flag, 0)))
+		WL_ERROR(("%s: Suspend Mode %d\n",__FUNCTION__,suspend_flag));
+	else
+		WL_ERROR(("%s: failed %d\n", __FUNCTION__, ret));
+#endif
 	return ret;
 }
 
@@ -1564,6 +1617,63 @@ exit_proc:
 	net_os_wake_unlock(dev);
 	return res;
 }
+
+static int
+wl_iw_set_pno_setadd(
+	struct net_device *dev,
+	struct iw_request_info *info,
+	union iwreq_data *wrqu,
+	char *extra
+)
+{
+	int ret = -1;
+	char *tmp_ptr;
+	int size, tmp_size;
+
+	net_os_wake_lock(dev);
+	WL_ERROR(("\n### %s: info->cmd:%x, info->flags:%x, u.data=0x%p, u.len=%d\n",
+		__FUNCTION__, info->cmd, info->flags,
+		wrqu->data.pointer, wrqu->data.length));
+
+	if (g_onoff == G_WLAN_SET_OFF) {
+		WL_TRACE(("%s: driver is not up yet after START\n", __FUNCTION__));
+		goto exit_proc;
+	}
+
+	if (wrqu->data.length <= strlen(PNOSETADD_SET_CMD) + sizeof(cmd_tlv_t)) {
+		WL_ERROR(("%s argument=%d less than %d\n", __FUNCTION__,
+		          wrqu->data.length, (int)(strlen(PNOSETADD_SET_CMD) + sizeof(cmd_tlv_t))));
+		goto exit_proc;
+	}
+
+	
+	bcopy(PNOSETUP_SET_CMD, extra, strlen(PNOSETUP_SET_CMD));
+
+	tmp_ptr = extra + strlen(PNOSETUP_SET_CMD);
+	size = wrqu->data.length - strlen(PNOSETUP_SET_CMD);
+	tmp_size = size;
+	
+	while (*tmp_ptr && tmp_size > 0) {
+		if ((*tmp_ptr == 'S') && (size - tmp_size) >= sizeof(cmd_tlv_t)) {
+			*(tmp_ptr + 1) = ((*(tmp_ptr + 1) - '0') << 4) + (*(tmp_ptr + 2) - '0');
+			memmove(tmp_ptr + 2, tmp_ptr + 3, tmp_size - 3);
+			tmp_size -= 2 + *(tmp_ptr + 1);
+			tmp_ptr += 2 + *(tmp_ptr + 1);
+			size--;
+		} else {
+			tmp_ptr++;
+			tmp_size--;
+		}
+	}
+
+	wrqu->data.length = strlen(PNOSETUP_SET_CMD) + size;
+	ret = wl_iw_set_pno_set(dev, info, wrqu, extra);
+
+exit_proc:
+	net_os_wake_unlock(dev);
+	return ret;
+
+}
 #endif 
 
 static int
@@ -1626,7 +1736,7 @@ wl_iw_send_priv_event(
 	strcpy(extra, flag);
 	wrqu.data.length = strlen(extra);
 	wireless_send_event(dev, cmd, &wrqu, extra);
-	net_os_wake_lock_timeout_enable(dev, DHD_EVENT_TIMEOUT_MS);
+	net_os_wake_lock_ctrl_timeout_enable(dev, DHD_EVENT_TIMEOUT_MS);
 	WL_TRACE(("Send IWEVCUSTOM Event as %s\n", extra));
 
 	return 0;
@@ -2567,6 +2677,8 @@ wl_iw_get_range(
 	IW_EVENT_CAPA_SET(range->event_capa, SIOCGIWSCAN);
 	IW_EVENT_CAPA_SET(range->event_capa, IWEVTXDROP);
 	IW_EVENT_CAPA_SET(range->event_capa, IWEVMICHAELMICFAILURE);
+	IW_EVENT_CAPA_SET(range->event_capa, IWEVASSOCREQIE);
+	IW_EVENT_CAPA_SET(range->event_capa, IWEVASSOCRESPIE);
 	IW_EVENT_CAPA_SET(range->event_capa, IWEVPMKIDCAND);
 #endif 
 
@@ -3203,7 +3315,7 @@ _iscan_sysioc_thread(void *data)
 				rtnl_unlock();
 #endif
 				
-				mod_timer(&iscan->timer, jiffies + iscan->timer_ms*HZ/1000);
+				mod_timer(&iscan->timer, jiffies + msecs_to_jiffies(iscan->timer_ms));
 				iscan->timer_on = 1;
 				break;
 			case WL_SCAN_RESULTS_SUCCESS:
@@ -3214,7 +3326,7 @@ _iscan_sysioc_thread(void *data)
 			case WL_SCAN_RESULTS_PENDING:
 				WL_TRACE(("iscanresults pending\n"));
 				
-				mod_timer(&iscan->timer, jiffies + iscan->timer_ms*HZ/1000);
+				mod_timer(&iscan->timer, jiffies + msecs_to_jiffies(iscan->timer_ms));
 				iscan->timer_on = 1;
 				break;
 			case WL_SCAN_RESULTS_ABORTED:
@@ -3314,9 +3426,9 @@ wl_iw_run_ss_cache_timer(int kick_off)
 	if (*timer) {
 		if (kick_off) {
 #ifdef CONFIG_PRESCANNED
-			(*timer)->expires = jiffies + 70000 * HZ / 1000;
+			(*timer)->expires = jiffies + msecs_to_jiffies(70000);
 #else
-			(*timer)->expires = jiffies + 30000 * HZ / 1000;	
+			(*timer)->expires = jiffies + msecs_to_jiffies(30000);
 #endif
 			add_timer(*timer);
 			WL_TRACE(("%s : timer starts \n", __FUNCTION__));
@@ -3634,7 +3746,7 @@ wl_iw_iscan_set_scan_broadcast_prep(struct net_device *dev, uint flag)
 		rtnl_unlock();
 #endif
 
-	mod_timer(&iscan->timer, jiffies + iscan->timer_ms*HZ/1000);
+	mod_timer(&iscan->timer, jiffies + msecs_to_jiffies(iscan->timer_ms));
 
 	iscan->timer_on = 1;
 
@@ -3795,6 +3907,44 @@ ie_is_wps_ie(uint8 **wpsie, uint8 **tlvs, int *tlvs_len)
 }
 #endif 
 
+#ifdef BCMWAPI_WPI
+static inline int
+_wpa_snprintf_hex(char *buf, size_t buf_size, const u8 *data,
+	size_t len, int uppercase)
+{
+	size_t i;
+	char *pos = buf, *end = buf + buf_size;
+	int ret;
+	if (buf_size == 0)
+		return 0;
+	for (i = 0; i < len; i++) {
+		ret = snprintf(pos, end - pos, uppercase ? "%02X" : "%02x",
+			data[i]);
+		if (ret < 0 || ret >= end - pos) {
+			end[-1] = '\0';
+			return pos - buf;
+		}
+		pos += ret;
+	}
+	end[-1] = '\0';
+	return pos - buf;
+}
+
+/**
+ * wpa_snprintf_hex - Print data as a hex string into a buffer
+ * @buf: Memory area to use as the output buffer
+ * @buf_size: Maximum buffer size in bytes (should be at least 2 * len + 1)
+ * @data: Data to be printed
+ * @len: Length of data in bytes
+ * Returns: Number of bytes written
+ */
+static int
+wpa_snprintf_hex(char *buf, size_t buf_size, const u8 *data, size_t len)
+{
+	return _wpa_snprintf_hex(buf, buf_size, data, len, 0);
+}
+#endif /* BCMWAPI_WPI */
+
 
 static int
 wl_iw_handle_scanresults_ies(char **event_p, char *end,
@@ -3803,6 +3953,10 @@ wl_iw_handle_scanresults_ies(char **event_p, char *end,
 #if WIRELESS_EXT > 17
 	struct iw_event	iwe;
 	char *event;
+#ifdef BCMWAPI_WPI
+	char *buf;
+	int custom_event_len;
+#endif
 
 	event = *event_p;
 	if (bi->ie_length) {
@@ -3838,6 +3992,39 @@ wl_iw_handle_scanresults_ies(char **event_p, char *end,
 				break;
 			}
 		}
+
+#ifdef BCMWAPI_WPI
+		ptr = ((uint8 *)bi) + sizeof(wl_bss_info_t);
+		ptr_len = bi->ie_length;
+			
+		while ((ie = bcm_parse_tlvs(ptr, ptr_len, DOT11_MNG_WAPI_ID))) {
+			WL_TRACE(("%s: found a WAPI IE...\n", __FUNCTION__));
+#ifdef WAPI_IE_USE_GENIE
+			iwe.cmd = IWEVGENIE;
+			iwe.u.data.length = ie->len + 2;
+			event = IWE_STREAM_ADD_POINT(info, event, end, &iwe, (char *)ie);
+#else /* using CUSTOM event */
+			iwe.cmd = IWEVCUSTOM;
+			custom_event_len = strlen("wapi_ie=") + 2*(ie->len + 2);
+			iwe.u.data.length = custom_event_len;
+			
+			buf = kmalloc(custom_event_len+1, GFP_KERNEL);
+			if (buf == NULL)
+			{
+				WL_ERROR(("malloc(%d) returned NULL...\n", custom_event_len));
+				break;
+			}
+			
+			memcpy(buf, "wapi_ie=", 8);
+			wpa_snprintf_hex(buf + 8, 2+1, &(ie->id), 1);
+			wpa_snprintf_hex(buf + 10, 2+1, &(ie->len), 1);
+			wpa_snprintf_hex(buf + 12, 2*ie->len+1, ie->data, ie->len);				
+			event = IWE_STREAM_ADD_POINT(info, event, end, &iwe, buf);
+			kfree(buf);
+#endif /* WAPI_IE_USE_GENIE */
+				break;
+			}
+#endif /* BCMWAPI_WPI */
 
 	*event_p = event;
 	}
@@ -5121,6 +5308,11 @@ wl_iw_set_wpaie(
 	char *extra
 )
 {
+#if defined(BCMWAPI_WPI)
+	uchar buf[WLC_IOCTL_SMLEN] = {0};
+	uchar *p = buf;
+	int wapi_ie_size;
+#endif /* BCMWAPI_WPI */
 
 	WL_TRACE(("%s: SIOCSIWGENIE\n", dev->name));
 
@@ -5135,6 +5327,14 @@ wl_iw_set_wpaie(
 		WL_TRACE(("\n"));
 	}
 #endif
+#if defined(BCMWAPI_WPI)
+	if (extra[0] == DOT11_MNG_WAPI_ID) {
+		wapi_ie_size = iwp->length;
+		memcpy(p, extra, iwp->length);
+		dev_wlc_bufvar_set(dev, "wapiie", buf, wapi_ie_size);
+	}
+	else
+#endif /* BCMWAPI_WPI */
 
 		dev_wlc_bufvar_set(dev, "wpaie", extra, iwp->length);
 
@@ -5252,6 +5452,14 @@ wl_iw_set_encodeext(
 			case IW_ENCODE_ALG_CCMP:
 				key.algo = CRYPTO_ALGO_AES_CCM;
 				break;
+#ifdef BCMWAPI_WPI
+			case IW_ENCODE_ALG_SM4:
+				key.algo = CRYPTO_ALGO_SMS4;
+				if (iwe->ext_flags & IW_ENCODE_EXT_GROUP_KEY) {
+					key.flags &= ~WL_PRIMARY_KEY;
+				}
+				break;
+#endif
 			default:
 				break;
 		}
@@ -5410,6 +5618,10 @@ wl_iw_create_wpaauth_wsec(struct net_device *dev)
 		wsec = TKIP_ENABLED;
 	else if (iw->pcipher & IW_AUTH_CIPHER_CCMP)
 		wsec = AES_ENABLED;
+#ifdef BCMWAPI_WPI
+		else if (iw->pcipher & IW_AUTH_CIPHER_SMS4)
+			wsec = SMS4_ENABLED;
+#endif
 	else
 		wsec = 0;
 
@@ -5420,6 +5632,10 @@ wl_iw_create_wpaauth_wsec(struct net_device *dev)
 		wsec |= TKIP_ENABLED;
 	else if (iw->gcipher & IW_AUTH_CIPHER_CCMP)
 		wsec |= AES_ENABLED;
+#ifdef BCMWAPI_WPI
+	else if (iw->gcipher & IW_AUTH_CIPHER_SMS4)
+		wsec |= SMS4_ENABLED;
+#endif
 
 	
 	if (wsec == 0 && iw->privacy_invoked)
@@ -5473,7 +5689,15 @@ wl_iw_set_wpaauth(
 	switch (paramid) {
 	case IW_AUTH_WPA_VERSION:
 		
-		iw->wpaversion = paramval;
+		if (paramval & IW_AUTH_WPA_VERSION_DISABLED)
+			val = WPA_AUTH_DISABLED;
+		else if (paramval & (IW_AUTH_WPA_VERSION_WPA))
+			val = WPA_AUTH_PSK | WPA_AUTH_UNSPECIFIED;
+		else if (paramval & IW_AUTH_WPA_VERSION_WPA2)
+			val = WPA2_AUTH_PSK | WPA2_AUTH_UNSPECIFIED;
+		WL_ERROR(("%s: %d: setting wpa_auth to 0x%0x\n", __FUNCTION__, __LINE__, val));
+		if ((error = dev_wlc_intvar_set(dev, "wpa_auth", val)))
+			return error;
 		break;
 
 	case IW_AUTH_CIPHER_PAIRWISE:
@@ -5491,7 +5715,27 @@ wl_iw_set_wpaauth(
 		break;
 
 	case IW_AUTH_KEY_MGMT:
-		if (paramval & IW_AUTH_KEY_MGMT_PSK) {
+		if ((error = dev_wlc_intvar_get(dev, "wpa_auth", &val)))
+			return error;
+
+		if (val & (WPA_AUTH_PSK | WPA_AUTH_UNSPECIFIED)) {
+			if (paramval & IW_AUTH_KEY_MGMT_PSK)
+				val = WPA_AUTH_PSK;
+			else
+				val = WPA_AUTH_UNSPECIFIED;
+			if (paramval & 0x04)
+				val |= WPA2_AUTH_FT;
+		}
+		else if (val & (WPA2_AUTH_PSK | WPA2_AUTH_UNSPECIFIED)) {
+			if (paramval & IW_AUTH_KEY_MGMT_PSK)
+				val = WPA2_AUTH_PSK;
+			else
+				val = WPA2_AUTH_UNSPECIFIED;
+			if (paramval & 0x04)
+				val |= WPA2_AUTH_FT;
+		}
+
+		else if (paramval & IW_AUTH_KEY_MGMT_PSK) {
 			if (iw->wpaversion == IW_AUTH_WPA_VERSION_WPA)
 				val = WPA_AUTH_PSK;
 			else if (iw->wpaversion == IW_AUTH_WPA_VERSION_WPA2)
@@ -5506,6 +5750,12 @@ wl_iw_set_wpaauth(
 			else 
 				val = WPA_AUTH_DISABLED;
 		}
+#ifdef BCMWAPI_WPI
+		else if (paramval & IW_AUTH_KEY_MGMT_WAPI_PSK)
+			val = WAPI_AUTH_PSK;
+		else if (paramval & IW_AUTH_KEY_MGMT_WAPI_CERT)
+			val = WAPI_AUTH_UNSPECIFIED;
+#endif
 		else
 			val = WPA_AUTH_DISABLED;
 
@@ -5572,6 +5822,31 @@ wl_iw_set_wpaauth(
 			return error;
 		break;
 
+#endif 
+#ifdef BCMWAPI_WPI
+	case IW_AUTH_WAPI_ENABLED:
+		if ((error = dev_wlc_intvar_get(dev, "wsec", &val)))
+			return error;
+		if (paramval) {
+			val |= SMS4_ENABLED;
+			if ((error = dev_wlc_intvar_set(dev, "wsec", val))) {
+				WL_ERROR(("%s: setting wsec to 0x%0x returned error %d\n",
+					__FUNCTION__, val, error));
+				return error;
+			}
+			if (paramval & IW_AUTH_KEY_MGMT_WAPI_PSK)
+				val = WAPI_AUTH_PSK;
+			else if (paramval & IW_AUTH_KEY_MGMT_WAPI_CERT)
+				val = WAPI_AUTH_UNSPECIFIED;
+			else
+				val = WAPI_AUTH_NONE;
+			if ((error = dev_wlc_intvar_set(dev, "wpa_auth", val))) {
+				WL_ERROR(("%s: setting wpa_auth(%d) returned %d\n",
+					__FUNCTION__, val, error));
+				return error;
+			}
+		}
+		break;
 #endif 
 	default:
 		break;
@@ -5898,7 +6173,7 @@ wl_iw_combined_scan_set(struct net_device *dev, wlc_ssid_t* ssids_local, int nss
 	iscan->list_cur = iscan->list_hdr;
 	iscan->iscan_state = ISCAN_STATE_SCANING;
 	wl_iw_set_event_mask(dev);
-	mod_timer(&iscan->timer, jiffies + iscan->timer_ms*HZ/1000);
+	mod_timer(&iscan->timer, jiffies + msecs_to_jiffies(iscan->timer_ms));
 
 	iscan->timer_on = 1;
 
@@ -7517,8 +7792,10 @@ wl_iw_set_priv(
 			ret = wl_iw_get_dtim_skip(dev, info, (union iwreq_data *)dwrq, extra);
 		else if (strnicmp(extra, DTIM_SKIP_SET_CMD, strlen(DTIM_SKIP_SET_CMD)) == 0)
 			ret = wl_iw_set_dtim_skip(dev, info, (union iwreq_data *)dwrq, extra);
-		else if (strnicmp(extra, SETSUSPEND_CMD, strlen(SETSUSPEND_CMD)) == 0)
-			ret = wl_iw_set_suspend(dev, info, (union iwreq_data *)dwrq, extra);
+		else if (strnicmp(extra, SETSUSPENDOPT_CMD, strlen(SETSUSPENDOPT_CMD)) == 0)
+			ret = wl_iw_set_suspend_opt(dev, info, (union iwreq_data *)dwrq, extra);
+		else if (strnicmp(extra, SETSUSPENDMODE_CMD, strlen(SETSUSPENDMODE_CMD)) == 0)
+			ret = wl_iw_set_suspend_mode(dev, info, (union iwreq_data *)dwrq, extra);
 		else if (strnicmp(extra, TXPOWER_SET_CMD, strlen(TXPOWER_SET_CMD)) == 0)
 			ret = wl_iw_set_txpower(dev, info, (union iwreq_data *)dwrq, extra);
 #if defined(PNO_SUPPORT)
@@ -7526,6 +7803,8 @@ wl_iw_set_priv(
 			ret = wl_iw_set_pno_reset(dev, info, (union iwreq_data *)dwrq, extra);
 		else if (strnicmp(extra, PNOSETUP_SET_CMD, strlen(PNOSETUP_SET_CMD)) == 0)
 			ret = wl_iw_set_pno_set(dev, info, (union iwreq_data *)dwrq, extra);
+		else if (strnicmp(extra, PNOSETADD_SET_CMD, strlen(PNOSETADD_SET_CMD)) == 0)
+			ret = wl_iw_set_pno_setadd(dev, info, (union iwreq_data *)dwrq, extra);
 		else if (strnicmp(extra, PNOENABLE_SET_CMD, strlen(PNOENABLE_SET_CMD)) == 0)
 			ret = wl_iw_set_pno_enable(dev, info, (union iwreq_data *)dwrq, extra);
 #endif 
@@ -8251,6 +8530,21 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 
 		break;
 	}
+
+	case WLC_E_ASSOC_REQ_IE:
+		cmd = IWEVASSOCREQIE;
+		wrqu.data.length = datalen;
+		if (datalen < sizeof(extra))
+			memcpy(extra, data, datalen);
+		break;
+
+	case WLC_E_ASSOC_RESP_IE:
+		cmd = IWEVASSOCRESPIE;
+		wrqu.data.length = datalen;
+		if (datalen < sizeof(extra))
+			memcpy(extra, data, datalen);
+		break;
+
 	case WLC_E_PMKID_CACHE: {
 		if (data)
 		{
@@ -8511,7 +8805,7 @@ _bt_dhcp_sysioc_thread(void *data)
 				WL_TRACE_COEX(("%s bt_dhcp stm: started \n", __FUNCTION__));
 				g_bt->bt_state = BT_DHCP_OPPORTUNITY_WINDOW;
 				mod_timer(&g_bt->timer,
-				          jiffies + BT_DHCP_OPPORTUNITY_WINDOW_TIME*HZ/1000);
+				          jiffies + msecs_to_jiffies(BT_DHCP_OPPORTUNITY_WINDOW_TIME));
 				g_bt->timer_on = 1;
 				break;
 
@@ -8528,7 +8822,7 @@ _bt_dhcp_sysioc_thread(void *data)
 				
 				if (g_bt->dev) wl_iw_bt_flag_set(g_bt->dev, TRUE);
 				g_bt->bt_state = BT_DHCP_FLAG_FORCE_TIMEOUT;
-				mod_timer(&g_bt->timer, jiffies + BT_DHCP_FLAG_FORCE_TIME*HZ/1000);
+				mod_timer(&g_bt->timer, jiffies + msecs_to_jiffies(BT_DHCP_FLAG_FORCE_TIME));
 				g_bt->timer_on = 1;
 				break;
 
