@@ -776,11 +776,27 @@ config TPS65911_COMPARATOR
 	tristate
 
 config MFD_BU26507
-	tristate "leds controller base on bu26507 for m032"
-	depends on MACH_M032
+	tristate "leds controller base on bu26507 for m03x"
+	depends on I2C
 	help
 	  leds controller
 
+
+config MFD_MXQM
+       tristate "MX QMatix Sensor for touchpad & leds"
+       depends on I2C
+       help
+         Say Y here if you want to use MX QMatix
+         Sensor as input device.
+         
+config  M040_USB_PCB1
+	bool "M040_USB_PCB1 support "
+	depends on MFD_MXQM
+	help
+	  Say Y just supportM040 USB PCB1 
+
+
+	  
 endif # MFD_SUPPORT
 
 menu "Multimedia Capabilities Port drivers"

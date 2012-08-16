@@ -145,6 +145,7 @@ fw-shipped-$(CONFIG_VIDEO_CPIA2) += cpia2/stv0672_vp4.bin
 fw-shipped-$(CONFIG_YAM) += yam/1200.bin yam/9600.bin
 fw-shipped-$(CONFIG_AUDIENCE_A1028) += a1028_12m_soc_fw.bin\
 					a1028_24m_soc_fw.bin
+fw-shipped-$(CONFIG_KEYBOARD_MXQM) += qm_mx_led.bin
 
 fw-shipped-all := $(fw-shipped-y) $(fw-shipped-m) $(fw-shipped-)
 

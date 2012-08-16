@@ -503,4 +503,12 @@ config MAX8997_FLASH_LED
 	---help---
 	  Enable support for flash led drivers needed on the meizu phone
 
+
+config LEDS_MXQM
+	bool "MX QMatix Sensor leds control Drivers"
+	depends on MFD_MXQM
+	default y
+	---help---
+	  Enable support for led drivers needed on m040
+
 endif # NEW_LEDS
