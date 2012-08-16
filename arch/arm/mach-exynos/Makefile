@@ -57,8 +57,8 @@ obj-$(CONFIG_MACH_SMDK4X12)		+= mach-smdk4x12.o
 obj-$(CONFIG_MACH_SMDK5210)		+= mach-smdk5210.o
 obj-$(CONFIG_MACH_SMDK5250)		+= mach-smdk5250.o
 obj-$(CONFIG_MX_SERIAL_TYPE)		+= gpio-common.o gpio-mx.o  usb-detect.o mx_reboot.o
-obj-$(CONFIG_MACH_M032)			+= mach-m032.o
-obj-$(CONFIG_MACH_M030)			+= mach-m030.o
+obj-$(CONFIG_MACH_M032)			+= mach-m032.o i2c-m032.o
+obj-$(CONFIG_MACH_M030)			+= mach-m030.o i2c-m030.o
 
 # device support
 

@@ -44,19 +44,12 @@ struct platform_device s3c_device_i2c1 = {
 	.resource	  = s3c_i2c_resource,
 };
 
-struct s3c2410_platform_i2c default_i2c1_data __initdata = {
-	.flags		= 0,
-	.slave_addr	= 0x10,
-	.frequency	= 100*1000,
-	.sda_delay	= 100,
-};
-
 void __init s3c_i2c1_set_platdata(struct s3c2410_platform_i2c *pd)
 {
 	struct s3c2410_platform_i2c *npd;
 
 	if (!pd) {
-		pd = &default_i2c1_data;
+		pd = &default_i2c_data;
 		pd->bus_num = 1;
 	}
 

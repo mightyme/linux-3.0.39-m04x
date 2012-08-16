@@ -23,6 +23,7 @@
 #include <plat/sdhci.h>
 #include <plat/gpio-cfg.h>
 
+#ifdef CONFIG_BCM4329
 static int wl_wake;
 static int wl_host_wake;
 static int wl_rst;
@@ -330,3 +331,4 @@ err1:
 }
 
 device_initcall(mx_wifi_init);
+#endif

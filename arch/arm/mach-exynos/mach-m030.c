@@ -61,6 +61,7 @@
 #include <mach/map.h>
 #include <mach/dwmci.h>
 #include <plat/mshci.h>
+#include <mach/i2c-m030.h>
 #ifdef CONFIG_BT
 #include <mach/mx-rfkill.h>
 #endif
@@ -353,11 +354,11 @@ bool max17042_is_low_batt(void)
 		pr_err("%s: fail to get battery ps\n", __func__);
 		return -ENODEV;
 	}
-
+#ifdef CONFIG_BATTERY_MX
 	if (!(psy->get_property(psy, POWER_SUPPLY_PROP_CAPACITY, &value)))
 		if (value.intval > MX_BATTERY_SOC_3_6)
 			return false;
-
+#endif
 	return true;
 }
 EXPORT_SYMBOL(max17042_is_low_batt);
@@ -1090,18 +1091,18 @@ static void __init m030_machine_init(void)
 	m030_gpio_irq_init();
 	
 #ifdef CONFIG_I2C_S3C2410
-	s3c_i2c0_set_platdata(NULL);
+	s3c_i2c0_set_platdata(&m030_default_i2c0_data);
 	i2c_register_board_info(0, i2c_devs0, ARRAY_SIZE(i2c_devs0));
 #endif
 #ifdef CONFIG_S3C_DEV_I2C1
-	s3c_i2c1_set_platdata(NULL);
+	s3c_i2c1_set_platdata(&m030_default_i2c1_data);
 #endif
 #ifdef CONFIG_S3C_DEV_I2C3
-	s3c_i2c3_set_platdata(NULL);
+	s3c_i2c3_set_platdata(&m030_default_i2c3_data);
 	i2c_register_board_info(3, i2c_devs3, ARRAY_SIZE(i2c_devs3));
 #endif
 #ifdef CONFIG_S3C_DEV_I2C5
-	s3c_i2c5_set_platdata(NULL);
+	s3c_i2c5_set_platdata(&m030_default_i2c5_data);
 	i2c_register_board_info(5, i2c_devs5, ARRAY_SIZE(i2c_devs5));
 #endif
 

@@ -21,17 +21,17 @@
 #include <plat/regs-iic.h>
 #include <plat/iic.h>
  /*audio codec*/
-extern struct s3c2410_platform_i2c default_i2c0_data;
+extern struct s3c2410_platform_i2c m040_default_i2c0_data;
  /*max77686 pmic*/
-extern struct s3c2410_platform_i2c default_i2c1_data;
-extern struct s3c2410_platform_i2c default_i2c2_data;
-extern struct s3c2410_platform_i2c default_i2c3_data;
+extern struct s3c2410_platform_i2c m040_default_i2c1_data;
+extern struct s3c2410_platform_i2c m040_default_i2c2_data;
+extern struct s3c2410_platform_i2c m040_default_i2c3_data;
 /*audio noise*/
-extern struct s3c2410_platform_i2c default_i2c4_data;
+extern struct s3c2410_platform_i2c m040_default_i2c4_data;
 /*camera isp*/
-extern struct s3c2410_platform_i2c default_i2c5_data;
+extern struct s3c2410_platform_i2c m040_default_i2c5_data;
 /*lcd backlight*/
-extern struct s3c2410_platform_i2c default_i2c6_data;
+extern struct s3c2410_platform_i2c m040_default_i2c6_data;
 /*touch ic*/
-extern struct s3c2410_platform_i2c default_i2c7_data;
+extern struct s3c2410_platform_i2c m040_default_i2c7_data;
 #endif //__I2C_M040_H

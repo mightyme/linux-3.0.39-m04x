@@ -26,7 +26,8 @@
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/i2c/atmel_mxt_ts.h>
-
+#include <mach/i2c-m030.h>
+#include <mach/i2c-m032.h>
 #include <asm/mach-types.h>
 
 #include <plat/iic.h>
@@ -103,12 +104,13 @@ static struct i2c_board_info __initdata i2c_devs6[] = {
 static int  __init mx_init_tsp(void)
 {
 #if defined(CONFIG_TOUCHSCREEN_MX)
-	if (machine_is_m030())
+	if (machine_is_m030()){
 		i2c_devs6[0].irq = IRQ_EINT(15);
-
-
+		s3c_i2c6_set_platdata(&m030_default_i2c6_data);
+	}else{
+		s3c_i2c6_set_platdata(&m032_default_i2c6_data);
+	}
 	/* touch pannel */
-	s3c_i2c6_set_platdata(NULL);
 	i2c_register_board_info(6, i2c_devs6, ARRAY_SIZE(i2c_devs6));
 #endif
 	return 0;

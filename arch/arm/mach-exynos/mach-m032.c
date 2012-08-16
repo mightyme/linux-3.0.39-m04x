@@ -56,6 +56,7 @@
 #include <mach/system.h>
 #include <mach/regs-clock.h>
 #include <mach/usb-detect.h>
+#include <mach/i2c-m032.h>
 #ifdef CONFIG_BT
 #include <mach/mx-rfkill.h>
 #endif
@@ -1035,18 +1036,18 @@ static void __init m032_machine_init(void)
 	m032_sysmmu_init();
 
 	/* init i2c part */
-	s3c_i2c0_set_platdata(NULL);
+	s3c_i2c0_set_platdata(&m032_default_i2c0_data);
 	i2c_register_board_info(0, i2c_devs0, ARRAY_SIZE(i2c_devs0));
 	/* hdmi ddc */
-	s3c_i2c1_set_platdata(NULL);
+	s3c_i2c1_set_platdata(&m032_default_i2c1_data);
 	/* max77668 */
-	s3c_i2c3_set_platdata(NULL);
+	s3c_i2c3_set_platdata(&m032_default_i2c3_data);
 	i2c_register_board_info(3, i2c_devs3, ARRAY_SIZE(i2c_devs3));
 	/* max77665 */
-	s3c_i2c4_set_platdata(NULL);
+	s3c_i2c4_set_platdata(&m032_default_i2c4_data);
 	i2c_register_board_info(4, i2c_devs4, ARRAY_SIZE(i2c_devs4));
 	/* Ti fuelguage */
-	s3c_i2c5_set_platdata(NULL);
+	s3c_i2c5_set_platdata(&m032_default_i2c5_data);
 	i2c_register_board_info(5, i2c_devs5, ARRAY_SIZE(i2c_devs5));
 
 	/* lis3dh */

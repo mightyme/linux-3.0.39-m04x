@@ -41,6 +41,8 @@
 #include <plat/pd.h>
 #include <plat/csis.h>
 #include <plat/iic.h>
+#include <mach/i2c-m030.h>
+#include <mach/i2c-m032.h>
 
 #include <media/m6mo_platform.h>
 #include <media/ov7690_platform.h>
@@ -466,8 +468,10 @@ static int  __init mx_init_camera(void)
 	if (machine_is_m030())
 		i2c_devs7[0].irq = M030_GPIO_CAMERA0_EINT;
 #endif
-
-	s3c_i2c7_set_platdata(NULL);
+	if (machine_is_m030())
+		s3c_i2c7_set_platdata(&m030_default_i2c7_data);
+	else
+		s3c_i2c7_set_platdata(&m032_default_i2c7_data);
 	i2c_register_board_info(7, i2c_devs7, ARRAY_SIZE(i2c_devs7));
 	
 #ifdef CONFIG_VIDEO_FIMC
