@@ -58,4 +58,5 @@ obj-$(CONFIG_SENSORS_AKM8975C)       += mx_akm8975.o
 obj-$(CONFIG_SENSORS_AKM8963N)       += mx_akm8963.o
 obj-$(CONFIG_SENSORS_LIS3DH)         += mx_lis3dh.o
 obj-$(CONFIG_SENSORS_L3G4200D)       += mx_l3g4200d.o
+obj-$(CONFIG_SENSORS_L3GD20)         += m040_l3gd20.o
 obj-$(CONFIG_MAX77665A_MUIC)         += max77665a-muic.o 
