@@ -122,10 +122,16 @@ obj-$(CONFIG_WAKEUP_ASSIST)		+= wakeup_assist.o
 obj-$(CONFIG_ION_EXYNOS)		+= dev-ion.o
 obj-$(CONFIG_EXYNOS_C2C)		+= setup-c2c.o
 obj-$(CONFIG_UBLOX_GPS)			+= ublox-gps.o
-obj-$(CONFIG_BT)					+= mx-rfkill.o
+ifeq ($(CONFIG_MX_SERIAL_TYPE),y)
+obj-$(CONFIG_BT)			+= mx-rfkill.o
 obj-$(CONFIG_BCM4329)			+= mx-wifi.o
-
-obj-$(CONFIG_MX2_SERIAL_TYPE)	+= mx2_cma.o mx2_fb.o mx2_tsp.o
+endif
+ifeq ($(CONFIG_MX2_SERIAL_TYPE),y)
+obj-$(CONFIG_BT)			+= mx2-rfkill.o
+obj-$(CONFIG_BCMDHD)			+= mx2-wifi.o
+endif
+obj-$(CONFIG_MX2_SERIAL_TYPE)		+= mx2_mshci.o mx2_cma.o mx2_fb.o mx2_tsp.o mx2_factory.o mx2_ehci.o mx2_leds.o mx2_tvout.o mx2_camera.o
+ 
 
 obj-$(CONFIG_MX_SERIAL_TYPE)		+= mx_fb.o mx_camera.o mx_cma.o mx_tsp.o mx_mshci.o mx_tvout.o
 obj-$(CONFIG_MX_SERIAL_TYPE)		+= mx_leds.o mx_factory.o mx_ehci.o

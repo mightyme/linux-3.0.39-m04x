@@ -80,9 +80,20 @@ obj-$(CONFIG_VIDEO_SR030PC30)	+= sr030pc30.o
 obj-$(CONFIG_VIDEO_NOON010PC30)	+= noon010pc30.o
 obj-$(CONFIG_VIDEO_M5MOLS)	+= m5mols/
 
-#meizu camera
+# meizu camera
+ifeq ($(CONFIG_MACH_M030),y)
 obj-$(CONFIG_VIDEO_OV7690)              += mx_ov7690.o
 obj-$(CONFIG_VIDEO_M6MO)                += mx_m6mo.o
+endif
+
+ifeq ($(CONFIG_MACH_M03X),y)
+obj-$(CONFIG_VIDEO_OV7690)              += mx_ov7690.o
+obj-$(CONFIG_VIDEO_M6MO)                += mx_m6mo.o
+endif
+
+ifeq ($(CONFIG_MACH_M040),y)
+obj-$(CONFIG_VIDEO_M6MO)	+= m6mo/
+endif
 
 obj-$(CONFIG_SOC_CAMERA_IMX074)		+= imx074.o
 obj-$(CONFIG_SOC_CAMERA_MT9M001)	+= mt9m001.o

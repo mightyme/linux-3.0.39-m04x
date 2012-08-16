@@ -515,6 +515,7 @@ config VIDEO_M6MO
           MIPI CSI-2 as well
 
 #source "drivers/media/video/m5mols/Kconfig"
+source "drivers/media/video/m6mo/Kconfig"
 
 choice
 depends on VIDEO_S5K4BA || VIDEO_S5K4EA || VIDEO_M5MO || VIDEO_M5MOLS
