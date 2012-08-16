@@ -56,7 +56,7 @@ obj-$(CONFIG_MACH_NURI)			+= mach-nuri.o
 obj-$(CONFIG_MACH_SMDK4X12)		+= mach-smdk4x12.o
 obj-$(CONFIG_MACH_SMDK5210)		+= mach-smdk5210.o
 obj-$(CONFIG_MACH_SMDK5250)		+= mach-smdk5250.o
-obj-$(CONFIG_MX_SERIAL_TYPE)		+= gpio-mx.o  usb-detect.o mx_reboot.o
+obj-$(CONFIG_MX_SERIAL_TYPE)		+= gpio-common.o gpio-mx.o  usb-detect.o mx_reboot.o
 obj-$(CONFIG_MACH_M032)			+= mach-m032.o
 obj-$(CONFIG_MACH_M030)			+= mach-m030.o
 

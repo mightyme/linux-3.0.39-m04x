@@ -16,42 +16,7 @@
 #include <mach/gpio-m032.h>
 #include <mach/gpio-m030.h>
 
-#include <plat/gpio-cfg.h>
-
-#define GPIO_SETPIN_LOW 	0
-#define GPIO_SETPIN_HI   	1
-#define GPIO_SETPIN_NONE	2
-
-#define GPIO_PULL_NONE		S3C_GPIO_PULL_NONE
-#define GPIO_PULL_DOWN	S3C_GPIO_PULL_DOWN
-#define GPIO_PULL_UP		S3C_GPIO_PULL_UP
-
-#define GPIO_DRVSTR_LV1 	S5P_GPIO_DRVSTR_LV1
-#define GPIO_DRVSTR_LV2	S5P_GPIO_DRVSTR_LV2
-#define GPIO_DRVSTR_LV3	S5P_GPIO_DRVSTR_LV3
-#define GPIO_DRVSTR_LV4 	S5P_GPIO_DRVSTR_LV4
-
-#define GPIO_SLP_OUT0       ((__force s3c_gpio_pull_t)0x00)
-#define GPIO_SLP_OUT1       ((__force s3c_gpio_pull_t)0x01)
-#define GPIO_SLP_INPUT      ((__force s3c_gpio_pull_t)0x02)
-#define GPIO_SLP_PREV       ((__force s3c_gpio_pull_t)0x03)
-
-struct gpio_info_table{
-	unsigned int pin;
-	unsigned int type;
-	unsigned int data;
-	unsigned int pull;
-	unsigned int drv;
-};
-
-struct gpio_slp_info{
-	unsigned char *name;
-	unsigned int pin;
-	unsigned int type;
-	unsigned int pull;
-};
-
-/* this table only for m032/m031 board */
+/* this table only for m03x board */
 static const struct gpio_slp_info m032_slp_table[] = {
 	{ "EXYNOS4_GPA0(0)",	EXYNOS4_GPA0(0),	GPIO_SLP_INPUT,	GPIO_PULL_NONE},/*BT RXD*/
 	{ "EXYNOS4_GPA0(1)",	EXYNOS4_GPA0(1),	GPIO_SLP_INPUT,	GPIO_PULL_DOWN},/*BT TXD*/
@@ -1134,12 +1099,6 @@ static const struct gpio_info_table __initdata m030_gpio_table[] = {
 	{EXYNOS4_GPZ(6), 	S3C_GPIO_OUTPUT, 	GPIO_SETPIN_HI, 		S3C_GPIO_PULL_NONE, 	GPIO_DRVSTR_LV1},	//WIFI CS
 };
 
-static inline void mx_set_sleep_pin(unsigned int pin, s5p_gpio_pd_cfg_t conpdn, s5p_gpio_pd_pull_t pudpdn)
-{
-	s5p_gpio_set_pd_cfg(pin, conpdn);
-	s5p_gpio_set_pd_pull(pin, pudpdn);
-}
-
 static void m032_config_runtime_slp_gpio(void)
 {
 	 /*WIFI control pin*/
@@ -1232,46 +1191,18 @@ static void mx_config_sleep_gpio(void)
 	 if (machine_is_m030()) {
 	 	for (i = 0; i < ARRAY_SIZE(m030_slp_table); i++) {
 			gpio = m030_slp_table[i];
-			s5p_gpio_set_pd_cfg(gpio.pin, gpio.type);
-			s5p_gpio_set_pd_pull(gpio.pin, gpio.pull);
+			mx_set_sleep_pin(gpio.pin, gpio.type, gpio.pull);
 		}
 		/* runtime pin config */
 		m030_config_runtime_slp_gpio();
 	} else {
 		for (i = 0; i < ARRAY_SIZE(m032_slp_table); i++) {
 			gpio = m032_slp_table[i];
-			s5p_gpio_set_pd_cfg(gpio.pin, gpio.type);
-			s5p_gpio_set_pd_pull(gpio.pin, gpio.pull);
+			mx_set_sleep_pin(gpio.pin, gpio.type, gpio.pull);
 		}
 		/* runtime pin config */
 		m032_config_runtime_slp_gpio();
 	}
-}
-
-static int __init mx_config_gpio_table(const struct gpio_info_table *gpio_table, int array_size)
-{
-	struct gpio_info_table gpio;
-	unsigned int i;
-	
-	for (i = 0; i < array_size; i++) {
-		gpio = gpio_table[i];
-
-		/* Off part */
-		if(gpio.pin <= EXYNOS4_GPIO_END) {
-			if(gpio.type == S3C_GPIO_RESERVED) {
-				s3c_gpio_setpull(gpio.pin, gpio.pull);
-			} else if (gpio.type == S3C_GPIO_INPUT) {
-				s3c_gpio_setpull(gpio.pin, gpio.pull);
-				s3c_gpio_cfgpin(gpio.pin, gpio.type);
-			} else if (gpio.type == S3C_GPIO_OUTPUT) {
-				s3c_gpio_setpull(gpio.pin, gpio.pull);
-				gpio_set_value(gpio.pin, !!gpio.data);
-				s3c_gpio_cfgpin(gpio.pin, S3C_GPIO_OUTPUT);
-				s5p_gpio_set_drvstr(gpio.pin,  gpio.drv);
-			}
-		}
-	}
-	return 0;
 }
 
 static int  __init mx_init_gpio(void)
@@ -1289,7 +1220,7 @@ static int  __init mx_init_gpio(void)
 
 	exynos4_sleep_gpio_set = mx_config_sleep_gpio;
 
-	return mx_config_gpio_table(gpio_init_table, table_num);;
+	return mx_config_gpio_table(gpio_init_table, table_num);
 }
 
 /* must be initialize gpio before init_machine function */

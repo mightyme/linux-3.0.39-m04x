@@ -16,7 +16,7 @@
 #include <mach/gpio-m032.h>
 #include <mach/gpio-m030.h>
 
-int mx_is_factory_test_mode(int type)
+static int is_factory_test_mode(int type)
 {
 	int gpio1, gpio2, gpio3;
 	int ret = 0;
@@ -50,7 +50,7 @@ int mx_is_factory_test_mode(int type)
 
 }
 
-int mx_set_factory_test_led(int on){
+static int set_factory_test_led(int on){
 	int gpio_value = on ? GPIOF_OUT_INIT_HIGH: GPIOF_OUT_INIT_LOW;
 	int gpio, ret;
 
@@ -67,3 +67,11 @@ int mx_set_factory_test_led(int on){
 
 	return 0;
 }
+static int  __init mx_init_factory(void)
+{
+	mx_is_factory_test_mode = is_factory_test_mode;
+	mx_set_factory_test_led = set_factory_test_led;
+	return 0;
+}
+
+arch_initcall(mx_init_factory);
