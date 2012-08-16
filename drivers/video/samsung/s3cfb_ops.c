@@ -57,7 +57,7 @@ int s3cfb_draw_logo(struct fb_info *fb)
 #ifdef CONFIG_FB_S5P_SPLASH_SCREEN
 	struct fb_fix_screeninfo *fix = &fb->fix;
 	struct fb_var_screeninfo *var = &fb->var;
-#ifdef CONFIG_FB_MX_MIPI_LCD
+#if defined(CONFIG_FB_MX_MIPI_LCD) || defined(CONFIG_FB_MX2_MIPI_LCD)
 	#include "mx_logo.h"
 
 	u32 height = var->yres;

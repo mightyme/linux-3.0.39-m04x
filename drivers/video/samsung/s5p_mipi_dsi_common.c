@@ -524,6 +524,11 @@ int s5p_mipi_dsi_set_display_mode(struct mipi_dsim_device *dsim)
 	return 0;
 }
 
+int s5p_mipi_dsi_force_stop_state(struct mipi_dsim_device *dsim)
+{
+	s5p_mipi_dsi_func_reset(dsim);
+	return 0;
+}
 int s5p_mipi_dsi_init_link(struct mipi_dsim_device *dsim)
 {
 	unsigned int time_out = 100;
@@ -556,9 +561,9 @@ int s5p_mipi_dsi_init_link(struct mipi_dsim_device *dsim)
 		}
 
 		if (time_out != 0) {
-			dev_dbg(dsim->dev,
+			dev_info(dsim->dev,
 				"DSI Master driver has been completed.\n");
-			dev_dbg(dsim->dev, "DSI Master state is stop state\n");
+			dev_info(dsim->dev, "DSI Master state is stop state\n");
 		}
 
 		dsim->state = DSIM_STATE_STOP;

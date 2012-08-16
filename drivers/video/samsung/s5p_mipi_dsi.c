@@ -331,7 +331,7 @@ static int s5p_mipi_setup_clk(struct platform_device *pdev)
 		panic("clk_get sclk_mipi_phy failed\n");
 	}
 
-	if (machine_is_m032() || machine_is_m031())
+	if (machine_is_m032() || machine_is_m031() || machine_is_m040())
 		parent = clk_get(NULL, "mout_mpll_user");
 	else
 		parent = clk_get(NULL, "mout_mpll");

@@ -26,6 +26,7 @@ int s5p_mipi_dsi_enable_frame_done_int(struct mipi_dsim_device *dsim,
 				unsigned int enable);
 int s5p_mipi_dsi_get_frame_done_status(struct mipi_dsim_device *dsim);
 int s5p_mipi_dsi_clear_frame_done(struct mipi_dsim_device *dsim);
+int s5p_mipi_dsi_force_stop_state(struct mipi_dsim_device *dsim);
 
 extern struct fb_info *registered_fb[FB_MAX] __read_mostly;
 

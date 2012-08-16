@@ -129,8 +129,14 @@ config FB_S5P_DUMMY_MIPI_LCD
 	---help---
 	  This enables support for Samsung DUMMY MIPI LCD
 
+config FB_MX2_MIPI_LCD
+	bool "MEIZU MIPI LCD(LS044K3SX01) for MX2"
+	depends on FB_S5P_MIPI_DSIM && MX2_SERIAL_TYPE
+	---help---
+	  This enables support for Meizu MIPI LCD
+
 config FB_MX_MIPI_LCD
-	bool "MEIZU MIPI LCD"
+	bool "MEIZU MIPI LCD(LS040B3SX01) for MX"
 	depends on FB_S5P_MIPI_DSIM && MX_SERIAL_TYPE
 	---help---
 	  This enables support for Meizu MIPI LCD
