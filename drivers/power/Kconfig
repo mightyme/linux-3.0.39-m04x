@@ -158,10 +158,10 @@ config BATTERY_MAX17040
 	  to operate with a single lithium cell
 
 config BATTERY_MX
-	tristate "Meizu M030/M032 Main Battery Driver"
-	depends on MACH_M030 || MACH_M032 || MACH_M031
+	tristate "Meizu M030/M032/M040 Main Battery Driver"
+	depends on MACH_M030 || MACH_M032 || MACH_M031 || MACH_M040
 	help
-	  Say Y to include support for the meizu m030/m032.
+	  Say Y to include support for the meizu m030/m032/m040.
 	  
 config BATTERY_MAX17042
 	tristate "Maxim MAX17042/8997/8966 Fuel Gauge"
@@ -255,17 +255,17 @@ config BATTERY_SAMSUNG
 
 config BATTERY_BQ27541_I2C
 	bool "BQ27541 support"
-	depends on MACH_M032
+	depends on MACH_M032 || MACH_M040
 	depends on I2C
 	default y
 	help
-	  Say Y here to enable support for batteries with BQ27541 (I2C) chips on MX032.
+	  Say Y here to enable support for batteries with BQ27541 (I2C) chips on M032/M040.
 
 config CHARGER_MAX77665
 	tristate "Maxim MAX77665 Charger"
-	depends on I2C && MACH_M032
+	depends on I2C && (MACH_M032 || MACH_M040)
 	help
 	  Say Y to enable support for USB Charger Detection with
-	  MAX77665 PMIC on m032.
+	  MAX77665 PMIC on m032/m040.
 
 endif # POWER_SUPPLY
