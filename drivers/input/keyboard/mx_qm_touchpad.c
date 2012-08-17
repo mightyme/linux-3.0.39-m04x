@@ -30,12 +30,6 @@
 
 //#define	__POLL_SENSOR__DATA__
 
-#ifdef	CONFIG_M040_USB_PCB1
-	#ifndef	__POLL_SENSOR__DATA__
-	#define	__POLL_SENSOR__DATA__
-	#endif
-#endif
-
 #define QM_MX_FW "qm_mx_led.bin"
 
 #define RESET_COLD	1
@@ -60,6 +54,7 @@ struct mx_qm_touch {
 	unsigned short keycodes[ARRAY_SIZE(mx_qm_keycode)];
 	u8 last_key;
 	u8 keys_press;
+	u8 pos;
 	struct work_struct detect_work;
 	struct delayed_work pos_work;
 	unsigned char  precpos;
@@ -98,7 +93,7 @@ unsigned short qm_touch_cal_key(struct input_dev *dev, unsigned char pos)
 	keycodes = (unsigned short *)dev->keycode;
 	key = *(keycodes + postion);
 	
-	pr_info("%s:KeyCode = %d  Pos = %d (%d) \n",__func__,key,postion,pos);
+	pr_debug("%s:KeyCode = %d  Pos = %d (%d) \n",__func__,key,postion,pos);
 
 	return key;
 }
@@ -272,36 +267,36 @@ static void get_slider_position_func(struct work_struct *work)
 	struct input_dev *input = touch->input;
 	
 	u8 new_key,pos;
-	
-	
-#ifdef	__POLL_SENSOR__DATA__
-	u8 state;
-
-	/* Read the detected status register, thus clearing interrupt */
-	state = mx->i2c_readbyte(client, QM_REG_STATE);
-
-	if(state == 0)
+		
+	if( mx->poll )
 	{
-		if(touch->keys_press == 1 )
+		u8 state;
+
+		/* Read the detected status register, thus clearing interrupt */
+		state = mx->i2c_readbyte(client, QM_REG_STATE);
+
+		if(state == 0)
 		{
-			//qm_touch_report_key(input, touch->last_key, 1);
-			//qm_touch_report_key(input, touch->last_key, 0);
+			if(touch->keys_press == 1 )
+			{
+				//qm_touch_report_key(input, touch->last_key, 1);
+				//qm_touch_report_key(input, touch->last_key, 0);
 
-			//qm_touch_cal_key2(touch);
-			qm_touch_get_key(touch);
+				//qm_touch_cal_key2(touch);
+				qm_touch_get_key(touch);
+			}
+
+			schedule_delayed_work(&touch->pos_work, msecs_to_jiffies(DETECT_POS_INTERVAL));
+			touch->keys_press = 0;
+			return;
+		}		
+		if( touch->keys_press !=  state)
+		{
+			touch->precpos = 0;
+			memset(touch->rec_pos,0,sizeof(touch->rec_pos));
 		}
-
-		schedule_delayed_work(&touch->pos_work, msecs_to_jiffies(DETECT_POS_INTERVAL));
-		touch->keys_press = 0;
-		return;
-	}		
-	if( touch->keys_press !=  state)
-	{
-		touch->precpos = 0;
-		memset(touch->rec_pos,0,sizeof(touch->rec_pos));
+		touch->keys_press = state;
 	}
-	touch->keys_press = state;
-#endif
 
 	/* Read which key changed */
 	pos = mx->i2c_readbyte(client, QM_REG_POSITION);
@@ -311,7 +306,9 @@ static void get_slider_position_func(struct work_struct *work)
 
 	dev_dbg(&client->dev, "pos = %d\n", pos);
 
-	qm_touch_report_pos(touch->input,pos);
+	if( touch->pos != pos )
+		qm_touch_report_pos(touch->input,pos);
+	touch->pos = pos;	
 	
 	//new_key = qm_touch_cal_key(input,pos);
 	
@@ -362,8 +359,6 @@ static irqreturn_t mx_qm_irq_handler(int irq, void *dev_id)
 {
 	struct mx_qm_touch *touch = dev_id;	
 	
-	//printk("%s: irq = %d\n", __func__,irq);
-	
 	if(work_pending(&touch->detect_work))
 		return IRQ_HANDLED;
 
@@ -382,7 +377,7 @@ static int __devinit mx_qm_touch_probe(struct platform_device *pdev)
 
 	int i;
 	int err;
-	pr_info("%s:++\n",__func__);
+	pr_debug("%s:++\n",__func__);
 
 	 client = data->client;
 	 if (!client->irq) {
@@ -402,7 +397,7 @@ static int __devinit mx_qm_touch_probe(struct platform_device *pdev)
 
 	 touch->data = data;
 	 touch->input = input;
-	 touch->irq = client->irq;
+	 touch->irq = data->irq;//client->irq;
 	 input->name = "mx-touch-keypad";
 	 input->dev.parent = &client->dev;
 	 input->id.bustype = BUS_I2C;
@@ -433,16 +428,24 @@ static int __devinit mx_qm_touch_probe(struct platform_device *pdev)
 	 INIT_DELAYED_WORK(&touch->pos_work, get_slider_position_func);
 	 INIT_WORK(&touch->detect_work, slider_detect_func);
  
-#ifdef	__POLL_SENSOR__DATA__
-	 schedule_delayed_work(&touch->pos_work, msecs_to_jiffies(5000));
-#else
-	 err = request_threaded_irq(touch->irq, NULL, mx_qm_irq_handler,
-		 IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING, input->name, touch);
-	 if (err) {
-		 dev_err(&client->dev, "fail to request irq\n");
-		 goto err_free_mem;
-	 }
-#endif	
+#ifdef	__POLL_SENSOR__DATA__	 
+	 data->poll  = 1;
+#endif
+
+	if( data->poll )
+	{
+		schedule_delayed_work(&touch->pos_work, msecs_to_jiffies(5000));
+	}
+	else
+	{
+		 err = request_threaded_irq(touch->irq, NULL, mx_qm_irq_handler,
+			 IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING, input->name, touch);
+		 if (err) {
+			 dev_err(&client->dev, "fail to request irq\n");
+			 goto err_free_mem;
+		 }
+		enable_irq_wake(touch->irq);
+	}
  
 	 /* Register the input device */
 	 err = input_register_device(touch->input);
@@ -451,13 +454,12 @@ static int __devinit mx_qm_touch_probe(struct platform_device *pdev)
 		 goto err_free_irq;
 	 }
  	  
-	 pr_info("%s:--\n",__func__);
+	 pr_debug("%s:--\n",__func__);
 	 return 0;
  
  err_free_irq:
-#ifndef	__POLL_SENSOR__DATA__
-	 free_irq(client->irq, data);
-#endif
+	if(data->poll  == 0)
+		free_irq(client->irq, data);
  err_free_mem:
 	 input_free_device(input);
 	 kfree(data);
@@ -468,20 +470,21 @@ static int __devinit mx_qm_touch_probe(struct platform_device *pdev)
 static int __devexit mx_qm_touch_remove(struct platform_device *pdev)
 {
 	struct mx_qm_touch * touch = platform_get_drvdata(pdev);
+	struct mx_qm_data * mx = touch->data;
 	
-#ifndef	__POLL_SENSOR__DATA__
+	if(mx->poll  == 0)
+	{
 		/* Release IRQ */
 		free_irq(touch->data->client->irq, touch);
-#endif
+	}
 		
-		cancel_work_sync(&touch->detect_work);
-		cancel_delayed_work_sync(&touch->pos_work);
-	
-		input_unregister_device(touch->input);
-		kfree(touch);
-	
-		return 0;
+	cancel_work_sync(&touch->detect_work);
+	cancel_delayed_work_sync(&touch->pos_work);
 
+	input_unregister_device(touch->input);
+	kfree(touch);
+
+	return 0;
 }
 
 const struct platform_device_id mx_qm_touch_id[] = {

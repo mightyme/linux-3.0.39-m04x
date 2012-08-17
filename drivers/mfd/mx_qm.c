@@ -412,10 +412,11 @@ static int mx_qm_update_async(struct mx_qm_data *mx)
 {
 	int ret = 0;
 	
-#ifndef	CONFIG_M040_USB_PCB1
+	if( mx->poll )
+	{
 		disable_irq(mx->irq);	
 		msleep(100);
-#endif	
+	}
 
 	ret = request_firmware_nowait(THIS_MODULE,
 	        FW_ACTION_HOTPLUG,
@@ -425,9 +426,10 @@ static int mx_qm_update_async(struct mx_qm_data *mx)
 	        mx,
 	        mx_qm_firmware_handler);
 	
-#ifndef	CONFIG_M040_USB_PCB1
+	if( mx->poll )
+	{
 		enable_irq(mx->irq);
-#endif	
+	}
 	
 	return ret;
 }
@@ -466,10 +468,11 @@ static int mx_qm_update(struct mx_qm_data *mx)
 	const struct firmware *fw;
 	const char *fw_name;
 	
-#ifndef	CONFIG_M040_USB_PCB1
-	disable_irq(mx->irq);	
-	msleep(100);
-#endif	
+	if( mx->poll )
+	{
+		disable_irq(mx->irq);	
+		msleep(100);
+	}
 
 	fw_name = QM_MX_FW;
 
@@ -482,9 +485,10 @@ static int mx_qm_update(struct mx_qm_data *mx)
 	mx_qm_firmware_handler(fw,(void *)mx);
 	pr_info("%s:load firmware %s\n", dev_name(&mx->client->dev), fw_name);
 	
-#ifndef	CONFIG_M040_USB_PCB1
-	enable_irq(mx->irq);
-#endif	
+	if( mx->poll )
+	{
+		enable_irq(mx->irq);
+	}
 
 	return err;
 }
@@ -732,14 +736,18 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 	data->dev = &client->dev;
 	
 #ifdef	CONFIG_M040_USB_PCB1
-		data->gpio_wake = pdata->gpio_irq;
-		data->gpio_reset = pdata->gpio_reset;
-		data->gpio_irq = pdata->gpio_wake;
+	data->gpio_wake = pdata->gpio_irq;
+	data->gpio_reset = pdata->gpio_reset;
+	data->gpio_irq = pdata->gpio_wake;
+	
+       data->poll = 1;
 #else
-		data->gpio_wake = pdata->gpio_wake;
-		data->gpio_reset = pdata->gpio_reset;
-		data->gpio_irq = pdata->gpio_irq;
-#endif	
+	data->gpio_wake = pdata->gpio_wake;
+	data->gpio_reset = pdata->gpio_reset;
+	data->gpio_irq = pdata->gpio_irq;
+
+       data->poll = 0;
+#endif
 
 	data->client = client;
 	data->irq = client->irq;//__gpio_to_irq(data->gpio_irq);
@@ -755,10 +763,29 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 	mx_qm_wakeup(data,true);
 	/* Identify the mx_qm chip */
 	if (!mx_qm_identify(data))
-	{
-		mx_qm_update(data);		
+	{		
+		if( data->poll == 0)
+		{
+			data->gpio_wake = pdata->gpio_irq;
+			data->gpio_reset = pdata->gpio_reset;
+			data->gpio_irq = pdata->gpio_wake;
 
+			data->poll = 1;
+		}
+		else
+		{
+			data->gpio_wake = pdata->gpio_wake;
+			data->gpio_reset = pdata->gpio_reset;
+			data->gpio_irq = pdata->gpio_irq;
+
+			data->poll = 0;
+		}
+		
+		mx_qm_wakeup(data,false);
+		mx_qm_reset(data,RESET_COLD); 
+		msleep(250);	
 		mx_qm_wakeup(data,true);
+
 		if (!mx_qm_identify(data))
 		{
 			err = -ENODEV;
@@ -795,10 +822,11 @@ static int mx_qm_suspend(struct device *dev)
 		
 	mx->wakeup(mx,false);
 	
-#ifndef	CONFIG_M040_USB_PCB1
-	disable_irq(mx->irq);
-	enable_irq_wake(mx->irq);
-#endif	
+	if( mx->poll )
+	{
+		disable_irq(mx->irq);
+		enable_irq_wake(mx->irq);
+	}
 
 	return 0;
 }
@@ -808,10 +836,11 @@ static int mx_qm_resume(struct device *dev)
 	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
 	struct mx_qm_data *mx = i2c_get_clientdata(i2c);
 	
-#ifndef	CONFIG_M040_USB_PCB1
-	disable_irq_wake(mx->irq);
-	enable_irq(mx->irq);
-#endif	
+	if( mx->poll )
+	{
+		disable_irq_wake(mx->irq);
+		enable_irq(mx->irq);
+	}
 
 	mx->wakeup(mx,true);
 	return 0;

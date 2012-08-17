@@ -119,6 +119,7 @@ struct mx_qm_data {
 	unsigned int gpio_wake;
 	unsigned int gpio_reset;
 	unsigned int gpio_irq;	
+	unsigned int poll;	
 	int (*i2c_readbyte)(struct i2c_client *, u8);
 	int (*i2c_writebyte)(struct i2c_client *, u8, u8);
 	void(*reset)(struct mx_qm_data *, int);
