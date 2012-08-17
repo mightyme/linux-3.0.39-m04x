@@ -66,7 +66,6 @@ static void __init m040_cma_region_reserve(
 			else
 				pr_err("S5P/CMA: Failed to reserve '%s'\n",
 								reg->name);
-
 			continue;
 		}
 
@@ -78,9 +77,9 @@ static void __init m040_cma_region_reserve(
 								reg->name);
 				continue;
 			}
-
 			reg->start = paddr;
 			reg->reserved = 1;
+			pr_info("name = %s, paddr = 0x%x, size = %d\n", reg->name, paddr, reg->size);
 		} else {
 			pr_err("S5P/CMA: No free space in memory for '%s'\n",
 								reg->name);
@@ -158,115 +157,48 @@ static void __init m040_cma_region_reserve(
 	}
 }
 
+static struct cma_region m040_regions[] = {
+	{
+		.name = "jpeg",
+		.size = 1024 * SZ_1K,
+		.start = 0
+	}, {
+		.name = "fimc1",
+		.size = 32768 * SZ_1K,
+		.start = 0
+	}, {
+		.name = "fimc0",
+		.size = 25600 * SZ_1K,
+		.start = 0
+	},  {
+		.name = "fimc3",
+		.size = 4 * SZ_1K,
+		.start = 0
+	}, {
+		.name = "mfc0",
+		.size = 49152 * SZ_1K,
+		{ .alignment = 1 << 17 },
+	}, {
+		.name = "mfc1",
+		.size = 41984 * SZ_1K,
+		{ .alignment = 1 << 17 },
+	}, {
+		.name = "fimd",
+		.size = 9600 * SZ_1K,
+		.start = 0
+	}, {
+		.name = "ram_console",
+		.size = CONFIG_ANDROID_RAM_CONSOLE_MEMSIZE * SZ_1K,
+		.start = 0,
+	}, {
+		.size = 0
+	},
+};
+
 void __init m040_reserve_mem(void)
 {
-	static struct cma_region regions[] = {
-#ifdef CONFIG_ANDROID_RAM_CONSOLE
-		{
-			.name = "ram_console",
-			.size = CONFIG_ANDROID_RAM_CONSOLE_MEMSIZE * SZ_1K,
-			.start = 0,
-		},
-#endif
-#ifdef CONFIG_ANDROID_PMEM_MEMSIZE_PMEM
-		{
-			.name = "pmem",
-			.size = CONFIG_ANDROID_PMEM_MEMSIZE_PMEM * SZ_1K,
-			.start = 0,
-		},
-#endif
-#ifdef CONFIG_ANDROID_PMEM_MEMSIZE_PMEM_GPU1
-		{
-			.name = "pmem_gpu1",
-			.size = CONFIG_ANDROID_PMEM_MEMSIZE_PMEM_GPU1 * SZ_1K,
-			.start = 0,
-		},
-#endif
-
-#ifdef CONFIG_VIDEO_SAMSUNG_MEMSIZE_TV
-		{
-			.name = "tv",
-			.size = CONFIG_VIDEO_SAMSUNG_MEMSIZE_TV * SZ_1K,
-			.start = 0
-		},
-#endif
-#ifdef CONFIG_VIDEO_SAMSUNG_MEMSIZE_JPEG
-		{
-			.name = "jpeg",
-			.size = CONFIG_VIDEO_SAMSUNG_MEMSIZE_JPEG * SZ_1K,
-			.start = 0
-		},
-#endif
-#ifdef CONFIG_AUDIO_SAMSUNG_MEMSIZE_SRP
-		{
-			.name = "srp",
-			.size = CONFIG_AUDIO_SAMSUNG_MEMSIZE_SRP * SZ_1K,
-			.start = 0,
-		},
-#endif
-#ifdef CONFIG_VIDEO_SAMSUNG_MEMSIZE_FIMG2D
-		{
-			.name = "fimg2d",
-			.size = CONFIG_VIDEO_SAMSUNG_MEMSIZE_FIMG2D * SZ_1K,
-			.start = 0
-		},
-#endif
-#ifdef CONFIG_VIDEO_SAMSUNG_MEMSIZE_FIMD
-		{
-			.name = "fimd",
-			.size = CONFIG_VIDEO_SAMSUNG_MEMSIZE_FIMD * SZ_1K,
-			.start = 0
-		},
-#endif
-#ifdef CONFIG_VIDEO_SAMSUNG_MEMSIZE_FIMC0
-		{
-			.name = "fimc0",
-			.size = CONFIG_VIDEO_SAMSUNG_MEMSIZE_FIMC0 * SZ_1K,
-			.start = 0
-		},
-#endif
-#ifdef CONFIG_VIDEO_SAMSUNG_MEMSIZE_FIMC1
-		{
-			.name = "fimc1",
-			.size = CONFIG_VIDEO_SAMSUNG_MEMSIZE_FIMC1 * SZ_1K,
-			.start = 0
-		},
-#endif
-#ifdef CONFIG_VIDEO_SAMSUNG_MEMSIZE_FIMC2
-		{
-			.name = "fimc2",
-			.size = CONFIG_VIDEO_SAMSUNG_MEMSIZE_FIMC2 * SZ_1K,
-			.start = 0
-		},
-#endif
-#ifdef CONFIG_VIDEO_SAMSUNG_MEMSIZE_FIMC3
-		{
-			.name = "fimc3",	/*PATH_PROTECTION*/
-			.size = CONFIG_VIDEO_SAMSUNG_MEMSIZE_FIMC3 * SZ_1K,
-		},
-#endif
-#ifdef CONFIG_VIDEO_SAMSUNG_MEMSIZE_MFC1
-		{
-			.name = "mfc1",
-			.size = CONFIG_VIDEO_SAMSUNG_MEMSIZE_MFC1 * SZ_1K,
-			{ .alignment = 1 << 17 },
-		},
-#endif
-#ifdef CONFIG_VIDEO_SAMSUNG_MEMSIZE_MFC0
-		{
-			.name = "mfc0",	/*PATH_PROTECTION*/
-			.size = CONFIG_VIDEO_SAMSUNG_MEMSIZE_MFC0 * SZ_1K,
-			{ .alignment = 1 << 17 },
-		},
-#endif
-		{
-			.size = 0
-		},
-	};
-
 	static const char map[] __initconst =
 		"ram_console=ram_console;"
-		"logger=logger;"
 		"android_pmem.0=pmem;android_pmem.1=pmem_gpu1;"
 		"s3cfb.0/fimd=fimd;exynos4-fb.0/fimd=fimd;"
 		"s3c-fimc.0=fimc0;s3c-fimc.1=fimc1;s3c-fimc.2=fimc2;s3c-fimc.3=fimc3;"
@@ -276,8 +208,8 @@ void __init m040_reserve_mem(void)
 		"s3c-mfc/AB=mfc;"
 		"samsung-rp=srp;"
 		"s5p-jpeg=jpeg;"
-		"m03x-jpeg=jpeg;"
-		"m030-jpeg=jpeg;"
+		"jpeg_v1=jpeg;"
+		"jpeg_v2=jpeg;"
 		"exynos4-fimc-is/f=fimc_is;"
 		"s5p-mixer=tv;"
 		"s5p-fimg2d=fimg2d;"
@@ -288,6 +220,6 @@ void __init m040_reserve_mem(void)
 
 	cma_set_defaults(NULL, map);
 
-	m040_cma_region_reserve(regions, NULL);
+	m040_cma_region_reserve(m040_regions, NULL);
 }
 #endif
