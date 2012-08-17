@@ -3016,7 +3016,22 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 		ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, buf, sizeof(buf), TRUE, 0);
 		if (ret < 0) {
 			DHD_ERROR(("%s: can't set custom MAC address , error=%d\n", __FUNCTION__, ret));
-			return BCME_NOTUP;
+			do {
+				int i;
+				for(i = 0; i < 5; i++) {
+					dhd_custom_get_mac_address(ea_addr.octet);
+					memset(buf, 0, sizeof(buf));
+					bcm_mkiovar("cur_etheraddr", (void *)&ea_addr, ETHER_ADDR_LEN, buf, sizeof(buf));
+					ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, buf, sizeof(buf), TRUE, 0);
+					if(ret < 0) {
+						pr_info("%s: can't set custom MAC address , error=%d\n", __FUNCTION__, ret);
+						pr_info("%s: try more times\n", __FUNCTION__);
+					} else
+						break;
+				}
+				if(i >= 5)
+					return BCME_NOTUP;
+			} while(0);
 		}
 		memcpy(dhd->mac.octet, ea_addr.octet, ETHER_ADDR_LEN);
 	} else {

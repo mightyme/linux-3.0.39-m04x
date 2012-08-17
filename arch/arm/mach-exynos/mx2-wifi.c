@@ -274,6 +274,12 @@ static void *brcm_wlan_get_country_code(char *ccode)
 	return &brcm_wlan_translate_custom_table[0];
 }
 
+static int brcm_wlan_get_mac_addr(unsigned char *buf)
+{
+	get_random_bytes(buf, 6);
+	pr_info("mac address mac=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
+	return 0;
+}
 
 static struct wifi_platform_data wifi_pdata = {
 	.set_power = wlan_power_en,
@@ -281,6 +287,7 @@ static struct wifi_platform_data wifi_pdata = {
 	.set_carddetect = wlan_carddetect_en,
 	.mem_prealloc = brcm_wlan_mem_prealloc,
 	.get_country_code = brcm_wlan_get_country_code,
+	.get_mac_addr = brcm_wlan_get_mac_addr,
 };
 
 
