@@ -62,6 +62,7 @@ enum lm3530_mode {
 	LM3530_BL_MODE_MANUAL = 0,	/* "man" */
 	LM3530_BL_MODE_ALS,		/* "als" */
 	LM3530_BL_MODE_PWM,		/* "pwm" */
+	LM3530_BL_MODE_PWM_MAN,		/* "cmp" compatiable*/
 };
 
 /* ALS input select */

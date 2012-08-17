@@ -91,6 +91,7 @@ static struct lm3530_mode_map mode_map[] = {
 	{ "man", LM3530_BL_MODE_MANUAL },
 	{ "als", LM3530_BL_MODE_ALS },
 	{ "pwm", LM3530_BL_MODE_PWM },
+	{ "cmp", LM3530_BL_MODE_PWM_MAN },
 };
 
 /**
@@ -164,7 +165,8 @@ static int lm3530_init_registers(struct lm3530_data *drvdata)
 			((pltfm->max_current & 7) << LM3530_MAX_CURR_SHIFT);
 
 	if (drvdata->mode == LM3530_BL_MODE_MANUAL ||
-	    drvdata->mode == LM3530_BL_MODE_ALS)
+	    drvdata->mode == LM3530_BL_MODE_ALS ||
+		drvdata->mode == LM3530_BL_MODE_PWM_MAN)
 		gen_config |= (LM3530_ENABLE_I2C);
 
 	if (drvdata->mode == LM3530_BL_MODE_ALS) {
@@ -182,6 +184,10 @@ static int lm3530_init_registers(struct lm3530_data *drvdata)
 		gen_config |= (LM3530_ENABLE_PWM) |
 				(pltfm->pwm_pol_hi << LM3530_PWM_POL_SHIFT) |
 				(LM3530_ENABLE_PWM_SIMPLE);
+
+	if (drvdata->mode == LM3530_BL_MODE_PWM_MAN)
+		gen_config |= (LM3530_ENABLE_PWM) |
+				(pltfm->pwm_pol_hi << LM3530_PWM_POL_SHIFT);
 
 	brt_ramp = (pltfm->brt_ramp_fall << LM3530_BRT_RAMP_FALL_SHIFT) |
 			(pltfm->brt_ramp_rise << LM3530_BRT_RAMP_RISE_SHIFT);
@@ -234,7 +240,7 @@ static void lm3530_brightness_set(struct led_classdev *led_cdev,
 	struct lm3530_data *drvdata =
 	    container_of(led_cdev, struct lm3530_data, led_dev);
 
-//	pr_info("%s brt %d mode %d\n", __func__, brt_val, drvdata->mode);
+	//pr_info("%s brt %d mode %d\n", __func__, brt_val, drvdata->mode);
 	mutex_lock(&drvdata->mutex_lock);
 	if (atomic_read(&drvdata->suspended)) {
 		drvdata->brightness = brt_val;
@@ -244,6 +250,7 @@ static void lm3530_brightness_set(struct led_classdev *led_cdev,
 
 	switch (drvdata->mode) {
 	case LM3530_BL_MODE_MANUAL:
+	case LM3530_BL_MODE_PWM_MAN:
 
 		if (!drvdata->enable) {
 			err = lm3530_init_registers(drvdata);
@@ -282,6 +289,7 @@ static void lm3530_brightness_set(struct led_classdev *led_cdev,
 	mutex_unlock(&drvdata->mutex_lock);
 }
 
+extern int lcd_cabc_opr(unsigned int brightness, unsigned int enable);
 
 static ssize_t lm3530_mode_set(struct device *dev, struct device_attribute
 				   *attr, const char *buf, size_t size)
@@ -298,14 +306,22 @@ static ssize_t lm3530_mode_set(struct device *dev, struct device_attribute
 		return -EINVAL;
 	}
 
-	if (mode == LM3530_BL_MODE_MANUAL)
-		drvdata->mode = LM3530_BL_MODE_MANUAL;
-	else if (mode == LM3530_BL_MODE_ALS)
-		drvdata->mode = LM3530_BL_MODE_ALS;
-	else if (mode == LM3530_BL_MODE_PWM) {
-		dev_err(dev, "PWM mode not supported\n");
-		return -EINVAL;
+	pr_info("set mode %s, value %d\n", buf, mode);
+	switch (mode) {
+		case LM3530_BL_MODE_MANUAL:
+		case LM3530_BL_MODE_ALS:
+		case LM3530_BL_MODE_PWM:
+			lcd_cabc_opr(0xff, false);
+			break;
+		case LM3530_BL_MODE_PWM_MAN:
+			lcd_cabc_opr(0xff, true);
+			break;
+		default:
+			dev_err(dev, "unsupported mode\n");
+			break;
 	}
+
+	drvdata->mode = mode;
 
 	err = lm3530_init_registers(drvdata);
 	if (err) {
@@ -368,7 +384,7 @@ static int __devinit lm3530_probe(struct i2c_client *client,
 	}
 
 	/* BL mode */
-	if (pdata->mode > LM3530_BL_MODE_PWM) {
+	if (pdata->mode > LM3530_BL_MODE_PWM_MAN) {
 		dev_err(&client->dev, "Illegal Mode request\n");
 		err = -EINVAL;
 		goto err_out;
