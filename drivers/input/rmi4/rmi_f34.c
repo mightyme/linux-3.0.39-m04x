@@ -44,6 +44,7 @@ struct rmi_fn_34_data {
 	unsigned short blocknum;
 	bool inflashprogmode;
 	struct mutex attn_mutex;
+	unsigned char appid[5];
 };
 
 static ssize_t rmi_fn_34_status_show(struct device *dev,
@@ -79,6 +80,14 @@ static ssize_t rmi_fn_34_data_write(struct kobject *kobj,
 				    struct bin_attribute *attributes, char *buf,
 				    loff_t pos, size_t count);
 #endif
+
+static ssize_t rmi_fn_34_appid_show(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf);
+
+static ssize_t rmi_fn_34_appid_store(struct device *dev,
+					    struct device_attribute *attr,
+					    const char *buf, size_t count);
 
 static ssize_t rmi_fn_34_bootloaderid_show(struct device *dev,
 					   struct device_attribute *attr,
@@ -137,6 +146,8 @@ static struct device_attribute attrs[] = {
 	       rmi_fn_34_cmd_show, rmi_fn_34_cmd_store),
 	__ATTR(bootloaderid, RMI_RW_ATTR,
 	       rmi_fn_34_bootloaderid_show, rmi_fn_34_bootloaderid_store),
+	__ATTR(appid, RMI_RO_ATTR,
+	       rmi_fn_34_appid_show, rmi_store_error),
 	__ATTR(blocksize, RMI_RO_ATTR,
 	       rmi_fn_34_blocksize_show, rmi_store_error),
 	__ATTR(imageblockcount, RMI_RO_ATTR,
@@ -236,6 +247,14 @@ static int rmi_f34_initialize(struct rmi_function_container *fc)
 	}
 
 	batohs(&f34->bootloaderid, buf);
+	
+	retval = rmi_read_block(fc->rmi_dev, control_base_addr, f34->appid,
+			ARRAY_SIZE(f34->appid));
+	if (retval < 0) {
+		dev_err(&fc->dev, "Could not read appid from 0x%04x.\n",
+			control_base_addr);
+		return retval;
+	}
 
 	retval = rmi_read_block(fc->rmi_dev, query_base_addr + BLK_SZ_OFF, buf,
 			ARRAY_SIZE(buf));
@@ -402,6 +421,19 @@ static struct rmi_function_handler function_handler = {
 	.attention = rmi_f34_attention,
 	.remove = rmi_f34_remove
 };
+
+static ssize_t rmi_fn_34_appid_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct rmi_function_container *fc;
+	struct rmi_fn_34_data *instance_data;
+
+	fc = to_rmi_function_container(dev);
+	instance_data = fc->data;
+
+	return snprintf(buf, PAGE_SIZE, "%c%c%c%c%c\n", instance_data->appid[0],instance_data->appid[1],instance_data->appid[2],instance_data->appid[3],instance_data->appid[4]);
+}
 
 static ssize_t rmi_fn_34_bootloaderid_show(struct device *dev,
 					struct device_attribute *attr,

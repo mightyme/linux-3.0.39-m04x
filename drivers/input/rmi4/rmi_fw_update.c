@@ -87,7 +87,7 @@ MODULE_PARM_DESC(param, "Force reflash of RMI4 devices");
 /* If this parameter is not NULL, we'll use that name for the firmware image,
  * instead of getting it from the F01 queries.
  */
-static char *img_name = "TM2154-002";
+static char *img_name = "M040-TPK";
 module_param(img_name, charp, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(param, "Name of the RMI4 firmware image");
 
@@ -166,7 +166,7 @@ static int read_f34_controls(struct reflash_data *data)
 			  data->f34_controls.regs);
 	if (retval < 0)
 		return retval;
-	dev_info(&data->rmi_dev->dev, "Last F34 status byte: %#04x\n", data->f34_controls.regs[0]);
+	dev_dbg(&data->rmi_dev->dev, "Last F34 status byte: %#04x\n", data->f34_controls.regs[0]);
 	return 0;
 }
 
@@ -193,7 +193,8 @@ static int wait_for_idle(struct reflash_data *data, int timeout_ms)
 	int count = 0;
 	union f34_control_status *controls = &data->f34_controls;
 	int retval;
-
+	
+	retval = read_f34_controls(data);
 	do {
 		if (count || timeout_count == 1)
 			usleep_range(MIN_SLEEP_TIME_US, MAX_SLEEP_TIME_US);
