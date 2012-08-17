@@ -1070,6 +1070,15 @@ void __init exynos4212_register_clocks(void)
 	s3c_disable_clocks(&exynos4212_clk_isp_srcs[6].clk, 1);
 
 	/* We need 24MHZ clk for audio system if machine is m03x */
+#ifdef CONFIG_MACH_M040
+	do{
+		unsigned int tmp;
+		tmp = __raw_readl(S5P_PMU_DEBUG);
+		tmp &= ~0xf00;
+		tmp |= 0x900;
+		__raw_writel(tmp, S5P_PMU_DEBUG);
+	}while(0);
+#else
 	if (machine_is_m032() || machine_is_m031()) {
 		unsigned int tmp;
 		tmp = __raw_readl(S5P_PMU_DEBUG);
@@ -1080,7 +1089,7 @@ void __init exynos4212_register_clocks(void)
 		/* disable pmu debug clock output */
 		__raw_writel(0x1, S5P_PMU_DEBUG);
 	}
-
+#endif
 	/* To save power,
 	 * Disable CLKOUT of LEFTBUS, RIGHTBUS, TOP, DMC, CPU and ISP
 	 */

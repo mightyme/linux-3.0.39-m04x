@@ -499,6 +499,27 @@ void OpenAIF2(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8994_OVERSAMPLING, WM8994_ADC_OSR128 );	// Select High Power ADC/DMIC Oversample Rate, Select Low Power DAC Oversample Rate (Default)	
 	snd_soc_write(codec, WM8994_AIF2_CONTROL_1, 0x411B );	// AIF2 Word Length = 16-bits, AIF2 Format = DSP,BCLK2 inverted
 	snd_soc_write(codec, WM8994_AIF2_CONTROL_2, 0x4000 );	// Disable AIF2 DSP Mono Mode
+#ifdef CONFIG_MACH_M040
+	snd_soc_write(codec, WM8994_AIF2_CONTROL_2, 0x4000 );	// Disable AIF2 DSP Mono Mode
+	// snd_soc_write(codec, WM8994_AIF2_MASTER_SLAVE, 0x0000 );	// AIF2 Slave Mode
+	snd_soc_write(codec, WM8994_AIF2_MASTER_SLAVE, 0x4000 );	// AIF2 Master Mode
+	snd_soc_write(codec, WM8994_AIF2_BCLK, 0x00A0 );	// AIF2CLK / 16
+	snd_soc_write(codec, WM8994_AIF2ADC_LRCLK, 0x0040 );	// BCLK2 / 64
+	snd_soc_write(codec, WM8994_AIF2DAC_LRCLK, 0x0003 );	// BCLK2 / 3
+
+	snd_soc_update_bits(codec, WM8994_CLOCKING_1,WM8994_AIF2DSPCLK_ENA_MASK|WM8994_SYSDSPCLK_ENA_MASK, WM8994_AIF2DSPCLK_ENA|WM8994_SYSDSPCLK_ENA);
+	snd_soc_update_bits(codec, WM8994_CLOCKING_1,WM8994_SYSCLK_SRC_MASK, 0x00);// Set the core clock source to AIF1CLK
+
+	snd_soc_write(codec, WM8994_AIF2_RATE, 0x0005 );		// AIF2 Sample Rate = 8 kHz, AIF2CLK/Fs ratio = 512
+	snd_soc_write(codec,WM8994_FLL2_CONTROL_1, 0);			// Disable the FLL while reconfiguring
+	snd_soc_write(codec,WM8994_FLL2_CONTROL_2, 0x1500 );	// FLL2_OUTDIV = 22, FLL2_FRATIO = 1
+	// snd_soc_write(codec,WM8994_FLL2_CONTROL_3, 0xBE77 );	// FLL2_K = 0.744
+	// snd_soc_write(codec,WM8994_FLL2_CONTROL_3, 0xFA8A );	// FLL2_K = 0.97867
+	snd_soc_write(codec,WM8994_FLL2_CONTROL_3, 0x8264 );	// FLL2_K = 0.50934
+	snd_soc_write(codec,WM8994_FLL2_CONTROL_4, 0x00E0 );	// FLL2_N = 7
+	snd_soc_write(codec,WM8994_FLL2_CONTROL_5, 0x0C88 );	// FLL@_REFCLK_DIV = MCLK / 2, FLL2_REFCLK_SRC = MCLK1
+	snd_soc_write(codec,WM8994_FLL2_CONTROL_1, WM8994_FLL2_ENA);
+#else
 	snd_soc_write(codec, WM8994_AIF2_MASTER_SLAVE, 0x0000 );	// AIF2 Slave Mode (Default Register Value)
 	snd_soc_write(codec, WM8994_AIF2_BCLK, 0x00A0 );	// 
 	snd_soc_write(codec, WM8994_AIF2ADC_LRCLK, 0x0040 );	// 
@@ -528,6 +549,7 @@ void OpenAIF2(struct snd_soc_codec *codec)
 		snd_soc_write(codec,WM8994_FLL2_CONTROL_1, WM8994_FLL2_ENA);	
 #ifdef CONFIG_MACH_M030
 	}
+#endif
 #endif
 	snd_soc_write(codec,WM8994_AIF2_CLOCKING_1, 0x0019 );	// Enable AIF2 Clock, AIF2 Clock Source = FLL2/BCLK2
 	
