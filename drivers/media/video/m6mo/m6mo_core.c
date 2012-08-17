@@ -19,7 +19,7 @@
 #include "m6mo_regs.h"
 #include "m6mo_ctrl.h"
 
-#define DEFAULT_REG_DEBUG 0
+#define DEFAULT_DEBUG 0
 
 /* default setting registers */
 static struct m6mo_reg m6mo_default_regs[] = {
@@ -442,14 +442,29 @@ static ssize_t store_erase(struct device *d,
 	return count;
 }
 
+static ssize_t store_debug(struct device *d,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int val;
+	struct v4l2_subdev *sd = dev_get_drvdata(d);
+	struct m6mo_state *state = to_state(sd);
+
+	if (sscanf(buf, "%d", &val) == 1)
+		state->debug = !!val;
+
+	return count;
+}
+
 static DEVICE_ATTR(firmware_status, 0444, show_firmware_status, NULL);
 static DEVICE_ATTR(register, 0220, NULL, store_register);
 static DEVICE_ATTR(erase, 0220, NULL, store_erase);
+static DEVICE_ATTR(debug, 0220, NULL, store_debug);
 
 static struct attribute *m6mo_attributes[] = {
 	&dev_attr_firmware_status.attr,
 	&dev_attr_register.attr,
 	&dev_attr_erase.attr,
+	&dev_attr_debug.attr,
 	NULL
 };
 
@@ -999,14 +1014,13 @@ static int m6mo_reset(struct v4l2_subdev *sd, u32 val)
 	return 0;
 }
 
-int m6mo_s_power(struct v4l2_subdev *sd, int on)
+int m6mo_set_power_clock(struct m6mo_state *state, bool enable)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct m6mo_state *state = to_state(sd);
 	struct m6mo_platform_data *pdata = state->pdata;
-	bool enable = !!on;
-	int ret;
-
+	struct v4l2_subdev *sd = &state->sd;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int ret = 0;
+	
 	if (state->power_status == enable) 
 		return -EBUSY;
 	
@@ -1025,8 +1039,19 @@ int m6mo_s_power(struct v4l2_subdev *sd, int on)
 	}
 
 	state->power_status = enable;
+
+	return ret;
+}
+
+int m6mo_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct m6mo_state *state = to_state(sd);
+	bool enable = !!on;
+
+	if (state->fw_status == FIRMWARE_REQUESTING)
+		return -EBUSY;
 	
-	return 0;
+	return m6mo_set_power_clock(state, enable);
 }
 
 static void m6mo_handle_normal_cap(struct m6mo_state *state, int irq_status)
@@ -1144,7 +1169,7 @@ static int m6mo_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	/* init members */
 	state->pdata = pdata;
 	state->power_status = false;
-	state->debug = DEFAULT_REG_DEBUG;
+	state->debug = DEFAULT_DEBUG;
 	state->cam_id = BACK_CAMERA;
 	state->fled_regulator = NULL;
 	state->cap_mode = CAP_NORMAL_MODE;

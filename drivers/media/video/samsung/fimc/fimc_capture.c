@@ -854,6 +854,7 @@ int fimc_release_subdev(struct fimc_control *ctrl)
 	if (!ctrl->cam->initialized) {
 		ret = fimc_init_camera(ctrl);
 		if (ret < 0) {
+			ctrl->cam->sd = NULL;
 			fimc_err("%s: fail to initialize subdev\n", __func__);
 			return ret;
 		}

@@ -39,32 +39,83 @@
 #define NEW_FIRMWARE_HIGH_ADDRESS 		0x0016fffc
 #define NEW_FIRMWARE_LOW_ADDRESS 		0x0016fffd
 
+/****************************************/
+/***********   factory test functions    **********/
+/****************************************/
+
+static bool m6mo_is_factory_test_mode(void)
+{
+	return !!mx_is_factory_test_mode(MX_FACTORY_TEST_CAMERA);
+}
+
+static void m6mo_factory_test_init(void)
+{
+	pr_debug("%s\n", __func__);
+	
+	mx_set_factory_test_led(1);
+}
+
+static void m6mo_factory_test_success(void)
+{
+	int onoff = 0;
+
+	pr_debug("%s()", __func__);
+
+	/*we don't return in factory test mode*/
+	while (1) {
+		mx_set_factory_test_led(onoff);
+		msleep(200);
+		onoff = !onoff;
+	}
+}
+
+static void m6mo_factory_test_fail(void)
+{
+	pr_debug("%s()", __func__);
+	
+	mx_set_factory_test_led(0);
+}
+
+/******************************************/
+
+/*
+  * set firmware status function
+  * NONE, REQUESTING, LOADED_OK or LOADED_FAIL
+  * If in factory test mode, should set factory test status
+*/
 static void m6mo_set_firmware_status(struct v4l2_subdev *sd, 
 	enum firmware_status status)
 {
 	struct m6mo_state *state = to_state(sd);
-#if 0
+	bool test_mode = m6mo_is_factory_test_mode();
+
 	switch (status) {
 	case FIRMWARE_NONE:
 		break;
 	case FIRMWARE_REQUESTING:
-		if (m6mo_is_factory_test_mode())
-			m6mo_init_factory_test_mode();
-		break;
-	case FIRMWARE_LOADED_OK:
-		if (m6mo_is_factory_test_mode()) {
-			wake_lock(&state->wake_lock);   /*don't sleep*/
-			m6mo_factory_test_success();
+		if (test_mode) {
+			state->fw_updated = false;
+			m6mo_factory_test_init();
 		}
 		break;
-	case FIRMWARE_LOADED_FAIL:
-		if (m6mo_is_factory_test_mode())
+	case FIRMWARE_CHECKED:
+		if (test_mode) {
+			wake_lock(&state->wake_lock);   /* don't sleep and return */
+			if (state->fw_updated)
+				m6mo_factory_test_success();
+			else 
+				m6mo_factory_test_fail();
+		}
+		break;
+	case FIRMWARE_UPDATE_FAIL:
+		if (test_mode) {
+			wake_lock(&state->wake_lock);
 			m6mo_factory_test_fail();
+		}
 		break;
 	default:
 		return;
 	}
-#endif
 
 	pr_info("%s:status = %d\n", __func__, status);
 	
@@ -309,8 +360,8 @@ static int m6mo_update_firmware(struct v4l2_subdev *sd,
 
 	wake_lock(&state->wake_lock);
 
-	ret = m6mo_s_power(sd, 1);
-	if (ret) goto exit_update;;
+	ret = m6mo_set_power_clock(state, true);
+	if (ret) goto exit_update;
 
 	ret = m6mo_download_firmware(sd, fw->data, fw->size);
 	if (ret) goto exit_update;
@@ -322,11 +373,13 @@ static int m6mo_update_firmware(struct v4l2_subdev *sd,
 		goto exit_update;
 	}
 
+	if (m6mo_is_factory_test_mode()) state->fw_updated = true;
+	
 	pr_info("finish downloading firmware !\n");	
 
 exit_update:
 	wake_unlock(&state->wake_lock);
-	if (state->power_status) m6mo_s_power(sd, 0);
+	if (state->power_status) m6mo_set_power_clock(state, false);
 
 	return ret;
 }
@@ -362,9 +415,9 @@ int m6mo_erase_firmware(struct v4l2_subdev *sd)
 	/* if has power, return */
 	if (state->power_status) return -EINVAL;
 
-	ret = m6mo_s_power(sd, 1);
+	ret = m6mo_set_power_clock(state, true);
 	if (ret) {
-		pr_err("%s():power fail", __func__);
+		pr_err("%s():power fail\n", __func__);
 		return ret;
 	}
 
@@ -396,17 +449,38 @@ int m6mo_erase_firmware(struct v4l2_subdev *sd)
 	pr_info("%s: chip erase OK!\n", __func__);
 
 exit:
-	m6mo_s_power(sd, 0);
+	m6mo_set_power_clock(state, false);
 	return ret;
 }
 
 /*
   * make a decision for update firmware, return true for update
+  * get update decision sequence
+  * (1) get new firmware version number from file
+  * (2) if in factory test mode, return true, force to update 
+  * (2) power on ISP
+  * (3) do a checksum, if checksum fail, return true
+  * (4) run firmware in order to get current current ISP firmware version
+  * (5) compare old and new firmware version number, if not be equal, return true
+  * (6) power off
 */
 static bool m6mo_get_update_decision(struct v4l2_subdev *sd, const struct firmware *fw)
 {
-	int old_ver, new_ver, ret;
+	int old_version, ret;
+	struct m6mo_state *state = to_state(sd);
 	bool decision = false;
+
+	/* get new firmware version */
+	state->fw_version = m6mo_get_new_firmware_version(fw);
+
+	/* if in factory test mode, force to update */
+	if (m6mo_is_factory_test_mode()) return true;
+
+	/* power on before get update decision */
+	ret = m6mo_set_power_clock(state, true);
+	if (ret) goto exit_decision;
+	
+	msleep(100);  /* delay is necessary for the system boot on ? */
 
 	/* if checksum fail means the firmware is not integrity */
 	ret = m6mo_get_checksum(sd);
@@ -419,44 +493,35 @@ static bool m6mo_get_update_decision(struct v4l2_subdev *sd, const struct firmwa
 
 	/* after checksum, check the version num between old and new firmware */
 	ret = m6mo_run_firmware(sd);
-	if (ret) {
-		decision = true;
-		goto exit_decision;
-	}
+	if (ret) goto exit_decision;
 
 #ifdef CONFIG_SKIP_CAMERA_UPDATE   /* used for eng */
 	decision = false;
 	goto exit_decision;
 #else
-	old_ver = m6mo_get_firmware_version(sd);
-	new_ver = m6mo_get_new_firmware_version(fw);
+	old_version = m6mo_get_firmware_version(sd);
 
 	pr_info("firmware old version = 0x%x, new version = 0x%x\n", 
-		old_ver, new_ver);
+		old_version, state->fw_version);
 
-/* because current firmware version is incorrect, so we don't update*/
-#if 0
 	/* if old version is not equal to new version , we should update firmware */
-	if (old_ver <= 0 || new_ver <= 0 
-		|| old_ver != new_ver) {
+	if (old_version != state->fw_version) {
 		decision = true;
 		goto exit_decision;
 	}
 #endif
-#endif
 
 exit_decision:
-	
+	if (state->power_status) m6mo_set_power_clock(state, false);
 	return decision;
 }
 
 static void m6mo_fw_request_complete_handler(const struct firmware *fw,
 						  void *context)
 {
-	int ret = 0;
+	int ret = 0, retry_count = 3;
 	struct v4l2_subdev *sd = (struct v4l2_subdev *)context;
-	bool decision = false;
-	enum firmware_status fw_status = FIRMWARE_LOADED_FAIL;
+	enum firmware_status fw_status = FIRMWARE_CHECKED;
 
 	if (!fw) {
 		pr_err("load m6mo firmware fail\n");
@@ -469,21 +534,19 @@ static void m6mo_fw_request_complete_handler(const struct firmware *fw,
 		goto exit_firmware;
 	}	
 
-	/* power on before get update decision*/
-	ret = m6mo_s_power(sd, 1);
-	if (ret) goto exit_firmware;
-
-	msleep(100);  /* delay is necessary for the system boot on ? */
-
-	decision = m6mo_get_update_decision(sd, fw);
-	m6mo_s_power(sd, 0);
-
-	if (decision) {
+	/* get update decision, retry 3 times */
+	if (m6mo_get_update_decision(sd, fw)) {
+retry:
 		ret = m6mo_update_firmware(sd, fw);
-		if (ret) goto exit_firmware;
+		if (ret) {
+			if (retry_count--) {
+				goto retry;
+			} else {
+				fw_status = FIRMWARE_UPDATE_FAIL;
+				goto exit_firmware;
+			}
+		}
 	}
-	
-	fw_status = FIRMWARE_LOADED_OK;
 
 exit_firmware:
 	m6mo_set_firmware_status(sd, fw_status);
@@ -505,7 +568,7 @@ int m6mo_load_firmware(struct v4l2_subdev *sd)
 				      m6mo_fw_request_complete_handler);
 	if (ret) {
 		dev_err(&client->dev, "could not load firmware (err=%d)\n", ret);
-		m6mo_set_firmware_status(sd, FIRMWARE_LOADED_FAIL);
+		m6mo_set_firmware_status(sd, FIRMWARE_CHECKED);
 	}
 
 	return ret;

@@ -43,12 +43,18 @@ enum flash_current_type {
 	FULL_FLASH_TYPE,
 };
 
-/* firmware status */
+/* 
+  * firmware status: indicate ISP firmware checking or updating status
+  * FIRMWARE_NONE: ISP firmware has not been checked
+  * FIRMWARE_REQUESTING: in the firmware checking or downloading progress
+  * FIRMWARE_CHECKED: has been finished checking or downloading firmware
+  * FIRMWARE_UPDATE_FAIL:fail to download data to ISP
+*/
 enum firmware_status {
 	FIRMWARE_NONE,
 	FIRMWARE_REQUESTING,
-	FIRMWARE_LOADED_OK,
-	FIRMWARE_LOADED_FAIL,
+	FIRMWARE_CHECKED,
+	FIRMWARE_UPDATE_FAIL,
 };
 
 /*
@@ -230,6 +236,7 @@ struct m6mo_state {
 	int fw_version;
 	enum firmware_status fw_status;
 	u8 *fw_buffer;
+	bool fw_updated;  /* used by factory test */
 	struct wake_lock wake_lock;
 
 	struct work_struct work;  /* work for panorama cap, multi cap and smile cap */
@@ -261,6 +268,7 @@ int m6mo_write_regs(struct v4l2_subdev *sd, struct m6mo_reg *regs, int size);
 
 
 int m6mo_set_sys_mode(struct v4l2_subdev *sd, enum isp_mode mode);
+int m6mo_set_power_clock(struct m6mo_state *state, bool enable);
 int m6mo_s_power(struct v4l2_subdev *sd, int on);
 void m6mo_prepare_wait(struct v4l2_subdev *sd);
 int m6mo_enable_root_irq(struct v4l2_subdev *sd);
