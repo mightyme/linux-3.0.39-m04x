@@ -248,9 +248,9 @@ static struct dw_mci_board __initdata m040_dwmci_pdata = {
 };
 #endif
 
-#ifdef CONFIG_SND_SOC_M040_WM8958
+#ifdef CONFIG_SND_SOC_MX_WM8958
 static struct platform_device m040_audio_device = {
-	.name = "m040-audio",
+	.name = "mx-audio",
 	.id = -1,
 };
 #endif
@@ -269,7 +269,7 @@ static struct mx_spdif_platform_data m040_spdif_data={
 };
 
 static struct platform_device m040_spdif_device={
-	.name = "m040-spdif",
+	.name = "mx-spdif",
 	.id = -1,
 	.dev = {
 		.platform_data = &m040_spdif_data,
@@ -991,7 +991,7 @@ static struct platform_device __initdata *m040_devices[]  = {
 #ifdef CONFIG_SND_SOC_SAMSUNG_SMDK_SPDIF
 	&m040_spdif_device,
 #endif
-#ifdef CONFIG_SND_SOC_M040_WM8958
+#ifdef CONFIG_SND_SOC_MX_WM8958
 	&m040_audio_device,
 #endif
 #ifdef CONFIG_VIDEO_TVOUT
