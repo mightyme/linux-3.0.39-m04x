@@ -43,13 +43,14 @@
 
 static struct rmi_device_platform_data rmi4_platformdata = {
 	.driver_name = "rmi_generic",
+	.sensor_name = "m040 touch",
 	.attn_gpio = M040_TOUCH_IRQ,
 	.attn_polarity = RMI_ATTN_ACTIVE_LOW,
 };
 #endif
 
 
-#if defined(CONFIG_TOUCHSCREEN_M03X)
+#if defined(CONFIG_TOUCHSCREEN_MX)
 /* Initial register values recommended from chip vendor */
 static const u8 mxt_init_vals[] = {
 	/*[SPT_USERDATA_T38 INSTANCE 0] 264*/
@@ -115,7 +116,7 @@ static struct i2c_board_info __initdata i2c_devs7[] = {
 		.platform_data = &rmi4_platformdata,
 	},
 #endif
-#if defined(CONFIG_TOUCHSCREEN_M03X)
+#if defined(CONFIG_TOUCHSCREEN_MX)
 	{
 		I2C_BOARD_INFO("qt602240_ts", (0x94 >> 1)),
 		.platform_data	= &qt602240_platform_data,

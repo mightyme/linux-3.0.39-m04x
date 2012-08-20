@@ -408,7 +408,7 @@ static struct i2c_board_info __initdata i2c_devs6[] = {
 #if defined(CONFIG_LEDS_LM3530)
 		I2C_BOARD_INFO("lm3530-led", (0x39)),
 		.platform_data = &lm3530_pd,
-		.irq = M040_TOUCH_IRQ,
+		.irq = M040_BL_IR_IRQ,
 #endif
 	},
 };
@@ -1047,7 +1047,7 @@ static struct platform_device __initdata *m040_devices[]  = {
 	&brcm_gps,
 #endif
 
-#if defined(CONFIG_VIDEO_JPEG_V2X) || defined(CONFIG_VIDEO_JPEG_M03X)
+#if defined(CONFIG_VIDEO_JPEG_V2X) || defined(CONFIG_VIDEO_JPEG_MX)
 	&s5p_device_jpeg,
 #endif
 #ifdef CONFIG_SWITCH_GPIO
@@ -1094,13 +1094,15 @@ static struct platform_device __initdata *m040_devices[]  = {
 
 static void __init m040_gpio_irq_init(void)
 {
-	unsigned gpio;
-	int ret;
-
-	gpio = M040_CAMERA_ISP_IRQ;
-	ret = gpio_request(gpio, "M6MO_INT");
-	ret = s5p_register_gpio_interrupt(gpio);
-	gpio_free(gpio);
+	int i;
+	unsigned gpio[] = {
+		M040_CAMERA_ISP_IRQ,
+	};
+	
+	for(i=0; i< ARRAY_SIZE(gpio); i++)
+	{
+		s5p_register_gpio_interrupt(gpio[i]);
+	}
 }
 
 #if defined(CONFIG_SAMSUNG_DEV_BACKLIGHT)
@@ -1214,7 +1216,7 @@ static void __init m040_machine_init(void)
 	s3c_hwmon_set_platdata(&m040_hwmon_pdata);
 #endif
 
-#if defined(CONFIG_VIDEO_JPEG_V2X) || defined(CONFIG_VIDEO_JPEG_M03X)
+#if defined(CONFIG_VIDEO_JPEG_V2X) || defined(CONFIG_VIDEO_JPEG_MX)
 	exynos4_jpeg_setup_clock(&s5p_device_jpeg.dev, 160000000);
 #ifndef CONFIG_PM_GENERIC_DOMAINS
 	s5p_device_jpeg.dev.parent = &exynos4_device_pd[PD_CAM].dev;
