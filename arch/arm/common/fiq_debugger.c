@@ -878,7 +878,7 @@ static bool debug_handle_uart_interrupt(struct fiq_debugger_state *state,
 			fiq_debugger_ringbuf_push(state->tty_rbuf, c);
 			signal_helper = true;
 #endif
-		} else if ((c >= ' ') && (c < 127)) {
+		} else if (((c >= ' ') && (c < 127)) || c == 17) {//add CTRL key
 			if (state->debug_count < (DEBUG_MAX - 1)) {
 				state->debug_buf[state->debug_count++] = c;
 				debug_putc(state, c);
