@@ -98,7 +98,7 @@
 #ifdef CONFIG_MFD_MXQM
 #include <linux/mx_qm.h>
 #endif
-
+#include <mach/exynos_fiq_debugger.h>
 
 extern void __init m040_reserve_mem(void);
 
@@ -141,6 +141,7 @@ static struct s3c2410_uartcfg __initdata m040_uartcfgs[] = {
 		.ulcon		= M040_ULCON_DEFAULT,
 		.ufcon		= M040_UFCON_DEFAULT,
 	},
+#ifndef CONFIG_EXYNOS_FIQ_DEBUGGER
 	[3] = {
 		.hwport		= 3,
 		.flags		= 0,
@@ -148,6 +149,7 @@ static struct s3c2410_uartcfg __initdata m040_uartcfgs[] = {
 		.ulcon		= M040_ULCON_DEFAULT,
 		.ufcon		= M040_UFCON_DEFAULT,
 	},
+#endif
 };
 
 #ifdef CONFIG_BT
@@ -688,7 +690,7 @@ static struct platform_device m040_device_gpio_i2c15 = {
 #if defined(CONFIG_BATTERY_BQ27541_I2C)
 static struct bq27541_platform_data __initdata m040_bq27541_info = {
 	.wakeup = true,
-	.name = "m03x-fuelgauge",
+	.name = "m040-fuelgauge",
 	.low_bat_gpio = M040_BAT_LOW_IRQ,
 };
 #endif
@@ -1146,6 +1148,9 @@ static void __init m040_map_io(void)
 
 static void __init m040_machine_init(void)
 {
+#ifdef CONFIG_EXYNOS_FIQ_DEBUGGER
+	exynos_serial_debug_init(CONFIG_S3C_LOWLEVEL_UART_PORT, 0);
+#endif
 	m040_gpio_irq_init();
 	m040_sysmmu_init();
 
