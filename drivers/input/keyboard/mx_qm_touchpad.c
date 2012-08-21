@@ -274,7 +274,8 @@ unsigned short qm_touch_get_key(struct mx_qm_touch	*touch)
 	}		
 
 	pr_debug("%s:%.2d  ", __func__,key );		
-	
+
+	return key;
 }
 
 static void get_slider_position_func(struct work_struct *work)

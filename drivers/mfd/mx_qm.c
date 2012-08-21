@@ -619,7 +619,7 @@ exit:
 	}
 	
 	wake_unlock(&mx->wake_lock);
-	return;
+	return ret;
 }
 
 

@@ -244,7 +244,7 @@ static int bu26507_set_led_pwm(struct led_classdev *led_cdev, int pwm)
 	  unsigned char data;
 	  pr_debug("%s:current = %d\n",__func__,value);
 	 
-	  data = ((value>>4) & 0x0F) |(data & 0xF0);	  
+	  data = ((value>>4) & 0x0F) |(value & 0xF0);	  
 	  //ret = mx->i2c_writebyte(mx->client,LED_REG8_MAXINTENSITY,data);	 
 
 	  if( data == 0 )
