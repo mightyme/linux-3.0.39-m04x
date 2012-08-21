@@ -191,7 +191,7 @@ static _mali_osk_errcode_t mali_l2_cache_initialize(mali_kernel_subsystem_identi
 
 
 /* called if/when our module is unloaded */
-static void mali_l2_cache_terminate(mali_kernel_subsystem_identifier id)
+static __maybe_unused void mali_l2_cache_terminate(mali_kernel_subsystem_identifier id)
 {
 	mali_kernel_l2_cache_core * cache, *temp_cache;
 

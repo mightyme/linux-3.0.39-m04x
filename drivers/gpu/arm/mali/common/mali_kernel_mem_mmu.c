@@ -557,7 +557,7 @@ static _mali_osk_errcode_t mali_memory_core_initialize(mali_kernel_subsystem_ide
 }
 
 /* called if/when our module is unloaded */
-static void mali_memory_core_terminate(mali_kernel_subsystem_identifier id)
+static __maybe_unused void mali_memory_core_terminate(mali_kernel_subsystem_identifier id)
 {
 	mali_kernel_memory_mmu * mmu, *temp_mmu;
 
