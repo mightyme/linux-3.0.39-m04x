@@ -626,6 +626,52 @@ void SetAIF3_2_AIF2(struct snd_soc_codec *codec,bool enable)
 	}
 }
 
+void OpenBTRing(struct snd_soc_codec *codec)
+{
+	snd_soc_write(codec, WM8994_AIF1_CLOCKING_1, 0x0001); // * AIF1 Clocking (1)(200H): 0001  AIF1CLK_SRC=MCLK1, AIF1CLK_INV=0, AIF1CLK_DIV=AIF1CLK, AIF1CLK_ENA=1
+	snd_soc_write(codec, WM8994_AIF2_CLOCKING_1, 0x0001); // * AIF2 Clocking (1)(204H): 0001  AIF2CLK_SRC=MCLK1, AIF2CLK_INV=0, AIF2CLK_DIV=AIF2CLK, AIF2CLK_ENA=1
+	snd_soc_write(codec, WM8994_CLOCKING_1, 0x000E); // * Clocking (1)(208H):      000E  DSP2CLK_ENA=0, DSP2CLK_SRC=AIF1CLK Source, TOCLK_ENA=0, AIF1DSPCLK_ENA=1, AIF2DSPCLK_ENA=1, SYSDSPCLK_ENA=1, SYSCLK_SRC=AIF1CLK
+	snd_soc_write(codec, WM8994_AIF2_RATE, 0x0003); // * AIF2 Rate(211H): 0009  AIF2_SR=8 kHz, AIF2CLK_RATE=256
+	snd_soc_write(codec, WM8994_POWER_MANAGEMENT_5, 0x030F); // * Power Management (5)(05H): 030F  AIF2DACL_ENA=0, AIF2DACR_ENA=0, AIF1DAC2L_ENA=0, AIF1DAC2R_ENA=0, AIF1DAC1L_ENA=1, AIF1DAC1R_ENA=1, DAC2L_ENA=1, DAC2R_ENA=1, DAC1L_ENA=1, DAC1R_ENA=1
+	snd_soc_write(codec, WM8994_POWER_MANAGEMENT_6, 0x0008); // * Power Management (6)(06H): 0008  AIF3ADC_SRC=None, AIF2DAC_SRC=Left and Right inputs from AIF2, AIF3_TRI=0, AIF3_ADCDAT_SRC=AIF2 ADCDAT2, AIF2_ADCDAT_SRC=AIF2 ADCDAT2, AIF2_DACDAT_SRC=DACDAT2, AIF1_DACDAT_SRC=DACDAT1
+	snd_soc_write(codec, WM8994_POWER_MANAGEMENT_4, 0x3000); // * Power Management (4)(04H): 3000  AIF2ADCL_ENA=1, AIF2ADCR_ENA=1, AIF1ADC2L_ENA=0, AIF1ADC2R_ENA=0, AIF1ADC1L_ENA=0, AIF1ADC1R_ENA=0, DMIC2L_ENA=0, DMIC2R_ENA=0, DMIC1L_ENA=0, DMIC1R_ENA=0, ADCL_ENA=0, ADCR_ENA=0
+	snd_soc_write(codec, WM8994_DAC2_LEFT_MIXER_ROUTING, 0x0001); // * DAC2 Left Mixer Routing(604H): 0001  ADCR_TO_DAC2L=0, ADCL_TO_DAC2L=0, AIF2DACL_TO_DAC2L=0, AIF1DAC2L_TO_DAC2L=0, AIF1DAC1L_TO_DAC2L=1
+	snd_soc_write(codec, WM8994_DAC2_RIGHT_MIXER_ROUTING, 0x0001); // * DAC2 Right Mixer Routing(605H): 0001  ADCR_TO_DAC2R=0, ADCL_TO_DAC2R=0, AIF2DACR_TO_DAC2R=0, AIF1DAC2R_TO_DAC2R=0, AIF1DAC1R_TO_DAC2R=1
+	snd_soc_write(codec, WM8994_DAC1_LEFT_VOLUME, 0x01C0); // * DAC1 Left Volume(610H):  01C0  DAC1L_MUTE=0, DAC1_VU=1, DAC1L_VOL=0dB
+	snd_soc_write(codec, WM8994_DAC1_RIGHT_VOLUME, 0x01C0);// * DAC1 Right Volume(611H): 01C0  DAC1R_MUTE=0, DAC1_VU=1, DAC1R_VOL=0dB
+	snd_soc_write(codec, WM8994_DAC2_LEFT_VOLUME, 0x01C0); // * DAC2 Left Volume(612H):  01C0  DAC2L_MUTE=0, DAC2_VU=1, DAC2L_VOL=0dB
+	snd_soc_write(codec, WM8994_DAC2_RIGHT_VOLUME, 0x01C0);// * DAC2 Right Volume(613H): 01C0  DAC2R_MUTE=0, DAC2_VU=1, DAC2R_VOL=0dB
+	snd_soc_write(codec, WM8994_OVERSAMPLING, 0x0000); // * Oversampling(620H):      0000  ADC_OSR128=Low Power, DAC_OSR128=Low Power
+	snd_soc_write(codec, WM8994_GPIO_8 , 0xA100); // * GPIO 8(707H):            A100  GP8_DIR=Input, GP8_PU=0, GP8_PD=1, GP8_POL=Non-inverted, GP8_OP_CFG=CMOS, GP8_DB=Enabled, GP8_LVL=0, GP8_FN=DACDAT3
+	snd_soc_write(codec, WM8994_GPIO_9 , 0x2100); // * GPIO 9(708H):            2100  GP9_DIR=Output, GP9_PU=0, GP9_PD=1, GP9_POL=Non-inverted, GP9_OP_CFG=CMOS, GP9_DB=Enabled, GP9_LVL=0, GP9_FN=ADCDAT3
+	snd_soc_write(codec, WM8994_GPIO_10, 0xA100); // * GPIO 10(709H):           2100  GP10_DIR=Output, GP10_PU=0, GP10_PD=1, GP10_POL=Non-inverted, GP10_OP_CFG=CMOS, GP10_DB=Enabled, GP10_LVL=0, GP10_FN=LRCLK3
+	snd_soc_write(codec, WM8994_GPIO_11, 0x2100); // * GPIO 11(70AH):           2100  GP11_DIR=Output, GP11_PU=0, GP11_PD=1, GP11_POL=Non-inverted, GP11_OP_CFG=CMOS, GP11_DB=Enabled, GP11_LVL=0, GP11_FN=BCLK3
+	snd_soc_write(codec, WM8994_AIF2_CONTROL_1, 0x411B); // * AIF2 Control (1)(310H):  411B  AIF2_LRCLK_INV=1, AIF2_WL=16 bits, AIF2_FMT=DSP mode
+	snd_soc_write(codec, WM8958_AIF3_CONTROL_1, 0x0018); // * AIF3 Control (1)(320H):  0018  AIF3_LRCLK_INV=0, AIF3_WL=16 bits, AIF3_FMT=DSP mode
+	snd_soc_write(codec, WM8994_AIF1_MASTER_SLAVE, 0x4000); // * AIF1 Master/Slave(302H): 4000  AIF1_TRI=0, AIF1_MSTR=Master mode, AIF1_CLK_FRC=0, AIF1_LRCLK_FRC=0
+	snd_soc_write(codec, WM8994_AIF2_MASTER_SLAVE, 0x4000); // * AIF2 Master/Slave(312H): 4000  AIF2_TRI=0, AIF2_MSTR=Master mode, AIF2_CLK_FRC=0, AIF2_LRCLK_FRC=0
+	snd_soc_write(codec, WM8994_FLL1_CONTROL_1, 0x0000); // * FLL1 Control (1)(220H):  0000  FLL1_OSC_ENA=0, FLL1_ENA=0
+	snd_soc_write(codec, WM8994_FLL1_CONTROL_2, 0x0700); // * FLL1 Control (2)(221H):  0700  FLL1_OUTDIV=8, FLL1_FRATIO=1
+	snd_soc_write(codec, WM8994_FLL1_CONTROL_3, 0x86C2); // * FLL1 Control (3)(222H):  86C2  FLL1_K=0.5264
+	snd_soc_write(codec, WM8994_FLL1_CONTROL_4, 0x00E0); // * FLL1 Control (4)(223H):  00E0  FLL1_N=7
+	if (machine_is_m030())
+		snd_soc_write(codec, WM8994_FLL1_CONTROL_5, 0x0C80); // * FLL1 Control (5)(224H):  0C80  FLL1_BYP=FLL1, FLL1_FRC_NCO_VAL=01_1001, FLL1_FRC_NCO=0, FLL1_REFCLK_DIV=MCLK / 1, FLL1_REFCLK_SRC=MCLK1
+	else
+		snd_soc_write(codec, WM8994_FLL1_CONTROL_5, 0x0C88); // * FLL1 Control (5)(224H):  0C88  FLL1_BYP=FLL1, FLL1_FRC_NCO_VAL=01_1001, FLL1_FRC_NCO=0, FLL1_REFCLK_DIV=MCLK / 2, FLL1_REFCLK_SRC=MCLK1
+	snd_soc_write(codec, WM8994_FLL1_CONTROL_1, 0x0001); // * FLL1 Control (1)(220H):  0001  FLL1_OSC_ENA=0, FLL1_ENA=1
+	snd_soc_write(codec, WM8994_AIF1_CLOCKING_1, 0x0011);// * AIF1 Clocking (1)(200H): 0011  AIF1CLK_SRC=FLL1/BCLK1, AIF1CLK_INV=0, AIF1CLK_DIV=AIF1CLK, AIF1CLK_ENA=1
+	snd_soc_write(codec, WM8994_FLL2_CONTROL_1, 0x0000); // * FLL2 Control (1)(240H):  0000  FLL2_OSC_ENA=0, FLL2_ENA=0
+	snd_soc_write(codec, WM8994_FLL2_CONTROL_2, 0x2F00); // * FLL2 Control (2)(241H):  2F00  FLL2_OUTDIV=48, FLL2_FRATIO=1
+	snd_soc_write(codec, WM8994_FLL2_CONTROL_3, 0x3127); // * FLL2 Control (3)(242H):  3127  FLL2_K=0.192
+	snd_soc_write(codec, WM8994_FLL2_CONTROL_4, 0x0100); // * FLL2 Control (4)(243H):  0100  FLL2_N=8
+	if (machine_is_m030())
+		snd_soc_write(codec, WM8994_FLL2_CONTROL_5, 0x0C80); // * FLL2 Control (5)(244H):  0C88  FLL2_BYP=FLL1, FLL2_FRC_NCO_VAL=01_1001, FLL2_FRC_NCO=0, FLL2_REFCLK_DIV=MCLK, FLL2_REFCLK_SRC=MCLK1
+	else
+		snd_soc_write(codec, WM8994_FLL2_CONTROL_5, 0x0C88); // * FLL2 Control (5)(244H):  0C88  FLL2_BYP=FLL1, FLL2_FRC_NCO_VAL=01_1001, FLL2_FRC_NCO=0, FLL2_REFCLK_DIV=MCLK / 2, FLL2_REFCLK_SRC=MCLK1
+	snd_soc_write(codec, WM8994_FLL2_CONTROL_1, 0x0001); // * FLL2 Control (1)(240H):  0001  FLL2_OSC_ENA=0, FLL2_ENA=1
+	snd_soc_write(codec, WM8994_AIF2_CLOCKING_1, 0x0019);// * AIF2 Clocking (1)(204H): 0019  AIF2CLK_SRC=FLL2/BCLK2, AIF2CLK_INV=0, AIF2CLK_DIV=AIF2CLK, AIF2CLK_ENA=1
+}
+
 int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 {
 	int ret = 0;
@@ -690,6 +736,12 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		CloseAIF2(codec);
 		SetEQBase(codec,EQ_HP_NORMAL);
 		SetVolume_Ring(codec);
+		SetHpMute(codec,0);
+		break;
+	case PLAYBACK_BT_RING:
+		OpenBTRing(codec);
+		SetVolume_Ring(codec);
+		SetSpkMute(codec,0);
 		SetHpMute(codec,0);
 		break;
 		
