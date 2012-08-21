@@ -83,11 +83,11 @@ MODULE_PARM_DESC(mali_boot_profiling, "Start profiling as a part of Mali driver 
 #endif
 
 #if MALI_DVFS_ENABLED
+#if defined(CONFIG_CPU_EXYNOS4210)
+#else
 extern int mali_dvfs_control;
 module_param(mali_dvfs_control, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP| S_IROTH); /* rw-rw-r-- */
 MODULE_PARM_DESC(mali_dvfs_control, "Mali Current DVFS");
-#if defined(CONFIG_CPU_EXYNOS4210)
-#else
 #define MALI_DVFS_STEPS 4
 extern int step0_clk;
 module_param(step0_clk, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP| S_IROTH); /* rw-rw-r-- */
