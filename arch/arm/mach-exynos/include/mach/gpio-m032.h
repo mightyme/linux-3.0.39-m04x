@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 
+ * Foundation, Inc.,
  *
  * Revision History
  *
@@ -46,14 +46,14 @@ typedef enum {
 	GYR_DRDY_IRQ,
 	ACC_IRQ0,
 	HDETEC_IRQ,
-	
+
 	VOLUMEDOWN_KEY = EXYNOS4_GPX2(0),
 	BAT_LOW_IRQ,
 	WL_HOST_WAKE = EXYNOS4_GPX2(3),
 	BT_HOST_WAKE,
 	VOLUMEUP_KEY,
 	BB_SRDY_IRQ = EXYNOS4_GPX2(7),
-	
+
 	BB_RST_IRQ = EXYNOS4_GPX3(0),
 	IPC_TRIG_IRQ,
 	PMIC1_RST_IRQ,
@@ -221,3 +221,4 @@ typedef enum {
 #define M032_GPIO_TEST_LED EXYNOS4_GPY0(4)
 
 #endif	/* _MX30X_GPIO_H */
+

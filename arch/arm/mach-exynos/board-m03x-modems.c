@@ -23,7 +23,8 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/machine.h>
 #include <plat/gpio-cfg.h>
-#include <mach/gpio-m03x.h>
+#include <mach/gpio-m030.h>
+#include <mach/gpio-m032.h>
 #include <mach/modem.h>
 #include <asm/mach-types.h>
 #include <mach/gpio-m030.h>

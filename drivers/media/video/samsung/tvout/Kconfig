@@ -44,7 +44,7 @@ config HDMI_HPD
 
 config HDMI_14A_3D
 	bool "HDMI 14A driver support."
-	depends on VIDEO_TVOUT && ARCH_EXYNOS4 && CPU_EXYNOS4212
+	depends on VIDEO_TVOUT && ARCH_EXYNOS4
 	default y
 	---help---
 	  This is a HDMI 1.4A 3D driver for Samsung S5P platform.

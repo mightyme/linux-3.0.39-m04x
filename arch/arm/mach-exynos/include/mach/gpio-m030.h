@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 
+ * Foundation, Inc.,
  *
  * Revision History
  *
@@ -153,4 +153,5 @@
 #define M030_GPIO_TEST_LED 		EXYNOS4210_GPE1(4)//CAMERA WIFI BT TEST LED
 
 #endif	/*!_MEIZUM030_GPIO_H*/
+
 
