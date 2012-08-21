@@ -918,3 +918,23 @@ config EXYNOS5250_ABB_WA
 	default y
 	help
 	 Add W/A to fix ARM/INT ABB errata in EVT0
+
+if MEIZU_MODEM
+choice
+	prompt "MEIZU MODEM CONFIG"
+	depends on MEIZU_MODEM
+	default MEIZU_M040_MODEM
+
+config MEIZU_M03X_MODEM
+	bool "board m03x modem(WCDMA xmm6260)"
+	select UMTS_MODEM_XMM6260
+	select LINK_DEVICE_HSIC
+
+config MEIZU_M040_MODEM
+	bool "board m040 modem(WCDMA xmm6260)"
+	select UMTS_MODEM_XMM6260
+	select LINK_DEVICE_HSIC
+
+endchoice
+
+endif

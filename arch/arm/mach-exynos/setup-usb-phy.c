@@ -308,7 +308,8 @@ static int exynos4_usb_phy0_init(struct platform_device *pdev)
 	exynos_usb_phy_control(USB_PHY0, PHY_ENABLE);
 
 	/* set clock frequency for PLL */
-	phyclk = exynos_usb_phy_set_clock(pdev);
+	phyclk = readl(EXYNOS4_PHYCLK) & ~(EXYNOS4210_CLKSEL_MASK);
+	phyclk |= exynos_usb_phy_set_clock(pdev);
 	phyclk &= ~(PHY0_COMMON_ON_N);
 	writel(phyclk, EXYNOS4_PHYCLK);
 
@@ -396,7 +397,7 @@ int exynos4_check_usb_op(void)
 			writel(PHY_DISABLE, S5P_USBHOST_PHY_CONTROL);
 
 			op = 0;
-#ifdef CONFIG_XMM6260_MODEM
+#ifdef CONFIG_UMTS_MODEM_XMM6260
 			modem_set_active_state(0);
 #endif
 		}
@@ -424,7 +425,7 @@ int exynos4_check_usb_op(void)
 			writel(PHY_DISABLE, S5P_USB_PHY_CONTROL);
 	
 			op = 0;
-#ifdef CONFIG_XMM6260_MODEM
+#ifdef CONFIG_UMTS_MODEM_XMM6260
 			modem_set_active_state(0);
 #endif
 		}
@@ -602,7 +603,8 @@ static int exynos4_usb_phy1_init(struct platform_device *pdev)
 	exynos_usb_phy_control(USB_PHY1, PHY_ENABLE);
 
 	/* set clock frequency for PLL */
-	phyclk = exynos_usb_phy_set_clock(pdev);
+	phyclk = readl(EXYNOS4_PHYCLK) & ~(EXYNOS4210_CLKSEL_MASK);
+	phyclk |= exynos_usb_phy_set_clock(pdev);
 	phyclk &= ~(PHY1_COMMON_ON_N);
 	writel(phyclk, EXYNOS4_PHYCLK);
 
@@ -1225,7 +1227,129 @@ done:
 	up(&phy_lock);
 	return ret;
 }
+
+
+static int m030_usb_dev_phy_power(struct platform_device *pdev,int on)
+{
+	int ret;
+	struct regulator_bulk_data supplies[2];
+	int num_consumers = ARRAY_SIZE(supplies);
+
+	dev_dbg(&pdev->dev, "%s() : [%s]\n", __FUNCTION__, on?"ON":"OFF");
+
+	supplies[0].supply = "pd_io";
+	supplies[1].supply = "pd_core";
+
+
+	ret = regulator_bulk_get(&pdev->dev, num_consumers, supplies);
+	if (ret) {
+		dev_err(&pdev->dev, "%s():regulator_bulk_get failed\n", __func__);
+		return ret;
+	}
+
+	if (on)
+		ret = regulator_bulk_enable(num_consumers, supplies);
+	else
+		ret = regulator_bulk_disable(num_consumers, supplies);
+
+	regulator_bulk_free(num_consumers, supplies);
+	
+	return 0;
+}
+
+static int m03x_usb_dev_phy_power(struct platform_device *pdev,int on)
+{
+	int ret;
+	struct regulator_bulk_data supplies[2];
+	int num_consumers = ARRAY_SIZE(supplies);
+
+	dev_dbg(&pdev->dev, "%s() : [%s]\n", __FUNCTION__, on?"ON":"OFF");
+
+	supplies[0].supply = "vdd_ldo16";
+	supplies[1].supply = "vdd_ldo15";
+
+	ret = regulator_bulk_get(&pdev->dev, num_consumers, supplies);
+	if (ret) {
+		dev_err(&pdev->dev, "%s():regulator_bulk_get failed\n", __func__);
+		return ret;
+	}
+
+	if (on)
+		ret = regulator_bulk_enable(num_consumers, supplies);
+	else 
+		ret = regulator_bulk_disable(num_consumers, supplies);
+
+	regulator_bulk_free(num_consumers, supplies);
+	
+	return 0;	
+}
+
+static int m030_usb_host_phy_power(struct platform_device *pdev, int on)
+{
+	int ret;
+	struct regulator_bulk_data supplies[2];
+	int num_consumers = ARRAY_SIZE(supplies);
+
+	dev_dbg(&pdev->dev, "%s() : [%s]\n", __FUNCTION__, on?"ON":"OFF");
+
+	supplies[0].supply = "pd_io";
+	supplies[1].supply = "pd_core";
+
+	ret = regulator_bulk_get(&pdev->dev, num_consumers, supplies);
+	if (ret) {
+		dev_err(&pdev->dev, "%s():regulator_bulk_get failed\n", __func__);
+		return ret;
+	}
+
+	if (on)
+		ret = regulator_bulk_enable(num_consumers, supplies);
+	else
+		ret = regulator_bulk_disable(num_consumers, supplies);
+
+	regulator_bulk_free(num_consumers, supplies);
+	
+	return 0;	
+}
+
+static int m03x_usb_host_phy_power(struct platform_device *pdev, int on)
+{
+	int ret;
+	struct regulator_bulk_data supplies[2];
+	int num_consumers = ARRAY_SIZE(supplies);
+
+	dev_dbg(&pdev->dev, "%s() : [%s]\n", __FUNCTION__, on?"ON":"OFF");
+
+	supplies[0].supply = "vdd_ldo16";
+	supplies[1].supply = "vdd_ldo15";
+
+	ret = regulator_bulk_get(&pdev->dev, num_consumers, supplies);
+	if (ret) {
+		dev_err(&pdev->dev, "%s():regulator_bulk_get failed\n", __func__);
+		return ret;
+	}
+
+	if (on)
+		ret = regulator_bulk_enable(num_consumers, supplies);
+	else
+		ret = regulator_bulk_disable(num_consumers, supplies);
+
+	regulator_bulk_free(num_consumers, supplies);
+	
+	return 0;	
+}
+
 int s5p_usb_phy_power(struct platform_device *pdev,int type, int on)
 {
+	if(machine_is_m030()) {
+		if (type == S5P_USB_PHY_HOST)
+			return m030_usb_host_phy_power(pdev, on);
+		else
+			return m030_usb_dev_phy_power(pdev, on);
+	} else {
+		if (type == S5P_USB_PHY_HOST)
+			return m03x_usb_host_phy_power(pdev, on);
+		else
+			return m03x_usb_dev_phy_power(pdev, on);
+	}
 	return 0;
 }

@@ -42,7 +42,7 @@ struct s5p_ehci_hcd {
 struct device *s5p_dev;
 static int init_resume = 0;
 #ifdef CONFIG_XMM6260_MODEM
-extern int xmm6260_set_active_state(int val);
+/*extern void modem_set_active_state(int state);*/
 #endif
 
 #ifdef CONFIG_HAS_WAKELOCK
@@ -136,7 +136,7 @@ static int s5p_ehci_phy_off(struct device *dev)
 	if(s5p_ehci->phy_on) {
 		if (pdata && pdata->phy_exit)
 			ret = pdata->phy_exit(pdev, S5P_USB_PHY_HOST);
-#ifdef CONFIG_XMM6260_MODEM
+#ifdef CONFIG_UMTS_MODEM_XMM6260
 		modem_set_active_state(0);
 #endif
 		s5p_ehci->phy_on = 0;
@@ -374,8 +374,9 @@ static int s5p_wait_for_cp_resume(struct usb_hcd *hcd)
 	u32 val32, retry_cnt = 0;
 
 	portsc = &ehci->regs->port_status[CP_PORT-1];
-#ifdef CONFIG_XMM6260_MODEM
-	modem_set_active_state(1); /* CP USB Power On */
+#ifdef CONFIG_UMTS_MODEM_XMM6260
+	/* CP USB Power On */
+	modem_set_active_state(1);
 #endif
 	do {
 		msleep(10);
@@ -465,7 +466,7 @@ int  s5p_ehci_power(int value)
 			goto exit;
 		}
 		s5p_ehci->power_on = 1;
-#ifdef CONFIG_XMM6260_MODEM
+#ifdef CONFIG_UMTS_MODEM_XMM6260
 		modem_set_active_state(1);
 #endif
 	}
@@ -528,7 +529,7 @@ static int __devinit s5p_ehci_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	
-#ifdef CONFIG_XMM6260_MODEM
+#ifdef CONFIG_UMTS_MODEM_XMM6260
 	if (pdata->phy_power)
 		pdata->phy_power(pdev, S5P_USB_PHY_HOST, 1);
 #endif

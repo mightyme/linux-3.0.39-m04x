@@ -132,7 +132,7 @@ source "drivers/iommu/Kconfig"
 
 source "drivers/devfreq/Kconfig"
 
-source "drivers/mxphone/Kconfig"
+source "drivers/modem/Kconfig"
 
 source "drivers/motor/Kconfig"
 

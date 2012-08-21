@@ -1,0 +1,30 @@
+menuconfig MEIZU_MODEM
+	bool "Meizu Mobile Modem Interface"
+	default n
+	---help---
+	  Samsung Modem Interface Driver.
+
+config UMTS_MODEM_XMM6160
+	bool "modem chip : IFX XMM6160"
+	depends on MEIZU_MODEM
+	default n
+
+config UMTS_MODEM_XMM6260
+	bool "modem chip : IFX XMM6260"
+	depends on MEIZU_MODEM
+	default n
+
+config UMTS_MODEM_XMM6262
+	bool "modem chip : IFX XMM6262"
+	depends on MEIZU_MODEM
+	default n
+
+config LINK_DEVICE_HSIC
+	bool "modem driver link device HSIC"
+	depends on MEIZU_MODEM
+	default n
+
+#config SIM_DETECT
+	#bool "SIM_DETECT pin"
+	#depends on MEIZU_MODEM
+	#default n

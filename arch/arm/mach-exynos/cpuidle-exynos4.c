@@ -362,7 +362,7 @@ static int exynos4_check_operation(void)
 	if (check_usbotg_op())
 		return 1;
 #endif
-#if defined(CONFIG_XMM6260_ACM_CLASS)
+#ifdef CONFIG_UMTS_MODEM_XMM6260
 	if (exynos4_check_usb_op())
 		return 1;
 #endif

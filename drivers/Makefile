@@ -123,7 +123,7 @@ obj-y				+= ieee802154/
 obj-y				+= clk/
 
 obj-$(CONFIG_HWSPINLOCK)	+= hwspinlock/
-obj-$(CONFIG_MEIZU_PHONE) 	+= mxphone/
+obj-$(CONFIG_MEIZU_MODEM)		+= modem/
 obj-$(CONFIG_IOMMU_API)	+= iommu/
 obj-$(CONFIG_PM_DEVFREQ) += devfreq/
 obj-$(CONFIG_VIBRATOR)	+= motor/

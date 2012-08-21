@@ -136,3 +136,5 @@ obj-$(CONFIG_MX2_SERIAL_TYPE)		+= mx2_mshci.o mx2_cma.o mx2_fb.o mx2_tsp.o mx2_f
 
 obj-$(CONFIG_MX_SERIAL_TYPE)		+= mx_fb.o mx_camera.o mx_cma.o mx_tsp.o mx_mshci.o mx_tvout.o
 obj-$(CONFIG_MX_SERIAL_TYPE)		+= mx_leds.o mx_factory.o mx_ehci.o
+obj-$(CONFIG_MEIZU_M03X_MODEM) += board-m03x-modems.o
+obj-$(CONFIG_MEIZU_M040_MODEM) += board-m040-modems.o
