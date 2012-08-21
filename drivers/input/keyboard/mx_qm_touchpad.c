@@ -29,8 +29,7 @@
 #include	<linux/mx_qm.h>
 
 //#define	__POLL_SENSOR__DATA__
-
-#define QM_MX_FW "qm_mx_led.bin"
+//#define	__TEST_TOCHPAP_DELTA__
 
 #define RESET_COLD	1
 #define	RESET_SOFT	0
@@ -42,9 +41,17 @@
 #define	MAX_REC_POS_SILIDER	(64)
 
 
+#define	KEY_INDEX_BACK	0
+#define	KEY_INDEX_HOME	1
+#define	KEY_INDEX_MENU	2
+#define	KEY_INDEX_3	3
+#define	KEY_INDEX_4	4
+#define	KEY_INDEX_POWER	5
+
+
 /* MX_QM support up to pos 0 -255 */
 static const unsigned short mx_qm_keycode[] = {
-	KEY_BACK, KEY_HOME, KEY_MENU,KEY_POWER
+	KEY_BACK, KEY_HOME, KEY_MENU,KEY_F23,KEY_F24,KEY_POWER
 };
 
 struct mx_qm_touch {
@@ -86,9 +93,15 @@ unsigned short qm_touch_cal_key(struct input_dev *dev, unsigned char pos)
 	unsigned short * keycodes;
 	unsigned short postion;
 
+#if 0
 	postion = pos*(dev->keycodemax-1) /256;
 	if(postion >= (dev->keycodemax-1))
 		postion = dev->keycodemax - 2;	
+#else
+	postion = pos*3 /256;
+	if(postion >= 3)
+		postion = 2;	
+#endif
 
 	keycodes = (unsigned short *)dev->keycode;
 	key = *(keycodes + postion);
@@ -102,8 +115,8 @@ unsigned short qm_touch_cal_key(struct input_dev *dev, unsigned char pos)
 #define ABS(x)		((x) < 0 ? (-x) : (x))
 unsigned short qm_touch_cal_key2(struct mx_qm_touch	*touch)
 {
-	struct mx_qm_data * mx = touch->data;
-	struct i2c_client *client = mx->client;
+	//struct mx_qm_data * mx = touch->data;
+	//struct i2c_client *client = mx->client;
 	struct input_dev *input = touch->input;
 	
 	int cal_buf[MAX_REC_POS_SIZE];
@@ -213,30 +226,36 @@ unsigned short qm_touch_get_key(struct mx_qm_touch	*touch)
 
 	key = mx->i2c_readbyte(client, QM_REG_KEY);
 
+	pr_debug("%s:%.2d  ", __func__,key );		
+
 	switch( key )
 	{
 		case QM_KEY_1:
-			key = keycodes[0];
+		case QM_KEY_M2L:
+			key = keycodes[KEY_INDEX_BACK];
 			break;
 			
 		case QM_KEY_2:
-			key = keycodes[1];
+		case QM_KEY_L2M:
+			key = keycodes[KEY_INDEX_HOME];
 			break;
 			
 		case QM_KEY_3:
-			key = keycodes[1];
+		case QM_KEY_R2M:
+			key = keycodes[KEY_INDEX_BACK];
 			break;
 			
 		case QM_KEY_4:
-			key = keycodes[2];
-			break;
-			
-		case QM_KEY_L2R:
-			key = keycodes[1];
+		case QM_KEY_M2R:
+			key = keycodes[KEY_INDEX_MENU];
 			break;
 			
 		case QM_KEY_R2L:
-			key = KEY_POWER;
+			key = keycodes[KEY_INDEX_3];
+			break;
+			
+		case QM_KEY_L2R:
+			key = keycodes[KEY_INDEX_4];
 			break;
 			
 		case QM_KEY_NONE:
@@ -255,7 +274,7 @@ unsigned short qm_touch_get_key(struct mx_qm_touch	*touch)
 	}		
 
 	pr_debug("%s:%.2d  ", __func__,key );		
-	return 0;	
+	
 }
 
 static void get_slider_position_func(struct work_struct *work)
@@ -316,6 +335,19 @@ static void get_slider_position_func(struct work_struct *work)
 	//	qm_touch_report_key(input, data->last_key, data->keys_press);
 
 	//touch->last_key = new_key;
+	
+#ifdef __TEST_TOCHPAP_DELTA__
+	{
+		u16 ref[4],sig[4],delta[4];	
+		mx->i2c_readbuf(client, QM_REG_REF,8,ref);
+		dev_info(&client->dev, "ref = 0x%.4X  0x%.4X  0x%.4X  0x%.4X  \n", ref[0],ref[1],ref[2],ref[3]);
+		mx->i2c_readbuf(client, QM_REG_SIG,8,sig);
+		dev_info(&client->dev, "sig = 0x%.4X  0x%.4X  0x%.4X  0x%.4X  \n", sig[0],sig[1],sig[2],sig[3]);
+		mx->i2c_readbuf(client, QM_REG_DELTA,8,delta);
+		dev_info(&client->dev, "delta = 0x%.4X  0x%.4X  0x%.4X  0x%.4X  \n", delta[0],delta[1],delta[2],delta[3]);
+		dev_info(&client->dev, "pos = %d\n", pos);
+	}			
+#endif	
 
 	schedule_delayed_work(&touch->pos_work, msecs_to_jiffies(DETECT_POS_INTERVAL));
 }

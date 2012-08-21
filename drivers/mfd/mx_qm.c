@@ -29,8 +29,23 @@
 #include <linux/firmware.h>
 #include	<linux/mx_qm.h>
 
+#define QM_MX_FW 		"qm/qm_mx_led.bin"
+#define QM_MX_FW_6K 	"qm/qm_mx_led6k.bin"
 
-#define QM_MX_FW "qm_mx_led.bin"
+#ifdef	CONFIG_FW_MXQM_CTA
+#undef	QM_MX_FW
+#undef	QM_MX_FW_6K
+#define QM_MX_FW 		"qm/qm_mx_led_cta.bin"
+#define QM_MX_FW_6K 	"qm/qm_mx_led_cta.bin"
+#endif
+
+#ifdef	CONFIG_FW_MXQM_DEV
+#undef	QM_MX_FW
+#undef	QM_MX_FW_6K
+#define QM_MX_FW 		"qm/qm_mx_led_dev.bin"
+#define QM_MX_FW_6K 	"qm/qm_mx_led_dev.bin"
+#endif
+
 
 #define 	RESET_COLD	1
 #define	RESET_SOFT	0
@@ -42,10 +57,42 @@ struct mx_qm_reg_data {
 	unsigned char value;
 };
 
+#ifndef	CONFIG_FW_MXQM_DEV
 const struct mx_qm_reg_data init_regs[] = {
-	{LED_REG_LEDMAUTO,1},
+//	{LED_REG_LEDMAUTO,1},
 	{},			
 };
+#else
+//led_bu26507
+const struct mx_qm_reg_data init_regs[] = {
+	{0x7F, 0x00}, 	/* Change to the control register map */
+	{0x01, 0x08}, 	/* oscen */
+	{0x11, 0x3F}, 	/* led1 on - led6 on */
+	{0x20, 0x00}, 	/* pwmset, default 2*/
+
+	{0x7F, 0x01}, 	/* Change to the led register map */
+	{0x01, 0x00},	/*All leds current default 0*/
+	{0x02, 0x00},	/*All leds current default 0*/
+	{0x03, 0x00},	/*All leds current default 0*/
+	{0x04, 0x00},	/*All leds current default 0*/
+	{0x05, 0x00},	/*All leds current default 0*/
+	{0x07, 0x00},
+	{0x0D, 0x00},
+	{0x13, 0x00},
+	{0x19, 0x00},
+	{0x1E, 0x00},
+
+	{0x7F, 0x00},	/* Change to the control register map */
+	{0X21, 0x08},   	/*sync pin disable, high is led on*/
+	{0x2D, 0x00}, 	/* scroll setting, useless*/
+	{0x7F, 0x00}, 	/* oab */
+	{0x2D, 0x04}, 	/* default pwmen enable, scroll and slope disable*/
+	{0x30, 0x01}, 	/* start */
+	
+//	{LED_REG_LEDMAUTO,0},
+	{},			
+};
+#endif
 
 	
 static struct mfd_cell mx_qm_devs[] = {
@@ -54,8 +101,11 @@ static struct mfd_cell mx_qm_devs[] = {
 	{ .name = "mx-qm-led", .id = 2 },
 	{ .name = "mx-qm-led", .id = 3 },
 	{ .name = "mx-qm-led", .id = 4 },
+	{ .name = "mx-qm-led", .id = 5 },
+//	{ .name = "mx-qm-led", .id = 6 },
 };
 
+static int mx_qm_getimgfwversion(struct mx_qm_data *mx);
 static int mx_qm_update(struct mx_qm_data *mx);
 static void mx_qm_reset(struct mx_qm_data *mx,int m);
 static void mx_qm_wakeup(struct mx_qm_data *mx,int bEn);
@@ -155,7 +205,7 @@ static int mx_qm_writebyte(struct i2c_client *client, u8 reg, u8 data)
 	return ret;
 }
 
-
+#if 0
 static int mx_qm_readword(struct i2c_client *client, u8 reg)
 {
 	struct mx_qm_data *mx = i2c_get_clientdata(client);
@@ -203,6 +253,55 @@ static int mx_qm_writeword(struct i2c_client *client, u8 reg, u16 data)
 
 	return ret;
 }
+#endif
+
+static int mx_qm_readdata(struct i2c_client *client, u8 reg,int bytes,void *dest)
+{
+	struct mx_qm_data *mx = i2c_get_clientdata(client);
+	int ret;	
+
+	mutex_lock(&mx->iolock);
+
+	ret = mx_qm_write(client,1,&reg);
+	if (ret < 0)
+		dev_err(&client->dev,
+			"can not read register, returned %d at line %d\n", ret,__LINE__);
+	msleep(10);
+	ret = mx_qm_read(client, bytes,dest);
+	if (ret < 0)
+		dev_err(&client->dev,
+			"can not read register, returned %d\n", ret);
+
+	mutex_unlock(&mx->iolock);
+
+	return ret;
+}
+
+static int mx_qm_writedata(struct i2c_client *client, u8 reg, int bytes, const void *src)
+{
+	struct mx_qm_data *mx = i2c_get_clientdata(client);
+	int ret;	
+	unsigned char buf[256];
+	int size;
+
+	mutex_lock(&mx->iolock);
+	if(bytes > 255 )
+		bytes = 255;
+
+	buf[0] = reg;
+	memcpy(&buf[1],src,bytes);
+
+	size = bytes + 1;
+	ret = mx_qm_write(client,size,buf);
+	if (ret < 0)
+		dev_err(&client->dev,
+			"can not write register, returned %d\n", ret);
+
+
+	mutex_unlock(&mx->iolock);
+
+	return ret;
+}
 
 static void __devinit mx_qm_init_registers(struct mx_qm_data *mx)
 {
@@ -216,10 +315,9 @@ static void __devinit mx_qm_init_registers(struct mx_qm_data *mx)
 	}
 }
 
-
 static bool __devinit mx_qm_identify(struct mx_qm_data *mx)
 {
-	int id, ver;
+	int id, ver,img_ver;
 	struct i2c_client *client = mx->client;
 
 	/* Read Chip ID */
@@ -235,13 +333,26 @@ static bool __devinit mx_qm_identify(struct mx_qm_data *mx)
 		dev_err(&client->dev, "could not read the firmware version\n");
 		return false;
 	}
-	
-	if( ver < FW_VERSION)
+
+	img_ver = mx_qm_getimgfwversion(mx);
+	if( img_ver == 0xFF )
+		img_ver = FW_VERSION;
+		
+	if( ver < img_ver)
 	{
-		dev_info(&client->dev, "Old firmware version %x ,need be update\n", ver);
+		dev_info(&client->dev, "Old firmware version %x , img ver %d,need be update\n", ver,img_ver);
 		mx_qm_update(mx);
 		mx_qm_wakeup(mx,true);
+		
+		/* Read firmware version again*/
+		ver = mx_qm_readbyte(client, QM_REG_VERSION);
+		if (ver < 0) {
+			dev_err(&client->dev, "could not read the firmware version\n");
+			return false;
+		}
 	}
+
+	mx->AVer = ver;
 
 	dev_info(&client->dev, "MX_QM id 0x%.2X firmware version %x \n", id,ver);
 
@@ -288,126 +399,7 @@ static void mx_qm_wakeup(struct mx_qm_data *mx,int bEn)
 }
 
 
-#define TWI_CMD_BOOT      'D'
-#define TWI_CMD_UPD  	 'U'
-#define TWI_CMD_END  	 'E'
-#define TWI_CMD_CRC	'C'//get the flash crc
-#define TWI_CMD_BVER	'B'//get the bootloader revision
-#define	PAGESIZE		64
-static void mx_qm_firmware_handler(const struct firmware *fw,
-        void *context)
-{
-	struct mx_qm_data * mx = context;
-
-	int ret = 0;
-
-	unsigned char cmd;
-	int i,cnt,size,try_cnt;
-	unsigned char buf[PAGESIZE+3];
-	const unsigned char * ptr;
-	unsigned short crc1;
-	unsigned short crc2;
-
-
-	try_cnt = 0;
-	size = fw->size;	// 1024*6
-	ptr = fw->data;
-
-	mx_qm_reset(mx,RESET_COLD);
-	mx_qm_wakeup(mx,true);
-	
-	msleep(50);
-
-	cmd = TWI_CMD_BOOT;
-	ret = mx_qm_write(mx->client,1,&cmd);
-	if(ret < 0 )
-	{
-		dev_err(&mx->client->dev,"can not write register, returned %d at line %d\n", ret,__LINE__);
-		goto err_exit;
-
-	}
-	dev_info(&mx->client->dev,"mx qmatrix sensor updating ... \n");
-	msleep(10);
-
-	cmd = TWI_CMD_BVER; //
-	ret = 0;
-	ret = mx_qm_readbyte(mx->client,cmd);
-	if(ret < 0 )
-	{
-		dev_err(&mx->client->dev,"can not read the bootloader revision, returned %d at line %d\n", ret,__LINE__);
-		goto err_exit;
-	}
-	else
-	{
-		dev_info(&mx->client->dev,"bootloader revision %d\n", ret);
-		if( ret > 2 )
-			try_cnt = 3;
-	}
-	
-	
-	do
-	{
-		buf[0] = TWI_CMD_UPD;
-		for(i=0;i<size;i+=PAGESIZE)
-		{
-			buf[1] = i & 0xFF;
-			buf[2] = (i>>8) & 0xFF;
-
-			memcpy(&buf[3],ptr+i,PAGESIZE);
-
-			cnt = 3;
-
-			do
-			{
-				ret = mx_qm_write(mx->client,sizeof(buf),buf);
-			}while(ret < 0 && cnt--);
-			
-			if(ret < 0 )
-				dev_err(&mx->client->dev,"can not write register, returned %d at addres 0x%.4X(page %d)\n", ret,i,(i/PAGESIZE+1));
-		}	
-
-		cmd = TWI_CMD_CRC;
-		ret = mx_qm_write(mx->client,1,&cmd);
-		ret = mx_qm_read(mx->client,1,&crc1);
-		crc1 <<= 8;
-		ret = mx_qm_read(mx->client,1,&crc1);
-		crc2  = *(unsigned short *)(fw->data+fw->size-2);
-		if( crc1 != crc2)
-		{
-			dev_err(&mx->client->dev,"crc check 0x%.4X (0x%.4X) failed !!!\n", crc1,crc2);
-		}
-		else
-		{
-			dev_info(&mx->client->dev,"Verifying Flash OK! CRC 0x%.4X\n", crc1);
-			break;
-		}		
-	}while(try_cnt--);
-	
-	cmd = TWI_CMD_END;
-	ret = mx_qm_write(mx->client,1,&cmd);
-	if(ret < 0 )
-	{
-		dev_err(&mx->client->dev,"can not write register, returned %d at line %d\n", ret,__LINE__);
-		goto err_exit;
-
-	}
-	
-ok_exit:
-	dev_info(&mx->client->dev, "Update completed. \n");
-	goto exit;
-	
-err_exit:	
-	dev_info(&mx->client->dev, "Update failed !! \n");
-	
-exit:
-	mx_qm_wakeup(mx,false);
-	mx_qm_reset(mx,RESET_COLD); 
-	msleep(250);	
-	mx_qm_wakeup(mx,true);
-	release_firmware(fw);
-	return;
-}
-
+#if 0
 static int mx_qm_update_async(struct mx_qm_data *mx)
 {
 	int ret = 0;
@@ -461,19 +453,15 @@ uint16_t calcrc16(char *ptr, int count)
   
   return (crc); 
 } 
+#endif
 
-static int mx_qm_update(struct mx_qm_data *mx)
+static int mx_qm_getimgfwversion(struct mx_qm_data *mx)
 {
 	int err = 0;
 	const struct firmware *fw;
 	const char *fw_name;
+	int img_fwversion;
 	
-	if( mx->poll )
-	{
-		disable_irq(mx->irq);	
-		msleep(100);
-	}
-
 	fw_name = QM_MX_FW;
 
 	err = request_firmware(&fw, fw_name,  &mx->client->dev);
@@ -481,17 +469,160 @@ static int mx_qm_update(struct mx_qm_data *mx)
 		printk(KERN_ERR "Failed to load firmware \"%s\"\n", fw_name);
 		return err;
 	}
+	img_fwversion = fw->data[FLASH_ADDR_FW_VERSION];
+	release_firmware(fw);
 	
-	mx_qm_firmware_handler(fw,(void *)mx);
-	pr_info("%s:load firmware %s\n", dev_name(&mx->client->dev), fw_name);
+	return img_fwversion;
+}
+
+#define TWI_CMD_BOOT      'D'
+#define TWI_CMD_UPD  	 'U'
+#define TWI_CMD_END  	 'E'
+#define TWI_CMD_CRC	'C'//get the flash crc
+#define TWI_CMD_BVER	'B'//get the bootloader revision
+#define	PAGESIZE		64
+static int mx_qm_update(struct mx_qm_data *mx)
+{
+	const struct firmware *fw;
+	const char *fw_name;
+
+	int ret = 0;
+
+	unsigned char cmd;
+	int i,cnt,size,try_cnt;
+	unsigned char buf[PAGESIZE+3];
+	const unsigned char * ptr;
+	unsigned short crc1;
+	unsigned short crc2;
+	char boot_ver;
+
+	wake_lock(&mx->wake_lock);
+		
+	if( mx->poll )
+	{
+		disable_irq(mx->irq);	
+		msleep(100);
+	}
+
+	mx_qm_reset(mx,RESET_COLD);
+	mx_qm_wakeup(mx,true);
+	
+	msleep(50);
+
+	cmd = TWI_CMD_BOOT;
+	ret = mx_qm_write(mx->client,1,&cmd);
+	if(ret < 0 )
+	{
+		dev_err(&mx->client->dev,"can not write register, returned %d at line %d\n", ret,__LINE__);
+		goto err_exit;
+
+	}
+	dev_info(&mx->client->dev,"mx qmatrix sensor updating ... \n");
+	msleep(10);
+
+	cmd = TWI_CMD_BVER; //
+	ret = 0;
+	ret = mx_qm_readbyte(mx->client,cmd);
+	if(ret < 0 )
+	{
+		dev_err(&mx->client->dev,"can not read the bootloader revision, returned %d at line %d\n", ret,__LINE__);
+		goto err_exit;
+	}
+	boot_ver = ret;
+	mx->BVer = boot_ver;
+	
+	dev_info(&mx->client->dev,"bootloader revision %d\n", boot_ver);
+	if( boot_ver > 3 )
+		fw_name = QM_MX_FW;	
+	else
+		fw_name = QM_MX_FW_6K;
+	
+	ret = request_firmware(&fw, fw_name,  &mx->client->dev);
+	if (ret) {
+		printk(KERN_ERR "Failed to load firmware \"%s\"\n", fw_name);
+		goto err_exit;
+	}
+
+	try_cnt = 3;
+	size = fw->size;	// 1024*6
+	ptr = fw->data;
+	dev_info(&mx->client->dev,"load firmware %s\n",fw_name);
+	
+	do
+	{
+		buf[0] = TWI_CMD_UPD;
+		for(i=0;i<size;i+=PAGESIZE)
+		{
+			buf[1] = i & 0xFF;
+			buf[2] = (i>>8) & 0xFF;
+
+			memcpy(&buf[3],ptr+i,PAGESIZE);
+
+			cnt = 3;
+
+			do
+			{
+				ret = mx_qm_write(mx->client,sizeof(buf),buf);
+			}while(ret < 0 && cnt--);
+			
+			if(ret < 0 )
+				dev_err(&mx->client->dev,"can not write register, returned %d at addres 0x%.4X(page %d)\n", ret,i,(i/PAGESIZE+1));
+		}	
+		
+		if(ret < 0 )
+			goto err_exit;
+
+		cmd = TWI_CMD_CRC;
+		ret = mx_qm_write(mx->client,1,&cmd);
+		ret = mx_qm_read(mx->client,1,&crc1);
+		crc1 <<= 8;
+		ret = mx_qm_read(mx->client,1,&crc1);
+		crc2  = *(unsigned short *)(fw->data+fw->size-2);
+		if( crc1 != crc2)
+		{
+			dev_err(&mx->client->dev,"crc check 0x%.4X (0x%.4X) failed !!!\n", crc1,crc2);
+		}
+		else
+		{
+			dev_info(&mx->client->dev,"Verifying flash OK!\n");
+			break;
+		}		
+	}while(try_cnt--);
+	
+	cmd = TWI_CMD_END;
+	ret = mx_qm_write(mx->client,1,&cmd);
+	if(ret < 0 )
+	{
+		dev_err(&mx->client->dev,"can not write register, returned %d at line %d\n", ret,__LINE__);
+		goto err_exit;
+
+	}
+	
+//ok_exit:
+	dev_info(&mx->client->dev, "Update completed. \n");
+	goto exit;
+	
+err_exit:	
+	dev_info(&mx->client->dev, "Update failed !! \n");
+	
+exit:
+	mx_qm_wakeup(mx,false);
+	mx_qm_reset(mx,RESET_COLD); 
+	msleep(250);	
+	mx_qm_wakeup(mx,true);
+	release_firmware(fw);
+
 	
 	if( mx->poll )
 	{
 		enable_irq(mx->irq);
 	}
-
-	return err;
+	
+	wake_unlock(&mx->wake_lock);
+	return;
 }
+
+
 
 static ssize_t qm_show_property(struct device *dev,
                                       struct device_attribute *attr,
@@ -729,36 +860,30 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 	gpio_set_value(pdata->gpio_reset,  1);
 	s3c_gpio_cfgpin(pdata->gpio_reset, S3C_GPIO_INPUT);
 
-	msleep(250);
-	
+	msleep(250);	
 
 	data = kzalloc(sizeof(struct mx_qm_data), GFP_KERNEL);
 	data->dev = &client->dev;
 	
-#ifdef	CONFIG_M040_USB_PCB1
-	data->gpio_wake = pdata->gpio_irq;
-	data->gpio_reset = pdata->gpio_reset;
-	data->gpio_irq = pdata->gpio_wake;
-	
-       data->poll = 1;
-#else
 	data->gpio_wake = pdata->gpio_wake;
 	data->gpio_reset = pdata->gpio_reset;
 	data->gpio_irq = pdata->gpio_irq;
 
        data->poll = 0;
-#endif
 
 	data->client = client;
-	data->irq = client->irq;//__gpio_to_irq(data->gpio_irq);
+	data->irq = __gpio_to_irq(data->gpio_irq);//client->irq;//
 	data->i2c_readbyte = mx_qm_readbyte;
 	data->i2c_writebyte= mx_qm_writebyte;
+	data->i2c_readbuf = mx_qm_readdata;
+	data->i2c_writebuf = mx_qm_writedata;
 	data->reset = mx_qm_reset;
 	data->wakeup= mx_qm_wakeup;
 	data->update= mx_qm_update;	
 		
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->iolock);
+	wake_lock_init(&data->wake_lock, WAKE_LOCK_SUSPEND, "qm_pad");
 
 	mx_qm_wakeup(data,true);
 	/* Identify the mx_qm chip */
@@ -794,7 +919,7 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 	}
 
 	qm_create_attrs(&client->dev);
-	
+		
 	/*initial registers*/
 	mx_qm_init_registers(data);
 
@@ -858,7 +983,8 @@ const struct dev_pm_ops mx_qm_pm = {
 static int __devexit mx_qm_remove(struct i2c_client *client)
 {
 	struct mx_qm_data *data = i2c_get_clientdata(client);
-	
+
+	wake_lock_destroy(&data->wake_lock);
 	qm_destroy_atts(&client->dev);
 	
 	kfree(data);

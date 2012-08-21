@@ -47,7 +47,7 @@ obj-$(CONFIG_LEDS_MAX77665)             += leds-max77665.o
 obj-$(CONFIG_MAX8997_FLASH_LED)         += leds-max8997.o
 obj-$(CONFIG_LEDS_BU26507) 		+= leds-bu26507.o
 obj-$(CONFIG_LEDS_TORCH) += leds-torch.o
-obj-$(CONFIG_LEDS_MXQM) += mx_qm_leds.o
+obj-$(CONFIG_LEDS_MXQM) += leds_mx_qm.o
 
 # LED SPI Drivers
 obj-$(CONFIG_LEDS_DAC124S085)		+= leds-dac124s085.o

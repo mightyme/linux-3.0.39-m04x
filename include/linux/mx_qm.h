@@ -13,9 +13,12 @@
 #ifndef	__MX_QMATRIX__
 #define	__MX_QMATRIX__
 
+#include <linux/wakelock.h>
 
-#define FW_VERSION     0x06
-#define MX_QM_DEVICE_ID     'M'
+
+#define FW_VERSION     				0x07
+#define FLASH_ADDR_FW_VERSION   	0x3F
+#define MX_QM_DEVICE_ID     			'M'
 
 enum mx_qm_reg {
         LED_REG0_SELECT0                	= 0x00,
@@ -31,27 +34,27 @@ enum mx_qm_reg {
         LED_REG10_INITIALIZATION					= 0x0A,
         LED_REG15               = 0x0F,
         
-        LED_REG0_R                = 0x10,
-        LED_REG1_R                = 0x11,
-        LED_REG2_R                = 0x12,
-        LED_REG3_R                = 0x13,
-        LED_REG4_R                = 0x14,
-        LED_REG5_R                = 0x15,
-        LED_REG6_R                = 0x16,
-        LED_REG7_R                = 0x17,
-        LED_REG8_R                = 0x18,
-        LED_REG9_R                = 0x19,
-        LED_REG10_R               = 0x1A,
-        LED_REG15_R               = 0x1F,
+        LED_REG0_R                = 0x80,
+        LED_REG1_R                = 0x81,
+        LED_REG2_R                = 0x82,
+        LED_REG3_R                = 0x83,
+        LED_REG4_R                = 0x84,
+        LED_REG5_R                = 0x85,
+        LED_REG6_R                = 0x86,
+        LED_REG7_R                = 0x87,
+        LED_REG8_R                = 0x88,
+        LED_REG9_R                = 0x89,
+        LED_REG10_R               = 0x8A,
+        LED_REG15_R               = 0x8F,
         
-        LED_REG_LEDM0               = 0x20,
-        LED_REG_LEDM1               = 0x21,
-        LED_REG_LEDM2               = 0x22,
-        LED_REG_LEDM3               = 0x23,
-        LED_REG_LEDM4               = 0x24,
-        LED_REG_LEDM5               = 0x25,
-        LED_REG_LEDM6               = 0x26,
-        LED_REG_LEDMAUTO            = 0x2F,
+        LED_REG_LEDM0               = 0x90,
+        LED_REG_LEDM1               = 0x91,
+        LED_REG_LEDM2               = 0x92,
+        LED_REG_LEDM3               = 0x93,
+        LED_REG_LEDM4               = 0x94,
+        LED_REG_LEDM5               = 0x95,
+        LED_REG_LEDM6               = 0x96,
+        LED_REG_LEDMAUTO            = 0x9F,
         
 	QM_REG_DEVICE_ID	= 0xA0,
 	QM_REG_VERSION		= 0xA1,
@@ -85,9 +88,16 @@ enum mx_qm_key {
         QM_KEY_4 = 4,
         QM_KEY_L2R = 5,
         QM_KEY_R2L = 6,
+        QM_KEY_M2L = 7,
+        QM_KEY_M2R = 8,
+        QM_KEY_L2M = 9,
+        QM_KEY_R2M = 10,
+        QM_KEY_LML = 11,
+        QM_KEY_RMR = 12,
         
 	QM_KEY_MAX,
 };
+
 
 enum mx_qm_cmd {
 	QM_RESET_SENSOR = 0,
@@ -114,6 +124,7 @@ struct mx_qm_data {
 	struct i2c_client *client;
 	unsigned int irq;
 	struct mutex iolock;
+	struct wake_lock wake_lock;
 	unsigned int AVer;
 	unsigned int BVer;
 	unsigned int gpio_wake;
@@ -122,6 +133,8 @@ struct mx_qm_data {
 	unsigned int poll;	
 	int (*i2c_readbyte)(struct i2c_client *, u8);
 	int (*i2c_writebyte)(struct i2c_client *, u8, u8);
+	int (*i2c_readbuf)(struct i2c_client *,u8,int,void *);
+	int (*i2c_writebuf)(struct i2c_client *,u8,int,const void *);
 	void(*reset)(struct mx_qm_data *, int);
 	void(*wakeup)(struct mx_qm_data *,int);
 	int(*update)(struct mx_qm_data *);
