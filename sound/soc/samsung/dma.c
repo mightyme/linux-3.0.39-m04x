@@ -475,6 +475,16 @@ static int dma_new(struct snd_card *card,
 		}
 	}
 #endif
+
+	if (card->number == 0 && dai->id == 2) {
+		if (dai->driver->playback.channels_min) {
+			ret = preallocate_dma_buffer(pcm,
+			SNDRV_PCM_STREAM_PLAYBACK);
+				if (ret)
+				goto out;
+		}
+	}
+
 	if (dai->driver->capture.channels_min) {
 		ret = preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_CAPTURE);

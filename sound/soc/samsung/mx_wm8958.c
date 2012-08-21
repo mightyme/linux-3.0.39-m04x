@@ -197,7 +197,7 @@ static int mx_wm8958_aif2_hw_params(struct snd_pcm_substream *substream,
 #ifdef CONFIG_SND_SAMSUNG_PCM_USE_EPLL
 	unsigned long epll_out_rate;
 #endif /* CONFIG_SND_SAMSUNG_PCM_USE_EPLL */
-	int rfs, ret;
+	int rfs_cpu, rfs_codec, ret;
 	printk("++%s format = %d rate = %d\n", __func__,params_format(params),(params_rate(params)));
 
 #ifdef CONFIG_SND_SAMSUNG_PCM_USE_EPLL
@@ -235,21 +235,26 @@ static int mx_wm8958_aif2_hw_params(struct snd_pcm_substream *substream,
 	case 96000:
 	case 24000:
 #ifdef CONFIG_SND_SAMSUNG_PCM_USE_EPLL
-		rfs = 256;
+		rfs_cpu = 256;
+		rfs_codec = 256;
 #else /* CONFIG_SND_SAMSUNG_PCM_USE_EPLL */
-		rfs = 384;
+		rfs_cpu = 384;
+		rfs_codec = 384;
 #endif /* CONFIG_SND_SAMSUNG_PCM_USE_EPLL */
 		break;
 	case 64000:
-		rfs = 384;
-		break;
-	case 11025:
-	case 12000:
-		rfs = 512;
+		rfs_cpu = 384;
+		rfs_codec = 384;
 		break;
 	case 8000:
+	case 11025:
+	case 12000:
+		rfs_cpu = 64;
+		rfs_codec = 512;
+		break;
 	case 88200:
-		rfs = 128;
+		rfs_cpu = 128;
+		rfs_codec = 128;
 		break;
 	default:
 		printk(KERN_ERR "%s:%d Sampling Rate %u not supported!\n",
@@ -278,7 +283,7 @@ static int mx_wm8958_aif2_hw_params(struct snd_pcm_substream *substream,
 	 * clock source.
 	 */
 	ret = snd_soc_dai_set_sysclk(codec_dai, WM8994_SYSCLK_FLL2,
-				params_rate(params)*rfs,
+				params_rate(params)*rfs_codec,
 				SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		return ret;
@@ -287,13 +292,13 @@ static int mx_wm8958_aif2_hw_params(struct snd_pcm_substream *substream,
 		ret = snd_soc_dai_set_pll(codec_dai, WM8994_FLL2,
 					WM8994_FLL_SRC_MCLK1,
 					WM8994_FREQ_12000000,
-					params_rate(params)*rfs);
+					params_rate(params)*rfs_codec);
 	}else{
 #endif
 		ret = snd_soc_dai_set_pll(codec_dai, WM8994_FLL2,
 					WM8994_FLL_SRC_MCLK1,
 					WM8994_FREQ_24000000,
-					params_rate(params)*rfs);
+					params_rate(params)*rfs_codec);
 #ifdef CONFIG_MACH_M030
 	}
 #endif
@@ -302,7 +307,7 @@ static int mx_wm8958_aif2_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 #else
 	ret = snd_soc_dai_set_sysclk(codec_dai, WM8994_SYSCLK_MCLK2,
-					params_rate(params)*rfs,
+					params_rate(params)*rfs_codec,
 					SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		return ret;
@@ -316,7 +321,7 @@ static int mx_wm8958_aif2_hw_params(struct snd_pcm_substream *substream,
 #endif /* CONFIG_SND_SAMSUNG_PCM_USE_EPLL */
 
 	/* Set SCLK_DIV for making bclk */
-	ret = snd_soc_dai_set_clkdiv(cpu_dai, S3C_PCM_SCLK_PER_FS, rfs);
+	ret = snd_soc_dai_set_clkdiv(cpu_dai, S3C_PCM_SCLK_PER_FS, rfs_cpu);
 	if (ret < 0)
 		return ret;
 

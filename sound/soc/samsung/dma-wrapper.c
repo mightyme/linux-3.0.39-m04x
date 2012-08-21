@@ -16,6 +16,8 @@
 static struct snd_soc_platform_driver
 *asoc_get_platform(struct snd_pcm_substream *substream)
 {
+	struct snd_soc_pcm_runtime *rtd;
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 #if defined(CONFIG_SND_SAMSUNG_RP)
 		/* GDMA for Legacy Audio, IDMA for SRP Audio(dedicated codec) */
@@ -26,6 +28,13 @@ static struct snd_soc_platform_driver
 			return &samsung_asoc_platform;
 		}
 #endif
+
+		rtd = substream->private_data;
+			if (substream->pcm->card->number == 0) {
+				if(rtd->cpu_dai->id == 1)
+					return &samsung_asoc_platform;
+		}
+
 		/* IDMA for Generic Audio */
 		return &asoc_idma_platform;
 #else
