@@ -679,7 +679,7 @@ static ssize_t akm_name_show(struct device *dev, struct device_attribute *attr, 
 static ssize_t akm_self_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	int ret = 0, test_flag = 0;
-	struct s_xyz sxyz;
+	struct s_xyz sxyz = {0,};
 	struct akm8963_data *s_akm = dev_get_drvdata(dev);
 
 	ret = akm_self_test(s_akm, test_flag, &sxyz);
