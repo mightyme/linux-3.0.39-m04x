@@ -18,124 +18,6 @@
 #define	DEBUG	1
 #define	G_MAX	16000
 
-#define SENSITIVITY_2G	1	/**	mg/LSB	*/
-#define SENSITIVITY_4G	2	/**	mg/LSB	*/
-#define SENSITIVITY_8G	4	/**	mg/LSB	*/
-#define SENSITIVITY_16G	12	/**	mg/LSB	*/
-
-/* Accelerometer Sensor Operating Mode */
-#define LIS3DH_ACC_ENABLE	0x01
-#define LIS3DH_ACC_DISABLE	0x00
-
-#define	HIGH_RESOLUTION	0x08
-
-#define	AXISDATA_REG		0x28
-#define WHOAMI_LIS3DH_ACC	0x33	/*	Expected content for WAI */
-
-/*	CONTROL REGISTERS	*/
-#define WHO_AM_I	0x0F	/*	WhoAmI register		*/
-#define	TEMP_CFG_REG	0x1F	/*	temper sens control reg	*/
-/* ctrl 1: ODR3 ODR2 ODR ODR0 LPen Zenable Yenable Zenable */
-#define	CTRL_REG1		0x20	/*	control reg 1		*/
-#define	CTRL_REG2		0x21	/*	control reg 2		*/
-#define	CTRL_REG3		0x22	/*	control reg 3		*/
-#define	CTRL_REG4		0x23	/*	control reg 4		*/
-#define	CTRL_REG5		0x24	/*	control reg 5		*/
-#define	CTRL_REG6		0x25	/*	control reg 6		*/
-#define	STATUS_REG		0x27
-
-#define	FIFO_CTRL_REG	0x2E	/*	FiFo control reg	*/
-
-#define	INT_CFG1	0x30	/*	interrupt 1 config	*/
-#define	INT_SRC1	0x31	/*	interrupt 1 source	*/
-#define	INT_THS1	0x32	/*	interrupt 1 threshold	*/
-#define	INT_DUR1	0x33	/*	interrupt 1 duration	*/
-
-#define	TT_CFG		0x38	/*	tap config		*/
-#define	TT_SRC		0x39	/*	tap source		*/
-#define	TT_THS		0x3A	/*	tap threshold		*/
-#define	TT_LIM		0x3B	/*	tap time limit		*/
-#define	TT_TLAT      	0x3C	/*	tap time latency	*/
-#define	TT_TW		0x3D	/*	tap time window		*/
-
-#define ENABLE_HIGH_RESOLUTION	1
-
-#define LIS3DH_ACC_PM_OFF 0x00
-#define LIS3DH_ACC_ENABLE_ALL_AXES 0x07
-
-#define PMODE_MASK	0x08
-#define ODR_MASK	0XF0
-
-#define ODR1	0x10  /* 1Hz output data rate */
-#define ODR10	0x20  /* 10Hz output data rate */
-#define ODR25	0x30  /* 25Hz output data rate */
-#define ODR50	0x40  /* 50Hz output data rate */
-#define ODR100	0x50  /* 100Hz output data rate */
-#define ODR200	0x60  /* 200Hz output data rate */
-#define ODR400	0x70  /* 400Hz output data rate */
-#define ODR1250	0x90  /* 1250Hz output data rate */
-
-#define	IA	0x40
-#define	ZH	0x20
-#define	ZL	0x10
-#define	YH	0x08
-#define	YL	0x04
-#define	XH	0x02
-#define	XL	0x01
-
-/* CTRL REG BITS*/
-#define	CTRL_REG3_I1_AOI1		0x40
-#define	CTRL_REG6_I2_TAPEN	0x80
-#define	CTRL_REG6_HLACTIVE	0x02
-/* */
-#define NO_MASK					0xFF
-#define INT1_DURATION_MASK	0x7F
-#define	INT1_THRESHOLD_MASK	0x7F
-#define TAP_CFG_MASK	0x3F
-#define	TAP_THS_MASK	0x7F
-#define	TAP_TLIM_MASK	0x7F
-#define	TAP_TLAT_MASK	NO_MASK
-#define	TAP_TW_MASK	NO_MASK
-
-/* TAP_SOURCE_REG BIT */
-#define	DTAP		0x20
-#define	STAP		0x10
-#define	SIGNTAP	0x08
-#define	ZTAP		0x04
-#define	YTAP		0x02
-#define	XTAZ		0x01
-
-#define	FUZZ	0
-#define	FLAT	0
-#define	I2C_RETRY_DELAY		2
-#define	I2C_RETRIES			10
-#define	I2C_AUTO_INCREMENT 	0x80
-
-/* RESUME STATE INDICES */
-#define	RES_CTRL_REG1	0
-#define	RES_CTRL_REG2	1
-#define	RES_CTRL_REG3	2
-#define	RES_CTRL_REG4	3
-#define	RES_CTRL_REG5	4
-#define	RES_CTRL_REG6	5
-
-#define	RES_INT_CFG1 6
-#define	RES_INT_THS1 7
-#define	RES_INT_DUR1 8
-
-#define	RES_TT_CFG	  9
-#define	RES_TT_THS	  10
-#define	RES_TT_LIM	  11
-#define	RES_TT_TLAT 12
-#define	RES_TT_TW	  13
-
-#define	RES_TEMP_CFG_REG	 14
-#define	RES_REFERENCE_REG	 15
-#define	RES_FIFO_CTRL_REG	 16
-
-#define	RESUME_ENTRIES 17
-/* end RESUME STATE INDICES */
-
 static atomic_t suspend_flag = ATOMIC_INIT(0);
 
 struct {
@@ -155,23 +37,17 @@ struct {
 struct lis3dh_acc_data {
 	struct i2c_client *client;
 	struct lis3dh_acc_platform_data *pdata;
-
 	struct mutex lock;
 	struct delayed_work input_work;
 	struct early_suspend early_suspend;
-
 	struct input_dev *input_dev;
-
 	int hw_initialized;
 	/* hw_working=-1 means not tested yet */
 	int hw_working;
 	atomic_t enabled;
 	int on_before_suspend;
-
 	u8 sensitivity;
-
 	u8 resume_state[RESUME_ENTRIES];
-
 	struct mutex ioctl_lock;
 
 #ifdef DEBUG
@@ -213,7 +89,9 @@ static int lis3dh_acc_i2c_read(struct lis3dh_acc_data *acc,
 	do {
 		err = i2c_transfer(client->adapter, msgs, 2);
 		if (err != 2) {
-			pr_err("%s: i2c_transfer fail, retry %d\n", __func__, tries + 1);
+			pr_err("%s: i2c_transfer fail, retry %d\n", 
+					__func__, tries + 1);
+
 			msleep_interruptible(I2C_RETRY_DELAY);
 		}
 	} while ((err != 2) && (++tries < I2C_RETRIES));
@@ -246,7 +124,9 @@ static int lis3dh_acc_i2c_write(struct lis3dh_acc_data *acc, u8 * buf, int len)
 	do {
 		err = i2c_transfer(client->adapter, msgs, 1);
 		if (err != 1) {
-			pr_err("%s: i2c_transfer fail, retry %d\n", __func__, tries + 1);
+			pr_err("%s: i2c_transfer fail, retry %d\n",
+				       	__func__, tries + 1);
+
 			msleep_interruptible(I2C_RETRY_DELAY);
 		}
 	} while ((err != 1) && (++tries < I2C_RETRIES));
@@ -265,24 +145,6 @@ static int lis3dh_acc_hw_init(struct lis3dh_acc_data *acc)
 {
 	int err = -1;
 	u8 buf[7];
-
-	printk(KERN_INFO "%s: hw init start\n", LIS3DH_ACC_DEV_NAME);
-
-	buf[0] = WHO_AM_I;
-	err = lis3dh_acc_i2c_read(acc, buf, 1);
-	if (err < 0) {
-	dev_warn(&acc->client->dev, "Error reading WHO_AM_I: is device "
-		"available/working?\n");
-		goto err_firstread;
-	} else
-		acc->hw_working = 1;
-	if (buf[0] != WHOAMI_LIS3DH_ACC) {
-	dev_err(&acc->client->dev,
-		"device unknown. Expected: 0x%x,"
-		" Replies: 0x%x\n", WHOAMI_LIS3DH_ACC, buf[0]);
-		err = -1; /* choose the right coded error */
-		goto err_unknown_device;
-	}
 
 	buf[0] = CTRL_REG1;
 	buf[1] = acc->resume_state[RES_CTRL_REG1];
@@ -340,12 +202,9 @@ static int lis3dh_acc_hw_init(struct lis3dh_acc_data *acc)
 		goto err_resume_state;
 
 	acc->hw_initialized = 1;
-	printk(KERN_INFO "%s: hw init done\n", LIS3DH_ACC_DEV_NAME);
+	pr_info(KERN_INFO "%s: hw init done\n", LIS3DH_ACC_DEV_NAME);
 	return 0;
 
-err_firstread:
-	acc->hw_working = 0;
-err_unknown_device:
 err_resume_state:
 	acc->hw_initialized = 0;
 	dev_err(&acc->client->dev, "hw init error 0x%x,0x%x: %d\n", buf[0],
@@ -361,10 +220,7 @@ static void lis3dh_acc_device_power_off(struct lis3dh_acc_data *acc)
 	err = lis3dh_acc_i2c_write(acc, buf, 1);
 	if (err < 0)
 		dev_err(&acc->client->dev, "soft power off failed: %d\n", err);
-
-	if (acc->pdata->power_off) {
-		acc->pdata->power_off();
-	}
+	
 	if (acc->hw_initialized) {
 		acc->hw_initialized = 0;
 	}
@@ -374,15 +230,6 @@ static void lis3dh_acc_device_power_off(struct lis3dh_acc_data *acc)
 static int lis3dh_acc_device_power_on(struct lis3dh_acc_data *acc)
 {
 	int err = -1;
-
-	if (acc->pdata->power_on) {
-		err = acc->pdata->power_on();
-		if (err < 0) {
-			dev_err(&acc->client->dev,
-					"power_on failed: %d\n", err);
-			return err;
-		}
-	}
 
 	if (!acc->hw_initialized) {
 		err = lis3dh_acc_hw_init(acc);
@@ -468,8 +315,9 @@ int lis3dh_acc_update_odr(struct lis3dh_acc_data *acc, int poll_interval_ms)
 			break;
 	}
 
-	pr_debug("%s: cutoff_ms = %d, odr = %x\n",
-		__func__, lis3dh_acc_odr_table[i].cutoff_ms, lis3dh_acc_odr_table[i].mask);
+	pr_info("%s: cutoff_ms = %d, odr = 0x%02x\n",
+		__func__, lis3dh_acc_odr_table[i].cutoff_ms, 
+		lis3dh_acc_odr_table[i].mask);
 
 	config[1] = lis3dh_acc_odr_table[i].mask;
 
@@ -519,16 +367,20 @@ static int lis3dh_acc_get_acceleration_data(struct lis3dh_acc_data *acc,
 	u8 acc_data[6];
 	s16 *hw_d = (s16 *)acc_data;
 	u8 sensitivity = acc->sensitivity;
+	struct lis3dh_acc_platform_data *pdata = acc->pdata;
 
 	acc_data[0] = (I2C_AUTO_INCREMENT | AXISDATA_REG);
 	err = lis3dh_acc_i2c_read(acc, acc_data, 6);
 	if (err < 0)
 		return err;
 
-	/* add lis3dh_platdata based optimization */
-	xyz[0] = -((hw_d[1] >> 4) * sensitivity);
-	xyz[1] = (hw_d[0] >> 4) * sensitivity;
-	xyz[2] = (hw_d[2] >> 4) * sensitivity;
+	/*adjust x, y, z coordinates*/
+	xyz[0] = (((pdata->negate_x) ? (-hw_d[pdata->axis_map_x]) : 
+		   (hw_d[pdata->axis_map_x])) >> 4) * sensitivity;
+	xyz[1] = (((pdata->negate_y) ? (-hw_d[pdata->axis_map_y]) :
+		   (hw_d[pdata->axis_map_y])) >> 4) * sensitivity;
+	xyz[2] = (((pdata->negate_z) ? (-hw_d[pdata->axis_map_z]) : 
+		   (hw_d[pdata->axis_map_z])) >> 4) * sensitivity;
 
 	#ifdef DEBUG
 	/*
@@ -541,14 +393,6 @@ static int lis3dh_acc_get_acceleration_data(struct lis3dh_acc_data *acc,
 	return err;
 }
 
-static void lis3dh_acc_report_values(struct lis3dh_acc_data *acc,
-					int *xyz)
-{
-	input_report_abs(acc->input_dev, ABS_X, xyz[0]);
-	input_report_abs(acc->input_dev, ABS_Y, xyz[1]);
-	input_report_abs(acc->input_dev, ABS_Z, xyz[2]);
-	input_sync(acc->input_dev);
-}
 
 static int lis3dh_acc_enable(struct lis3dh_acc_data *acc)
 {
@@ -559,7 +403,8 @@ static int lis3dh_acc_enable(struct lis3dh_acc_data *acc)
 	if (!atomic_read(&acc->enabled)) {
 		err = lis3dh_acc_device_power_on(acc);
 		if (err < 0) {
-			pr_err("%s: lis3dh_acc_device_power_on fail\n", __func__);
+			pr_err("%s: lis3dh_acc_device_power_on fail\n",
+				       	__func__);
 			return err;
 		}
 		atomic_set(&acc->enabled, 1);
@@ -570,7 +415,7 @@ static int lis3dh_acc_enable(struct lis3dh_acc_data *acc)
 
 static int lis3dh_acc_disable(struct lis3dh_acc_data *acc)
 {
-	pr_info("%s calls %s\n", current->comm, __func__);
+	pr_debug("%s calls %s\n", current->comm, __func__);
 
 	if (atomic_read(&acc->enabled)) {
 		lis3dh_acc_device_power_off(acc);
@@ -579,7 +424,6 @@ static int lis3dh_acc_disable(struct lis3dh_acc_data *acc)
 
 	return 0;
 }
-
 
 static ssize_t read_single_reg(struct device *dev, char *buf, u8 reg)
 {
@@ -617,6 +461,221 @@ static int write_reg(struct device *dev, const char *buf, u8 reg,
 	acc->resume_state[resumeIndex] = new_val;
 	return err;
 }
+
+/* selftest start */
+#define SELFTEST_MEASURE_TIMEOUT 100
+#define SELFTEST_ZYXDA (0x1 << 3)
+#define SELFTEST_SAMPLES 5
+
+static int selftest_init_lis3dh(struct lis3dh_acc_data *acc)
+{
+	unsigned char buf[5];
+	pr_info("%s\n", __func__);
+
+	/* BDU=1, ODR=200Hz, FS=+/-2G */
+	buf[0] = I2C_AUTO_INCREMENT | CTRL_REG1;
+	buf[1] = ODR200 | 0xFF;
+	buf[2] = 0x00;
+	buf[3] = 0x00;
+	buf[4] = 0x80;	/* BDU=1 */
+
+	return lis3dh_acc_i2c_write(acc, buf, 4);
+}
+
+static int selftest_enable(struct lis3dh_acc_data *acc)
+{
+	unsigned char buf[2];
+
+	buf[0] = CTRL_REG4;
+	buf[1] = 0x82;	/* BDU=1, ST1 = 1, ST0 = 0 */
+
+	pr_debug("%s\n", __func__);
+
+	return lis3dh_acc_i2c_write(acc, buf, 1);
+}
+
+static void selftest_disable(struct lis3dh_acc_data *acc)
+{
+	unsigned char buf[2];
+
+	buf[1] = 0x00;
+	pr_debug("%s\n", __func__);
+
+	/* Disable sensor */
+	buf[0] = CTRL_REG1;
+	lis3dh_acc_i2c_write(acc, buf, 1);
+	/* Disable selftest */
+	buf[0] = CTRL_REG4;
+	lis3dh_acc_i2c_write(acc, buf, 1);
+}
+
+static int selftest_wait_ZYXDA(struct lis3dh_acc_data *acc)
+{
+	int i, ret;
+	unsigned char data_ready;
+
+	pr_debug("%s\n", __func__);
+
+	for (i = SELFTEST_MEASURE_TIMEOUT; i != 0; i--) {
+		data_ready = STATUS_REG;
+		ret = lis3dh_acc_i2c_read(acc, &data_ready, 1);
+		if (ret < 0) {
+			pr_err("%s: lis3dh_i2c_read fail, retry %d\n", 
+					__func__, i);
+			msleep(I2C_RETRY_DELAY);
+			continue;
+		} else if (data_ready & SELFTEST_ZYXDA) {
+			pr_debug("%s: data ready\n", __func__);
+			break;
+		}
+	}
+	if (i == 0) {
+		pr_err("%s: failed\n", __func__);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int selftest_read(struct lis3dh_acc_data *acc, struct lis3dh_t *data)
+{
+	int total[3];
+	int i, ret;
+
+	pr_debug("%s\n", __func__);
+
+	total[0] = 0;
+	total[1] = 0;
+	total[2] = 0;
+	for (i = 0; i < SELFTEST_SAMPLES; i++) {
+		ret = selftest_wait_ZYXDA(acc);
+		if (ret) {
+			pr_err("%s: selftest_check_ZYXDA fail\n", __func__);
+			return ret;
+		}
+		mutex_lock(&acc->lock);
+		ret = lis3dh_acc_get_acceleration_data(acc, (int *)data);
+		mutex_unlock(&acc->lock);
+		if (ret < 0) {
+			pr_err("%s: lis3dh_read_gyro_values fail\n", __func__);
+			return ret;
+		}
+		pr_debug("%s: data: x = %d, y = %d, z = %d\n", __func__, 
+				data->x, data->y, data->z);
+		total[0] += data->x;
+		total[1] += data->y;
+		total[2] += data->z;
+		pr_debug("%s: total: x = %d, y = %d, z = %d\n", __func__, 
+				total[0], total[1], total[2]);
+	}
+	data->x = total[0] / SELFTEST_SAMPLES;
+	data->y = total[1] / SELFTEST_SAMPLES;
+	data->z = total[2] / SELFTEST_SAMPLES;
+	pr_debug("%s: average: x = %d, y = %d, z = %d\n", __func__,
+		       	data->x, data->y, data->z);
+
+	return 0;
+}
+
+/*
+ * Part Number Min_X Max_X Min_Y Max_Y Min_Z Max_Z Unit
+ * LIS3DH 80 1700 80 1700 80 1400 LSB (@ FS = +/-2g)
+ */
+
+#define SELFTEST_MIN 80UL	/* mg/digit */
+#define SELFTEST_MAX 1700UL	/* mg/digit */
+#define CONVERT_TO_MG	1	/* for range = +/-2g */
+
+#define SELFTEST_NORMAL(st, nost, axis)			\
+({							\
+	unsigned long __abs_data = abs(st->axis - nost->axis) * CONVERT_TO_MG;	\
+	int __ret;					\
+	__ret = (__abs_data <= SELFTEST_MAX) && (__abs_data >= SELFTEST_MIN);	\
+	__ret;									\
+})
+
+static inline int selftest_check(struct lis3dh_t *data_nost, 
+		struct lis3dh_t *data_st)
+{
+	pr_debug("%s\n", __func__);
+	pr_info("%s:  MAX: %lu, MIN: %lu\n", __func__, 
+			SELFTEST_MAX, SELFTEST_MIN);
+	pr_debug("%s:X: %lu\t", __func__, 
+			abs(data_st->x - data_nost->x) * CONVERT_TO_MG);
+	pr_debug("%s:Y: %lu\t", __func__,
+		       	abs(data_st->y - data_nost->y) * CONVERT_TO_MG);
+	pr_debug("%s:Z: %lu\t", __func__,
+		       	abs(data_st->z - data_nost->z) * CONVERT_TO_MG);
+
+	/* Pass return 0, fail return -1 */
+	if (SELFTEST_NORMAL(data_st, data_nost, x) \
+		&& SELFTEST_NORMAL(data_st, data_nost, y) \
+		&& SELFTEST_NORMAL(data_st, data_nost, z)) {
+		return 0;
+	}
+
+	return -1;
+}
+
+static int lis3dh_selftest(struct lis3dh_acc_data *acc, int *test_result,
+	       	struct lis3dh_t *self_data)
+{
+	int ret;
+	struct lis3dh_t data_nost;
+
+	/* Initialize Sensor, turn on sensor, enable P/R/Y */
+	ret = selftest_init_lis3dh(acc);
+	if (ret < 0) {
+		pr_err("%s: selftest_init_lis3dh fail\n", __func__);
+		return ret;
+	}
+
+	/* Wait for stable output */
+	pr_debug("%s: wait for stable output\n", __func__);
+	msleep(800);
+
+	/* Read out normal output */
+	ret = selftest_read(acc, &data_nost);
+	if (ret < 0) {
+		pr_err("%s: selftest_read fail\n", __func__);
+		return ret;
+	}
+	pr_debug("%s: normal output: x = %d, y = %d, z = %d\n",
+		__func__, data_nost.x, data_nost.y, data_nost.z);
+	
+	/* Enable self test */
+	ret = selftest_enable(acc);
+	if (ret < 0) {
+		pr_err("%s: selftest_enable failed\n", __func__);
+		return ret;
+	}
+	
+	/* ODR=200HZ, wait for 3 * ODR */
+	mdelay(3 * (1000 / 200));
+	
+	/* Read out selftest output */
+	ret = selftest_read(acc, self_data);
+	if (ret < 0) {
+		pr_err("%s: selftest_read fail\n", __func__);
+		return ret;
+	}
+	
+	/* Check output */
+	ret = selftest_check(&data_nost, self_data);
+	if (ret < 0) {
+		pr_err("%s: ***fail***\n", __func__);
+		*test_result = 0;
+	} else {
+		pr_info("%s: ***success***\n", __func__);
+		*test_result = 1;
+	}
+	
+	/* selftest disable */
+	selftest_disable(acc);
+
+	return ret;
+}
+/* selftest end */
 
 static ssize_t attr_get_polling_rate(struct device *dev,
 				     struct device_attribute *attr,
@@ -844,6 +903,25 @@ static ssize_t attr_get_raw_data(struct device *dev,
 	return sprintf(buf, "%d %d %d\n", xyz[0], xyz[1], xyz[2]);
 }
 
+static ssize_t attr_get_selftest_data(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct lis3dh_acc_data *acc = dev_get_drvdata(dev);
+	struct lis3dh_t self_data ;
+	int self_result, ret;
+
+	ret = lis3dh_selftest(acc, &self_result, &self_data);
+	if(ret < 0){
+		pr_err("%s():self test fail\n",__func__);
+		return ret;
+	}
+
+	ret = sprintf(buf, "SELFTEST RESULT : %d, %d, %d\n", 
+			self_data.x, self_data.y, self_data.z);
+
+	return ret;
+
+}
 
 #ifdef DEBUG
 /* PAY ATTENTION: These DEBUG funtions don't manage resume_state */
@@ -914,6 +992,7 @@ static struct device_attribute attributes[] = {
 							attr_set_click_tlat),
 	__ATTR(click_timewindow, 0664, attr_get_click_tw, attr_set_click_tw),
 	__ATTR(raw_data, 0444, attr_get_raw_data, NULL),
+	__ATTR(selftest_data, 0444, attr_get_selftest_data, NULL),
 
 #ifdef DEBUG
 	__ATTR(reg_value, 0600, attr_reg_get, attr_reg_set),
@@ -942,28 +1021,6 @@ static int remove_sysfs_interfaces(struct device *dev)
 	for (i = 0; i < ARRAY_SIZE(attributes); i++)
 		device_remove_file(dev, attributes + i);
 	return 0;
-}
-
-static void lis3dh_acc_input_work_func(struct work_struct *work)
-{
-	struct lis3dh_acc_data *acc;
-
-	int xyz[3] = { 0 };
-	int err;
-
-	acc = container_of((struct delayed_work *)work,
-			struct lis3dh_acc_data,	input_work);
-
-	mutex_lock(&acc->lock);
-	err = lis3dh_acc_get_acceleration_data(acc, xyz);
-	if (err < 0)
-		dev_err(&acc->client->dev, "get_acceleration_data failed\n");
-	else
-		lis3dh_acc_report_values(acc, xyz);
-
-	schedule_delayed_work(&acc->input_work, msecs_to_jiffies(
-			acc->pdata->poll_interval));
-	mutex_unlock(&acc->lock);
 }
 
 static int lis3dh_acc_validate_pdata(struct lis3dh_acc_data *acc)
@@ -1002,7 +1059,6 @@ static int lis3dh_acc_input_init(struct lis3dh_acc_data *acc)
 {
 	int err;
 
-	INIT_DELAYED_WORK(&acc->input_work, lis3dh_acc_input_work_func);
 	acc->input_dev = input_allocate_device();
 	if (!acc->input_dev) {
 		err = -ENOMEM;
@@ -1011,7 +1067,6 @@ static int lis3dh_acc_input_init(struct lis3dh_acc_data *acc)
 	}
 
 	acc->input_dev->name = LIS3DH_ACC_DEV_NAME;
-	//acc->input_dev->name = "accelerometer";
 	acc->input_dev->id.bustype = BUS_I2C;
 	acc->input_dev->dev.parent = &acc->client->dev;
 
@@ -1059,224 +1114,26 @@ static void lis3dh_acc_input_cleanup(struct lis3dh_acc_data *acc)
 static int lis3dh_misc_open(struct inode *inode, struct file *file)
 {
 	struct lis3dh_acc_data *lis3dh = container_of(file->private_data, 
-								struct lis3dh_acc_data, 
-								misc_device);
+				struct lis3dh_acc_data, misc_device);
 	file->private_data = lis3dh;
 	
 	return 0;
 }
-
 
 static int lis3dh_misc_close(struct inode *inode, struct file *file)
 {
 	return 0;
 }
 
-/* selftest start */
-#define SELFTEST_MEASURE_TIMEOUT 100
-#define SELFTEST_ZYXDA (0x1 << 3)
-#define SELFTEST_SAMPLES 5
-
-static int selftest_init_lis3dh(struct lis3dh_acc_data *acc)
-{
-	unsigned char buf[5];
-	pr_info("%s\n", __func__);
-
-	/* BDU=1, ODR=200Hz, FS=+/-2G */
-	buf[0] = I2C_AUTO_INCREMENT | CTRL_REG1;
-	buf[1] = ODR200 | 0xFF;
-	buf[2] = 0x00;
-	buf[3] = 0x00;
-	buf[4] = 0x80;	/* BDU=1 */
-
-	return lis3dh_acc_i2c_write(acc, buf, 4);
-}
-
-static int selftest_enable(struct lis3dh_acc_data *acc)
-{
-	unsigned char buf[2];
-
-	buf[0] = CTRL_REG4;
-	buf[1] = 0x82;	/* BDU=1, ST1 = 1, ST0 = 0 */
-
-	pr_info("%s\n", __func__);
-
-	return lis3dh_acc_i2c_write(acc, buf, 1);
-}
-
-static void selftest_disable(struct lis3dh_acc_data *acc)
-{
-	unsigned char buf[2];
-
-	buf[1] = 0x00;
-	pr_info("%s\n", __func__);
-
-	/* Disable sensor */
-	buf[0] = CTRL_REG1;
-	lis3dh_acc_i2c_write(acc, buf, 1);
-	/* Disable selftest */
-	buf[0] = CTRL_REG4;
-	lis3dh_acc_i2c_write(acc, buf, 1);
-}
-
-static int selftest_wait_ZYXDA(struct lis3dh_acc_data *acc)
-{
-	int i, ret;
-	unsigned char data_ready;
-
-	pr_info("%s\n", __func__);
-
-	for (i = SELFTEST_MEASURE_TIMEOUT; i != 0; i--) {
-		data_ready = STATUS_REG;
-		ret = lis3dh_acc_i2c_read(acc, &data_ready, 1);
-		if (ret < 0) {
-			pr_err("%s: lis3dh_i2c_read fail, retry %d\n", __func__, i);
-			msleep(I2C_RETRY_DELAY);
-			continue;
-		} else if (data_ready & SELFTEST_ZYXDA) {
-			pr_info("%s: data ready\n", __func__);
-			break;
-		}
-	}
-	if (i == 0) {
-		pr_err("%s: failed\n", __func__);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int selftest_read(struct lis3dh_acc_data *acc, struct lis3dh_t *data)
-{
-	int total[3];
-	int i, ret;
-
-	pr_info("%s\n", __func__);
-
-	total[0] = 0;
-	total[1] = 0;
-	total[2] = 0;
-	for (i = 0; i < SELFTEST_SAMPLES; i++) {
-		ret = selftest_wait_ZYXDA(acc);
-		if (ret) {
-			pr_err("%s: selftest_check_ZYXDA fail\n", __func__);
-			return ret;
-		}
-		mutex_lock(&acc->lock);
-		ret = lis3dh_acc_get_acceleration_data(acc, (int *)data);
-		mutex_unlock(&acc->lock);
-		if (ret < 0) {
-			pr_err("%s: lis3dh_read_gyro_values fail\n", __func__);
-			return ret;
-		}
-		pr_info("%s: data: x = %d, y = %d, z = %d\n", __func__, data->x, data->y, data->z);
-		total[0] += data->x;
-		total[1] += data->y;
-		total[2] += data->z;
-		pr_info("%s: total: x = %d, y = %d, z = %d\n", __func__, total[0], total[1], total[2]);
-	}
-	data->x = total[0] / SELFTEST_SAMPLES;
-	data->y = total[1] / SELFTEST_SAMPLES;
-	data->z = total[2] / SELFTEST_SAMPLES;
-	pr_info("%s: average: x = %d, y = %d, z = %d\n", __func__, data->x, data->y, data->z);
-
-	return 0;
-}
-
-/*
- * Part Number Min_X Max_X Min_Y Max_Y Min_Z Max_Z Unit
- * LIS3DH 80 1700 80 1700 80 1400 LSB (@ FS = +/-2g)
- */
-
-#define SELFTEST_MIN 80UL	/* mg/digit */
-#define SELFTEST_MAX 1700UL	/* mg/digit */
-#define CONVERT_TO_MG	1	/* for range = +/-2g */
-
-#define SELFTEST_NORMAL(st, nost, axis)			\
-({							\
-	unsigned long __abs_data = abs(st->axis - nost->axis) * CONVERT_TO_MG;	\
-	int __ret;					\
-	__ret = (__abs_data <= SELFTEST_MAX) && (__abs_data >= SELFTEST_MIN);	\
-	__ret;									\
-})
-
-static inline int selftest_check(struct lis3dh_t *data_nost, struct lis3dh_t *data_st)
-{
-	pr_info("%s\n", __func__);
-	pr_info("%s:  MAX: %lu, MIN: %lu\n", __func__, SELFTEST_MAX, SELFTEST_MIN);
-	pr_info("%s:X: %lu\t", __func__, abs(data_st->x - data_nost->x) * CONVERT_TO_MG);
-	pr_info("%s:Y: %lu\t", __func__, abs(data_st->y - data_nost->y) * CONVERT_TO_MG);
-	pr_info("%s:Z: %lu\t", __func__, abs(data_st->z - data_nost->z) * CONVERT_TO_MG);
-
-	/* Pass return 0, fail return -1 */
-	if (SELFTEST_NORMAL(data_st, data_nost, x) \
-		&& SELFTEST_NORMAL(data_st, data_nost, y) \
-		&& SELFTEST_NORMAL(data_st, data_nost, z)) {
-		return 0;
-	}
-
-	return -1;
-}
-
-static int lis3dh_selftest(struct lis3dh_acc_data *acc, int *test_result)
-{
-	int ret;
-	struct lis3dh_t data_nost, data_st;
-
-	/* Initialize Sensor, turn on sensor, enable P/R/Y */
-	ret = selftest_init_lis3dh(acc);
-	if (ret < 0) {
-		pr_err("%s: selftest_init_lis3dh fail\n", __func__);
-		return ret;
-	}
-	/* Wait for stable output */
-	pr_info("%s: wait for stable output\n", __func__);
-	msleep(800);
-	/* Read out normal output */
-	ret = selftest_read(acc, &data_nost);
-	if (ret < 0) {
-		pr_err("%s: selftest_read fail\n", __func__);
-		return ret;
-	}
-	pr_info("%s: normal output: x = %d, y = %d, z = %d\n",
-		__func__, data_nost.x, data_nost.y, data_nost.z);
-	/* Enable self test */
-	ret = selftest_enable(acc);
-	if (ret < 0) {
-		pr_err("%s: selftest_enable failed\n", __func__);
-		return ret;
-	}
-	/* ODR=200HZ, wait for 3 * ODR */
-	mdelay(3 * (1000 / 200));
-	/* Read out selftest output */
-	ret = selftest_read(acc, &data_st);
-	if (ret < 0) {
-		pr_err("%s: selftest_read fail\n", __func__);
-		return ret;
-	}
-	/* Check output */
-	ret = selftest_check(&data_nost, &data_st);
-	if (ret < 0) {
-		pr_err("%s: ***fail***\n", __func__);
-		*test_result = 0;
-	} else {
-		pr_info("%s: ***success***\n", __func__);
-		*test_result = 1;
-	}
-	/* selftest disable */
-	selftest_disable(acc);
-
-	return ret;
-}
-/* selftest end */
-
-static long lis3dh_misc_ioctl_int(struct file *file, unsigned int cmd, unsigned long arg)
+static long lis3dh_misc_ioctl_init(struct file *file, 
+		unsigned int cmd, unsigned long arg)
 {
 	int ret, enable;
 	int acc_data[3];
 	int delay;
 	int test_result;
 	struct lis3dh_acc_data *lis3dh = file->private_data;
+	struct lis3dh_t self_data;
 	int status;
 
 	switch (cmd) {
@@ -1350,24 +1207,12 @@ static long lis3dh_misc_ioctl_int(struct file *file, unsigned int cmd, unsigned 
 		}
 		
 		break;
-	case LIS3DH_IOCTL_GET_TEMP:
-/*		if (lis3dh->enable) {
-			ret = copy_to_user((void __user *)arg, &lis3dh->temp, sizeof(lis3dh->temp));
-			if (ret) {
-				pr_err("%s()->%d:copy accelerater data error!\n",
-					__FUNCTION__, __LINE__);
-				return -EINVAL;
-			}
-		} 
-		else {
-			return -EINVAL; 
-		}*/
-		break;
 	case LIS3DH_IOCTL_SELFTEST:
-		ret = lis3dh_selftest(lis3dh, &test_result);
+		ret = lis3dh_selftest(lis3dh, &test_result, &self_data);
 
 		pr_info("%s: self test\n", __func__);
-		if (copy_to_user((void __user *)arg, &test_result, sizeof(int)) != 0) {
+		if (copy_to_user((void __user *)arg, &test_result,
+				       	sizeof(int)) != 0) {
 			pr_err("%s: copy_to_user error\n", __func__);
 			return -EFAULT;
 		}
@@ -1386,14 +1231,62 @@ static long lis3dh_misc_ioctl_int(struct file *file, unsigned int cmd, unsigned 
 	return 0;
 }
 
-static long lis3dh_misc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long lis3dh_misc_ioctl(struct file *file, 
+		unsigned int cmd, unsigned long arg)
 {
 	long ret;
 	struct lis3dh_acc_data *lis3dh = file->private_data;
 	mutex_lock(&lis3dh->ioctl_lock);
-	ret = lis3dh_misc_ioctl_int(file, cmd, arg);
+	ret = lis3dh_misc_ioctl_init(file, cmd, arg);
 	mutex_unlock(&lis3dh->ioctl_lock);
 	return ret;
+}
+
+static void lis3dh_check_device(struct lis3dh_acc_data *acc)
+{
+	int err = 0;
+	u8 buf[1];
+	buf[0] = WHO_AM_I;
+	err = lis3dh_acc_i2c_read(acc, buf, 1);
+	if (err < 0) {
+		dev_warn(&acc->client->dev, "Error reading WHO_AM_I: is device "
+			"available/working?\n");
+	} 
+	
+	if (buf[0] != WHOAMI_LIS3DH_ACC) {
+		dev_err(&acc->client->dev,
+			"device unknown. Expected: 0x%x,"
+			" Replies: 0x%x\n", WHOAMI_LIS3DH_ACC, buf[0]);
+		err = -1; /* choose the right coded error */
+		goto err_unknown_device;
+	}
+
+err_unknown_device:
+	acc->hw_initialized = 0;
+}
+
+static void lis3dh_init_register(struct lis3dh_acc_data *acc)
+{
+	/*initialize register values*/
+	memset(acc->resume_state, 0, ARRAY_SIZE(acc->resume_state));
+	acc->resume_state[RES_CTRL_REG1]     = LIS3DH_ACC_ENABLE_ALL_AXES; 
+	acc->resume_state[RES_CTRL_REG2]     = 0x00;                       
+	acc->resume_state[RES_CTRL_REG3]     = 0x00;                       
+	acc->resume_state[RES_CTRL_REG4]     = 0x00;                       
+	acc->resume_state[RES_CTRL_REG5]     = 0x00;                       
+	acc->resume_state[RES_CTRL_REG6]     = 0x00;                       
+	acc->resume_state[RES_TEMP_CFG_REG]  = 0x00;                       
+	acc->resume_state[RES_FIFO_CTRL_REG] = 0x00;                       
+	acc->resume_state[RES_INT_CFG1]      = 0x00;                       
+	acc->resume_state[RES_INT_THS1]      = 0x00;                       
+	acc->resume_state[RES_INT_DUR1]      = 0x00;                       
+	acc->resume_state[RES_TT_CFG]        = 0x00;                       
+	acc->resume_state[RES_TT_THS]        = 0x00;                       
+	acc->resume_state[RES_TT_LIM]        = 0x00;                       
+	acc->resume_state[RES_TT_TLAT]       = 0x00;                       
+	acc->resume_state[RES_TT_TW]         = 0x00;                       
+	
+	pr_info("%s():is done\n",__func__);
 }
 
 /*
@@ -1456,7 +1349,11 @@ static int __devinit lis3dh_acc_probe(struct i2c_client *client,
 	struct lis3dh_acc_data *acc;
 	int err = -1;
 
-	pr_info("%s: probe start.\n", LIS3DH_ACC_DEV_NAME);
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+		printk(KERN_ERR "LIS3DH lis3dh_acc_probe:check_functionality failed.\n");
+		err = -ENODEV;
+		goto exit;
+	}
 
 	if (client->dev.platform_data == NULL) {
 		dev_err(&client->dev, "platform data is NULL. exiting.\n");
@@ -1494,33 +1391,12 @@ static int __devinit lis3dh_acc_probe(struct i2c_client *client,
 		dev_err(&client->dev, "failed to validate platform data\n");
 		goto err_kfree_pdata;
 	}
+	
+	/*read the lis3dh chip "who am i" */
+	lis3dh_check_device(acc);
 
-	if (acc->pdata->init) {
-		err = acc->pdata->init();
-		if (err < 0) {
-			dev_err(&client->dev, "init failed: %d\n", err);
-			goto err_pdata_init;
-		}
-	}
-
-	/*initialize register values*/
-	memset(acc->resume_state, 0, ARRAY_SIZE(acc->resume_state));
-	acc->resume_state[RES_CTRL_REG1] = LIS3DH_ACC_ENABLE_ALL_AXES;
-	acc->resume_state[RES_CTRL_REG2] = 0x00;
-	acc->resume_state[RES_CTRL_REG3] = 0x00;
-	acc->resume_state[RES_CTRL_REG4] = 0x00;
-	acc->resume_state[RES_CTRL_REG5] = 0x00;
-	acc->resume_state[RES_CTRL_REG6] = 0x00;
-	acc->resume_state[RES_TEMP_CFG_REG] = 0x00;
-	acc->resume_state[RES_FIFO_CTRL_REG] = 0x00;
-	acc->resume_state[RES_INT_CFG1] = 0x00;
-	acc->resume_state[RES_INT_THS1] = 0x00;
-	acc->resume_state[RES_INT_DUR1] = 0x00;
-	acc->resume_state[RES_TT_CFG] = 0x00;
-	acc->resume_state[RES_TT_THS] = 0x00;
-	acc->resume_state[RES_TT_LIM] = 0x00;
-	acc->resume_state[RES_TT_TLAT] = 0x00;
-	acc->resume_state[RES_TT_TW] = 0x00;
+	/*lis3dh init the device register value*/
+	lis3dh_init_register(acc);
 
 	err = lis3dh_acc_device_power_on(acc);
 	if (err < 0) {
@@ -1560,9 +1436,9 @@ static int __devinit lis3dh_acc_probe(struct i2c_client *client,
 	/* As default, do not report information */
 	atomic_set(&acc->enabled, 0);
 
-	acc->misc_device.minor = MISC_DYNAMIC_MINOR;
-	acc->misc_device.name = "lis3dh";
-	acc->misc_device.fops = &lis3dh_fops;
+	acc->misc_device.minor = MISC_DYNAMIC_MINOR; 
+	acc->misc_device.name  = "lis3dh";           
+	acc->misc_device.fops  = &lis3dh_fops;       
 	err = misc_register(&acc->misc_device);
 	if (err < 0) {
 		pr_err("%s()->%d:can not create misc device!\n",
@@ -1573,9 +1449,9 @@ static int __devinit lis3dh_acc_probe(struct i2c_client *client,
 	dev_info(&client->dev, "%s: probed\n", LIS3DH_ACC_DEV_NAME);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	acc->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 2;
-	acc->early_suspend.suspend = lis3dh_early_suspend;
-	acc->early_suspend.resume = lis3dh_late_resume;
+	acc->early_suspend.level   = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 2; 
+	acc->early_suspend.suspend = lis3dh_early_suspend;            
+	acc->early_suspend.resume  = lis3dh_late_resume;              
 	register_early_suspend(&acc->early_suspend);
 #endif
 
@@ -1596,7 +1472,7 @@ err_freedata:
 	kfree(acc);
 err_platformdata:
 	pr_err("%s: Driver Init failed\n", LIS3DH_ACC_DEV_NAME);
-	
+exit:	
 	return err;
 }
 
@@ -1628,15 +1504,15 @@ MODULE_DEVICE_TABLE(i2c, lis3dh_acc_id);
 
 #ifdef CONFIG_PM
 static const struct dev_pm_ops lis3dh_pm_ops = {
-	.suspend = lis3dh_suspend,
-	.resume = lis3dh_resume,
+	.suspend = lis3dh_suspend, 
+	.resume  = lis3dh_resume,  
 };
 #endif
 
 static struct i2c_driver lis3dh_acc_driver = {
-	.probe = lis3dh_acc_probe,
-	.remove = __devexit_p(lis3dh_acc_remove),
-	.id_table = lis3dh_acc_id,
+	.probe    = lis3dh_acc_probe,               
+	.remove   = __devexit_p(lis3dh_acc_remove), 
+	.id_table = lis3dh_acc_id,                  
 
 	.driver = {
 		.owner = THIS_MODULE,
@@ -1649,15 +1525,11 @@ static struct i2c_driver lis3dh_acc_driver = {
 
 static int __init lis3dh_acc_init(void)
 {
-	pr_info("%s accelerometer driver: init\n", LIS3DH_ACC_DEV_NAME);
-	
 	return i2c_add_driver(&lis3dh_acc_driver);
 }
 
 static void __exit lis3dh_acc_exit(void)
 {
-	pr_info(KERN_INFO "%s accelerometer driver exit\n", LIS3DH_ACC_DEV_NAME);
-	
 	i2c_del_driver(&lis3dh_acc_driver);
 }
 
