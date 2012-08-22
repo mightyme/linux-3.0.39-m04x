@@ -823,7 +823,7 @@ static int __devinit akm8963_probe(struct i2c_client *client, const struct i2c_d
 	struct akm8963_data *akm;
 	int err = 0;
 	
-	printk("%s(),the client address is 0x%02x\n",__func__, client->addr);
+	pr_info("%s(),the client address is 0x%02x\n",__func__, client->addr);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		printk(KERN_ERR "AKM8963 akm8963_probe: check_functionality failed.\n");
@@ -906,11 +906,6 @@ static int __devinit akm8963_probe(struct i2c_client *client, const struct i2c_d
 	akm->akm_early_suspend.resume = akm8963_early_resume;
 	register_early_suspend(&akm->akm_early_suspend);
 #endif
-	if (err < 0) {
-		pr_err("%s()->%d:sys create group fail !!\n", __FUNCTION__, __LINE__);
-		goto exit3;
-	}
-
 
 	AKMDBG("successfully probed."); 
 	return 0;
