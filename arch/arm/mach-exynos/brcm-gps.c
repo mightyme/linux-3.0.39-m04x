@@ -115,6 +115,11 @@ static int __devinit gps_probe(struct platform_device *pdev)
 		pr_err("%s():kzalloc fail !!\n", __func__);
 		return -ENOMEM;
 	}
+	/* config gpio pins as uart port */
+	s3c_gpio_cfgpin(M040_GPS_RTS, S3C_GPIO_SFN(2));
+	s3c_gpio_cfgpin(M040_GPS_CTS, S3C_GPIO_SFN(2));
+	s3c_gpio_cfgpin(M040_GPS_RXD, S3C_GPIO_SFN(2));
+	s3c_gpio_cfgpin(M040_GPS_TXD, S3C_GPIO_SFN(2));
 
 	data->gps_power = M040_GPS_PWRON;
 	data->gps_reset = M040_GPS_RST;
