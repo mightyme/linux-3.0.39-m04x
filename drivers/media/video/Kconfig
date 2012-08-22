@@ -503,13 +503,13 @@ config VIDEO_S5K4EA
 
 config VIDEO_OV7690
         tristate "OV7690 ITU supporting camera driver"
-        depends on I2C && VIDEO_V4L2
+        depends on I2C && VIDEO_V4L2 && MX_SERIAL_TYPE
         ---help---
           This driver supports RJ6CBA200 SoC camera module with  as well
 
 config VIDEO_M6MO
         tristate "Fujisu M6MO MIPI CSI-2 supporting camera driver"
-        depends on I2C && VIDEO_V4L2 && VIDEO_FIMC_MIPI
+        depends on I2C && VIDEO_V4L2 && VIDEO_FIMC_MIPI && MX_SERIAL_TYPE
         ---help---
           This driver supports s5k6aa SoC camera module with
           MIPI CSI-2 as well

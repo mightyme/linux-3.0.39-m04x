@@ -797,11 +797,43 @@ int fimc_release_subdev(struct fimc_control *ctrl)
 	return 0;
 }
 
+static int fimc_cam_register_callback(struct device *dev, void *p)
+{
+	struct v4l2_subdev **sd = p;
+
+	*sd = dev_get_drvdata(dev);
+
+	if (!*sd)
+		return -EINVAL;
+
+	return 0; /* non-zero value stops iteration */
+}
+
+static struct v4l2_subdev *fimc_get_cam_subdev(const char *module_name)
+{
+	struct device_driver *drv;
+	struct v4l2_subdev *sd = NULL;
+	int ret;
+
+	drv = driver_find(module_name, &i2c_bus_type);
+	if (!drv)  {
+		request_module(module_name);
+		drv = driver_find(module_name, &i2c_bus_type);
+	}
+	if (!drv)
+		return ERR_PTR(-ENODEV);
+
+	ret = driver_for_each_device(drv, NULL, &sd,
+				     fimc_cam_register_callback);
+	put_driver(drv);
+	return ret ? NULL : sd;
+}
+
 /*static */int fimc_configure_subdev(struct fimc_control *ctrl)
 {
 	int ret = 0;
 #if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
-	ctrl->cam->sd = get_v4l2_i2c_subdev(ctrl->cam->info->type);
+	ctrl->cam->sd = fimc_get_cam_subdev(ctrl->cam->info->type);
 #else
 	struct i2c_adapter *i2c_adap;
 	struct i2c_board_info *i2c_info;
