@@ -129,7 +129,6 @@ struct modem_data {
 	unsigned gpio_cp_reset_int;
 	unsigned gpio_cp_dump_int;
 	unsigned gpio_ap_dump_int;
-	unsigned gpio_cp_warm_reset;
 	unsigned gpio_sim_detect;
 
 	/* Switch with 2 links in a modem */

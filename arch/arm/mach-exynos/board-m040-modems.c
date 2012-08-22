@@ -86,7 +86,6 @@ static struct modem_data umts_modem_data_m040 = {
 	.gpio_host_active         = M040_GPIO_HOST_ACTIVE,
 	.gpio_cp_reset_int        = M040_GPIO_MODEM_RESET_INT,
 	.gpio_cp_dump_int         = M040_GPIO_MODEM_DUMP_INT,
-	.gpio_cp_warm_reset       = 0,
 	.gpio_sim_detect          = 0,
 	.modem_type               = IMC_XMM6260,
 	.link_types               = LINKTYPE(LINKDEV_HSIC),
@@ -205,7 +204,6 @@ static void umts_modem_cfg_gpio(void)
 			       "GPIO_CP_RESET_INT", err);
 		}
 		s3c_gpio_setpull(gpio_cp_reset_int, S3C_GPIO_PULL_UP);
-                gpio_direction_input(gpio_cp_reset_int);
 	}
 
 	if (gpio_host_active) {

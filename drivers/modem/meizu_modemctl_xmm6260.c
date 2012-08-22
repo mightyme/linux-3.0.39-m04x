@@ -482,15 +482,15 @@ int xmm6260_init_modemctl_device(struct modem_ctl *mc,
 	global_mc   = mc;
 	mc->l2_done = NULL;
 
-	mc->gpio_cp_dump_int         = pdata->gpio_cp_dump_int;
 	mc->gpio_cp_on               = pdata->gpio_cp_on;
 	mc->gpio_cp_reset            = pdata->gpio_cp_reset;
-	mc->gpio_cp_warm_reset       = pdata->gpio_cp_warm_reset;
+	mc->gpio_sim_detect          = pdata->gpio_sim_detect;
+	mc->gpio_cp_dump_int         = pdata->gpio_cp_dump_int;
 	mc->gpio_host_active         = pdata->gpio_host_active;
 	mc->gpio_reset_req_n         = pdata->gpio_reset_req_n;
+	mc->gpio_cp_reset_int        = pdata->gpio_cp_reset_int;
 	mc->gpio_revers_bias_clear   = pdata->gpio_revers_bias_clear;
 	mc->gpio_revers_bias_restore = pdata->gpio_revers_bias_restore;
-	mc->gpio_sim_detect          = pdata->gpio_sim_detect;
 
 	init_waitqueue_head(&mc->read_wq);
 	init_waitqueue_head(&mc->conn_wq);

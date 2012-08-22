@@ -541,7 +541,6 @@ struct modem_ctl {
 	unsigned gpio_cp_reset_int;
 	unsigned gpio_cp_dump_int;
 	unsigned gpio_ap_dump_int;
-	unsigned gpio_cp_warm_reset;
 	unsigned gpio_cp_off;
 	unsigned gpio_sim_detect;
 	unsigned gpio_dynamic_switching;
