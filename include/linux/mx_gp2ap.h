@@ -128,7 +128,7 @@
 #define PS_IRQ_MODE		0
 #define PS_SHUTDOWN_MODE	1
 
-#define ALS_DELAYTIME	200	/* ms */
+#define ALS_DELAYTIME	100	/* ms */
 
 /* gp2ap driver private data struct*/
 #ifdef __KERNEL__
@@ -150,10 +150,13 @@ struct gp2ap_data {
 	int current_range;
 	int current_intval_time;
 	int ps_data;
+	int prev_lux;
+	int prev_range;
 	u16 ps_near_threshold;	/* The count when barrier is at about 3 ~ 4cm */
 	u16 ps_far_threshold;	/* The count when barrier is at about 4 ~ 5cm */
 	u16 ps_calib_value;	/* The count when no barrier */
 	u8 ps_thresholds[4];
+	int CURRENT_ALS_RANGE[3];
 	int init_threshold_flag;
 	int reset_threshold_flag;
 	bool irq_wake_enabled;
