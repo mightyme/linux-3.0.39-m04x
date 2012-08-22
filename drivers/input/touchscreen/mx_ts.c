@@ -1592,6 +1592,9 @@ static int __devinit mxt_probe(struct i2c_client *client,
 	if(1)
 	{
 		mxt_make_highchg(data);
+		mxt_make_highchg(data);
+		mxt_make_highchg(data);
+		mxt_make_highchg(data);
 		mxt_stop(data);
 		goto err_free_object;
 	}
