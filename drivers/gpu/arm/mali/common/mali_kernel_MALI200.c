@@ -202,7 +202,7 @@ static _mali_osk_errcode_t mali200_subsystem_mmu_connect(mali_kernel_subsystem_i
 }
 #endif
 
-static void mali200_subsystem_terminate(mali_kernel_subsystem_identifier id)
+static __maybe_unused void mali200_subsystem_terminate(mali_kernel_subsystem_identifier id)
 {
 	MALI_DEBUG_PRINT(3, ("Mali PP: mali200_subsystem_terminate\n") ) ;
 	mali_core_subsystem_cleanup(&subsystem_mali200);
