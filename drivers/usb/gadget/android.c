@@ -159,9 +159,11 @@ static struct usb_configuration android_config_driver = {
 #if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 int android_usb_set_machine_info(char *mfg, char *prod, char *sn)
 {
+#ifndef CONFIG_M03X_DEV_KERNEL
 	strings_dev[STRING_MANUFACTURER_IDX].s = mfg;
 	strings_dev[STRING_PRODUCT_IDX].s = prod;
 	strings_dev[STRING_SERIAL_IDX].s = sn;
+#endif
 	return 0;
 }
 #endif
@@ -171,13 +173,14 @@ int android_usb_set_machine_info(char *mfg, char *prod, char *sn)
 static int serial_no_read(char *page, char **start, off_t off, int count, int *eof, void *data)
 {
 	*eof = 1;
-	return snprintf(page, count, "%s\n", strings_dev[STRING_SERIAL_IDX].s);
+	return snprintf(page, count, "%s\n", serial_string);
 }
 
 
 static int serial_no_write(struct file *file, const char __user *buffer, unsigned long count, void *data)
 {
-	memcpy((void *)strings_dev[STRING_SERIAL_IDX].s, buffer, 16);
+	memset(serial_string, '\0', 256);
+	memcpy(serial_string, buffer, 16);
 
 	return count;
 }
