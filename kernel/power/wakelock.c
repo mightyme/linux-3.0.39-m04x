@@ -296,7 +296,7 @@ static void suspend(struct work_struct *work)
 		pr_info("suspend: exit suspend, ret = %d "
 			"(%d-%02d-%02d %02d:%02d:%02d.%09lu) Shanghai\n", ret,
 			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-			tm.tm_hour + 8, tm.tm_min, tm.tm_sec, ts_exit.tv_nsec);
+			(tm.tm_hour + 8) % 24, tm.tm_min, tm.tm_sec, ts_exit.tv_nsec);
 	}
 
 	if (ts_exit.tv_sec - ts_entry.tv_sec <= 1) {
