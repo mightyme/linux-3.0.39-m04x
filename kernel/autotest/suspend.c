@@ -55,7 +55,7 @@ int write_something_to_emmc(char *log_file)
 	ssize_t wb;
 	int err = 0;
 	char date[100];
-	char buf[]="test_emmc, test_emmc, test_emmc, test_emmc, test_emmc, test_emmc!";
+	char buf[]="test_emmc, test_emmc, test_emmc, test_emmc, test_emmc, test_emmc!\n";
 	struct timespec ts;
 	struct rtc_time tm;
 
