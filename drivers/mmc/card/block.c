@@ -2266,7 +2266,7 @@ static int mmc_blk_probe(struct mmc_card *card)
 			hd = add_partition(md->disk, i + 5, extra_partition[i].start_sec,
 			extra_partition[i].sec_num, ADDPART_FLAG_NONE, NULL);
 		}
-	} else if (machine_is_m031() || machine_is_m032()) {
+	} else if (machine_is_m031() || machine_is_m032() || machine_is_m040()) {
 		for (i = 0; i < 7; i++) {
 			hd = add_partition(md->disk, i + 5, bootinfo.partinfo[i].start_sec,
 					bootinfo.partinfo[i].sec_num, ADDPART_FLAG_NONE, NULL);
@@ -2281,7 +2281,7 @@ static int mmc_blk_probe(struct mmc_card *card)
 		if (0 == init_extra_partitioin())
 			hd = add_partition(md->disk, 5, extra_partition[0].start_sec,
 							extra_partition[0].sec_num, ADDPART_FLAG_NONE, NULL);
-	} else if (machine_is_m031() || machine_is_m032()) {
+	} else if (machine_is_m031() || machine_is_m032() || machine_is_m040()) {
 		hd = add_partition(md->disk, 5, bootinfo.partinfo[0].start_sec,
 				bootinfo.partinfo[0].sec_num, ADDPART_FLAG_NONE, NULL);
 		printk("add extra partion at mmcblk0p%d, \
