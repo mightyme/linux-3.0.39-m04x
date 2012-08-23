@@ -783,7 +783,7 @@ config MFD_BU26507
 
 
 config MFD_MXQM
-       tristate " MX QMatix Sensor for touchpad & leds"
+       tristate "MX QMatix Sensor for touchpad & leds"
        depends on I2C
        help
          Say Y here if you want to use MX QMatix
