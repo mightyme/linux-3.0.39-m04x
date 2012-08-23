@@ -52,6 +52,8 @@
 
 //#define	VERIFY_CRC
 
+static volatile int is_update = false;
+
 struct mx_qm_reg_data {
 	unsigned char addr;
 	unsigned char value;
@@ -59,7 +61,7 @@ struct mx_qm_reg_data {
 
 #ifndef	CONFIG_FW_MXQM_DEV
 const struct mx_qm_reg_data init_regs[] = {
-//	{LED_REG_LEDMAUTO,1},
+	{LED_REG_LEDMAUTO,1},
 	{},			
 };
 #else
@@ -164,7 +166,10 @@ err_write:
 static int mx_qm_readbyte(struct i2c_client *client, u8 reg)
 {
 	struct mx_qm_data *mx = i2c_get_clientdata(client);
-	int ret;
+	int ret = 0;
+
+	if( is_update )
+		return -EBUSY;
 	
 	mutex_lock(&mx->iolock);
 
@@ -188,8 +193,11 @@ static int mx_qm_readbyte(struct i2c_client *client, u8 reg)
 static int mx_qm_writebyte(struct i2c_client *client, u8 reg, u8 data)
 {
 	struct mx_qm_data *mx = i2c_get_clientdata(client);
-	int ret;	
+	int ret = 0;	
 	unsigned char buf[2];
+
+	if( is_update )
+		return -EBUSY;
 
 	mutex_lock(&mx->iolock);
 
@@ -211,6 +219,9 @@ static int mx_qm_readword(struct i2c_client *client, u8 reg)
 	struct mx_qm_data *mx = i2c_get_clientdata(client);
 	int ret;	
 	u16 val;
+
+	if( is_update )
+		return -EBUSY;
 
 	mutex_lock(&mx->iolock);
 
@@ -238,6 +249,9 @@ static int mx_qm_writeword(struct i2c_client *client, u8 reg, u16 data)
 	int ret;	
 	unsigned char buf[3];
 
+	if( is_update )
+		return -EBUSY;
+
 	mutex_lock(&mx->iolock);
 
 	buf[0] = reg;
@@ -259,6 +273,9 @@ static int mx_qm_readdata(struct i2c_client *client, u8 reg,int bytes,void *dest
 {
 	struct mx_qm_data *mx = i2c_get_clientdata(client);
 	int ret;	
+
+	if( is_update )
+		return -EBUSY;
 
 	mutex_lock(&mx->iolock);
 
@@ -284,6 +301,9 @@ static int mx_qm_writedata(struct i2c_client *client, u8 reg, int bytes, const v
 	unsigned char buf[256];
 	int size;
 
+	if( is_update )
+		return -EBUSY;
+
 	mutex_lock(&mx->iolock);
 	if(bytes > 255 )
 		bytes = 255;
@@ -306,9 +326,12 @@ static int mx_qm_writedata(struct i2c_client *client, u8 reg, int bytes, const v
 static void __devinit mx_qm_init_registers(struct mx_qm_data *mx)
 {
 	int i, ret;
+	unsigned char buf[2];
 
-	for (i=0; i<ARRAY_SIZE(init_regs); i++) {
-		ret = mx_qm_writebyte(mx->client, init_regs[i].addr, init_regs[i].value);
+	for (i=0; i<ARRAY_SIZE(init_regs); i++) {		
+		buf[0] = init_regs[i].addr;
+		buf[1] = init_regs[i].value;
+		ret = mx_qm_write(mx->client,2,buf);
 		if (ret) {
 			dev_err(mx->dev, "failed to init reg[%d], ret = %d\n", i, ret);
 		}
@@ -498,7 +521,9 @@ static int mx_qm_update(struct mx_qm_data *mx)
 
 	wake_lock(&mx->wake_lock);
 		
-	if( mx->poll )
+	is_update = true;
+	
+	if( !mx->poll )
 	{
 		disable_irq(mx->irq);	
 		msleep(100);
@@ -522,13 +547,23 @@ static int mx_qm_update(struct mx_qm_data *mx)
 
 	cmd = TWI_CMD_BVER; //
 	ret = 0;
-	ret = mx_qm_readbyte(mx->client,cmd);
+	
+	ret = mx_qm_write(mx->client,1,&cmd);
+	if (ret < 0)
+		dev_err(&mx->client->dev,
+			"can not write register, returned %d at line %d\n", ret,__LINE__);
+	
+	ret = mx_qm_read(mx->client, 1,&boot_ver);
+	if (ret < 0)
+		dev_err(&mx->client->dev,
+			"can not read register, returned %d at line %d\n", ret,__LINE__);
+	
 	if(ret < 0 )
 	{
 		dev_err(&mx->client->dev,"can not read the bootloader revision, returned %d at line %d\n", ret,__LINE__);
 		goto err_exit;
 	}
-	boot_ver = ret;
+	
 	mx->BVer = boot_ver;
 	
 	dev_info(&mx->client->dev,"bootloader revision %d\n", boot_ver);
@@ -612,8 +647,12 @@ exit:
 	mx_qm_wakeup(mx,true);
 	release_firmware(fw);
 
+	is_update = false;
+
+	/*initial registers*/
+	mx_qm_init_registers(mx);
 	
-	if( mx->poll )
+	if( !mx->poll )
 	{
 		enable_irq(mx->irq);
 	}
@@ -889,22 +928,11 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 	/* Identify the mx_qm chip */
 	if (!mx_qm_identify(data))
 	{		
-		if( data->poll == 0)
-		{
-			data->gpio_wake = pdata->gpio_irq;
-			data->gpio_reset = pdata->gpio_reset;
-			data->gpio_irq = pdata->gpio_wake;
+		data->gpio_wake = pdata->gpio_irq;
+		data->gpio_reset = pdata->gpio_reset;
+		data->gpio_irq = pdata->gpio_wake;
 
-			data->poll = 1;
-		}
-		else
-		{
-			data->gpio_wake = pdata->gpio_wake;
-			data->gpio_reset = pdata->gpio_reset;
-			data->gpio_irq = pdata->gpio_irq;
-
-			data->poll = 0;
-		}
+		data->poll = 1;
 		
 		mx_qm_wakeup(data,false);
 		mx_qm_reset(data,RESET_COLD); 
@@ -916,6 +944,8 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 			err = -ENODEV;
 			goto err_free_mem;
 		}
+		
+		pr_info("%s:poll = %d \n",__func__,data->poll);
 	}
 
 	qm_create_attrs(&client->dev);
