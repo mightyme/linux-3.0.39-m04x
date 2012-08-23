@@ -963,7 +963,10 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 	pr_debug("%s:--\n",__func__);
 	return 0;
 
-err_free_mem:
+err_free_mem:	
+	pr_err("%s:init failed! \n",__func__);
+	mutex_destroy(&data->iolock);
+	wake_lock_destroy(&data->wake_lock);
 	i2c_set_clientdata(client, NULL);
 	kfree(data);
 	return err;
@@ -1014,6 +1017,7 @@ static int __devexit mx_qm_remove(struct i2c_client *client)
 {
 	struct mx_qm_data *data = i2c_get_clientdata(client);
 
+	mutex_destroy(&data->iolock);
 	wake_lock_destroy(&data->wake_lock);
 	qm_destroy_atts(&client->dev);
 	
