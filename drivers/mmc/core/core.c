@@ -2543,8 +2543,7 @@ int mmc_suspend_host(struct mmc_host *host)
 	mmc_bus_put(host);
 
 	if (!err && !mmc_card_keep_power(host))
-		if(!(host->pm_flags & MMC_PM_IGNORE_SUSPEND_RESUME))
-			mmc_power_off(host);
+		mmc_power_off(host);
 
 out:
 	return err;
@@ -2569,8 +2568,7 @@ int mmc_resume_host(struct mmc_host *host)
 
 	if (host->bus_ops && !host->bus_dead) {
 		if (!mmc_card_keep_power(host)) {
-			if(!(host->pm_flags & MMC_PM_IGNORE_SUSPEND_RESUME))
-				mmc_power_up(host);
+			mmc_power_up(host);
 			mmc_select_voltage(host, host->ocr);
 			/*
 			 * Tell runtime PM core we just powered up the card,

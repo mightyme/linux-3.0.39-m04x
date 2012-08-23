@@ -597,6 +597,9 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 	if (pdata->host_caps)
 		host->mmc->caps |= pdata->host_caps;
 
+	host->mmc->pm_flags |= (MMC_PM_KEEP_POWER | MMC_PM_IGNORE_SUSPEND_RESUME);
+	host->mmc->pm_caps = MMC_PM_KEEP_POWER;
+
 	ret = sdhci_add_host(host);
 	if (ret) {
 		dev_err(dev, "sdhci_add_host() failed\n");
@@ -678,7 +681,7 @@ static int sdhci_s3c_suspend(struct platform_device *dev, pm_message_t pm)
 	struct sdhci_host *host = platform_get_drvdata(dev);
 
 	if(host->mmc->card && (host->mmc->card->type == MMC_TYPE_SDIO))
-		host->mmc->pm_flags |= (MMC_PM_KEEP_POWER | MMC_PM_IGNORE_SUSPEND_RESUME);
+		host->mmc->pm_flags |= MMC_PM_KEEP_POWER;
 
 	sdhci_suspend_host(host, pm);
 	return 0;
