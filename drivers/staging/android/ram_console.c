@@ -179,6 +179,15 @@ static inline unsigned long long get_current_boot_count(void)
 	return get_boot_count(get_current_boot_reason());
 }
 
+/* Check if current boot is from a previous crash */
+int boot_from_crash(void)
+{
+	int reason = get_current_boot_reason();
+
+	return (reason == OOPS_RESTART || reason == PANIC_RESTART || reason == WDT_RESTART);
+}
+EXPORT_SYMBOL(boot_from_crash);
+
 /* Hardware specific part */
 #define SWRESET		(1 << 29)
 #define WREST		(1 << 28)
@@ -649,15 +658,6 @@ static int __init ram_console_module_init(void)
 
 #include <linux/bootmode.h>
 #include <linux/syscalls.h>
-
-/* Check if current boot is from a previous crash */
-int boot_from_crash(void)
-{
-	int reason = get_current_boot_reason();
-
-	return (reason == OOPS_RESTART || reason == PANIC_RESTART || reason == WDT_RESTART);
-}
-EXPORT_SYMBOL(boot_from_crash);
 
 /*
  * dump_last_kmsg(): allow to dump the /proc/last_kmsg to a file on disk for late acessing

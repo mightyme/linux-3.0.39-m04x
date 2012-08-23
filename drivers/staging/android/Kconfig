@@ -16,12 +16,21 @@ config ANDROID_LOGGER
 	tristate "Android log driver"
 	default n
 
+config ANDROID_LOGGER_MEMSIZE
+	int "Memory size in kbytes for android logger"
+	depends on ANDROID_LOGGER
+	default 256
+	range 32 1024
+	help
+	  Logger buffer size can be configured through this option
+
 config ANDROID_RAM_CONSOLE
 	bool "Android RAM buffer console"
 	default n
 
 config ANDROID_RAM_CONSOLE_MEMSIZE
 	int "Memory size in kbytes for ram console"
+	depends on ANDROID_RAM_CONSOLE
 	default 128
 	range 32 1024
 	help

@@ -193,6 +193,10 @@ static struct cma_region mx_regions[] = {
 		.size = CONFIG_ANDROID_RAM_CONSOLE_MEMSIZE * SZ_1K,
 		.start = 0,
 	}, {
+		.name = "logger",
+		.size = CONFIG_ANDROID_LOGGER_MEMSIZE * SZ_1K * 4 + PAGE_SIZE * 2,
+		.start = 0,
+	}, {
 		.size = 0
 	},
 };
@@ -201,6 +205,7 @@ void __init mx_reserve_mem(void)
 {
 	static const char map[] __initconst =
 		"ram_console=ram_console;"
+		"logger=logger;"
 		"android_pmem.0=pmem;android_pmem.1=pmem_gpu1;"
 		"s3cfb.0/fimd=fimd;exynos4-fb.0/fimd=fimd;"
 		"s3c-fimc.0=fimc0;s3c-fimc.1=fimc1;s3c-fimc.2=fimc2;s3c-fimc.3=fimc3;"
