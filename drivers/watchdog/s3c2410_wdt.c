@@ -222,6 +222,12 @@ static struct watchdog_device s3c2410_wdd = {
 	.ops = &s3c2410wdt_ops,
 };
 
+void touch_s3c2410wdt(void)
+{
+	s3c2410wdt_keepalive(&s3c2410_wdd);
+}
+EXPORT_SYMBOL(touch_s3c2410wdt);
+
 /* interrupt handler code */
 
 static irqreturn_t s3c2410wdt_irq(int irqno, void *param)

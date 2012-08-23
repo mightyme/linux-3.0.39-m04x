@@ -18,8 +18,16 @@
 #include <asm/nmi.h>
 extern void touch_nmi_watchdog(void);
 #else
+
+#ifdef CONFIG_S3C2410_WATCHDOG
+extern void touch_s3c2410wdt(void);
+#else
+#define touch_s3c2410wdt()	do { } while (0)
+#endif
+
 static inline void touch_nmi_watchdog(void)
 {
+	touch_s3c2410wdt();
 	touch_softlockup_watchdog();
 }
 #endif

@@ -55,6 +55,14 @@ static long no_blink(int state)
 long (*panic_blink)(int state);
 EXPORT_SYMBOL(panic_blink);
 
+#ifdef CONFIG_PANIC_DUMP_TASKS
+static void panic_dump_tasks(void)
+{
+	printk(KERN_CRIT "Panic: Task state:\n");
+	show_state();
+}
+#endif
+
 /**
  *	panic - halt the system
  *	@fmt: The text string to print
@@ -85,6 +93,9 @@ NORET_TYPE void panic(const char * fmt, ...)
 	printk(KERN_EMERG "Kernel panic - not syncing: %s\n",buf);
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 	dump_stack();
+#endif
+#ifdef CONFIG_PANIC_DUMP_TASKS
+	panic_dump_tasks();
 #endif
 
 	/*

@@ -31,7 +31,8 @@ config ANDROID_RAM_CONSOLE
 config ANDROID_RAM_CONSOLE_MEMSIZE
 	int "Memory size in kbytes for ram console"
 	depends on ANDROID_RAM_CONSOLE
-	default 128
+	default 128 if !PANIC_DUMP_TASKS
+	default 1024 if PANIC_DUMP_TASKS
 	range 32 1024
 	help
 	  Ram console buffer size can be configured through this option
