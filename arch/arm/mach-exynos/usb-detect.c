@@ -345,7 +345,7 @@ int mx_is_usb_dock_insert(void)
 	else
 		return 0;
 }
-EXPORT_SYMBOL_GPL(mx_is_usb_host_insert);
+EXPORT_SYMBOL_GPL(mx_is_usb_dock_insert);
 
 #ifdef CONFIG_PM
 static int usb_detect_suspend(struct device *dev)
