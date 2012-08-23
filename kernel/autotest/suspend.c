@@ -97,11 +97,11 @@ static int suspend_thread(void *data)
 	while (1) {
 		if (sysctl_suspend_test) {
 			/* The setup_test_suspend() function accept secs as unit */
-			suspend_time = get_random_secs(10, sysctl_suspend_time_secs);
+			suspend_time = get_random_secs(1, sysctl_suspend_time_secs) + 1;
 			pr_info("%s: Allow go to suspend, suspend time = %u s\n", __func__, suspend_time);
 			setup_test_suspend(suspend_time);
 
-			suspend_cycle = get_random_secs(5, sysctl_suspend_cycle_secs);
+			suspend_cycle = get_random_secs(1, sysctl_suspend_cycle_secs) + 1;
 			pr_info("%s: Sleep %d seconds for suspend\n", __func__, suspend_cycle);
 		} else {
 			suspend_cycle = 0;
@@ -109,7 +109,7 @@ static int suspend_thread(void *data)
 
 		/* allow suspend for CONFIG_AUTOTEST_SUSPEND_CYCLE / 2 seconds */
 		while (schedule_timeout_interruptible(timeout_jiffies(suspend_cycle)))
-			suspend_cycle = sysctl_suspend_test ? get_random_secs(5, sysctl_suspend_cycle_secs) : 0;
+			suspend_cycle = sysctl_suspend_test ? get_random_secs(1, sysctl_suspend_cycle_secs) + 1 : 0;
 
 		suspend_count++;
 		pr_info("Suspend tested %d times\n", suspend_count);

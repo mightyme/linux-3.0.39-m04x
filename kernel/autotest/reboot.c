@@ -22,7 +22,7 @@ static int reboot_thread(void *data)
 {
 	unsigned int reboot_cycle;
 
-	reboot_cycle = get_random_msecs(10, CONFIG_AUTOTEST_REBOOT_CYCLE);
+	reboot_cycle = get_random_msecs(1, CONFIG_AUTOTEST_REBOOT_CYCLE) + 1;
 
 	pr_info("%s: Enter into reboot_thread\n", __func__);
 

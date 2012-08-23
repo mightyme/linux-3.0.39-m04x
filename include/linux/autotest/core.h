@@ -4,16 +4,8 @@
 #include <linux/kthread.h>
 #include <linux/random.h>
 
-/* From 1 to max, max <= 255 */
-static inline int get_random(unsigned int max)
-{
-	unsigned short random = 0;
-
-#ifdef CONFIG_AUTOTEST_RANDOM
-	get_random_bytes(&random, 2);
-#endif
-	return 1 + (random & max);
-}
+/* From 0 to max, max <= 255 */
+extern int get_random(unsigned int max);
 
 /* From (time) to (time * max) */
 static inline int get_random_val(unsigned int max, unsigned int val)

@@ -11,6 +11,20 @@
 
 #include <linux/autotest/core.h>
 
+unsigned int sysctl_autotest_random;
+
+int get_random(unsigned int max)
+{
+	unsigned short random = 0;
+
+	if (!sysctl_autotest_random)
+		return 1;
+
+	get_random_bytes(&random, 2);
+
+	return (random & max);
+}
+
 static void autotest_run_tests(void)
 {
 	start_reboot_thread();

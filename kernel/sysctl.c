@@ -268,6 +268,15 @@ static struct ctl_table root_table[] = {
 
 #ifdef CONFIG_AUTOTEST
 static ctl_table autotest_table[] = {
+	{
+		.procname	= "random",
+		.data		= &sysctl_autotest_random,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &one,
+	},
 #ifdef CONFIG_AUTOTEST_SUSPEND
 	{
 		.procname	= "suspend_test",

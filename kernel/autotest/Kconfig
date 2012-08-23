@@ -5,13 +5,6 @@ config AUTOTEST
 	  This enable the entry to do some autotest for kernel, such as dump
 	  the kernel log and so forth.
 
-config AUTOTEST_RANDOM
-	bool "The test cycle and time should be random"
-	default n
-	depends on AUTOTEST
-	help
-	  This will be better to emulate the user using scene.
-
 config DUMP_LAST_KMSG
 	bool "Dump the message of the last kernel"
 	default n
