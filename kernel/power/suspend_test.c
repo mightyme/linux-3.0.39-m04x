@@ -6,8 +6,6 @@
  * This file is released under the GPLv2.
  */
 
-#define pr_fmt(fmt) "AUTOTEST_SUSPEND: " fmt
-
 #include <linux/init.h>
 #include <linux/rtc.h>
 #include <linux/syscore_ops.h>
@@ -159,6 +157,11 @@ void setup_test_suspend(unsigned long suspend_time)
 }
 static int test_suspend_notify_pm(struct notifier_block *nb, unsigned long event, void *buf)
 {
+	if (!suspend_test_suspend_time) {
+		/* Simply return Okay If no suspend time specified */
+		return NOTIFY_OK;
+	}
+
 	switch (event) {
 	case PM_HIBERNATION_PREPARE:
 	case PM_SUSPEND_PREPARE:

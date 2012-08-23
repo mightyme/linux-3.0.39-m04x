@@ -307,6 +307,16 @@ extern void scheduler_tick(void);
 
 extern void sched_show_task(struct task_struct *p);
 
+#ifdef CONFIG_AUTOTEST
+extern unsigned int sysctl_suspend_test;
+extern unsigned long sysctl_suspend_count;
+extern unsigned long sysctl_suspend_time_secs;
+extern unsigned long sysctl_suspend_cycle_secs;
+extern int proc_dosuspend_test(struct ctl_table *table, int write,
+				  void __user *buffer,
+				  size_t *lenp, loff_t *ppos);
+#endif
+
 #ifdef CONFIG_LOCKUP_DETECTOR
 extern void touch_softlockup_watchdog(void);
 extern void touch_softlockup_watchdog_sync(void);

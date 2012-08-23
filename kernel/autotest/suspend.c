@@ -17,6 +17,37 @@
 #include <linux/rtc.h>
 
 extern int setup_test_suspend(unsigned long suspend_time);
+struct task_struct *suspend_task;
+
+unsigned int  __read_mostly sysctl_suspend_test;
+unsigned long __read_mostly sysctl_suspend_count;
+unsigned long __read_mostly sysctl_suspend_time_secs = CONFIG_AUTOTEST_SUSPEND_TIME;
+unsigned long __read_mostly sysctl_suspend_cycle_secs = CONFIG_AUTOTEST_SUSPEND_CYCLE;
+
+int proc_dosuspend_test(struct ctl_table *table, int write,
+				  void __user *buffer,
+				  size_t *lenp, loff_t *ppos)
+{
+	int ret;
+
+	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+
+	if (ret || !write)
+		goto out;
+
+	setup_test_suspend(sysctl_suspend_time_secs);
+
+	wake_up_process(suspend_task);
+
+ out:
+	return ret;
+}
+
+static unsigned long timeout_jiffies(unsigned long timeout)
+{
+	/* timeout of 0 will disable the watchdog */
+	return timeout ? timeout * HZ : MAX_SCHEDULE_TIMEOUT;
+}
 
 int write_something_to_emmc(char *log_file)
 {
@@ -56,7 +87,7 @@ int write_something_to_emmc(char *log_file)
 
 static int suspend_thread(void *data)
 {
-	unsigned int suspend_cycle, suspend_time;
+	unsigned int suspend_cycle, suspend_time, suspend_count = 0;
 	struct wake_lock suspend_wake_lock;
 
 	wake_lock_init(&suspend_wake_lock, WAKE_LOCK_SUSPEND, "autotest_suspend");
@@ -64,25 +95,29 @@ static int suspend_thread(void *data)
 	pr_info("%s: Enter into suspend_thread\n", __func__);
 
 	while (1) {
-		suspend_cycle = get_random_msecs(5, CONFIG_AUTOTEST_SUSPEND_CYCLE);
+		if (sysctl_suspend_test) {
+			/* The setup_test_suspend() function accept secs as unit */
+			suspend_time = get_random_secs(10, sysctl_suspend_time_secs);
+			pr_info("%s: Allow go to suspend, suspend time = %u s\n", __func__, suspend_time);
+			setup_test_suspend(suspend_time);
 
-#if 0
-		/* stop suspend for CONFIG_AUTOTEST_SUSPEND_CYCLE / 2 seconds */
-		wake_lock(&suspend_wake_lock);
-		pr_info("%s: Stop suspend for %d ms\n", __func__, suspend_cycle);
-		msleep_interruptible(suspend_cycle);
-		wake_unlock(&suspend_wake_lock);
-#endif
+			suspend_cycle = get_random_secs(5, sysctl_suspend_cycle_secs);
+			pr_info("%s: Sleep %d seconds for suspend\n", __func__, suspend_cycle);
+		} else {
+			suspend_cycle = 0;
+		}
 
-		/* The setup_test_suspend() function accept secs as unit */
-		suspend_time = get_random_secs(10, CONFIG_AUTOTEST_SUSPEND_TIME);
-		pr_info("%s: Allow go to suspend, suspend time = %u s\n", __func__, suspend_time);
-		setup_test_suspend(suspend_time);
-
-		suspend_cycle = get_random_msecs(5, CONFIG_AUTOTEST_SUSPEND_CYCLE);
-		pr_info("%s: Sleep %d ms for suspend\n", __func__, suspend_cycle);
 		/* allow suspend for CONFIG_AUTOTEST_SUSPEND_CYCLE / 2 seconds */
-		msleep_interruptible(suspend_cycle);
+		while (schedule_timeout_interruptible(timeout_jiffies(suspend_cycle)))
+			suspend_cycle = sysctl_suspend_test ? get_random_secs(5, sysctl_suspend_cycle_secs) : 0;
+
+		suspend_count++;
+		pr_info("Suspend tested %d times\n", suspend_count);
+		/* Stop suspend if suspend count */
+		if (sysctl_suspend_count != 0 && suspend_count >= sysctl_suspend_count) {
+			pr_info("Suspend test reaches %ld times, stop it.\n", sysctl_suspend_count);
+			sysctl_suspend_test = 0;
+		}
 	}
 
 	return 0;
@@ -90,8 +125,6 @@ static int suspend_thread(void *data)
 
 void start_suspend_thread(void)
 {
-	struct task_struct *suspend_task;
-
 	pr_info("%s: Start suspend test thread\n", __func__);
 	suspend_task = kthread_run(suspend_thread, NULL, "suspendtest/daemon");
 	if (IS_ERR(suspend_task))

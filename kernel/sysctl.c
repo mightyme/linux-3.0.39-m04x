@@ -218,6 +218,7 @@ static struct ctl_table vm_table[];
 static struct ctl_table fs_table[];
 static struct ctl_table debug_table[];
 static struct ctl_table dev_table[];
+static ctl_table autotest_table[];
 extern struct ctl_table random_table[];
 #ifdef CONFIG_EPOLL
 extern struct ctl_table epoll_table[];
@@ -255,8 +256,53 @@ static struct ctl_table root_table[] = {
 		.mode		= 0555,
 		.child		= dev_table,
 	},
+#ifdef CONFIG_AUTOTEST
+	{
+		.procname	= "autotest",
+		.mode		= 0555,
+		.child		= autotest_table,
+	},
+#endif
 	{ }
 };
+
+#ifdef CONFIG_AUTOTEST
+static ctl_table autotest_table[] = {
+#ifdef CONFIG_AUTOTEST_SUSPEND
+	{
+		.procname	= "suspend_test",
+		.data		= &sysctl_suspend_test,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dosuspend_test,
+		.extra1		= &zero,
+		.extra2		= &one,
+	},
+	{
+		.procname	= "suspend_count",
+		.data		= &sysctl_suspend_count,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= proc_doulongvec_minmax,
+	},
+	{
+		.procname	= "suspend_time_secs",
+		.data		= &sysctl_suspend_time_secs,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= proc_doulongvec_minmax,
+	},
+	{
+		.procname	= "suspend_cycle_secs",
+		.data		= &sysctl_suspend_cycle_secs,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= proc_doulongvec_minmax,
+	},
+#endif
+	{ }
+};
+#endif
 
 #ifdef CONFIG_SCHED_DEBUG
 static int min_sched_granularity_ns = 100000;		/* 100 usecs */
