@@ -208,6 +208,41 @@ rtc_sysfs_set_wakealarm(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(wakealarm, S_IRUGO | S_IWUSR,
 		rtc_sysfs_show_wakealarm, rtc_sysfs_set_wakealarm);
 
+static ssize_t
+rtc_sysfs_set_boot_alarm(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t n)
+{
+	ssize_t retval;
+	unsigned long now, alarm;
+	struct rtc_wkalrm alm;
+	struct rtc_device *rtc = to_rtc_device(dev);
+	char *buf_ptr;
+	int adjust = 0;
+
+	/* Only request alarms that trigger in the future.  Disable them
+	 * by writing another time, e.g. 0 meaning Jan 1 1970 UTC.
+	 */
+	retval = rtc_read_time(rtc, &alm.time);
+	if (retval < 0)
+		return retval;
+	rtc_tm_to_time(&alm.time, &now);
+
+	buf_ptr = (char *)buf;
+	if (*buf_ptr == '+') {
+		buf_ptr++;
+		adjust = 1;
+	}
+	alarm = simple_strtoul(buf_ptr, NULL, 0);
+	if (adjust) {
+		alarm += now;
+	}
+	rtc_time_to_tm(alarm, &alm.time);
+
+	alm.enabled = 1;
+	retval = rtc_set_boot_alarm(rtc, &alm);
+	return (retval < 0) ? retval : n;
+}
+static DEVICE_ATTR(bootalarm, S_IRUGO | S_IWUSR, NULL, rtc_sysfs_set_boot_alarm);
 
 /* The reason to trigger an alarm with no process watching it (via sysfs)
  * is its side effect:  waking from a system state like suspend-to-RAM or
@@ -234,6 +269,11 @@ void rtc_sysfs_add_device(struct rtc_device *rtc)
 	if (err)
 		dev_err(rtc->dev.parent,
 			"failed to create alarm attribute, %d\n", err);
+
+	err = device_create_file(&rtc->dev, &dev_attr_bootalarm);
+	if (err)
+		dev_err(rtc->dev.parent,
+			"failed to create boot alarm attribute, %d\n", err);
 }
 
 void rtc_sysfs_del_device(struct rtc_device *rtc)
@@ -241,6 +281,8 @@ void rtc_sysfs_del_device(struct rtc_device *rtc)
 	/* REVISIT did we add it successfully? */
 	if (rtc_does_wakealarm(rtc))
 		device_remove_file(&rtc->dev, &dev_attr_wakealarm);
+
+	device_remove_file(&rtc->dev, &dev_attr_bootalarm);
 }
 
 void __init rtc_sysfs_init(struct class *rtc_class)
