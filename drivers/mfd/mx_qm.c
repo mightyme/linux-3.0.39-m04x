@@ -61,7 +61,7 @@ struct mx_qm_reg_data {
 
 #ifndef	CONFIG_FW_MXQM_DEV
 const struct mx_qm_reg_data init_regs[] = {
-	{LED_REG_LEDMAUTO,1},
+//	{LED_REG_LEDMAUTO,1},
 	{},			
 };
 #else
