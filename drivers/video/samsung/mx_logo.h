@@ -24,8 +24,13 @@
 #ifndef _MEIZUMX_LOGO_H_
 #define _MEIZUMX_LOGO_H_
 
+#ifdef CONFIG_MACH_M040
+#define X_MEIZUMX_LOGO_START     257
+#define Y_MEIZUMX_LOGO_START     470
+#else
 #define X_MEIZUMX_LOGO_START     177
 #define Y_MEIZUMX_LOGO_START     255
+#endif
 
 #define MEIZUMX_LOGO_WIDTH       287
 #define MEIZUMX_LOGO_HEIGHT      51
