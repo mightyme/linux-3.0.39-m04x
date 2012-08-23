@@ -609,6 +609,9 @@ static int gpio_keys_suspend(struct device *dev)
 #ifdef CONFIG_AUTOTEST_SUSPEND
 static int emulate_home_key(struct gpio_keys_drvdata *ddata)
 {
+	if (!sysctl_suspend_test)
+		return 0;
+
 	/* Force to send a HOME key to wake the whole system */
 	input_report_key(ddata->input, KEY_HOME, 1);
 	udelay(5);
