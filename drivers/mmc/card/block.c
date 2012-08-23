@@ -2207,6 +2207,9 @@ static const struct mmc_fixup blk_fixups[] =
 
 #ifdef CONFIG_MX_DEV_KERNEL
 #define EXPORT_PARTITION_DEVICES
+#undef PART_EXTRA_PARTITION
+/* Except the param partition, export the kernel partition to user-space */
+#define PART_EXTRA_PARTITION 2
 #endif
 
 static int mmc_blk_probe(struct mmc_card *card)
@@ -2267,7 +2270,7 @@ static int mmc_blk_probe(struct mmc_card *card)
 			extra_partition[i].sec_num, ADDPART_FLAG_NONE, NULL);
 		}
 	} else if (machine_is_m031() || machine_is_m032() || machine_is_m040()) {
-		for (i = 0; i < 7; i++) {
+		for (i = 0; i < PART_EXTRA_PARTITION; i++) {
 			hd = add_partition(md->disk, i + 5, bootinfo.partinfo[i].start_sec,
 					bootinfo.partinfo[i].sec_num, ADDPART_FLAG_NONE, NULL);
 			printk("add extra partion at mmcblk0p%d, \
