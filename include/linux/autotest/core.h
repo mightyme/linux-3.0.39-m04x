@@ -56,15 +56,6 @@ extern void start_suspend_thread(void);
 #define start_suspend_thread()	do { } while (0)
 #endif
 
-#ifdef CONFIG_SUSPEND_TIME
-struct rtc_time;
-extern int suspend_time_suspend(struct rtc_time before);
-extern int suspend_time_resume(struct rtc_time after);
-#else
-#define suspend_time_suspend(t)	do { } while (0)
-#define suspend_time_resume(t)	do { } while (0)
-#endif
-
 #ifdef CONFIG_UBOOT_RESUME_TIME
 extern void log_suspend_wake_time(void);
 extern void log_suspend_return_time(void);

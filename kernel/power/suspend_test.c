@@ -90,8 +90,6 @@ static void set_wakealarm(void)
 		goto close_rtc;
 	rtc_tm_to_time(&alm.time, &now);
 
-	suspend_time_suspend(alm.time);
-
 	alarm = now + suspend_test_suspend_time;
 	if (alarm > now) {
 		/* Avoid accidentally clobbering active alarms; we can't
@@ -137,7 +135,6 @@ static void restore_wakealarm(void)
 		return;
 	}
 	rtc_read_time(rtc, &after);
-	suspend_time_resume(after);
 
 	/* Some platforms can't detect that the alarm triggered the
 	 * wakeup, or (accordingly) disable it after it afterwards.

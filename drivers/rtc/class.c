@@ -24,8 +24,6 @@
 static DEFINE_IDR(rtc_idr);
 static DEFINE_MUTEX(idr_lock);
 struct class *rtc_class;
-static unsigned long long total_sleep;
-static struct timespec total_sleep_time = {0, 0};
 
 static void rtc_device_release(struct device *dev)
 {
@@ -45,6 +43,13 @@ static void rtc_device_release(struct device *dev)
 
 static struct timespec old_rtc, old_system, old_delta;
 
+#ifdef CONFIG_SUSPEND_TIME
+extern int suspend_time_suspend(struct rtc_time before);
+extern int suspend_time_resume(struct rtc_time after);
+#else
+#define suspend_time_suspend(t)	do { } while (0)
+#define suspend_time_resume(t)	do { } while (0)
+#endif
 
 static int rtc_suspend(struct device *dev, pm_message_t mesg)
 {
@@ -58,10 +63,7 @@ static int rtc_suspend(struct device *dev, pm_message_t mesg)
 	rtc_read_time(rtc, &tm);
 	getnstimeofday(&old_system);
 	rtc_tm_to_time(&tm, &old_rtc.tv_sec);
-	pr_info("%s @ (%d-%02d-%02d %02d:%02d:%02d) Shanghai\n",
-		__func__,
-		tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-		tm.tm_hour + 8, tm.tm_min, tm.tm_sec);
+	suspend_time_suspend(tm);
 
 	/*
 	 * To avoid drift caused by repeated suspend/resumes,
@@ -91,8 +93,6 @@ static int rtc_resume(struct device *dev)
 	struct rtc_time		tm;
 	struct timespec		new_system, new_rtc;
 	struct timespec		sleep_time;
-	struct timespec		boottime;
-	unsigned long		sleep_ratio;
 
 	if (strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE) != 0)
 		return 0;
@@ -129,28 +129,7 @@ static int rtc_resume(struct device *dev)
 	if (sleep_time.tv_sec >= 0)
 		timekeeping_inject_sleeptime(&sleep_time);
 
-	pr_info("%s @ (%d-%02d-%02d %02d:%02d:%02d) Shanghai\n",
-		__func__,
-		tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-		tm.tm_hour + 8, tm.tm_min, tm.tm_sec);
-
-	total_sleep++;
-	total_sleep_time = timespec_add(total_sleep_time, sleep_time);
-	get_monotonic_boottime(&boottime);
-
-	if (total_sleep_time.tv_sec != 0)
-		sleep_ratio = boottime.tv_sec / total_sleep_time.tv_sec;
-	else {
-		if (total_sleep_time.tv_nsec == 0)
-			total_sleep_time.tv_nsec = 1;
-		sleep_ratio = (boottime.tv_sec * NSEC_PER_SEC + boottime.tv_nsec) / total_sleep_time.tv_nsec;
-	}
-
-	pr_info("%s: Suspend %lu.%03lu seconds, total %lu.%03lu/%lu.%03lu (1/%lu) seconds, %llu times\n",
-		__func__, sleep_time.tv_sec, sleep_time.tv_nsec / NSEC_PER_MSEC,
-		total_sleep_time.tv_sec, total_sleep_time.tv_nsec / NSEC_PER_MSEC,
-		boottime.tv_sec, boottime.tv_nsec / NSEC_PER_MSEC,
-		sleep_ratio, total_sleep);
+	suspend_time_resume(tm);
 
 	return 0;
 }

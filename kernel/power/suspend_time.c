@@ -14,6 +14,8 @@
  * more details.
  */
 
+#define pr_fmt(fmt) "SUSPEND_TIME: " fmt
+
 #include <linux/debugfs.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -21,23 +23,35 @@
 #include <linux/seq_file.h>
 #include <linux/syscore_ops.h>
 #include <linux/time.h>
+#include <linux/rtc.h>
 
-static struct timespec suspend_time_before;
-static unsigned int time_in_suspend_bins[32];
+static bool suspend_sucess;
+static struct rtc_time suspend_time_before;
+static unsigned long long sleep_time_bins[32];
+static unsigned long long total_suspend;
+static struct timespec total_sleep_time = {0, 0};
 
 #ifdef CONFIG_DEBUG_FS
 static int suspend_time_debug_show(struct seq_file *s, void *data)
 {
 	int bin;
+	struct timespec boottime;
+
 	seq_printf(s, "time (secs)  count\n");
 	seq_printf(s, "------------------\n");
 	for (bin = 0; bin < 32; bin++) {
-		if (time_in_suspend_bins[bin] == 0)
+		if (sleep_time_bins[bin] == 0)
 			continue;
-		seq_printf(s, "%4d - %4d %4u\n",
+		seq_printf(s, "%4d - %4d %8llu\n",
 			bin ? 1 << (bin - 1) : 0, 1 << bin,
-				time_in_suspend_bins[bin]);
+				sleep_time_bins[bin]);
 	}
+	get_monotonic_boottime(&boottime);
+	seq_printf(s, "total: %lu.%03lu/%lu.%03lu (1/%lu) seconds, %llu times\n", total_sleep_time.tv_sec,
+		total_sleep_time.tv_nsec / NSEC_PER_MSEC,
+		boottime.tv_sec, boottime.tv_nsec / NSEC_PER_MSEC,
+		total_sleep_time.tv_sec ? boottime.tv_sec / total_sleep_time.tv_sec : boottime.tv_sec,
+		total_suspend);
 	return 0;
 }
 
@@ -72,29 +86,69 @@ late_initcall(suspend_time_debug_init);
 
 static int suspend_time_syscore_suspend(void)
 {
-	read_persistent_clock(&suspend_time_before);
+	suspend_sucess = 1;
 
 	return 0;
 }
 
 static void suspend_time_syscore_resume(void)
 {
-	struct timespec after;
-
-	read_persistent_clock(&after);
-
-	after = timespec_sub(after, suspend_time_before);
-
-	time_in_suspend_bins[fls(after.tv_sec)]++;
-
-	pr_info("Suspended for %lu.%03lu seconds\n", after.tv_sec,
-		after.tv_nsec / NSEC_PER_MSEC);
 }
 
 static struct syscore_ops suspend_time_syscore_ops = {
 	.suspend = suspend_time_syscore_suspend,
 	.resume = suspend_time_syscore_resume,
 };
+
+int suspend_time_suspend(struct rtc_time before)
+{
+	suspend_time_before = before;
+
+	return 0;
+}
+
+void suspend_time_resume(struct rtc_time suspend_time_after)
+{
+	struct rtc_time tm;
+	struct timespec before, after, boottime;
+
+	if (!suspend_sucess)
+		return;
+	else
+		suspend_sucess = 0;
+
+
+	tm = suspend_time_before;
+	pr_info("Suspend @ %d-%02d-%02d %02d:%02d:%02d Shanghai\n",
+		tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+		(tm.tm_hour + 8) % 24, tm.tm_min, tm.tm_sec);
+	tm = suspend_time_after;
+	pr_info("Resume @ %d-%02d-%02d %02d:%02d:%02d Shanghai\n",
+		tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+		(tm.tm_hour + 8) % 24, tm.tm_min, tm.tm_sec);
+
+	before.tv_nsec = NSEC_PER_SEC >> 1;
+	after.tv_nsec = NSEC_PER_SEC >> 1;
+	rtc_tm_to_time(&suspend_time_before, &before.tv_sec);
+	rtc_tm_to_time(&suspend_time_after, &after.tv_sec);
+
+	after = timespec_sub(after, before);
+
+	if ((long)after.tv_sec < 0)
+		after.tv_sec = 0;
+
+	sleep_time_bins[fls(after.tv_sec)]++;
+	total_sleep_time = timespec_add(total_sleep_time, after);
+	total_suspend++;
+	get_monotonic_boottime(&boottime);
+
+	pr_info("Suspend %lu.%03lu seconds, total %lu.%03lu/%lu.%03lu (1/%lu) seconds, total %llu times\n",
+		after.tv_sec, after.tv_nsec / NSEC_PER_MSEC,
+		total_sleep_time.tv_sec, total_sleep_time.tv_nsec / NSEC_PER_MSEC,
+		boottime.tv_sec, boottime.tv_nsec / NSEC_PER_MSEC,
+		total_sleep_time.tv_sec ? boottime.tv_sec / total_sleep_time.tv_sec : boottime.tv_sec,
+		total_suspend);
+}
 
 static int suspend_time_syscore_init(void)
 {

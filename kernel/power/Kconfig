@@ -294,7 +294,6 @@ config PM_RUNTIME_CLK
 
 config SUSPEND_TIME
 	bool "Log time spent in suspend"
-	depends on PM_TEST_SUSPEND
 	---help---
 	  Prints the time spent in suspend in the kernel log, and
 	  keeps statistics on the time spent in suspend in
