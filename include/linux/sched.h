@@ -316,6 +316,13 @@ extern int proc_dosuspend_test(struct ctl_table *table, int write,
 				  void __user *buffer,
 				  size_t *lenp, loff_t *ppos);
 
+extern unsigned int sysctl_reboot_test;
+extern unsigned long sysctl_reboot_count;
+extern unsigned long sysctl_reboot_cycle_secs;
+extern int proc_doreboot_test(struct ctl_table *table, int write,
+				  void __user *buffer,
+				  size_t *lenp, loff_t *ppos);
+
 extern unsigned int sysctl_autotest_random;
 #endif
 

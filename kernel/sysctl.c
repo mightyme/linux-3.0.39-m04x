@@ -309,6 +309,31 @@ static ctl_table autotest_table[] = {
 		.proc_handler	= proc_doulongvec_minmax,
 	},
 #endif
+#ifdef CONFIG_AUTOTEST_REBOOT
+	{
+		.procname	= "reboot_test",
+		.data		= &sysctl_reboot_test,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_doreboot_test,
+		.extra1		= &zero,
+		.extra2		= &one,
+	},
+	{
+		.procname	= "reboot_count",
+		.data		= &sysctl_reboot_count,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= proc_doulongvec_minmax,
+	},
+	{
+		.procname	= "reboot_cycle_secs",
+		.data		= &sysctl_reboot_cycle_secs,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= proc_doulongvec_minmax,
+	},
+#endif
 	{ }
 };
 #endif

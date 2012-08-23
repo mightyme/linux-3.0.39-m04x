@@ -78,6 +78,16 @@ static char boot_reason_str[END_REASON][20] = {
 struct boot_stat {
 	int reason, new_reason;
 	unsigned long long count[END_REASON];
+#ifdef CONFIG_AUTOTEST_REBOOT
+	uint32_t reboot_test_sig;		/* Signature */
+	int sysctl_autotest_random;		/* Random or not */
+	int sysctl_reboot_test;
+	unsigned long sysctl_reboot_count;	/* Maximum */
+	unsigned long reboot_count;		/* Current */
+	unsigned long sysctl_reboot_cycle_secs;
+	unsigned long reboot_pass;		/* Test PASS Times */
+	unsigned long reboot_fail;		/* Test FAIL Times */
+#endif
 };
 
 struct time_info {
@@ -98,6 +108,7 @@ static int fresh_boot;		/* A normal boot or hardware restart */
 struct time_info last_time_info;	/* For last boot */
 
 #define RAM_CONSOLE_SIG (0x43474244) /* DBGC */
+#define REBOOT_TEST_SIG (0x93412732)
 
 #ifdef CONFIG_ANDROID_RAM_CONSOLE_EARLY_INIT
 static char __initdata
@@ -127,6 +138,86 @@ do {						\
 		__func__, r, boot_reason_str[r], ram_console_buffer->bs.count[r]); \
 } while (0)
 
+#ifdef CONFIG_AUTOTEST_REBOOT
+static inline void save_reboot_test(void)
+{
+	if (!ram_console_buffer)
+		return;
+
+	ram_console_buffer->bs.sysctl_reboot_test = sysctl_reboot_test;
+	ram_console_buffer->bs.sysctl_reboot_count = sysctl_reboot_count;
+	ram_console_buffer->bs.sysctl_reboot_cycle_secs = sysctl_reboot_cycle_secs;
+	ram_console_buffer->bs.sysctl_autotest_random = sysctl_autotest_random;
+
+	if (!sysctl_reboot_test)
+		return;
+
+	pr_info("%s: reboot_test: %d, reboot_count = %ld, reboot_current = %ld, reboot_cycle = %ld, random = %d\n",
+		__func__, sysctl_reboot_test, sysctl_reboot_count, ram_console_buffer->bs.reboot_count,
+		sysctl_reboot_cycle_secs, sysctl_autotest_random);
+}
+
+void set_reboot_test(void)
+{
+	if (!ram_console_buffer)
+		return;
+
+	ram_console_buffer->bs.sysctl_reboot_test = sysctl_reboot_test;
+	ram_console_buffer->bs.sysctl_reboot_count = sysctl_reboot_count;
+	ram_console_buffer->bs.sysctl_reboot_cycle_secs = sysctl_reboot_cycle_secs;
+	ram_console_buffer->bs.sysctl_autotest_random = sysctl_autotest_random;
+	ram_console_buffer->bs.reboot_pass = 0;
+	ram_console_buffer->bs.reboot_fail = 0;
+	ram_console_buffer->bs.reboot_count = 0;
+	ram_console_buffer->bs.reboot_test_sig = REBOOT_TEST_SIG;
+}
+EXPORT_SYMBOL(set_reboot_test);
+
+extern int boot_from_crash(void);
+
+static inline void init_reboot_test(void)
+{
+	if (!ram_console_buffer)
+		return;
+
+	if (ram_console_buffer->bs.reboot_test_sig != REBOOT_TEST_SIG) {
+		ram_console_buffer->bs.reboot_pass = 0;
+		ram_console_buffer->bs.reboot_fail = 0;
+		ram_console_buffer->bs.reboot_count = 0;
+		return;
+	}
+
+	if (boot_from_crash()) {
+		pr_err("%s: Reboot test failed, stop it\n", __func__);
+		ram_console_buffer->bs.reboot_fail++;
+		sysctl_reboot_test = 0;
+		return;
+	}
+
+	sysctl_reboot_count = ram_console_buffer->bs.sysctl_reboot_count;
+	sysctl_reboot_test = ram_console_buffer->bs.sysctl_reboot_test;
+	sysctl_reboot_cycle_secs = ram_console_buffer->bs.sysctl_reboot_cycle_secs;
+	sysctl_autotest_random = ram_console_buffer->bs.sysctl_autotest_random;
+
+	if (sysctl_reboot_test && sysctl_reboot_count) {
+		ram_console_buffer->bs.reboot_count++;
+
+		pr_info("%s: Reboot tested %ld times\n", __func__, ram_console_buffer->bs.reboot_count);
+
+		if (sysctl_reboot_count <= ram_console_buffer->bs.reboot_count) {
+			pr_info("Reboot test reaches %ld times, stop it.\n", sysctl_suspend_count);
+			ram_console_buffer->bs.reboot_pass++;
+			sysctl_reboot_test = 0;
+		}
+	}
+
+	pr_info("%s: reboot_test: %d, reboot_count = %ld\n", __func__, sysctl_reboot_test, sysctl_reboot_count);
+}
+#else
+#define save_reboot_test()	do { } while (0)
+#define init_reboot_test()	do { } while (0)
+#endif
+
 void record_boot_reason(enum kmsg_dump_reason reason)
 {
 	static int recorded;
@@ -146,6 +237,7 @@ void record_boot_reason(enum kmsg_dump_reason reason)
 		break;
 	case KMSG_DUMP_RESTART:
 		inc_boot_reason(SW_RESTART);
+		save_reboot_test();
 		break;
 	case KMSG_DUMP_HALT:
 		inc_boot_reason(HALT_RESTART);
@@ -594,6 +686,7 @@ static int __init ram_console_init(struct ram_console_buffer *buffer,
 #endif
 
 	init_boot_reason();
+	init_reboot_test();
 
 	return 0;
 }
@@ -769,6 +862,14 @@ static int boot_stat_show(struct seq_file *m, void *v)
 		pr_debug("%d, %s, %llu\n", i, get_boot_reason_str(i), get_boot_count(i));
 		seq_printf(m, "%d, %s, %llu\n", i, get_boot_reason_str(i), get_boot_count(i));
 	}
+#ifdef CONFIG_AUTOTEST_REBOOT
+	seq_printf(m, "Reboot Test: %u\n", sysctl_reboot_test);
+	seq_printf(m, "Reboot Count: %lu\n", sysctl_reboot_count);
+	seq_printf(m, "Reboot Cycle: %lu\n", sysctl_reboot_cycle_secs);
+	seq_printf(m, "Reboot Current Count: %ld\n", ram_console_buffer->bs.reboot_count);
+	seq_printf(m, "Reboot Test Passed: %ld (Only for tests with reboot_count > 0)\n", ram_console_buffer->bs.reboot_pass);
+	seq_printf(m, "Reboot Test Failed: %ld (Only for tests with reboot_count > 0)\n", ram_console_buffer->bs.reboot_fail);
+#endif
 
 	return 0;
 }
