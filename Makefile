@@ -374,12 +374,12 @@ NEAK_FLAGS   = -marm -march=armv7-a -mfloat-abi=hard -mfpu=vfp3 -mcpu=cortex-a9 
 			   -funswitch-loops -fpredictive-commoning -fgcse-after-reload \
 			   -fmodulo-sched -fmodulo-sched-allow-regmoves \
 			   -fipa-cp-clone -pipe \
-			   -Wno-array-bounds
+			   -Wno-array-bounds -Wall
 else
 NEAK_FLAGS   = -marm -march=armv7-a
 endif
 
-KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
+KBUILD_CFLAGS   := -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
