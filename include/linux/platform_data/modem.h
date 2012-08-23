@@ -188,7 +188,6 @@ enum MODEM_EVENT_TYPE{
 void modem_notify_event(int type);
 
 extern int  modem_debug;
-extern int  s5p_ehci_power(int value);
 extern void modem_set_active_state(int state);
 
 #define LOG_TAG "modemif:"

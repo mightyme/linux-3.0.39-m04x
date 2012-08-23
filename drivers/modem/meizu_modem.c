@@ -66,7 +66,7 @@ static struct modem_ctl *create_modemctl_device(struct platform_device *pdev)
 		kfree(modemctl);
 		return NULL;
 	}
-	
+#ifndef CONFIG_MX_RECOVERY_KERNEL	
 	modem_tty_driver_init(modemctl);
 
 	modemctl->use_mif_log = pdata->use_mif_log;
@@ -82,12 +82,12 @@ static struct modem_ctl *create_modemctl_device(struct platform_device *pdev)
 	 *        return NULL;
 	 *}
          */
-
+#endif
 	mif_info("%s is created!!!\n", pdata->name);
 
 	return modemctl;
 }
-
+#ifndef CONFIG_MX_RECOVERY_KERNEL
 static struct io_device *create_io_device(struct modem_io_t *io_t,
 		struct modem_ctl *modemctl, struct modem_data *pdata)
 {
@@ -161,7 +161,7 @@ static int attach_devices(struct modem_ctl *mc, struct io_device *iod,
 
 	return 0;
 }
-
+#endif
 static int __devinit modem_probe(struct platform_device *pdev)
 {
 	int i;
@@ -180,7 +180,6 @@ static int __devinit modem_probe(struct platform_device *pdev)
 	}
 	
 	platform_set_drvdata(pdev, modemctl);
-
 	for (i = 0; i < LINKDEV_MAX ; i++) {
 		if (pdata->link_types & LINKTYPE(i)) {
 			ld = call_link_init_func(pdev, i);
@@ -194,6 +193,7 @@ static int __devinit modem_probe(struct platform_device *pdev)
 		}
 	}
 
+#ifndef CONFIG_MX_RECOVERY_KERNEL
 	/* create io deivces and connect to modemctl device */
 	for (i = 0; i < pdata->num_iodevs; i++) {
 		iod[i] = create_io_device(&pdata->iodevs[i], modemctl, pdata);
@@ -205,7 +205,7 @@ static int __devinit modem_probe(struct platform_device *pdev)
 		attach_devices(modemctl, iod[i],
 				pdata->iodevs[i].tx_link);
 	}
-
+#endif
 	mif_info("Complete!!!\n");
 
 	return 0;

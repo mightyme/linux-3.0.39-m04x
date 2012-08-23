@@ -29,6 +29,11 @@
 #include <mach/gpio.h>
 #include "modem_prj.h"
 
+#ifdef CONFIG_USB_EHCI_S5P
+extern int  s5p_ehci_power(int value);
+#else
+int  s5p_ehci_power(int value){return 0;}
+#endif
 int modem_debug = 1;
 static struct modem_ctl *global_mc = NULL;
 DEFINE_SEMAPHORE(modem_downlock);
@@ -395,7 +400,7 @@ modem_write(struct file *filp, const char __user *buffer, size_t count,
 	if(count >= 5 && !strncmp(buffer, "reset", 5)) {
 		if (down_interruptible(&modem_downlock) == 0) {
 			xmm6260_reset(global_mc);
-#ifndef CONFIG_M03X_RECOVERY_KERNEL
+#ifndef CONFIG_MX_RECOVERY_KERNEL
 			msleep_interruptible(150);
 #endif
 			modem_notify_event(MODEM_EVENT_RESET);
