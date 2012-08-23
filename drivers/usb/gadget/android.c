@@ -159,7 +159,7 @@ static struct usb_configuration android_config_driver = {
 #if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 int android_usb_set_machine_info(char *mfg, char *prod, char *sn)
 {
-#ifndef CONFIG_M03X_DEV_KERNEL
+#ifndef CONFIG_EXPORT_SERIALNO_INTERFACE
 	strings_dev[STRING_MANUFACTURER_IDX].s = mfg;
 	strings_dev[STRING_PRODUCT_IDX].s = prod;
 	strings_dev[STRING_SERIAL_IDX].s = sn;
@@ -168,7 +168,7 @@ int android_usb_set_machine_info(char *mfg, char *prod, char *sn)
 }
 #endif
 
-#ifdef CONFIG_MX_DEV_KERNEL
+#ifdef CONFIG_EXPORT_SERIALNO_INTERFACE
 
 static int serial_no_read(char *page, char **start, off_t off, int count, int *eof, void *data)
 {

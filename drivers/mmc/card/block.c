@@ -2205,7 +2205,7 @@ static const struct mmc_fixup blk_fixups[] =
 #define EXPORT_PARTITION_DEVICES
 #endif
 
-#ifdef CONFIG_MX_DEV_KERNEL
+#ifdef CONFIG_EXPORT_KIMAGE_PARTITION
 #define EXPORT_PARTITION_DEVICES
 #undef PART_EXTRA_PARTITION
 /* Except the param partition, export the kernel partition to user-space */

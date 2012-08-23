@@ -135,3 +135,26 @@ config WAKEALARM_RTC
 	help
 	  The RTC device that will be used to wake up the suspended
 	  system.
+
+config EXPORT_KIMAGE_PARTITION
+	bool "Export the kernel image partition to user space"
+	default n
+	depends on AUTOTEST
+	help
+          This export the kernel image partition to user-space and allows
+	  to flash it with a simple dd command.
+
+          It is required by autotest for android.
+
+	  If unsue, say NO.
+
+config EXPORT_SERIALNO_INTERFACE
+	bool "Export the /proc/serial_no interface to user-space"
+	default n
+	depends on AUTOTEST
+	help
+	  This allows to read/write the serial number of the USB port.
+
+          It is required by autotest for android.
+
+	  If unsue, say NO.
