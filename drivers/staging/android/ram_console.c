@@ -276,11 +276,11 @@ static void init_time_info(void)
 	if (!ram_console_buffer)
 		return;
 	if (fresh_boot)
-		memset(&ram_console_buffer->ti, ' ', sizeof(struct time_info));
+		memset(&ram_console_buffer->ti, '\0', sizeof(struct time_info));
 	memcpy(&last_time_info, &ram_console_buffer->ti, sizeof(struct time_info));
 
 	/* Reset the time info for the new boot */
-	memset(&ram_console_buffer->ti, ' ', sizeof(struct time_info));
+	memset(&ram_console_buffer->ti, '\0', sizeof(struct time_info));
 }
 
 static struct console ram_console;
