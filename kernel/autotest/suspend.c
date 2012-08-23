@@ -66,11 +66,13 @@ static int suspend_thread(void *data)
 	while (1) {
 		suspend_cycle = get_random_msecs(5, CONFIG_AUTOTEST_SUSPEND_CYCLE);
 
+#if 0
 		/* stop suspend for CONFIG_AUTOTEST_SUSPEND_CYCLE / 2 seconds */
 		wake_lock(&suspend_wake_lock);
 		pr_info("%s: Stop suspend for %d ms\n", __func__, suspend_cycle);
 		msleep_interruptible(suspend_cycle);
 		wake_unlock(&suspend_wake_lock);
+#endif
 
 		/* The setup_test_suspend() function accept secs as unit */
 		suspend_time = get_random_secs(10, CONFIG_AUTOTEST_SUSPEND_TIME);
