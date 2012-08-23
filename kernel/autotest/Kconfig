@@ -10,6 +10,7 @@ config DUMP_LAST_KMSG
 	default n
 	depends on AUTOTEST
 	depends on ANDROID_RAM_CONSOLE
+	depends on BROKEN
 	help
 	  This allows you dump out the message of the last kernel
 	  to an indicated file.
