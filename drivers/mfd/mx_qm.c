@@ -62,6 +62,11 @@ struct mx_qm_reg_data {
 #ifndef	CONFIG_FW_MXQM_DEV
 const struct mx_qm_reg_data init_regs[] = {
 //	{LED_REG_LEDMAUTO,1},
+	{LED_REG_LEDM6, 0x02},
+	{LED_REG0_SELECT0, 0x00},
+	{LED_REG1_SELECT1, 0x3E},
+	{LED_REG2_SELECT2, 0x00},
+	{LED_REG8_MAXINTENSITY, 0xFF},
 	{},			
 };
 #else
@@ -70,19 +75,19 @@ const struct mx_qm_reg_data init_regs[] = {
 	{0x7F, 0x00}, 	/* Change to the control register map */
 	{0x01, 0x08}, 	/* oscen */
 	{0x11, 0x3F}, 	/* led1 on - led6 on */
-	{0x20, 0x00}, 	/* pwmset, default 2*/
+	{0x20, 0x02}, 	/* pwmset, default 2*/
 
 	{0x7F, 0x01}, 	/* Change to the led register map */
-	{0x01, 0x00},	/*All leds current default 0*/
-	{0x02, 0x00},	/*All leds current default 0*/
-	{0x03, 0x00},	/*All leds current default 0*/
-	{0x04, 0x00},	/*All leds current default 0*/
-	{0x05, 0x00},	/*All leds current default 0*/
-	{0x07, 0x00},
-	{0x0D, 0x00},
-	{0x13, 0x00},
-	{0x19, 0x00},
-	{0x1E, 0x00},
+	{0x01, 0x01},	/*leds current default 1*/
+	{0x02, 0x00},	
+	{0x03, 0x00},	
+	{0x04, 0x00},	
+	{0x05, 0x01},	
+	{0x07, 0x01},
+	{0x0D, 0x01},
+	{0x13, 0x01},
+	{0x19, 0x01},
+	{0x1E, 0x01},
 
 	{0x7F, 0x00},	/* Change to the control register map */
 	{0X21, 0x08},   	/*sync pin disable, high is led on*/
@@ -539,7 +544,7 @@ static int mx_qm_update(struct mx_qm_data *mx)
 	if(ret < 0 )
 	{
 		dev_err(&mx->client->dev,"can not write register, returned %d at line %d\n", ret,__LINE__);
-		goto err_exit;
+		goto err_exit10;
 
 	}
 	dev_info(&mx->client->dev,"mx qmatrix sensor updating ... \n");
@@ -561,7 +566,7 @@ static int mx_qm_update(struct mx_qm_data *mx)
 	if(ret < 0 )
 	{
 		dev_err(&mx->client->dev,"can not read the bootloader revision, returned %d at line %d\n", ret,__LINE__);
-		goto err_exit;
+		goto err_exit10;
 	}
 	
 	mx->BVer = boot_ver;
@@ -638,6 +643,8 @@ static int mx_qm_update(struct mx_qm_data *mx)
 	goto exit;
 	
 err_exit:	
+	release_firmware(fw);
+err_exit10:	
 	dev_info(&mx->client->dev, "Update failed !! \n");
 	
 exit:
@@ -645,7 +652,6 @@ exit:
 	mx_qm_reset(mx,RESET_COLD); 
 	msleep(250);	
 	mx_qm_wakeup(mx,true);
-	release_firmware(fw);
 
 	is_update = false;
 
@@ -722,10 +728,11 @@ static ssize_t qm_show_property(struct device *dev,
 		{
 			int ret,val;
 
+			val = 0x00;
 			ret = mx_qm_read(qm->client,1,&val);
 			if (ret < 0)
 				pr_err("mx_qm_readbyte error at %d line\n", __LINE__);
-			i += scnprintf(buf+i, PAGE_SIZE-i, "0x%.8X\n",val);
+			i += scnprintf(buf+i, PAGE_SIZE-i, "0x%.2X\n",val);
 		}
 		break;
 	case QM_FWR_VER:
@@ -924,6 +931,8 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 	mutex_init(&data->iolock);
 	wake_lock_init(&data->wake_lock, WAKE_LOCK_SUSPEND, "qm_pad");
 
+//	mx_qm_update(data);
+	
 	mx_qm_wakeup(data,true);
 	/* Identify the mx_qm chip */
 	if (!mx_qm_identify(data))

@@ -235,25 +235,32 @@ static int bu26507_set_led_pwm(struct led_classdev *led_cdev, int pwm)
  }
 
  
-  static int tca6507_set_led_current(struct led_classdev *led_cdev, int value)
-  {
-	  struct mx_qm_led *led =
-			  container_of(led_cdev, struct mx_qm_led, led_cdev);
-	  struct mx_qm_data *mx = led->data;
-	  int ret = 0;
-	  unsigned char data;
-	  pr_debug("%s:current = %d\n",__func__,value);
-	 
-	  data = ((value>>4) & 0x0F) |(value & 0xF0);	  
-	  //ret = mx->i2c_writebyte(mx->client,LED_REG8_MAXINTENSITY,data);	 
+static int tca6507_set_led_current(struct led_classdev *led_cdev, int value)
+{
+	struct mx_qm_led *led =
+		  container_of(led_cdev, struct mx_qm_led, led_cdev);
+	struct mx_qm_data *mx = led->data;
+	int ret = 0;
+	static unsigned char select[3] = {0x00,0x3E,0x00};
+	int i;
+	pr_debug("%s:current = %d id = %d\n",__func__,value,led->id);
 
-	  if( data == 0 )
-	  	ret = mx->i2c_writebyte(mx->client,led_addr_array[led->id],DEVICE_MODE_OFF);
-	  else
-	  	ret = mx->i2c_writebyte(mx->client,led_addr_array[led->id],DEVICE_MODE_ON_PWM0);
-	  
-	  return ret;
-  }
+	i = led_addr_array[led->id]  - LED_REG_LEDM0;
+	if( value )
+	{		
+	       select[1] |= (1 << i);
+		ret = mx->i2c_writebyte(mx->client,LED_REG1_SELECT1,select[1]);
+	}
+	else
+	{
+	       select[1] &= ~(1 << i);
+		ret = mx->i2c_writebyte(mx->client,LED_REG1_SELECT1,select[1]);
+	}
+		
+	pr_debug("%s:id = %d (0x%.2X)\n",__func__,led->id,led_addr_array[led->id]);
+
+	return ret;
+}
   
   static int tca6507_set_led_pwm(struct led_classdev *led_cdev, int value)
   {
@@ -262,16 +269,11 @@ static int bu26507_set_led_pwm(struct led_classdev *led_cdev, int pwm)
 	  struct mx_qm_data *mx = led->data;
 	  int ret = 0;
 	  unsigned char data;
-	  pr_info("%s:value = %d\n",__func__,value);
+	  pr_debug("%s:value = %d\n",__func__,value);
  
 	  data = (value & 0xF0) |((value >> 4) & 0xF);	  
 	  
-	  ret = mx->i2c_writebyte(mx->client,LED_REG8_MAXINTENSITY,data);		  
-	  
-	  //ret = mx->i2c_writebyte(mx->client,led_addr_array[0],DEVICE_MODE_ON_PWM0);
-	  //ret = mx->i2c_writebyte(mx->client,led_addr_array[1],DEVICE_MODE_ON_PWM0);
-	  //ret = mx->i2c_writebyte(mx->client,led_addr_array[2],DEVICE_MODE_ON_PWM0);
-	  //ret = mx->i2c_writebyte(mx->client,led_addr_array[3],DEVICE_MODE_ON_PWM0);
+	  ret = mx->i2c_writebyte(mx->client,LED_REG8_MAXINTENSITY,data);	 
   
 	  return ret;
   }
