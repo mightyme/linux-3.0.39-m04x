@@ -184,7 +184,7 @@ static struct cma_region m040_regions[] = {
 		{ .alignment = 1 << 17 },
 	}, {
 		.name = "fimd",
-		.size = 9600 * SZ_1K,
+		.size = 16384 * SZ_1K,
 		.start = 0
 	}, {
 		.name = "ram_console",
