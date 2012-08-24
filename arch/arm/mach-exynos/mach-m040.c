@@ -749,8 +749,8 @@ static struct i2c_board_info __initdata i2c_devs16[] = {
 
 /*gpio i2c 17*/
 static struct i2c_gpio_platform_data gpio_i2c17_data = {
-	.sda_pin = M040_SDA_CAMERA1,
-	.scl_pin = M040_SCL_CAMERA1,
+	.sda_pin = M040_SDA_EARPHONE,
+	.scl_pin = M040_SCL_EARPHONE,
 	.udelay = 2,   /*the scl frequency is (500 / udelay) kHz*/
 	.sda_is_open_drain = 0,
 	.scl_is_open_drain = 0,
@@ -761,6 +761,15 @@ static struct platform_device m040_device_gpio_i2c17 = {
 	.name = "i2c-gpio",
 	.id = 17,
 	.dev.platform_data = &gpio_i2c17_data,
+};
+
+static struct i2c_board_info __initdata i2c_devs17[] = {
+#if defined(CONFIG_EARPHONE_DETECTION)
+	{
+		I2C_BOARD_INFO("fairchild_fsa8108", 0x23),
+		.irq = M040_HDETEC_IRQ,
+	},
+#endif
 };
 
 #if defined(CONFIG_KEYBOARD_GPIO)
@@ -1186,6 +1195,8 @@ static void __init m040_machine_init(void)
 	i2c_register_board_info(15, i2c_devs15, ARRAY_SIZE(i2c_devs15));
 	/*MX qm */
 	i2c_register_board_info(16, i2c_devs16, ARRAY_SIZE(i2c_devs16));
+	/*earphone detection*/
+	i2c_register_board_info(17, i2c_devs17, ARRAY_SIZE(i2c_devs17));
 
 #ifdef CONFIG_EXYNOS4_DEV_DWMCI
 	exynos_dwmci_set_platdata(&m040_dwmci_pdata);

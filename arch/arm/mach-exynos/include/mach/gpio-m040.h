@@ -224,8 +224,8 @@ typedef enum {
 #define  M040_SDA_CP        EXYNOS4_GPY3(1)
 #define  M040_SCL_CHG       EXYNOS4_GPY1(1)
 #define  M040_SDA_CHG       EXYNOS4_GPY5(5)
-#define  M040_SCL_CAMERA1   EXYNOS4212_GPM4(2)
-#define  M040_SDA_CAMERA1   EXYNOS4212_GPM4(3)
+#define  M040_SCL_EARPHONE   EXYNOS4212_GPM4(2)
+#define  M040_SDA_EARPHONE   EXYNOS4212_GPM4(3)
 
 /*factory mode define zone*/
 #define M040_GPIO_FACTORY_MODE EXYNOS4_GPL2(2)
