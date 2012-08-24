@@ -455,16 +455,44 @@ static ssize_t store_debug(struct device *d,
 	return count;
 }
 
+static ssize_t show_download_firmware(struct device *d,
+		struct device_attribute *attr, char *buf)
+{
+	struct v4l2_subdev *sd = dev_get_drvdata(d);
+	struct m6mo_state *state = to_state(sd);	
+	
+	if (state->fw_status == FIRMWARE_CHECKED)
+		return sprintf(buf, "FIRMWARE_VERSION:0x%x\n", state->fw_version);
+	else
+		return sprintf(buf, "FIRMWARE_VERSION:0x%x\n", 0);  /* means incorrect */
+}
+
+static ssize_t store_download_firmware(struct device *d,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	struct v4l2_subdev *sd = dev_get_drvdata(d);
+
+	ret = m6mo_load_firmware_sys(d, sd);
+	if (ret) 
+		return -EINVAL;
+	else 
+		return count;
+}
+
 static DEVICE_ATTR(firmware_status, 0444, show_firmware_status, NULL);
 static DEVICE_ATTR(register, 0220, NULL, store_register);
 static DEVICE_ATTR(erase, 0220, NULL, store_erase);
 static DEVICE_ATTR(debug, 0220, NULL, store_debug);
+static DEVICE_ATTR(download_firmware, 0660, 
+	show_download_firmware, store_download_firmware);
 
 static struct attribute *m6mo_attributes[] = {
 	&dev_attr_firmware_status.attr,
 	&dev_attr_register.attr,
 	&dev_attr_erase.attr,
 	&dev_attr_debug.attr,
+	&dev_attr_download_firmware.attr,
 	NULL
 };
 
@@ -659,7 +687,7 @@ static int m6mo_set_mode(struct v4l2_subdev *sd, enum isp_mode mode)
 		return -EINVAL;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int m6mo_reset_ae_awb_lock(struct v4l2_subdev *sd)

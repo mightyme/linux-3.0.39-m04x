@@ -573,3 +573,61 @@ int m6mo_load_firmware(struct v4l2_subdev *sd)
 
 	return ret;
 }
+
+/*
+  * load firmware from sys interface: download_firmware
+*/
+int m6mo_load_firmware_sys(struct device *dev, struct v4l2_subdev *sd)
+{
+	int ret;
+	struct m6mo_state *state = to_state(sd);
+	const struct firmware *fw = NULL;
+	enum firmware_status fw_status = state->fw_status;
+
+	if (state->power_status) {
+		pr_err("camera has power on, please power off first\n");
+		return -EINVAL;
+	}
+
+	ret = m6mo_set_power_clock(state, true);
+	if (ret) {
+		pr_err("%s():power fail", __func__);
+		return -EINVAL;
+	}
+
+	wake_lock(&state->wake_lock);
+
+	m6mo_set_firmware_status(sd, FIRMWARE_REQUESTING);
+	
+	ret = request_firmware(&fw, M6MO_FIRMWARE_FILE_NAME, dev);
+	if (ret) {
+		pr_err("%s() Upload failed. (file %s not found?)\n", __func__, M6MO_FIRMWARE_FILE_NAME);
+		goto exit;
+	}
+	
+	pr_info("%s() firmware read %d bytes.\n", __func__, fw->size);
+
+	if (fw->size != M6MO_FIRMWARE_FILE_SIZE) {
+		pr_err("m6mo: firmware incorrect size %d\n", fw->size);
+		ret = -EINVAL;
+		goto exit;
+	}	
+
+	state->fw_version = m6mo_get_new_firmware_version(fw);
+	
+	ret = m6mo_download_firmware(sd, fw->data, fw->size);
+	if (ret) {
+		pr_err("m6mo: download firmware fail\n");
+		fw_status = FIRMWARE_UPDATE_FAIL;
+		goto exit;
+	}		
+
+	fw_status = FIRMWARE_CHECKED;
+
+exit:
+	wake_unlock(&state->wake_lock);
+	if (state->power_status) m6mo_set_power_clock(state, false);
+	m6mo_set_firmware_status(sd, fw_status);
+	
+	return ret;
+}

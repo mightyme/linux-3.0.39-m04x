@@ -291,6 +291,7 @@ void m6mo_handle_smile_cap(struct m6mo_state *state, int irq_status);
 int m6mo_load_firmware(struct v4l2_subdev *sd);
 int m6mo_run_firmware(struct v4l2_subdev *sd);
 int m6mo_erase_firmware(struct v4l2_subdev *sd);
+int m6mo_load_firmware_sys(struct device *dev, struct v4l2_subdev *sd);
 
 static inline struct m6mo_state *to_state(struct v4l2_subdev *sd)
 {
