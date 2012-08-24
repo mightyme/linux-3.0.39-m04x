@@ -140,14 +140,13 @@ config FB_MX_MIPI_LCD
 	depends on FB_S5P_MIPI_DSIM && MX_SERIAL_TYPE
 	---help---
 	  This enables support for Meizu MIPI LCD
+endchoice
 
 config FB_DYNAMIC_FREQ
 	bool "SCALING LCD FREQ"
-	depends on FB_MX_MIPI_LCD
+	depends on FB_S5P && (FB_MX_MIPI_LCD || FB_MX2_MIPI_LCD)
 	---help---
 	  This enables support to Scaling lcd refresh freq form 40HZ to 60HZ
-
-endchoice
 
 config FB_S5P_V2
 	tristate "S5P Framebuffer version 2 support"

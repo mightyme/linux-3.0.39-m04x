@@ -520,7 +520,11 @@ int s3cfb_frame_adjust(struct s3cfb_global *ctrl, fb_refresh freq)
 				break;
 		} while(--remain_cnt);
 		/* 60HZ */
+#ifdef CONFIG_MACH_M040
+		__raw_writel(0x2e3, ctrl->regs + S3C_VIDCON0);
+#else
 		__raw_writel(0x533, ctrl->regs + S3C_VIDCON0);
+#endif
 		break;
 	case FB_DYNAMIC_LOW_FREQ:	
 		do {
@@ -530,6 +534,9 @@ int s3cfb_frame_adjust(struct s3cfb_global *ctrl, fb_refresh freq)
 				break;
 		} while(--remain_cnt);
 
+#ifdef CONFIG_MACH_M040
+		__raw_writel(0x3a3, ctrl->regs + S3C_VIDCON0);
+#else
 		/*
 		  *40HZ : 0x7a3
 		  *42HZ : 0x763
@@ -537,6 +544,7 @@ int s3cfb_frame_adjust(struct s3cfb_global *ctrl, fb_refresh freq)
 		  *45HZ : 0x6e3
 		  */
 		__raw_writel(0x6e3, ctrl->regs + S3C_VIDCON0);
+#endif
 		break;
 	default:
 		break;

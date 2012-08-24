@@ -357,7 +357,7 @@ static int s3cfb_probe(struct platform_device *pdev)
 		dev_err(fbdev[0]->dev, "failed to add sysfs entries\n");
 
 #ifdef CONFIG_FB_DYNAMIC_FREQ
-	if (machine_is_m031() || machine_is_m032()) {
+	if (machine_is_m031() || machine_is_m032()||machine_is_m040()) {
 		INIT_DELAYED_WORK(&fbdev[0]->dvfs_work, set_lcd_freq);
 		fbdev[0]->fimd_dvfs = create_freezable_workqueue("lcd_fresh");
 		fbdev[0]->dvfs_nb.notifier_call = lcd_dvfs_notify;
@@ -428,7 +428,7 @@ static int s3cfb_remove(struct platform_device *pdev)
 #endif
 
 #ifdef CONFIG_FB_DYNAMIC_FREQ
-	if (machine_is_m031() || machine_is_m032()) {
+	if (machine_is_m031() || machine_is_m032()||machine_is_m040()) {
 		destroy_workqueue(fbdev[0]->fimd_dvfs);
 		fb_unregister_client(&fbdev[0]->dvfs_nb);
 	}
@@ -458,7 +458,7 @@ void s3cfb_early_suspend(struct early_suspend *h)
 
 
 #ifdef CONFIG_FB_DYNAMIC_FREQ
-	if (machine_is_m031() || machine_is_m032()) {
+	if (machine_is_m031() || machine_is_m032()|| machine_is_m040()) {
 		fbdev[0] = fbfimd->fbdev[0];
 		flush_delayed_work_sync(&fbdev[0]->dvfs_work);
 	}
