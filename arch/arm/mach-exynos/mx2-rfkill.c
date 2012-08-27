@@ -36,8 +36,10 @@
 
 #include <mach/gpio.h>
 #include <plat/gpio-cfg.h>
+#include <mach/gpio-common.h>
 
 #define BT_LPM_ENABLE
+#define BT_FACTORY_MODE
 
 static int gpio_bt_power;//BT_POWER
 static int gpio_bt_reset;//BT_RESET
@@ -236,6 +238,65 @@ static int bcm_bt_lpm_init(struct platform_device *pdev)
 }
 #endif
 
+#ifdef BT_FACTORY_MODE
+static struct delayed_work bt_test_dwork;
+static int bt_in_test_mode = 0;
+#define BT_LED_DELAY (12 * 1000)
+
+static void bt_test_func(struct work_struct *work)
+{
+	static int gpio_value = 0;
+
+	mx_set_factory_test_led(gpio_value);
+	gpio_value = !gpio_value;
+	schedule_delayed_work(&bt_test_dwork, msecs_to_jiffies(250));
+
+	return;
+}
+
+static ssize_t bt_test_mode_show(struct device *dev,
+     							struct device_attribute *attr, char *buf)
+{
+	if(bt_in_test_mode)
+		return sprintf(buf, "1\n");
+
+	if(mx_is_factory_test_mode(MX_FACTORY_TEST_BT)) {
+		msleep(100);
+		if(mx_is_factory_test_mode(MX_FACTORY_TEST_BT)) {
+			printk("in BT_TEST_MODE\n");
+			bt_in_test_mode = 1;            							//test mode
+
+			INIT_DELAYED_WORK_DEFERRABLE(&bt_test_dwork, bt_test_func);
+			schedule_delayed_work(&bt_test_dwork, msecs_to_jiffies(BT_LED_DELAY));
+		}
+	}
+
+	return sprintf(buf, "%d\n",  bt_in_test_mode);
+	
+}
+
+static ssize_t bt_test_mode_store(struct device *dev,
+      						struct device_attribute *attr,      const char *buf, size_t count)
+{
+	unsigned long flash = simple_strtoul(buf, NULL, 10);
+
+	if(bt_in_test_mode) {
+		if(flash) {
+			cancel_delayed_work_sync(&bt_test_dwork);
+			schedule_delayed_work(&bt_test_dwork, 0);
+		} else {
+			cancel_delayed_work_sync(&bt_test_dwork);
+			mx_set_factory_test_led(0);
+		}
+	}
+	return count;
+}
+
+static DEVICE_ATTR(bt_test_mode, S_IRUGO|S_IWUSR|S_IWGRP,
+		   				bt_test_mode_show, bt_test_mode_store);
+
+#endif
+
 static int bcm4330_bluetooth_probe(struct platform_device *pdev)
 {
 	int rc = 0;
@@ -276,6 +337,13 @@ static int bcm4330_bluetooth_probe(struct platform_device *pdev)
 	if (ret) {
 		rfkill_unregister(bt_rfkill);
 		rfkill_destroy(bt_rfkill);
+	}
+#endif
+
+#ifdef BT_FACTORY_MODE
+	ret = device_create_file(&pdev->dev, &dev_attr_bt_test_mode);
+	if (ret) {
+		pr_info("[BT] bcm4330 factory sys file create failed\n");
 	}
 #endif
 	pr_info("[BT] bcm4330 probe END\n");
