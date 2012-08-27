@@ -616,7 +616,7 @@ static int set_machine_info( struct machine_info __user *info)
 static int get_recovery_key(__user char *key)
 {
 #ifdef CONFIG_MX_RECOVERY_KERNEL
-	if(copy_to_user(key, mx_recovery_key, sizeof(mx_recovery_key))) {
+	if(copy_to_user(key, meizu_recovery_key, sizeof(meizu_recovery_key))) {
 		return  -EFAULT;
 	}
 #endif
