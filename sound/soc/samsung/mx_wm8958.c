@@ -265,7 +265,11 @@ static int mx_wm8958_aif2_hw_params(struct snd_pcm_substream *substream,
 	/* Set the codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_DSP_A
 				| SND_SOC_DAIFMT_IB_NF
+#ifdef CONFIG_MACH_M040
+				| SND_SOC_DAIFMT_CBM_CFM);
+#else
 				| SND_SOC_DAIFMT_CBS_CFS);
+#endif
 	if (ret < 0)
 		return ret;
 

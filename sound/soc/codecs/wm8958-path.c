@@ -500,8 +500,6 @@ void OpenAIF2(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8994_AIF2_CONTROL_1, 0x411B );	// AIF2 Word Length = 16-bits, AIF2 Format = DSP,BCLK2 inverted
 	snd_soc_write(codec, WM8994_AIF2_CONTROL_2, 0x4000 );	// Disable AIF2 DSP Mono Mode
 #ifdef CONFIG_MACH_M040
-	snd_soc_write(codec, WM8994_AIF2_CONTROL_2, 0x4000 );	// Disable AIF2 DSP Mono Mode
-	// snd_soc_write(codec, WM8994_AIF2_MASTER_SLAVE, 0x0000 );	// AIF2 Slave Mode
 	snd_soc_write(codec, WM8994_AIF2_MASTER_SLAVE, 0x4000 );	// AIF2 Master Mode
 	snd_soc_write(codec, WM8994_AIF2_BCLK, 0x00A0 );	// AIF2CLK / 16
 	snd_soc_write(codec, WM8994_AIF2ADC_LRCLK, 0x0040 );	// BCLK2 / 64
@@ -513,8 +511,6 @@ void OpenAIF2(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8994_AIF2_RATE, 0x0005 );		// AIF2 Sample Rate = 8 kHz, AIF2CLK/Fs ratio = 512
 	snd_soc_write(codec,WM8994_FLL2_CONTROL_1, 0);			// Disable the FLL while reconfiguring
 	snd_soc_write(codec,WM8994_FLL2_CONTROL_2, 0x1500 );	// FLL2_OUTDIV = 22, FLL2_FRATIO = 1
-	// snd_soc_write(codec,WM8994_FLL2_CONTROL_3, 0xBE77 );	// FLL2_K = 0.744
-	// snd_soc_write(codec,WM8994_FLL2_CONTROL_3, 0xFA8A );	// FLL2_K = 0.97867
 	snd_soc_write(codec,WM8994_FLL2_CONTROL_3, 0x8264 );	// FLL2_K = 0.50934
 	snd_soc_write(codec,WM8994_FLL2_CONTROL_4, 0x00E0 );	// FLL2_N = 7
 	snd_soc_write(codec,WM8994_FLL2_CONTROL_5, 0x0C88 );	// FLL@_REFCLK_DIV = MCLK / 2, FLL2_REFCLK_SRC = MCLK1
@@ -745,7 +741,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_SPEAKER);
-		#endif	
+#endif	
 		SetVolume_Incall(codec);
 		SetVolume_Mixerin_spk(codec);
 		SetSpkMute(codec,0);
@@ -762,7 +758,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_SPEAKER);
-		#endif
+#endif
 		SetVolume_Incall(codec);
 		SetVolume_Mixerin_spk(codec);
 		SetSpkMute(codec,0);
@@ -778,7 +774,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_HEADSET);
-		#endif
+#endif
 		SetVolume_Incall(codec);
 		SetVolume_Mixerin_spk(codec);
 		SetHpMute(codec,0);
@@ -794,7 +790,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_HEADSET);
-		#endif
+#endif
 		SetVolume_Incall(codec);
 		SetVolume_Mixerin_spk(codec);
 		SetHpMute(codec,0);
@@ -810,7 +806,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_HEADSET);
-		#endif	
+#endif	
 		SetVolume_Incall(codec);
 		SetVolume_Mixerin_spk(codec);
 		SetSpkMute(codec,0);
@@ -827,7 +823,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_RECEIVER);
-		#endif
+#endif
 		SetVolume_Incall(codec);
 		SetVolume_Mixerin_rec(codec);
 		SetRecMute(codec,0);
@@ -843,7 +839,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_BT);
-		#endif
+#endif
 		
 		break;	
 				
@@ -854,7 +850,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_SPEAKER);
-		#endif
+#endif
 		SetAIF3_2_AIF2(codec,false);
 		SetVolume_VoIP(codec);
 		SetVolume_Mixerin_spk(codec);
@@ -870,7 +866,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_SPEAKER);
-		#endif
+#endif
 		SetAIF3_2_AIF2(codec,false);
 		SetVolume_VoIP(codec);
 		SetVolume_Mixerin_spk(codec);
@@ -884,7 +880,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_HEADSET);
-		#endif
+#endif
 		SetAIF3_2_AIF2(codec,false);
 		SetVolume_VoIP(codec);
 		SetVolume_Mixerin_spk(codec);
@@ -899,7 +895,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_HEADSET);
-		#endif
+#endif
 		SetAIF3_2_AIF2(codec,false);
 		SetVolume_VoIP(codec);
 		SetVolume_Mixerin_spk(codec);
@@ -914,7 +910,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_HEADSET);
-		#endif
+#endif
 		SetAIF3_2_AIF2(codec,false);
 		SetVolume_VoIP(codec);
 		SetVolume_Mixerin_spk(codec);
@@ -931,7 +927,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_RECEIVER);
-		#endif
+#endif
 		SetAIF3_2_AIF2(codec,false);
 		SetVolume_VoIP(codec);
 		SetVolume_Mixerin_rec(codec);
@@ -947,7 +943,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_BT);
-		#endif
+#endif
 		
 		break;	
 	case PLAYBACK_NONE:
