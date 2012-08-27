@@ -19,6 +19,26 @@
 		return ret;}\
 } while(0);
 
+struct ls044k3sx01_ce_mode {
+	const char *mode;
+	int mode_val;
+};
+
+static struct ls044k3sx01_ce_mode lcd_mode_map[] = {
+	{"lowlow", 0},
+	{"lowmed", 1},
+	{"lowhigh", 2},
+	{"medlow", 3},
+	{"medmed", 4},
+	{"medhigh", 5},
+	{"highlow", 6},
+	{"highmed", 7},
+	{"highhigh", 8},
+	{"satlow", 9},
+	{"satmed", 10},
+	{"sathigh", 11},
+};
+
 static struct ls044k3sx01_info *g_lcd_info;
 static int write_to_lcd(struct ls044k3sx01_info *lcd,
 		const struct ls044k3sx01_param *param)
@@ -69,10 +89,9 @@ static int lcd_panel_vsync_out(struct ls044k3sx01_info *lcd)
 {
 	return write_to_lcd(lcd, ls044k3sx01_vsync_out_seq);
 }
-
 static int lcd_panel_set_brightness(struct ls044k3sx01_info *lcd, int brt)
 {
-	const struct ls044k3sx01_param ls044k3sx01_brightness[] = {
+	struct ls044k3sx01_param ls044k3sx01_brightness[] = {
 		LCD_PARAM_DCS_CMD(0, 0x51, brt),
 		LCD_PARAM_DEF_END,
 	};
@@ -87,6 +106,52 @@ static int lcd_panel_cabc_seq(struct ls044k3sx01_info *lcd, int enable)
 	else
 		return write_to_lcd(lcd, ls044k3sx01_cabc_seq_off);
 }
+static int lcd_panel_set_ce_mode(struct ls044k3sx01_info *lcd)
+{
+	switch (lcd->ce_mode) {
+	case 0xff:
+		return 0;
+	case 0:
+		return write_to_lcd(lcd, ls044k3sx01_sat_low_lit_low);
+	break;
+	case 1:
+		return write_to_lcd(lcd, ls044k3sx01_sat_low_lit_med);
+	break;
+	case 2:
+		return write_to_lcd(lcd, ls044k3sx01_sat_low_lit_high);
+	break;
+	case 3:
+		return write_to_lcd(lcd, ls044k3sx01_sat_med_lit_low);
+	break;
+	case 4:
+		return write_to_lcd(lcd, ls044k3sx01_sat_med_lit_med);
+	break;
+	case 5:
+		return write_to_lcd(lcd, ls044k3sx01_sat_med_lit_high);
+	break;
+	case 6:
+		return write_to_lcd(lcd, ls044k3sx01_sat_high_lit_low);
+	break;
+	case 7:
+		return write_to_lcd(lcd, ls044k3sx01_sat_high_lit_low);
+	break;
+	case 8:
+		return write_to_lcd(lcd, ls044k3sx01_sat_high_lit_high);
+	break;
+	case 9:
+		return write_to_lcd(lcd, ls044k3sx01_sat_low);
+	break;
+	case 10:
+		return write_to_lcd(lcd, ls044k3sx01_sat_med);
+	break;
+	case 11:
+		return write_to_lcd(lcd, ls044k3sx01_sat_high);
+	break;
+	default:
+		return 0;
+	break;
+	}
+}
 static int lcd_init(struct mipi_dsim_lcd_device *mipi_dev)
 {
 	struct ls044k3sx01_info *lcd = dev_get_drvdata(&mipi_dev->dev);
@@ -94,7 +159,8 @@ static int lcd_init(struct mipi_dsim_lcd_device *mipi_dev)
 	CHECK_PANEL_RET(lcd_panel_sleep_out(lcd));
 	CHECK_PANEL_RET(lcd_panel_init_code(lcd));
 	CHECK_PANEL_RET(lcd_panel_display_on(lcd));
-	CHECK_PANEL_RET(lcd_panel_cabc_seq(g_lcd_info ,true));
+	CHECK_PANEL_RET(lcd_panel_cabc_seq(lcd,true));
+	CHECK_PANEL_RET(lcd_panel_set_ce_mode(lcd));
 
 	return 0;
 }
@@ -147,6 +213,56 @@ static ssize_t lcd_sync_enable(struct device *dev, struct device_attribute
 	return sizeof(num);
 }
 static DEVICE_ATTR(sync, 0644, NULL, lcd_sync_enable);
+
+static ssize_t lcd_set_brt(struct device *dev, struct device_attribute
+					*attr, const char *buf, size_t size)
+{
+	struct ls044k3sx01_info *lcd = dev_get_drvdata(dev);
+	int brt;
+
+	sscanf(buf, "%d", &brt);
+	pr_info("brightness set %d\n", brt);
+	CHECK_PANEL_RET(lcd_panel_set_brightness(lcd, brt));
+
+	return sizeof(brt);
+}
+static DEVICE_ATTR(brt, 0644, NULL, lcd_set_brt);
+
+static ssize_t lcd_set_ce(struct device *dev, struct device_attribute
+					*attr, const char *buf, size_t size)
+{
+	struct ls044k3sx01_info *lcd = dev_get_drvdata(dev);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(lcd_mode_map); i++) {
+		if (sysfs_streq(buf, lcd_mode_map[i].mode)) {
+			lcd->ce_mode = lcd_mode_map[i].mode_val;
+			break;
+		} else {
+			lcd->ce_mode = 0xff;
+		}
+	}
+	pr_info("set mode %d name %s\n", lcd->ce_mode, buf);
+	pr_info("please reset the LCD\n");
+
+	return size;
+}
+static ssize_t lcd_get_ce(struct device *dev, struct device_attribute
+					*attr, char *buf)
+{
+	struct ls044k3sx01_info *lcd = dev_get_drvdata(dev);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(lcd_mode_map); i++) {
+		if (lcd->ce_mode == lcd_mode_map[i].mode_val) {
+			return sprintf(buf, "the ce mode is %s\n", lcd_mode_map[i].mode);
+		}
+	}
+	return sprintf(buf, "you don't set ce mode\n");
+}
+
+static DEVICE_ATTR(ce, 0644, lcd_get_ce, lcd_set_ce);
+
 #endif
 
 static int lcd_probe(struct mipi_dsim_lcd_device *dsim_dev)
@@ -178,12 +294,24 @@ static int lcd_probe(struct mipi_dsim_lcd_device *dsim_dev)
 	}
 
 	lcd->state = LCD_DISPLAY_POWER_OFF;
+	lcd->ce_mode = 0xff;
 
 #ifdef LCD_TEST
 	err = device_create_file(lcd->dev, &dev_attr_sync);
 	if (err < 0) {
 		dev_err(lcd->dev, "Failed to create attr file cabc %d!\n", err);
 	}
+
+	err = device_create_file(lcd->dev, &dev_attr_brt);
+	if (err < 0) {
+		dev_err(lcd->dev, "Failed to create attr file cabc %d!\n", err);
+	}
+
+	err = device_create_file(lcd->dev, &dev_attr_ce);
+	if (err < 0) {
+		dev_err(lcd->dev, "Failed to create attr file cabc %d!\n", err);
+	}
+
 #endif
 
 	g_lcd_info = lcd;
