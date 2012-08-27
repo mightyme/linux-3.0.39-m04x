@@ -58,7 +58,11 @@ int s3cfb_draw_logo(struct fb_info *fb)
 	struct fb_fix_screeninfo *fix = &fb->fix;
 	struct fb_var_screeninfo *var = &fb->var;
 #if defined(CONFIG_FB_MX_MIPI_LCD) || defined(CONFIG_FB_MX2_MIPI_LCD)
+#if defined(CONFIG_MACH_M040)
+	#include "mx2_logo.h"
+#else
 	#include "mx_logo.h"
+#endif
 
 	u32 height = var->yres;
 	u32 line = fix->line_length;
