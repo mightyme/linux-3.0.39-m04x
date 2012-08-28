@@ -180,6 +180,7 @@ static int __devinit modem_probe(struct platform_device *pdev)
 	}
 	
 	platform_set_drvdata(pdev, modemctl);
+#ifndef CONFIG_MX_RECOVERY_KERNEL
 	for (i = 0; i < LINKDEV_MAX ; i++) {
 		if (pdata->link_types & LINKTYPE(i)) {
 			ld = call_link_init_func(pdev, i);
@@ -193,7 +194,6 @@ static int __devinit modem_probe(struct platform_device *pdev)
 		}
 	}
 
-#ifndef CONFIG_MX_RECOVERY_KERNEL
 	/* create io deivces and connect to modemctl device */
 	for (i = 0; i < pdata->num_iodevs; i++) {
 		iod[i] = create_io_device(&pdata->iodevs[i], modemctl, pdata);
