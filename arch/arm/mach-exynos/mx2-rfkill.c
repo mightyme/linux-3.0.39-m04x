@@ -45,26 +45,7 @@ static int gpio_bt_power;//BT_POWER
 static int gpio_bt_reset;//BT_RESET
 static int gpio_bt_wake;//BT_WAKE
 static int gpio_bt_host_wake;//BT_HOST_WAKE
-
-static unsigned int bt_uart_on_table[][4] = {
-	{EXYNOS4_GPA0(0), 2, 2, S3C_GPIO_PULL_NONE},
-	{EXYNOS4_GPA0(1), 2, 2, S3C_GPIO_PULL_NONE},
-	{EXYNOS4_GPA0(2), 2, 2, S3C_GPIO_PULL_NONE},
-	{EXYNOS4_GPA0(3), 2, 2, S3C_GPIO_PULL_NONE},
-};
-
-void bt_config_gpio_table(int array_size, unsigned int (*gpio_table)[4])
-{
-	u32 i, gpio;
-
-	for (i = 0; i < array_size; i++) {
-		gpio = gpio_table[i][0];
-		s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(gpio_table[i][1]));
-		s3c_gpio_setpull(gpio, gpio_table[i][3]);
-		if (gpio_table[i][2] != 2)
-			gpio_set_value(gpio, gpio_table[i][2]);
-	}
-}
+#define BT_RTS EXYNOS4_GPA0(3)
 
 static struct rfkill *bt_rfkill;
 
@@ -93,13 +74,16 @@ void bt_uart_rts_ctrl(int flag)
 		return;
 	if (flag) {
 		// BT RTS Set to HIGH
-		s3c_gpio_cfgpin(gpio_bt_reset, S3C_GPIO_OUTPUT);
-		s3c_gpio_setpull(gpio_bt_reset, S3C_GPIO_PULL_NONE);
-		gpio_set_value(gpio_bt_reset, 1);
+		s3c_gpio_cfgpin(BT_RTS, S3C_GPIO_OUTPUT);
+		s3c_gpio_setpull(BT_RTS, S3C_GPIO_PULL_NONE);
+		gpio_set_value(BT_RTS, 1);
 	} else {
 		// BT RTS Set to LOW
-		s3c_gpio_cfgpin(gpio_bt_reset, S3C_GPIO_OUTPUT);
-		gpio_set_value(gpio_bt_reset, 0);
+		s3c_gpio_cfgpin(BT_RTS, S3C_GPIO_OUTPUT);
+		gpio_set_value(BT_RTS, 0);
+
+		s3c_gpio_cfgpin(BT_RTS, S3C_GPIO_SFN(2));
+		s3c_gpio_setpull(BT_RTS, S3C_GPIO_PULL_NONE);
 	}
 }
 EXPORT_SYMBOL(bt_uart_rts_ctrl);
@@ -109,8 +93,6 @@ static int bcm4330_bt_rfkill_set_power(void *data, bool blocked)
 	/* rfkill_ops callback. Turn transmitter on when blocked is false */
 	if (!blocked) {
 		pr_info("[BT] Bluetooth Power On.\n");
-		bt_config_gpio_table(ARRAY_SIZE(bt_uart_on_table),
-					bt_uart_on_table);
 
 		gpio_set_value(gpio_bt_power, 1);
 		msleep(20);
