@@ -106,6 +106,11 @@ static int lcd_panel_cabc_seq(struct ls044k3sx01_info *lcd, int enable)
 	else
 		return write_to_lcd(lcd, ls044k3sx01_cabc_seq_off);
 }
+static int lcd_panel_cabc_gradient(struct ls044k3sx01_info *lcd)
+{
+	return write_to_lcd(lcd, ls044k3sx01_cabc_gradient);
+}
+
 static int lcd_panel_set_ce_mode(struct ls044k3sx01_info *lcd)
 {
 	switch (lcd->ce_mode) {
@@ -160,6 +165,7 @@ static int lcd_init(struct mipi_dsim_lcd_device *mipi_dev)
 	CHECK_PANEL_RET(lcd_panel_init_code(lcd));
 	CHECK_PANEL_RET(lcd_panel_display_on(lcd));
 	CHECK_PANEL_RET(lcd_panel_cabc_seq(lcd,true));
+	CHECK_PANEL_RET(lcd_panel_cabc_gradient(lcd));
 	CHECK_PANEL_RET(lcd_panel_set_ce_mode(lcd));
 
 	return 0;
