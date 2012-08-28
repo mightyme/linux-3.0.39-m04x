@@ -431,6 +431,8 @@ static int mx_qm_set_led_mode(struct led_classdev *led_cdev, int mode)
  {
 	 struct mx_qm_led *led =
 			 container_of(h, struct mx_qm_led, early_suspend);
+
+	 led->led_cdev.brightness_set(&led->led_cdev,LED_OFF);
  
  }
  
@@ -439,6 +441,7 @@ static int mx_qm_set_led_mode(struct led_classdev *led_cdev, int mode)
 	 struct mx_qm_led *led =
 			 container_of(h, struct mx_qm_led, early_suspend);
  
+	 led->led_cdev.brightness_set(&led->led_cdev,LED_FULL);
  }
 #endif
  
