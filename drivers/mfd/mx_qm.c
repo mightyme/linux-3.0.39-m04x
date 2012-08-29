@@ -59,19 +59,8 @@ struct mx_qm_reg_data {
 	unsigned char value;
 };
 
-#ifndef	CONFIG_FW_MXQM_DEV
-const struct mx_qm_reg_data init_regs[] = {
-//	{LED_REG_LEDMAUTO,1},
-//	{LED_REG_LEDM6, 0x02},
-	{LED_REG0_SELECT0, 0x00},
-	{LED_REG1_SELECT1, 0x3E},
-	{LED_REG2_SELECT2, 0x00},
-	{LED_REG8_MAXINTENSITY, 0xFF},
-	{},			
-};
-#else
 //led_bu26507
-const struct mx_qm_reg_data init_regs[] = {
+const struct mx_qm_reg_data init_regsb[] = {
 	{0x7F, 0x00}, 	/* Change to the control register map */
 	{0x01, 0x08}, 	/* oscen */
 	{0x11, 0x3F}, 	/* led1 on - led6 on */
@@ -97,9 +86,17 @@ const struct mx_qm_reg_data init_regs[] = {
 	{0x30, 0x01}, 	/* start */
 	
 //	{LED_REG_LEDMAUTO,0},
-	{},			
+	{},
 };
-#endif
+const struct mx_qm_reg_data init_regst[] = {
+//	{LED_REG_LEDMAUTO,1},
+//	{LED_REG_LEDM6, 0x02},
+	{LED_REG8_MAXINTENSITY, 0xFF},
+	{LED_REG0_SELECT0, 0x00},
+	{LED_REG1_SELECT1, 0x3E},
+	{LED_REG2_SELECT2, 0x00},
+	{},
+};
 
 	
 static struct mfd_cell mx_qm_devs[] = {
@@ -333,12 +330,26 @@ static void __devinit mx_qm_init_registers(struct mx_qm_data *mx)
 	int i, ret;
 	unsigned char buf[2];
 
-	for (i=0; i<ARRAY_SIZE(init_regs); i++) {		
-		buf[0] = init_regs[i].addr;
-		buf[1] = init_regs[i].value;
-		ret = mx_qm_write(mx->client,2,buf);
-		if (ret) {
-			dev_err(mx->dev, "failed to init reg[%d], ret = %d\n", i, ret);
+	if( mx->LedVer == LED_VERSION1)
+	{
+		for (i=0; i<ARRAY_SIZE(init_regst); i++) {		
+			buf[0] = init_regst[i].addr;
+			buf[1] = init_regst[i].value;
+			ret = mx_qm_write(mx->client,2,buf);
+			if (ret) {
+				dev_err(mx->dev, "failed to init reg[%d], ret = %d\n", i, ret);
+			}
+		}
+	}
+	else
+	{
+		for (i=0; i<ARRAY_SIZE(init_regsb); i++) {		
+			buf[0] = init_regsb[i].addr;
+			buf[1] = init_regsb[i].value;
+			ret = mx_qm_write(mx->client,2,buf);
+			if (ret) {
+				dev_err(mx->dev, "failed to init reg[%d], ret = %d\n", i, ret);
+			}
 		}
 	}
 }
@@ -382,7 +393,10 @@ static bool __devinit mx_qm_identify(struct mx_qm_data *mx)
 
 	mx->AVer = ver;
 
-	dev_info(&client->dev, "MX_QM id 0x%.2X firmware version %x \n", id,ver);
+	/* Read led ID */
+	mx->LedVer = mx_qm_readbyte(client, QM_REG_LEDVERSION);
+
+	dev_info(&client->dev, "MX_QM id 0x%.2X firmware version %x(%c) \n", id,ver,mx->LedVer);
 
 	return true;
 }
@@ -986,14 +1000,13 @@ static int mx_qm_suspend(struct device *dev)
 {
 	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
 	struct mx_qm_data *mx = i2c_get_clientdata(i2c);
-		
-	mx->wakeup(mx,false);
-	
-	if( mx->poll )
+			
+	if( !mx->poll )
 	{
 		disable_irq(mx->irq);
 		enable_irq_wake(mx->irq);
 	}
+	mx->wakeup(mx,false);
 
 	return 0;
 }
@@ -1003,13 +1016,14 @@ static int mx_qm_resume(struct device *dev)
 	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
 	struct mx_qm_data *mx = i2c_get_clientdata(i2c);
 	
-	if( mx->poll )
+	mx->wakeup(mx,true);
+	
+	if( !mx->poll )
 	{
 		disable_irq_wake(mx->irq);
 		enable_irq(mx->irq);
 	}
 
-	mx->wakeup(mx,true);
 	return 0;
 }
 #else

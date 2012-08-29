@@ -271,9 +271,8 @@ unsigned short qm_touch_get_key(struct mx_qm_touch	*touch)
 	{
 		qm_touch_report_key(input, touch->last_key, 1);
 		qm_touch_report_key(input, touch->last_key, 0);
-		pr_info("%s:%.2d  ", __func__,key );	
-	}		
-	
+		pr_debug("%s:%.2d  ", __func__,key );	
+	}			
 
 	return key;
 }

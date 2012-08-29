@@ -16,9 +16,12 @@
 #include <linux/wakelock.h>
 
 
-#define FW_VERSION     				0x08
+#define FW_VERSION     				0x09
 #define FLASH_ADDR_FW_VERSION   	0x3F
 #define MX_QM_DEVICE_ID     			'M'
+
+#define LED_VERSION1              'T'		// TCA6507
+#define LED_VERSION2              'U'		// BU26507
 
 enum mx_qm_reg {
         LED_REG0_SELECT0                	= 0x00,
@@ -67,6 +70,8 @@ enum mx_qm_reg {
 	QM_REG_DELTA		= 0xA8,
 	QM_REG_KEY		= 0xA9,
         
+	QM_REG_LEDVERSION	= 0xF0,
+	
 	QM_REG_MAX,
 };
 
@@ -125,6 +130,7 @@ struct mx_qm_data {
 	unsigned int irq;
 	struct mutex iolock;
 	struct wake_lock wake_lock;
+	unsigned int LedVer;
 	unsigned int AVer;
 	unsigned int BVer;
 	unsigned int gpio_wake;
