@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_linux.c 333885 2012-05-18 00:39:03Z $
+ * $Id: dhd_linux.c 352789 2012-08-24 00:01:33Z $
  */
 
 #include <typedefs.h>
@@ -297,7 +297,7 @@ char nvram_path[MOD_PARAM_PATHLEN];
 
 /* load firmware and/or nvram values from the filesystem */
 module_param_string(firmware_path, firmware_path, MOD_PARAM_PATHLEN, 0660);
-module_param_string(nvram_path, nvram_path, MOD_PARAM_PATHLEN, 0660);
+module_param_string(nvram_path, nvram_path, MOD_PARAM_PATHLEN, 0);
 
 char info_string[MOD_PARAM_INFOLEN];
 module_param_string(info_string, info_string, MOD_PARAM_INFOLEN, 0444);
@@ -327,8 +327,8 @@ uint dhd_console_ms = 0;
 module_param(dhd_console_ms, uint, 0644);
 #endif /* defined(DHD_DEBUG) */
 
-/* ARP offload agent mode : Enable ARP Host Auto-Reply and ARP Peer Auto-Reply */
-uint dhd_arp_mode = 0xb;
+/* ARP offload agent mode : enable ARP Peer Auto-Reply */
+uint dhd_arp_mode = ARP_OL_AGENT | ARP_OL_PEER_AUTO_REPLY;
 module_param(dhd_arp_mode, uint, 0);
 
 /* ARP offload enable */
@@ -1026,7 +1026,7 @@ dhd_op_if(dhd_if_t *ifp)
 #endif
 			netif_stop_queue(ifp->net);
 			unregister_netdev(ifp->net);
-			ret = DHD_DEL_IF;
+			ret = DHD_DEL_IF;	/* Make sure the free_netdev() is called */
 
 #ifdef WL_CFG80211
 			if (dhd->dhd_state & DHD_ATTACH_STATE_CFG80211) {
@@ -1361,10 +1361,11 @@ dhd_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 
 done:
-	if (ret)
+	if (ret) {
 		dhd->pub.dstats.tx_dropped++;
-	else
+	} else {
 		dhd->pub.tx_packets++;
+	}
 
 	DHD_OS_WAKE_UNLOCK(&dhd->pub);
 
@@ -2365,13 +2366,6 @@ dhd_open(struct net_device *net)
 		strcpy(fw_path, firmware_path);
 		firmware_path[0] = '\0';
 	}
-	/* Update nvram path if it was changed */
-	if ((nvram_path != NULL) && (nvram_path[0] != '\0')) {
-		if (nvram_path[strlen(nvram_path)-1] == '\n')
-			nvram_path[strlen(nvram_path)-1] = '\0';
-		strcpy(nv_path, nvram_path);
-		nvram_path[0] = '\0';
-	}
 
 	dhd->pub.hang_was_sent = 0;
 #if !defined(WL_CFG80211)
@@ -2655,7 +2649,9 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	}
 
 	sema_init(&dhd->proto_sem, 1);
+#ifdef DHDTHREAD
 	sema_init(&dhd->sdsem, 1);
+#endif
 
 #ifdef PROP_TXSTATUS
 	spin_lock_init(&dhd->wlfc_spinlock);
@@ -2944,7 +2940,8 @@ dhd_concurrent_fw(dhd_pub_t *dhd)
 	char buf[WLC_IOCTL_SMLEN];
 
 	if ((!op_mode) && (strstr(fw_path, "_p2p") == NULL) &&
-		(strstr(fw_path, "_apsta") == NULL)) {
+		(strstr(fw_path, "_apsta") == NULL) && 
+		(strstr(fw_path, "_mfg") == NULL)) {
 		/* Given path is for the STA firmware. Check whether P2P support is present in
 		 * the firmware. If so, set mode as P2P (concurrent support).
 		 */
@@ -3234,6 +3231,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	setbit(eventmask, WLC_E_SET_SSID);
 	setbit(eventmask, WLC_E_PRUNE);
 	setbit(eventmask, WLC_E_AUTH);
+	setbit(eventmask, WLC_E_ASSOC);
 	setbit(eventmask, WLC_E_REASSOC);
 	setbit(eventmask, WLC_E_REASSOC_IND);
 	setbit(eventmask, WLC_E_DEAUTH);
@@ -3248,8 +3246,10 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	setbit(eventmask, WLC_E_MIC_ERROR);
 	setbit(eventmask, WLC_E_ASSOC_REQ_IE);
 	setbit(eventmask, WLC_E_ASSOC_RESP_IE);
+#ifndef WL_CFG80211
 	setbit(eventmask, WLC_E_PMKID_CACHE);
 	setbit(eventmask, WLC_E_TXFAIL);
+#endif
 	setbit(eventmask, WLC_E_JOIN_START);
 	setbit(eventmask, WLC_E_SCAN_COMPLETE);
 #ifdef WLMEDIA_HTSF
@@ -4348,6 +4348,13 @@ dhd_dev_reset(struct net_device *dev, uint8 flag)
 
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
 
+	if (flag == TRUE) {
+		/* Issue wl down command before resetting the chip */
+		if (dhd_wl_ioctl_cmd(&dhd->pub, WLC_DOWN, NULL, 0, TRUE, 0) < 0) {
+			DHD_TRACE(("%s: wl down failed\n", __FUNCTION__));
+		}
+	}
+
 	ret = dhd_bus_devreset(&dhd->pub, flag);
 	if (ret) {
 		DHD_ERROR(("%s: dhd_bus_devreset: %d\n", __FUNCTION__, ret));
@@ -4528,9 +4535,25 @@ static void dhd_hang_process(struct work_struct *work)
 		wl_iw_send_priv_event(dev, "HANG");
 #endif
 #if defined(WL_CFG80211)
-		wl_cfg80211_hang(dev, WLAN_REASON_UNSPECIFIED);
+		wl_cfg80211_hang(dev, WLAN_REASON_DRIVER_ERROR);
 #endif
 	}
+}
+#endif
+
+int dhd_os_send_hang_message(dhd_pub_t *dhdp)
+{
+	int ret = 0;
+
+	if (dhdp) {
+		if (!dhdp->hang_was_sent) {
+			dhdp->hang_was_sent = 1;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
+			schedule_work(&dhdp->info->work_hang);
+#endif
+		}
+	}
+	return ret;
 }
 
 int net_os_send_hang_message(struct net_device *dev)
@@ -4538,15 +4561,11 @@ int net_os_send_hang_message(struct net_device *dev)
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
 	int ret = 0;
 
-	if (dhd) {
-		if (!dhd->pub.hang_was_sent) {
-			dhd->pub.hang_was_sent = 1;
-			schedule_work(&dhd->work_hang);
-		}
-	}
+	if (dhd)
+		ret = dhd_os_send_hang_message(&dhd->pub);
+
 	return ret;
 }
-#endif
 
 void dhd_bus_country_set(struct net_device *dev, wl_country_t *cspec)
 {

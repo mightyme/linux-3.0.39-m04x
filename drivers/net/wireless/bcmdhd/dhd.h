@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h 333052 2012-05-12 02:09:28Z $
+ * $Id: dhd.h 344123 2012-07-11 09:33:49Z $
  */
 
 /****************
@@ -431,6 +431,7 @@ extern void dhd_os_sdunlock_sndup_rxq(dhd_pub_t * pub);
 extern void dhd_os_sdlock_eventq(dhd_pub_t * pub);
 extern void dhd_os_sdunlock_eventq(dhd_pub_t * pub);
 extern bool dhd_os_check_hang(dhd_pub_t *dhdp, int ifidx, int ret);
+extern int dhd_os_send_hang_message(dhd_pub_t *dhdp);
 extern int net_os_send_hang_message(struct net_device *dev);
 extern void dhd_set_version_info(dhd_pub_t *pub, char *fw);
 
