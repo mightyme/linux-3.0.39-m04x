@@ -799,11 +799,6 @@ config FW_MXQM
 	help
 	  MX QMatix Sensor fireware 
 	  
-config FW_MXQM_DEV
-	bool "Fireware for dev board"
-	help
-	  MX QMatix Sensor fireware for dev board
-	  
 config FW_MXQM_CTA
 	bool "Fireware for CTA"
 	help

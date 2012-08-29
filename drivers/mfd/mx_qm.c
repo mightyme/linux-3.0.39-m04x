@@ -29,23 +29,14 @@
 #include <linux/firmware.h>
 #include	<linux/mx_qm.h>
 
+
 #define QM_MX_FW 		"qm/qm_mx_led.bin"
-#define QM_MX_FW_6K 	"qm/qm_mx_led6k.bin"
 
 #ifdef	CONFIG_FW_MXQM_CTA
-#undef	QM_MX_FW
-#undef	QM_MX_FW_6K
-#define QM_MX_FW 		"qm/qm_mx_led_cta.bin"
 #define QM_MX_FW_6K 	"qm/qm_mx_led_cta.bin"
+#else
+#define QM_MX_FW_6K 	"qm/qm_mx_led6k.bin"
 #endif
-
-#ifdef	CONFIG_FW_MXQM_DEV
-#undef	QM_MX_FW
-#undef	QM_MX_FW_6K
-#define QM_MX_FW 		"qm/qm_mx_led_dev.bin"
-#define QM_MX_FW_6K 	"qm/qm_mx_led_dev.bin"
-#endif
-
 
 #define 	RESET_COLD	1
 #define	RESET_SOFT	0
