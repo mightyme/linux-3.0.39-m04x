@@ -248,8 +248,8 @@ static ssize_t bt_test_mode_show(struct device *dev,
 			printk("in BT_TEST_MODE\n");
 			bt_in_test_mode = 1;            							//test mode
 
+			mx_set_factory_test_led(1);
 			INIT_DELAYED_WORK_DEFERRABLE(&bt_test_dwork, bt_test_func);
-			schedule_delayed_work(&bt_test_dwork, msecs_to_jiffies(BT_LED_DELAY));
 		}
 	}
 
