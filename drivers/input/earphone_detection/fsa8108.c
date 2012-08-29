@@ -58,7 +58,7 @@
 
 /* FSA8108_REG_DEVICE_ID (0x01) */
 #define FSA8108_VER_ID             (0x0f << 4)
-#define FSA8108_VER_ID_SHIFT        4
+#define FSA8108_VER_ID_SHIFT                 4
 
 /* FSA8108_REG_INT_1 (0x02) */
 #define FSA8108_3POLE_CONNECT       0x01
@@ -128,7 +128,7 @@
 #define FSA8108_ALL_KEY_SE_FUNCTION        (0x01 << 6)
 #define FSA8108_ALL_KEY_SE_FUNCTION_SHIFT   6
 #define FSA8108_STUCK_KEY_FUNCTION         (0x01 << 7)
-#define FSA8108_STUCK_KEY_FUNCTION_SHIFT    7
+#define FSA8108_STUCK_KEY_FUNCTION_SHIFT                 7
 
 /* FSA8108_REG_COMPARATOR_12 (0x0d) */
 #define FSA8108_NO_SE_KEY_CMP              (0x0f)
@@ -210,11 +210,12 @@
 #define FALSE 0
 
 struct fsa8108_info {
-	struct i2c_client		*client;	
+	struct i2c_client		*client;
+	struct fsa8108_platform_data	*pdata;
 	struct mutex		mutex;
 	struct input_dev *input;
 	struct work_struct  det_work;
-	unsigned int cur_jack_type;	
+	unsigned int cur_jack_type;
 };
 
 static struct switch_dev switch_jack_detection = {
@@ -249,12 +250,12 @@ static int fsa8108_ReadReg(int reg)
 	
 	ret = i2c_smbus_read_byte_data(this_client, reg);
 		
-	if (ret < 0){
-		pr_err("%s: error = %d , try again", __func__, ret);
-		ret = i2c_smbus_read_byte_data(this_client, reg);
-		if (ret < 0)
-			pr_err("%s: error = %d", __func__, ret);
-	}
+		if (ret < 0){
+			pr_err("%s: error = %d , try again", __func__, ret);
+			ret = i2c_smbus_read_byte_data(this_client, reg);
+			if (ret < 0)
+				pr_err("%s: error = %d", __func__, ret);
+		}
     return ret;
 }
 
@@ -278,6 +279,17 @@ static BYTE fsa8108_GetValue(BYTE reg, BYTE reg_bit, BYTE reg_shift)
 
 	return ret;
 }
+static void fsa8108_mask_int(int onoff)
+{
+	if(onoff){
+		fsa8108_WriteReg(FSA8108_REG_INT_MASK_1,0X3B);
+		fsa8108_WriteReg(FSA8108_REG_INT_MASK_2,0X3F);
+	}else{
+		fsa8108_WriteReg(FSA8108_REG_INT_MASK_1,0);
+		fsa8108_WriteReg(FSA8108_REG_INT_MASK_2,0);
+	}
+}
+
 
 /***** Example
 	fsa8108_SetValue(FSA8108_REG_CON, FSA8108_MP3_MODE, FSA8108_MP3_MODE_SHIFT, CONTROL_ON);
@@ -332,12 +344,14 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 	val1 = intr_type & 0xff;
 	val2 = intr_type >> 8;	
 	pr_info("\nvalue = 0x%x,val1 = 0x%x,val2 = 0x%x\n",intr_type, val1, val2);
+
 	if(val1)
 	{
 	    switch(val1){
 			case FSA8108_3POLE_CONNECT:
 				pr_err("%s 3pole connect",__func__);
 				info->cur_jack_type = FSA_HEADSET_3POLE;
+				fsa8108_mask_int(1);/*mask key interrupts for 3 pole headset*/
 				switch_set_state(&switch_jack_detection, FSA_HEADSET_3POLE);
 				break;
 			case FSA8108_4POLE_CONNECT:
@@ -348,6 +362,7 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 			case FSA8108_PLUG_DISCONNECT:
 				pr_err("%s plug disconnect",__func__);
 				info->cur_jack_type = FSA_JACK_NO_DEVICE;
+				fsa8108_mask_int(0);/*recover key interrupts when plug disconnect*/
 				switch_set_state(&switch_jack_detection, FSA_JACK_NO_DEVICE);				
 				break;
 			case FSA8108_SEND_END_PRESS:
@@ -498,8 +513,6 @@ static void fsa8108_initialization(struct fsa8108_info *info)
 
 /*** Set Timing parameters and Global Multiplier setting ***/
     //fsa8108_SetValue(FSA8108_REG_KEY_PRS_T,FSA8108_TDOUBLE,FSA8108_TDOUBLE_SHIFT,TDOUBLE_1100);
-/*** Set Timing parameters for 3 or 4 pole plug in detection***/
-	fsa8108_SetValue(FSA8108_REG_JDET_T, FSA8108_TDET_IN, FSA8108_TDET_IN_SHIFT, 0x0F);
 
 /*** Set Control bits: All key/Double/Long/3-4 pole/LDO ***/
 
@@ -535,7 +548,8 @@ static int fsa8108_probe(
 	if(info == NULL){
 		pr_info("%s  allocate memory for info failed\n",__func__);
 	}
-	info->client = client;	
+	info->client = client;
+	info->pdata = client->dev.platform_data;
 	i2c_set_clientdata(client, info);
 	mutex_init(&info->mutex);
 
