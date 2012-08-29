@@ -15,6 +15,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h> 
 
+#include <linux/delay.h>
+
 #include "m6mo.h"
 #include "m6mo_regs.h"
 #include "m6mo_ctrl.h"
@@ -24,7 +26,7 @@
 /* default setting registers */
 static struct m6mo_reg m6mo_default_regs[] = {
 	{I2C_8BIT, OUT_SELECT_REG, MIPI_IF},
-	{I2C_8BIT, FSHD_EN_REG, FSHD_ON},
+	//{I2C_8BIT, FSHD_EN_REG, FSHD_ON},
 	{I2C_8BIT, JPEG_RATIO_REG, 0x62},
 	{I2C_32BIT, IASTER_CLK_FOR_SENSOR_REG, 0x06ddd000}, /* 24MHZ clock */
 };
@@ -355,7 +357,7 @@ int m6mo_write_regs(struct v4l2_subdev *sd, struct m6mo_reg *regs, int size)
 
 static bool m6mo_is_power(struct m6mo_state *state)
 {
-	return state->power_status;
+	return state->isp_power;
 }
 
 
@@ -991,23 +993,104 @@ static int m6mo_s_parm(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int m6mo_init(struct v4l2_subdev *sd, u32 val)
+static int m6mo_reset(struct v4l2_subdev *sd, u32 val)
+{
+	struct m6mo_state *state = to_state(sd);
+
+	state->pdata->reset();
+	
+	return 0;
+}
+
+static int m6mo_set_sensor_power(struct m6mo_state *state, bool enable)
+{
+	int ret;
+	
+	if (state->sensor_power == enable)
+		return -EBUSY;
+
+	ret = state->pdata->set_sensor_power(state->cam_id, enable);
+	if (!ret) state->sensor_power = enable;
+
+	return ret;
+}
+
+int m6mo_set_power_clock(struct m6mo_state *state, bool enable)
+{
+	struct m6mo_platform_data *pdata = state->pdata;
+	struct v4l2_subdev *sd = &state->sd;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int ret = 0;
+	
+	if (state->isp_power == enable) 
+		return -EBUSY;
+	
+	if (enable) {
+		ret = pdata->clock_enable(&client->dev, true);
+		if (ret) return ret;
+
+		ret = pdata->set_isp_power(true);
+		if (ret) {
+			pdata->clock_enable(&client->dev, false);
+			return ret;
+		}
+	} else {
+		if (state->sensor_power)   
+			m6mo_set_sensor_power(state, false);
+		pdata->set_isp_power(false);
+		pdata->clock_enable(&client->dev, false);
+	}
+
+	state->isp_power = enable;
+
+	return ret;
+}
+
+int m6mo_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct m6mo_state *state = to_state(sd);
+	bool enable = !!on;
+
+	if (state->fw_status == FIRMWARE_REQUESTING)
+		return -EBUSY;
+	
+	return m6mo_set_power_clock(state, enable);
+}
+
+static int m6mo_init(struct v4l2_subdev *sd, u32 cam_id)
 {
 	int ret;
 	struct m6mo_state *state = to_state(sd);	
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
+	if (cam_id != BACK_CAMERA && cam_id != FRONT_CAMERA) {
+		pr_err("unsupport camera id %d\n", cam_id);
+		return -EINVAL;
+	}
+
+	state->cam_id = cam_id;
+
+	/* set sensor power */
+	ret = m6mo_set_sensor_power(state, true);
+	if (ret) return ret;
+
 	/* run firmware first */
 	ret = m6mo_run_firmware(sd);	
-	if (ret) return ret;
+	if (ret) goto err_power;
 
 	/* init default registers */
 	ret = m6mo_write_regs(sd, m6mo_default_regs, ARRAY_SIZE(m6mo_default_regs));
-	if (ret) return ret;
+	if (ret) goto err_power;
 
 	/* enable all irq */
 	ret = m6mo_enable_irq(sd);
-	if (ret) return ret;
+	if (ret) goto err_power;
+
+	if (state->cam_id == BACK_CAMERA)
+		ret = m6mo_w8(sd, 0x013f, 0x00);
+	else
+		ret = m6mo_w8(sd, 0x013f, 0x01);
+	if (ret) goto err_power;
 	
 	state->fps = M6MO_FR_AUTO;
 	state->mode = PARAMETER_MODE;
@@ -1031,55 +1114,11 @@ static int m6mo_init(struct v4l2_subdev *sd, u32 val)
 	v4l_info(client, "%s: camera initialization finished\n", __func__);
 
 	return 0;
-}
-
-static int m6mo_reset(struct v4l2_subdev *sd, u32 val)
-{
-	struct m6mo_state *state = to_state(sd);
-
-	state->pdata->reset();
 	
-	return 0;
-}
-
-int m6mo_set_power_clock(struct m6mo_state *state, bool enable)
-{
-	struct m6mo_platform_data *pdata = state->pdata;
-	struct v4l2_subdev *sd = &state->sd;
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret = 0;
+err_power:
+	m6mo_set_sensor_power(state, false);
 	
-	if (state->power_status == enable) 
-		return -EBUSY;
-	
-	if (enable) {
-		ret = pdata->clock_enable(&client->dev, true);
-		if (ret) return ret;
-
-		ret = pdata->set_power(state->cam_id, 1);
-		if (ret) {
-			pdata->clock_enable(&client->dev, false);
-			return ret;
-		}
-	} else {
-		pdata->set_power(state->cam_id, 0);
-		pdata->clock_enable(&client->dev, false);
-	}
-
-	state->power_status = enable;
-
 	return ret;
-}
-
-int m6mo_s_power(struct v4l2_subdev *sd, int on)
-{
-	struct m6mo_state *state = to_state(sd);
-	bool enable = !!on;
-
-	if (state->fw_status == FIRMWARE_REQUESTING)
-		return -EBUSY;
-	
-	return m6mo_set_power_clock(state, enable);
 }
 
 static void m6mo_handle_normal_cap(struct m6mo_state *state, int irq_status)
@@ -1164,7 +1203,7 @@ static const struct v4l2_subdev_ops m6mo_ops = {
 static int m6mo_check_pdata(struct m6mo_platform_data *pdata)
 {
 	if (pdata == NULL || !pdata->init_gpio || !pdata->init_clock || 
-		!pdata->set_power || !pdata->clock_enable) {
+		!pdata->set_isp_power || !pdata->set_sensor_power || !pdata->clock_enable) {
 		pr_err("platform data is uncorrect.\n");
 		return -EINVAL;
 	}
@@ -1196,9 +1235,9 @@ static int m6mo_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	/* init members */
 	state->pdata = pdata;
-	state->power_status = false;
+	state->isp_power = false;
+	state->sensor_power = false;
 	state->debug = DEFAULT_DEBUG;
-	state->cam_id = BACK_CAMERA;
 	state->fled_regulator = NULL;
 	state->cap_mode = CAP_NORMAL_MODE;
 	mutex_init(&state->mutex);

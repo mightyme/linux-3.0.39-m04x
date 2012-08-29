@@ -208,24 +208,59 @@ exit_clkget_cam:
 	return ret;
 }
 
-static int m6mo_set_power(int cam_index, bool enable)
+static int m6mo_set_isp_power(bool enable)
+{
+	struct regulator_bulk_data supplies[2];
+	int num_consumers = 0, ret;
+
+	pr_info("%s():enable = %d\n", __FUNCTION__, enable);
+
+	supplies[num_consumers++].supply = "cam_isp_1.8v";
+	supplies[num_consumers++].supply = "cam_isp_1.2v";
+	
+	ret = regulator_bulk_get(NULL, num_consumers, supplies);
+	if (ret) {
+		pr_err("%s():isp regulator_bulk_get failed\n", __func__);
+		return ret;
+	}
+
+	if (enable) {
+		ret = regulator_bulk_enable(num_consumers, supplies);
+		if (ret) goto exit_regulator;
+		
+		gpio_set_value(M040_ISP_RST, 1);
+		gpio_set_value(M040_ISP_YCVZ, 1);  /* we don't use Parallel, set this pin high */
+	} else { 
+		gpio_set_value(M040_ISP_RST, 0);
+		
+		ret = regulator_bulk_disable(num_consumers, supplies);
+		if (ret) goto exit_regulator;
+		
+		gpio_set_value(M040_ISP_YCVZ, 0);  /* should set this pin low at last */
+	}
+
+exit_regulator:
+	regulator_bulk_free(num_consumers, supplies);
+
+	msleep(5);
+
+	return ret;
+}
+
+static int m6mo_set_sensor_power(int cam_id, bool enable)
 {
 	struct regulator_bulk_data supplies[5];
-	int num_consumers, ret;
+	int num_consumers = 0, ret;
 
-	pr_info("%s():camera index = %d, enable = %d\n", __FUNCTION__, cam_index, enable);
+	pr_info("%s():camera id = %d, enable = %d\n", __FUNCTION__, cam_id, enable);
 
-	supplies[0].supply = "cam_isp_1.8v";
-	supplies[1].supply = "cam_isp_1.2v";
-	if (cam_index == 0) {  /* IMX175 */
-		supplies[2].supply = "cam_back_1.2v";
-		supplies[3].supply = "cam_back_2.7v";
-		supplies[4].supply = "cam_back_af_2.7v";
-		num_consumers = 5;
-	} else if (cam_index == 1) {  /* OV9724 */
-		supplies[2].supply = "cam_front_2.8v";
-		supplies[3].supply = "cam_front_1.5v";
-		num_consumers = 4;
+	if (cam_id == 0) {  /* IMX175 */
+		supplies[num_consumers++].supply = "cam_back_1.2v";
+		supplies[num_consumers++].supply = "cam_back_2.7v";
+		supplies[num_consumers++].supply = "cam_back_af_2.7v";
+	} else if (cam_id == 1) {  /* OV9724 */
+		supplies[num_consumers++].supply = "cam_front_2.8v";
+		supplies[num_consumers++].supply = "cam_front_1.5v";
 	} else {
 		pr_err("%s:wrong camera index\n", __func__);
 		return -EINVAL;
@@ -233,32 +268,22 @@ static int m6mo_set_power(int cam_index, bool enable)
 	
 	ret = regulator_bulk_get(NULL, num_consumers, supplies);
 	if (ret) {
-		pr_err("%s():regulator_bulk_get failed\n", __func__);
+		pr_err("%s():isp regulator_bulk_get failed\n", __func__);
 		return ret;
 	}
 
-	if (enable) {
+	if (enable)
 		ret = regulator_bulk_enable(num_consumers, supplies);
-		gpio_set_value(M040_ISP_RST, 1);
-		gpio_set_value(M040_ISP_YCVZ, 1);
-	} else { 
-		gpio_set_value(M040_ISP_RST, 0);
+	else	
 		ret = regulator_bulk_disable(num_consumers, supplies);
-		gpio_set_value(M040_ISP_YCVZ, 0);
-	}
-	if (ret) {
-		pr_err("%s():regulator_bulk_%sable failed\n", __func__, enable?"en":"dis");
-		goto exit_regulator;
-	}
-
-	msleep(5);
 
 exit_regulator:
 	regulator_bulk_free(num_consumers, supplies);
-	
-	return 0;
-}
 
+	msleep(5);
+
+	return ret;
+}
 
 static void m6mo_reset(void)
 {
@@ -313,7 +338,8 @@ static struct m6mo_platform_data m6mo_plat = {
 
 	.init_gpio = m6mo_init_gpio,
 	.init_clock = m6mo_init_clock,
-	.set_power = m6mo_set_power,
+	.set_isp_power = m6mo_set_isp_power,
+	.set_sensor_power = m6mo_set_sensor_power,
 	.reset = m6mo_reset,
 	.clock_enable = m6mo_clock_enable,
 };

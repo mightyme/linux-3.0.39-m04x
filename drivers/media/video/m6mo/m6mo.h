@@ -225,7 +225,8 @@ struct m6mo_state {
 	enum v4l2_camera_mode camera_mode;   /* user modes: preview, capture or record */
 	bool stream_on;
 	struct m6mo_userset userset;   /* user setting */
-	bool power_status;
+	bool isp_power;
+	bool sensor_power;
 	bool debug;
 	int cam_id;   /* used distinguishing between front and back camera */
 	struct regulator *fled_regulator;

@@ -25,7 +25,8 @@ struct m6mo_platform_data {
 	/* these members should be set */
 	int (*init_gpio)(struct device *dev);
 	int (*init_clock)(struct device *dev);
-	int (*set_power)(int cam_index, bool enable);
+	int (*set_isp_power)(bool enable);
+	int (*set_sensor_power)(int cam_id, bool enable);
 	void (*reset)(void);
 	int (*clock_enable)(struct device *dev, bool enable);
 };

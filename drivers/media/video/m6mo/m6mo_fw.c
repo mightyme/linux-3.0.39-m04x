@@ -379,7 +379,7 @@ static int m6mo_update_firmware(struct v4l2_subdev *sd,
 
 exit_update:
 	wake_unlock(&state->wake_lock);
-	if (state->power_status) m6mo_set_power_clock(state, false);
+	if (state->isp_power) m6mo_set_power_clock(state, false);
 
 	return ret;
 }
@@ -413,7 +413,7 @@ int m6mo_erase_firmware(struct v4l2_subdev *sd)
 	struct m6mo_state *state = to_state(sd);
 
 	/* if has power, return */
-	if (state->power_status) return -EINVAL;
+	if (state->isp_power) return -EINVAL;
 
 	ret = m6mo_set_power_clock(state, true);
 	if (ret) {
@@ -512,7 +512,7 @@ static bool m6mo_get_update_decision(struct v4l2_subdev *sd, const struct firmwa
 #endif
 
 exit_decision:
-	if (state->power_status) m6mo_set_power_clock(state, false);
+	if (state->isp_power) m6mo_set_power_clock(state, false);
 	return decision;
 }
 
@@ -584,7 +584,7 @@ int m6mo_load_firmware_sys(struct device *dev, struct v4l2_subdev *sd)
 	const struct firmware *fw = NULL;
 	enum firmware_status fw_status = state->fw_status;
 
-	if (state->power_status) {
+	if (state->isp_power) {
 		pr_err("camera has power on, please power off first\n");
 		return -EINVAL;
 	}
@@ -626,7 +626,7 @@ int m6mo_load_firmware_sys(struct device *dev, struct v4l2_subdev *sd)
 
 exit:
 	wake_unlock(&state->wake_lock);
-	if (state->power_status) m6mo_set_power_clock(state, false);
+	if (state->isp_power) m6mo_set_power_clock(state, false);
 	m6mo_set_firmware_status(sd, fw_status);
 	
 	return ret;

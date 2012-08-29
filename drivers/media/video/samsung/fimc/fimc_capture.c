@@ -262,16 +262,13 @@ static int fimc_cal_camera_output_size(struct fimc_control *ctrl)
 	return 0;
 }
 
-
 static int fimc_init_camera(struct fimc_control *ctrl)
 {
 	struct s3c_platform_fimc *pdata;
 	struct s3c_platform_camera *cam;
 	int ret = 0;
-#if !(defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE))
 	int retry_cnt = 0;
 	struct fimc_global *fimc = get_fimc_dev();
-#endif
 
 #if (defined(CONFIG_EXYNOS_DEV_PD) && defined(CONFIG_PM_RUNTIME))
 	struct platform_device *pdev = to_platform_device(ctrl->dev);
@@ -320,28 +317,6 @@ static int fimc_init_camera(struct fimc_control *ctrl)
 		return 0;
 	}
 
-#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
-	ret = v4l2_subdev_call(ctrl->cam->sd, core, s_power, 1);
-	if (ret) {
-		fimc_err("s_power failed: %d", ret);
-#if (defined(CONFIG_EXYNOS_DEV_PD) && defined(CONFIG_PM_RUNTIME))
-		pm_runtime_put_sync(&pdev->dev);
-#endif		
-		return ret;
-	}
-
-	ret = v4l2_subdev_call(cam->sd, core, init, 0);
-	if (ret) {
-		fimc_err("init failed: %d", ret);
-		v4l2_subdev_call(ctrl->cam->sd, core, s_power, 0);
-#if (defined(CONFIG_EXYNOS_DEV_PD) && defined(CONFIG_PM_RUNTIME))
-		pm_runtime_put_sync(&pdev->dev);
-#endif		
-		return ret;
-	} else {
-		cam->initialized = 1;
-	}
-#else
 retry:
 	/* set rate for mclk */
 	if ((clk_get_rate(cam->clk)) && (fimc->mclk_status == CAM_MCLK_OFF)) {
@@ -378,7 +353,6 @@ retry:
 	} else {
 		cam->initialized = 1;
 	}
-#endif
 
 	return ret;
 }
@@ -797,44 +771,9 @@ int fimc_release_subdev(struct fimc_control *ctrl)
 	return 0;
 }
 
-static int fimc_cam_register_callback(struct device *dev, void *p)
-{
-	struct v4l2_subdev **sd = p;
-
-	*sd = dev_get_drvdata(dev);
-
-	if (!*sd)
-		return -EINVAL;
-
-	return 0; /* non-zero value stops iteration */
-}
-
-static struct v4l2_subdev *fimc_get_cam_subdev(const char *module_name)
-{
-	struct device_driver *drv;
-	struct v4l2_subdev *sd = NULL;
-	int ret;
-
-	drv = driver_find(module_name, &i2c_bus_type);
-	if (!drv)  {
-		request_module(module_name);
-		drv = driver_find(module_name, &i2c_bus_type);
-	}
-	if (!drv)
-		return ERR_PTR(-ENODEV);
-
-	ret = driver_for_each_device(drv, NULL, &sd,
-				     fimc_cam_register_callback);
-	put_driver(drv);
-	return ret ? NULL : sd;
-}
-
 /*static */int fimc_configure_subdev(struct fimc_control *ctrl)
 {
 	int ret = 0;
-#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
-	ctrl->cam->sd = fimc_get_cam_subdev(ctrl->cam->info->type);
-#else
 	struct i2c_adapter *i2c_adap;
 	struct i2c_board_info *i2c_info;
 	struct v4l2_subdev *sd;
@@ -878,13 +817,125 @@ static struct v4l2_subdev *fimc_get_cam_subdev(const char *module_name)
 	}
 	/* Assign subdev to proper camera device pointer */
 	ctrl->cam->sd = sd;
+
+	if (!ctrl->cam->initialized) {
+		ret = fimc_init_camera(ctrl);
+		if (ret < 0) {
+			ctrl->cam->sd = NULL;
+			fimc_err("%s: fail to initialize subdev\n", __func__);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+static int fimc_cam_register_callback(struct device *dev, void *p)
+{
+	struct v4l2_subdev **sd = p;
+
+	*sd = dev_get_drvdata(dev);
+
+	if (!*sd)
+		return -EINVAL;
+
+	return 0; /* non-zero value stops iteration */
+}
+
+static struct v4l2_subdev *fimc_get_cam_subdev(const char *module_name)
+{
+	struct device_driver *drv;
+	struct v4l2_subdev *sd = NULL;
+	int ret;
+
+	drv = driver_find(module_name, &i2c_bus_type);
+	if (!drv)  {
+		request_module(module_name);
+		drv = driver_find(module_name, &i2c_bus_type);
+	}
+	if (!drv)
+		return ERR_PTR(-ENODEV);
+
+	ret = driver_for_each_device(drv, NULL, &sd,
+				     fimc_cam_register_callback);
+	put_driver(drv);
+	return ret ? NULL : sd;
+}
+
+static int fimc_find_cam_id(struct fimc_control *ctrl)
+{
+	struct fimc_global *fimc = get_fimc_dev();
+	int i;
+
+	if (!ctrl->cam) return -EINVAL;
+
+	for (i = 0; i < FIMC_MAXCAMS; i++)
+		if (fimc->camera[i] && (fimc->camera[i] == ctrl->cam))
+			return i;
+		
+	return -EINVAL;
+}
+
+static int fimc_init_mx_camera(struct fimc_control *ctrl)
+{
+	struct s3c_platform_camera *cam = ctrl->cam;
+	int cam_id, ret = 0;
+#if (defined(CONFIG_EXYNOS_DEV_PD) && defined(CONFIG_PM_RUNTIME))
+	struct platform_device *pdev = to_platform_device(ctrl->dev);
 #endif
 
+	/* do nothing if already initialized */
+	if (cam->initialized)
+		return 0;
+
+#if (defined(CONFIG_EXYNOS_DEV_PD) && defined(CONFIG_PM_RUNTIME))
+	if (ctrl->power_status == FIMC_POWER_OFF)
+		pm_runtime_get_sync(&pdev->dev);
+#endif
+
+	ret = v4l2_subdev_call(cam->sd, core, s_power, 1);
+	if (ret) {
+		fimc_err("s_power failed: %d", ret);
+		goto error;
+	}
+
+#ifdef CONFIG_MX2_SERIAL_TYPE
+	cam_id = fimc_find_cam_id(ctrl);
+#else
+	cam_id = 0;
+#endif
+
+	ret = v4l2_subdev_call(cam->sd, core, init, cam_id);
+	if (ret) {
+		fimc_err("init failed: %d", ret);
+		v4l2_subdev_call(ctrl->cam->sd, core, s_power, 0);
+		goto error;
+	} else {
+		cam->initialized = 1;
+	}
+
+	return 0;
+
+error:
+#if (defined(CONFIG_EXYNOS_DEV_PD) && defined(CONFIG_PM_RUNTIME))
+	pm_runtime_put_sync(&pdev->dev);
+#endif	
+
+	return ret;
+}
+#endif
+
+static int fimc_configure_mx_subdev(struct fimc_control *ctrl)
+{
+	int ret = 0;
+	
+	ctrl->cam->sd = fimc_get_cam_subdev(ctrl->cam->info->type);
 	if (ctrl->cam->sd == NULL)
 		return -ENODEV;
 
 	if (!ctrl->cam->initialized) {
-		ret = fimc_init_camera(ctrl);
+		ret = fimc_init_mx_camera(ctrl);
 		if (ret < 0) {
 			ctrl->cam->sd = NULL;
 			fimc_err("%s: fail to initialize subdev\n", __func__);
@@ -1108,7 +1159,11 @@ int fimc_s_input(struct file *file, void *fh, unsigned int i)
 
 		if ((ctrl->cam->id != CAMERA_WB) && (ctrl->cam->id !=
 			CAMERA_WB_B) && (!ctrl->cam->use_isp) && fimc_cam_use) {
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+			ret = fimc_configure_mx_subdev(ctrl);
+#else
 			ret = fimc_configure_subdev(ctrl);
+#endif
 			if (ret < 0) {
 				mutex_unlock(&ctrl->v4l2_lock);
 				fimc_err("%s: Could not register camera" \

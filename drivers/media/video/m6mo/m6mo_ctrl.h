@@ -82,7 +82,7 @@
   * quick capture, compression
 */
 #define V4L2_CID_CAMERA_QUICK_CAPTURE 					(V4L2_CID_PRIVATE_BASE + 297) 
-#define V4L2_CID_CAMERA_COMPRESSION		 				(V4L2_CID_PRIVATE_BASE + 298) 
+#define V4L2_CID_CAMERA_COMPRESSION		 				(V4L2_CID_PRIVATE_BASE + 298)
 
 /* 
   * for VIDIOC_G_EXT_CTRLS and VIDIOC_S_EXT_CTRLS, from offset 0x9000 
