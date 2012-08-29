@@ -242,7 +242,7 @@ unsigned short qm_touch_get_key(struct mx_qm_touch	*touch)
 			
 		case QM_KEY_3:
 		case QM_KEY_R2M:
-			key = keycodes[KEY_INDEX_BACK];
+			key = keycodes[KEY_INDEX_HOME];
 			break;
 			
 		case QM_KEY_4:
