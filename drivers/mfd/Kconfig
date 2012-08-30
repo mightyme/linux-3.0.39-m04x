@@ -788,23 +788,6 @@ config MFD_MXQM
        help
          Say Y here if you want to use MX QMatix
          Sensor as input device.
-
-choice
-	prompt "Fireware Select"
-       depends on MFD_MXQM
-	default FW_MXQM
-
-config FW_MXQM
-	bool "Fireware for release"
-	help
-	  MX QMatix Sensor fireware 
-	  
-config FW_MXQM_CTA
-	bool "Fireware for CTA"
-	help
-	  MX QMatix Sensor fireware for CTA
-
-endchoice         
 	  
 endif # MFD_SUPPORT
 

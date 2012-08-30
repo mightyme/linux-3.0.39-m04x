@@ -37,7 +37,7 @@
 #define DEVICE_MODE_ON_BANK1      0x07
 #define DEVICE_MODE_MAX      0x08
 
-#define	GET_MODE(x)	((x&0x0F00)>>8)
+#define	GET_MODE(x)	((x>>8)&0x0F)
 ////////////////////////////////////////////////////////////////// 
  
  /*default we set the slope cycle to 3 second, 
@@ -123,11 +123,11 @@ struct mx_qm_led {
 
  /*all led register address*/
  static unsigned char led_addr_arrayt[] = {
-	 LED_REG_LEDM3,
-	 LED_REG_LEDM1,
-	 LED_REG_LEDM2,
-	 LED_REG_LEDM4,
-	 LED_REG_LEDM5,
+	 3,
+	 1,
+	 2,
+	 4,
+	 5,
  };
  
  static int bu26507_set_led_current(struct led_classdev *led_cdev, int cur)
@@ -232,26 +232,56 @@ static int bu26507_set_led_pwm(struct led_classdev *led_cdev, int pwm)
  }
 
  
+  static int tca6507_set_led_mode(struct led_classdev *led_cdev, int mode)
+  {
+	  int ret = 0;
+	  int i,j;
+	  struct mx_qm_led *led =
+			  container_of(led_cdev, struct mx_qm_led, led_cdev);
+	  struct mx_qm_data *mx = led->data;
+	  static unsigned char select[3] = {0x00,0x3E,0x00};
+	  
+	  pr_debug("%s:\n",__func__);
+ 
+	  if( mode > DEVICE_MODE_MAX )
+		 return -EINVAL;
+
+	 if(mode == DEVICE_MODE_ON_BANK0 )
+	 	j =2;
+	 else
+	 	j = led->id;
+	 
+	for(i = 0;i <3;i++)
+	{
+		if( mode & 0x01)
+			select[i] |= (1 << j);
+		else
+			select[i] &= ~(1 << j); 
+		mode>>=1;
+	}  
+	ret = mx->i2c_writebyte(mx->client,LED_REG0_SELECT0,select[0]);
+	ret = mx->i2c_writebyte(mx->client,LED_REG1_SELECT1,select[1]);
+	ret = mx->i2c_writebyte(mx->client,LED_REG2_SELECT2,select[2]);
+
+	return ret;
+}
+
+ 
 static int tca6507_set_led_current(struct led_classdev *led_cdev, int value)
 {
 	struct mx_qm_led *led =
 		  container_of(led_cdev, struct mx_qm_led, led_cdev);
 	struct mx_qm_data *mx = led->data;
 	int ret = 0;
-	static unsigned char select[3] = {0x00,0x3E,0x00};
-	int i;
 	pr_debug("%s:current = %d id = %d\n",__func__,value,led->id);
 
-	i = led_addr_arrayt[led->id]  - LED_REG_LEDM0;
 	if( value )
 	{		
-	       select[1] |= (1 << i);
-		ret = mx->i2c_writebyte(mx->client,LED_REG1_SELECT1,select[1]);
+		ret = tca6507_set_led_mode(led_cdev,DEVICE_MODE_ON_PWM0);
 	}
 	else
 	{
-	       select[1] &= ~(1 << i);
-		ret = mx->i2c_writebyte(mx->client,LED_REG1_SELECT1,select[1]);
+		ret = tca6507_set_led_mode(led_cdev,DEVICE_MODE_OFF);
 	}
 		
 	pr_debug("%s:id = %d (0x%.2X)\n",__func__,led->id,led_addr_arrayt[led->id]);
@@ -277,52 +307,22 @@ static int tca6507_set_led_current(struct led_classdev *led_cdev, int value)
   
   static int tca6507_set_led_slope(struct led_classdev *led_cdev, int enable)
   {
-	  struct mx_qm_led *led =
-			  container_of(led_cdev, struct mx_qm_led, led_cdev);
-	  struct mx_qm_data *mx = led->data;
 	  int ret = 0;
 	  
 	  pr_debug("%s:enable = %d\n",__func__,enable);
-#if 0
-	  int i;
-	  for(i = 0; i < sizeof(led_addr_array) ;i++)
-	 {
-		 if( enable )
-			 ret = mx->i2c_writebyte(mx->client,led_addr_array[i],DEVICE_MODE_ON_BANK0);
-		 else
-			 ret = mx->i2c_writebyte(mx->client,led_addr_array[i],DEVICE_MODE_OFF);
-	 }	  
-#else
+
 	 if( enable )
 	 {
-		 ret = mx->i2c_writebyte(mx->client,led_addr_arrayt[2],DEVICE_MODE_ON_BANK1);
+		ret = tca6507_set_led_mode(led_cdev,DEVICE_MODE_ON_BANK0);
 	 }
 	 else
 	 {
-		 ret = mx->i2c_writebyte(mx->client,led_addr_arrayt[2],DEVICE_MODE_OFF);
+		ret = tca6507_set_led_mode(led_cdev,DEVICE_MODE_OFF);
 	 }
-#endif
   
 	  return ret;
   }
   
-  static int tca6507_set_led_mode(struct led_classdev *led_cdev, int mode)
-  {
-	  int ret = 0;
-	  struct mx_qm_led *led =
-			  container_of(led_cdev, struct mx_qm_led, led_cdev);
-	  struct mx_qm_data *mx = led->data;
-	  pr_debug("%s:\n",__func__);
- 
-	  if( mode > DEVICE_MODE_MAX )
-		 return -EINVAL;
- 
-	 ret = mx->i2c_writebyte(mx->client,led_addr_arrayt[led->id],mode);
-  
-	  return ret;
-  }
-
- 
 static int mx_qm_set_led_current(struct led_classdev *led_cdev, int value)
 {
 	 struct mx_qm_led *led =container_of(led_cdev, struct mx_qm_led, led_cdev);
@@ -382,7 +382,7 @@ static int mx_qm_set_led_mode(struct led_classdev *led_cdev, int mode)
 
 	 mode = GET_MODE(value);
 	 data = value & 0xFF; 
-
+	 
 	 switch( mode )
  	{
 		case MODE_CURRENT:
@@ -437,8 +437,7 @@ static int mx_qm_set_led_mode(struct led_classdev *led_cdev, int mode)
 	 struct mx_qm_led *led =
 			 container_of(h, struct mx_qm_led, early_suspend);
 
-	 led->led_cdev.brightness_set(&led->led_cdev,LED_OFF);
- 
+	 led->led_cdev.brightness_set(&led->led_cdev,LED_OFF); 
  }
  
  static void mx_qm_late_resume(struct early_suspend *h)

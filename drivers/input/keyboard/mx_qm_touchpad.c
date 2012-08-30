@@ -23,6 +23,7 @@
 #include <linux/jiffies.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/earlysuspend.h>
 #include <plat/gpio-cfg.h>
 #include <mach/gpio-m040.h>
 #include <linux/firmware.h>
@@ -62,17 +63,22 @@ struct mx_qm_touch {
 	u8 last_key;
 	u8 keys_press;
 	u8 pos;
+	struct work_struct detect_work;
 	struct delayed_work pos_work;
 	unsigned char  precpos;
 	unsigned char rec_pos[MAX_REC_POS_SIZE];
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	 struct early_suspend early_suspend;
+	 int early_suspend_flag;
+#endif
 };
 
 
-void qm_touch_report_pos(struct input_dev *dev, int pos,int press)
+void qm_touch_report_pos(struct input_dev *dev, int pos,int bsync)
 {
 	pr_debug("%s:Pos = %d  \n",__func__,pos);
 	input_report_abs(dev, ABS_X, pos);
-	if( press )
+	if( bsync )
 		input_sync(dev);
 }
 
@@ -277,7 +283,7 @@ unsigned short qm_touch_get_key(struct mx_qm_touch	*touch)
 	return key;
 }
 
-static void get_slider_position_func(struct work_struct *work)
+static void get_slider_position_poll_func(struct work_struct *work)
 {
 	struct mx_qm_touch	*touch =
 		container_of(work, struct mx_qm_touch,pos_work.work);
@@ -351,20 +357,31 @@ static void get_slider_position_func(struct work_struct *work)
 	schedule_delayed_work(&touch->pos_work, msecs_to_jiffies(DETECT_POS_INTERVAL));
 }
 
-static irqreturn_t mx_qm_irq_handler(int irq, void *dev_id)
+
+static void get_slider_position_func(struct work_struct *work)
 {
-	struct mx_qm_touch *touch = dev_id;	
+	struct mx_qm_touch	*touch =
+		container_of(work, struct mx_qm_touch,detect_work);
+	
 	struct mx_qm_data * mx = touch->data;
 	struct i2c_client *client = mx->client;
 	struct input_dev *input = touch->input;
 	
 	u8 new_key,pos;
 	u8 state;		
+	
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	if( touch->early_suspend_flag )
+	{
+		qm_touch_get_key(touch);	
+		return;
+	}
+#endif	
 		
 	/* Read the detected status register, thus clearing interrupt */
 	state = mx->i2c_readbyte(client, QM_REG_STATE);
 
-	if( state )		
+	if( state ) 	
 	{
 		/* Read which key changed */
 		pos = mx->i2c_readbyte(client, QM_REG_POSITION);
@@ -380,13 +397,13 @@ static irqreturn_t mx_qm_irq_handler(int irq, void *dev_id)
 		
 #ifdef __TEST_TOCHPAP_DELTA__
 		{
-			u16 ref[4],sig[4],delta[4];	
+			u16 ref[4],sig[4],delta[4]; 
 			mx->i2c_readbuf(client, QM_REG_REF,8,ref);
 			dev_info(&client->dev, "ref = 0x%.4X  0x%.4X  0x%.4X  0x%.4X  \n", ref[0],ref[1],ref[2],ref[3]);
 			mx->i2c_readbuf(client, QM_REG_SIG,8,sig);
 			dev_info(&client->dev, "sig = 0x%.4X  0x%.4X  0x%.4X  0x%.4X  \n", sig[0],sig[1],sig[2],sig[3]);
 			mx->i2c_readbuf(client, QM_REG_DELTA,8,delta);
-			dev_info(&client->dev, "delta = 0x%.4X  0x%.4X  0x%.4X  0x%.4X  \n", delta[0],delta[1],delta[2],delta[3]);
+			dev_info(&client->dev, "delta = 0x%.4X	0x%.4X	0x%.4X	0x%.4X	\n", delta[0],delta[1],delta[2],delta[3]);
 			dev_info(&client->dev, "pos = %d\n", pos);
 		}			
 #endif	
@@ -398,9 +415,39 @@ static irqreturn_t mx_qm_irq_handler(int irq, void *dev_id)
 		qm_touch_report_pos(touch->input,pos,1);
 		qm_touch_get_key(touch);
 	}
+}
+
+static irqreturn_t mx_qm_irq_handler(int irq, void *dev_id)
+{
+	struct mx_qm_touch *touch = dev_id;
+	
+	schedule_work(&touch->detect_work);
 	
 	return IRQ_HANDLED;
 }
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+ static void mx_qm_touch_early_suspend(struct early_suspend *h)
+ {
+	 struct mx_qm_touch *touch =
+			 container_of(h, struct mx_qm_touch, early_suspend);
+	struct mx_qm_data * mx = touch->data;
+
+	touch->early_suspend_flag = true;
+	mx->i2c_writebyte(mx->client, QM_REG_STATUS,QM_STATE_SLEEP);
+
+}
+ 
+ static void mx_qm_touch_late_resume(struct early_suspend *h)
+ {
+	 struct mx_qm_touch *touch =
+			 container_of(h, struct mx_qm_touch, early_suspend);
+	struct mx_qm_data * mx = touch->data;
+
+	mx->i2c_writebyte(mx->client, QM_REG_STATUS,QM_STATE_NORMAL);
+	touch->early_suspend_flag = false;
+ }
+#endif 
 
 static int __devinit mx_qm_touch_probe(struct platform_device *pdev)
 {
@@ -453,8 +500,9 @@ static int __devinit mx_qm_touch_probe(struct platform_device *pdev)
 
 	/* For single touch */
 	input_set_abs_params(input, ABS_X,0, 255, 0, 0);
- 	 
-	 INIT_DELAYED_WORK(&touch->pos_work, get_slider_position_func);
+
+	INIT_WORK(&touch->detect_work, get_slider_position_func);
+	INIT_DELAYED_WORK(&touch->pos_work, get_slider_position_poll_func);
  
 #ifdef	__POLL_SENSOR__DATA__	 
 	 data->poll  = 1;
@@ -467,7 +515,8 @@ static int __devinit mx_qm_touch_probe(struct platform_device *pdev)
 	else
 	{
 		 err = request_threaded_irq(touch->irq, NULL, mx_qm_irq_handler,
-			 IRQF_TRIGGER_LOW | IRQF_ONESHOT, input->name, touch);
+			 IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING | IRQF_ONESHOT, input->name, touch);
+			 //IRQF_TRIGGER_LOW | IRQF_ONESHOT, input->name, touch);
 		 if (err) {
 			 dev_err(&client->dev, "fail to request irq\n");
 			 goto err_free_mem;
@@ -482,6 +531,13 @@ static int __devinit mx_qm_touch_probe(struct platform_device *pdev)
 		 goto err_free_irq;
 	 }
  	  
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	 touch->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
+	 touch->early_suspend.suspend = mx_qm_touch_early_suspend;
+	 touch->early_suspend.resume = mx_qm_touch_late_resume;
+	 register_early_suspend(&touch->early_suspend);
+#endif
+
 	 pr_debug("%s:--\n",__func__);
 	 return 0;
  
@@ -500,6 +556,10 @@ static int __devexit mx_qm_touch_remove(struct platform_device *pdev)
 	struct mx_qm_touch * touch = platform_get_drvdata(pdev);
 	struct mx_qm_data * mx = touch->data;
 	
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	 unregister_early_suspend(&touch->early_suspend);
+#endif
+
 	if(mx->poll  == 0)
 	{
 		/* Release IRQ */
