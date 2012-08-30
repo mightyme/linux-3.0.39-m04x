@@ -58,6 +58,10 @@ void s3c_fimc0_cfg_gpio(struct platform_device *pdev)
 		/* CAM B port(b0011) : VSYNC, HREF, CLKOUT*/
 		s3c_gpio_cfgrange_nopull(EXYNOS4212_GPM2(0), 3, S3C_GPIO_SFN(3));
 #endif
+
+#if defined(CONFIG_MX2_SERIAL_TYPE)
+		s3c_gpio_cfgpin(EXYNOS4212_GPJ1(3), S3C_GPIO_SFN(2));
+#endif
 	}
 	/* note : driver strength to max is unnecessary */
 }
