@@ -240,6 +240,11 @@ static const struct ls044k3sx01_param ls044k3sx01_sat_high[] = {
 	LCD_PARAM_DEF_END,
 };
 
+static const struct ls044k3sx01_param ls044k3sx01_ce_off[] = {
+	LCD_PARAM_DCS_CMD(0, 0x88, 0x02),
+	LCD_PARAM_DEF_END,
+};
+
 #ifdef LCD_TEST
 static const struct ls044k3sx01_param ls044k3sx01_hsync_out_seq[] = {
 	LCD_PARAM_DEF(0xDF,0x55,0xAA,0x52,0x08),

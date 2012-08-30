@@ -37,6 +37,7 @@ static struct ls044k3sx01_ce_mode lcd_mode_map[] = {
 	{"satlow", 9},
 	{"satmed", 10},
 	{"sathigh", 11},
+	{"ceoff", 12},
 };
 
 static struct ls044k3sx01_info *g_lcd_info;
@@ -152,6 +153,8 @@ static int lcd_panel_set_ce_mode(struct ls044k3sx01_info *lcd)
 	case 11:
 		return write_to_lcd(lcd, ls044k3sx01_sat_high);
 	break;
+	case 12:
+		return write_to_lcd(lcd, ls044k3sx01_ce_off);
 	default:
 		return 0;
 	break;
@@ -248,6 +251,7 @@ static ssize_t lcd_set_ce(struct device *dev, struct device_attribute
 			lcd->ce_mode = 0xff;
 		}
 	}
+	CHECK_PANEL_RET(lcd_panel_set_ce_mode(lcd));
 	pr_info("set mode %d name %s\n", lcd->ce_mode, buf);
 	pr_info("please reset the LCD\n");
 
