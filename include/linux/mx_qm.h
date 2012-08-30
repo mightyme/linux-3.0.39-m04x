@@ -16,7 +16,7 @@
 #include <linux/wakelock.h>
 
 
-#define FW_VERSION     				0x09
+#define FW_VERSION     				0x0A
 #define FLASH_ADDR_FW_VERSION   	0x3F
 #define MX_QM_DEVICE_ID     			'M'
 
