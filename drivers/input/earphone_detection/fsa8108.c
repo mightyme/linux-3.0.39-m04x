@@ -498,25 +498,25 @@ static void fsa8081_jack_det_work_func(struct work_struct *work)
 
 }
 
-extern void set_ext_mic_bias(bool bOnOff);
-extern bool get_ext_mic_bias(void);
+//extern void set_ext_mic_bias(bool bOnOff);
+//extern bool get_ext_mic_bias(void);
 static void fsa8108_initialization(struct fsa8108_info *info)
 {
     struct i2c_client *client = info->client;
 	int int_type=0;	
 /*** Set Comparator Thresholds setting Send/End***/
-    fsa8108_SetValue(FSA8108_REG_COMPARATOR_12, FSA8108_NO_SE_KEY_CMP, FSA8108_NO_SE_KEY_CMP_SHIFT, 0x07);//0.083
+    fsa8108_SetValue(FSA8108_REG_COMPARATOR_12, FSA8108_NO_SE_KEY_CMP, FSA8108_NO_SE_KEY_CMP_SHIFT, 0x0F);//0.083
 /*** Set Comparator Thresholds setting for volum up***/
 	fsa8108_SetValue(FSA8108_REG_COMPARATOR_34, FSA8108_VOL_UP_CMP, FSA8108_VOL_UP_CMP_SHIFT , 0x0d);//0.299
 /*** Set Comparator Thresholds setting for volum down***/
 	fsa8108_SetValue(FSA8108_REG_COMPARATOR_34, FSA8108_VOL_DOWN_CMP, FSA8108_VOL_DOWN__CMP_SHIFT , 0x06);//0.620
 
 /*** Set Timing parameters and Global Multiplier setting ***/
-    //fsa8108_SetValue(FSA8108_REG_KEY_PRS_T,FSA8108_TDOUBLE,FSA8108_TDOUBLE_SHIFT,TDOUBLE_1100);
+    fsa8108_SetValue(FSA8108_REG_KEY_PRS_T,FSA8108_TDOUBLE,FSA8108_TDOUBLE_SHIFT,0x02);
 
 /*** Set Control bits: All key/Double/Long/3-4 pole/LDO ***/
 
-	set_ext_mic_bias(1);
+	//set_ext_mic_bias(1); internal micbiasd provided,this sentence unnecessary
 	//clear interrupts
 	int_type = i2c_smbus_read_word_data(client, FSA8108_REG_INT_1);
 	process_int(int_type,info); 
@@ -579,8 +579,8 @@ static int fsa8108_probe(
 
 	for (i = 0 ; i < sizeof(fsa8108_jack_keycode); i++)
 		input_set_capability(info->input, EV_KEY, fsa8108_jack_keycode[i]);
+	
 	ret = input_register_device(info->input);
-
 	if (ret) {
 		pr_err("%s : Failed to register driver\n", __func__);
 		goto err_register_input_dev;
