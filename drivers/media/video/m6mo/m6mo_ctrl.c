@@ -999,14 +999,14 @@ static int m6mo_start_capture(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		ret = m6mo_write_regs(sd, regs, ARRAY_SIZE(regs));
 		CHECK_ERR(ret);
 		
-		ret = m6mo_wait_irq_and_check(sd, INT_MASK_MODE, WAIT_TIMEOUT);  /* wait interrupt */
+		ret = m6mo_wait_irq_and_check(sd, INT_MASK_CAPTURE, WAIT_TIMEOUT);  /* wait interrupt */
 		if (ret) return ret;
 		break;
 	default:
 		return -EINVAL;
 	}
 	
-	return 0;
+	return ret;
 }
 
 static int m6mo_get_jpeg_main_size(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
