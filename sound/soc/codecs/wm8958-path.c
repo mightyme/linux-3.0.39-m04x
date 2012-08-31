@@ -633,7 +633,12 @@ void OpenBTRing(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8994_AIF2_CONTROL_1, 0x411B); // * AIF2 Control (1)(310H):  411B  AIF2_LRCLK_INV=1, AIF2_WL=16 bits, AIF2_FMT=DSP mode
 	snd_soc_write(codec, WM8958_AIF3_CONTROL_1, 0x0018); // * AIF3 Control (1)(320H):  0018  AIF3_LRCLK_INV=0, AIF3_WL=16 bits, AIF3_FMT=DSP mode
 	snd_soc_write(codec, WM8994_AIF1_MASTER_SLAVE, 0x4000); // * AIF1 Master/Slave(302H): 4000  AIF1_TRI=0, AIF1_MSTR=Master mode, AIF1_CLK_FRC=0, AIF1_LRCLK_FRC=0
+#if defined(CONFIG_MACH_M040)
+	snd_soc_write(codec, WM8994_AIF2_MASTER_SLAVE, 0x0000); // * AIF2 Master/Slave(312H): 4000  AIF2_TRI=0, AIF2_MSTR=Master mode, AIF2_CLK_FRC=0, AIF2_LRCLK_FRC=0
+#else
 	snd_soc_write(codec, WM8994_AIF2_MASTER_SLAVE, 0x4000); // * AIF2 Master/Slave(312H): 4000  AIF2_TRI=0, AIF2_MSTR=Master mode, AIF2_CLK_FRC=0, AIF2_LRCLK_FRC=0
+#endif
+
 	snd_soc_write(codec, WM8994_FLL1_CONTROL_1, 0x0000); // * FLL1 Control (1)(220H):  0000  FLL1_OSC_ENA=0, FLL1_ENA=0
 	snd_soc_write(codec, WM8994_FLL1_CONTROL_2, 0x0700); // * FLL1 Control (2)(221H):  0700  FLL1_OUTDIV=8, FLL1_FRATIO=1
 	snd_soc_write(codec, WM8994_FLL1_CONTROL_3, 0x86C2); // * FLL1 Control (3)(222H):  86C2  FLL1_K=0.5264
@@ -644,6 +649,7 @@ void OpenBTRing(struct snd_soc_codec *codec)
 		snd_soc_write(codec, WM8994_FLL1_CONTROL_5, 0x0C88); // * FLL1 Control (5)(224H):  0C88  FLL1_BYP=FLL1, FLL1_FRC_NCO_VAL=01_1001, FLL1_FRC_NCO=0, FLL1_REFCLK_DIV=MCLK / 2, FLL1_REFCLK_SRC=MCLK1
 	snd_soc_write(codec, WM8994_FLL1_CONTROL_1, 0x0001); // * FLL1 Control (1)(220H):  0001  FLL1_OSC_ENA=0, FLL1_ENA=1
 	snd_soc_write(codec, WM8994_AIF1_CLOCKING_1, 0x0011);// * AIF1 Clocking (1)(200H): 0011  AIF1CLK_SRC=FLL1/BCLK1, AIF1CLK_INV=0, AIF1CLK_DIV=AIF1CLK, AIF1CLK_ENA=1
+
 	snd_soc_write(codec, WM8994_FLL2_CONTROL_1, 0x0000); // * FLL2 Control (1)(240H):  0000  FLL2_OSC_ENA=0, FLL2_ENA=0
 	snd_soc_write(codec, WM8994_FLL2_CONTROL_2, 0x2F00); // * FLL2 Control (2)(241H):  2F00  FLL2_OUTDIV=48, FLL2_FRATIO=1
 	snd_soc_write(codec, WM8994_FLL2_CONTROL_3, 0x3127); // * FLL2 Control (3)(242H):  3127  FLL2_K=0.192
@@ -652,7 +658,7 @@ void OpenBTRing(struct snd_soc_codec *codec)
 		snd_soc_write(codec, WM8994_FLL2_CONTROL_5, 0x0C80); // * FLL2 Control (5)(244H):  0C88  FLL2_BYP=FLL1, FLL2_FRC_NCO_VAL=01_1001, FLL2_FRC_NCO=0, FLL2_REFCLK_DIV=MCLK, FLL2_REFCLK_SRC=MCLK1
 	else
 		snd_soc_write(codec, WM8994_FLL2_CONTROL_5, 0x0C88); // * FLL2 Control (5)(244H):  0C88  FLL2_BYP=FLL1, FLL2_FRC_NCO_VAL=01_1001, FLL2_FRC_NCO=0, FLL2_REFCLK_DIV=MCLK / 2, FLL2_REFCLK_SRC=MCLK1
-	snd_soc_write(codec, WM8994_FLL2_CONTROL_1, 0x0001); // * FLL2 Control (1)(240H):  0001  FLL2_OSC_ENA=0, FLL2_ENA=1
+	snd_soc_write(codec,WM8994_FLL2_CONTROL_1, WM8994_FLL2_ENA);
 	snd_soc_write(codec, WM8994_AIF2_CLOCKING_1, 0x0019);// * AIF2 Clocking (1)(204H): 0019  AIF2CLK_SRC=FLL2/BCLK2, AIF2CLK_INV=0, AIF2CLK_DIV=AIF2CLK, AIF2CLK_ENA=1
 
 	snd_soc_write(codec, WM8994_AIF2_BCLK, 0x0040); //
@@ -727,6 +733,9 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		break;
 	case PLAYBACK_BT_RING:
 		OpenBTRing(codec);
+#if defined(CONFIG_MACH_M040)
+		es305b_setmode(ES305B_BT_RING);
+#endif
 		SetVolume_Ring(codec);
 		SetSpkMute(codec,0);
 		SetHpMute(codec,0);
