@@ -54,5 +54,5 @@ extern int wm8994_isalwayson(struct snd_soc_codec *codec);
 extern int wm8994_get_playback_path(struct snd_soc_codec *codec);
 #endif
 int mx_config_gpio_table(const struct gpio_info_table *gpio_table, int array_size);
-inline void mx_set_sleep_pin(unsigned int pin, s5p_gpio_pd_cfg_t conpdn, s5p_gpio_pd_pull_t pudpdn);
+void mx_set_sleep_pin(unsigned int pin, s5p_gpio_pd_cfg_t conpdn, s5p_gpio_pd_pull_t pudpdn);
 #endif //__GPIO_COMMON_H
