@@ -2566,7 +2566,6 @@ err_free_wq:
 err_free_object:
 	kfree(data->object_table);
 err_reset_gpio_req:
-       free_irq(client->irq, data);
 	if (gpio_is_valid(pdata->reset_gpio))
 		gpio_free(pdata->reset_gpio);
 err_irq_gpio_req:
