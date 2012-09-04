@@ -1065,7 +1065,7 @@ static int last_log_events_show(struct seq_file *m, void *v)
 	unsigned char *buf = old_logger_buffer->log_buf[ORDER];
 	const char *tag;
 	const unsigned char *eventData;
-	char msgbuf[950], *messageBuf, *outBuf;
+	char msgbuf[900], *messageBuf, *outBuf;
 
 	for (i = old_logger_buffer->log_head[ORDER].head; i <= old_logger_buffer->log_head[ORDER].size;) {
 		/* Cope with current entry */
