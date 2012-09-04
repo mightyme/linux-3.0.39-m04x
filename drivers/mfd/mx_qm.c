@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/delay.h>
+#include <linux/earlysuspend.h>
 #include <linux/gpio.h>
 #include <plat/gpio-cfg.h>
 #include <mach/gpio-m040.h>
@@ -367,7 +368,7 @@ static bool __devinit mx_qm_identify(struct mx_qm_data *mx)
 	if( img_ver == 0xFF )
 		img_ver = FW_VERSION;
 		
-	if( ver < img_ver)
+	if( ver != img_ver)
 	{
 		dev_info(&client->dev, "Old firmware version %x , img ver %d,need be update\n", ver,img_ver);
 		mx_qm_update(mx);
@@ -386,7 +387,7 @@ static bool __devinit mx_qm_identify(struct mx_qm_data *mx)
 	/* Read led ID */
 	mx->LedVer = mx_qm_readbyte(client, QM_REG_LEDVERSION);
 
-	dev_info(&client->dev, "MX_QM id 0x%.2X firmware version %x(%c) \n", id,ver,mx->LedVer);
+	dev_info(&client->dev, "MX_QM id 0x%.2X firmware version %d.%d(%c) \n", id,((ver>>4)&0x0F),(ver&0x0F),mx->LedVer);
 
 	return true;
 }
@@ -575,7 +576,7 @@ static int mx_qm_update(struct mx_qm_data *mx)
 	
 	mx->BVer = boot_ver;
 	
-	dev_info(&mx->client->dev,"bootloader revision %d\n", boot_ver);
+	dev_info(&mx->client->dev,"bootloader revision %d.%d\n", ((boot_ver>>4)&0x0F),(boot_ver&0x0F));
 	if( boot_ver > 3 )
 		fw_name = QM_MX_FW;	
 	else
@@ -889,6 +890,26 @@ static void qm_destroy_atts(struct device * dev)
 		device_remove_file(dev, &qm_attrs[i]);
 }
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+ static void mx_qm_early_suspend(struct early_suspend *h)
+ {
+	 struct mx_qm_data *mx =
+			 container_of(h, struct mx_qm_data, early_suspend);
+	 
+	 mx->wakeup(mx,false);
+
+ }
+ 
+ static void mx_qm_late_resume(struct early_suspend *h)
+ {
+	 struct mx_qm_data *mx =
+			 container_of(h, struct mx_qm_data, early_suspend);
+	 
+	mx->wakeup(mx,true);
+	
+ }
+#endif
+
 static int __devinit mx_qm_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
@@ -972,6 +993,13 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 		dev_err(&client->dev,"MX QMatrix Sensor mfd add devices failed\n");
 		goto err_free_mem;
 	}
+	
+#ifdef CONFIG_HAS_EARLYSUSPEND
+		 data->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
+		 data->early_suspend.suspend = mx_qm_early_suspend;
+		 data->early_suspend.resume = mx_qm_late_resume;
+		 register_early_suspend(&data->early_suspend);
+#endif
 
 	pr_debug("%s:--\n",__func__);
 	return 0;
@@ -990,13 +1018,22 @@ static int mx_qm_suspend(struct device *dev)
 {
 	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
 	struct mx_qm_data *mx = i2c_get_clientdata(i2c);
-			
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
 	if( !mx->poll )
 	{
 		disable_irq(mx->irq);
 		enable_irq_wake(mx->irq);
 	}
+#else
+	if( !mx->poll )
+	{
+		disable_irq(mx->irq);
+		enable_irq_wake(mx->irq);
+	}
+
 	mx->wakeup(mx,false);
+#endif
 
 	return 0;
 }
@@ -1006,6 +1043,13 @@ static int mx_qm_resume(struct device *dev)
 	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
 	struct mx_qm_data *mx = i2c_get_clientdata(i2c);
 	
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	if( !mx->poll )
+	{
+		disable_irq_wake(mx->irq);
+		enable_irq(mx->irq);
+	}
+#else
 	mx->wakeup(mx,true);
 	
 	if( !mx->poll )
@@ -1013,6 +1057,7 @@ static int mx_qm_resume(struct device *dev)
 		disable_irq_wake(mx->irq);
 		enable_irq(mx->irq);
 	}
+#endif	
 
 	return 0;
 }
@@ -1029,6 +1074,10 @@ const struct dev_pm_ops mx_qm_pm = {
 static int __devexit mx_qm_remove(struct i2c_client *client)
 {
 	struct mx_qm_data *data = i2c_get_clientdata(client);
+	
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	unregister_early_suspend(&data->early_suspend);
+#endif
 
 	mutex_destroy(&data->iolock);
 	wake_lock_destroy(&data->wake_lock);

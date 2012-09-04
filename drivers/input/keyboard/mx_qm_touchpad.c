@@ -374,7 +374,7 @@ static void get_slider_position_func(struct work_struct *work)
 	if( touch->early_suspend_flag )
 	{
 		qm_touch_get_key(touch);	
-		return;
+		goto end;
 	}
 #endif	
 		
@@ -415,12 +415,17 @@ static void get_slider_position_func(struct work_struct *work)
 		qm_touch_report_pos(touch->input,pos,1);
 		qm_touch_get_key(touch);
 	}
+
+end:	
+	enable_irq(touch->irq);
 }
 
 static irqreturn_t mx_qm_irq_handler(int irq, void *dev_id)
 {
 	struct mx_qm_touch *touch = dev_id;
 	
+	pr_debug("%s:\n",__func__);
+	disable_irq_nosync(touch->irq);
 	schedule_work(&touch->detect_work);
 	
 	return IRQ_HANDLED;
@@ -434,7 +439,7 @@ static irqreturn_t mx_qm_irq_handler(int irq, void *dev_id)
 	struct mx_qm_data * mx = touch->data;
 
 	touch->early_suspend_flag = true;
-	mx->i2c_writebyte(mx->client, QM_REG_STATUS,QM_STATE_SLEEP);
+	//mx->i2c_writebyte(mx->client, QM_REG_STATUS,QM_STATE_SLEEP);
 
 }
  
@@ -444,7 +449,7 @@ static irqreturn_t mx_qm_irq_handler(int irq, void *dev_id)
 			 container_of(h, struct mx_qm_touch, early_suspend);
 	struct mx_qm_data * mx = touch->data;
 
-	mx->i2c_writebyte(mx->client, QM_REG_STATUS,QM_STATE_NORMAL);
+	//mx->i2c_writebyte(mx->client, QM_REG_STATUS,QM_STATE_NORMAL);
 	touch->early_suspend_flag = false;
  }
 #endif 
@@ -515,8 +520,8 @@ static int __devinit mx_qm_touch_probe(struct platform_device *pdev)
 	else
 	{
 		 err = request_threaded_irq(touch->irq, NULL, mx_qm_irq_handler,
-			 IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING | IRQF_ONESHOT, input->name, touch);
-			 //IRQF_TRIGGER_LOW | IRQF_ONESHOT, input->name, touch);
+			// IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING | IRQF_ONESHOT, input->name, touch);
+			 IRQF_TRIGGER_LOW | IRQF_ONESHOT, input->name, touch);
 		 if (err) {
 			 dev_err(&client->dev, "fail to request irq\n");
 			 goto err_free_mem;

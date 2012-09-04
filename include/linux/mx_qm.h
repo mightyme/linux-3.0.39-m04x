@@ -16,7 +16,7 @@
 #include <linux/wakelock.h>
 
 
-#define FW_VERSION     				0x0A
+#define FW_VERSION     				0x0B
 #define FLASH_ADDR_FW_VERSION   	0x3F
 #define MX_QM_DEVICE_ID     			'M'
 
@@ -144,6 +144,9 @@ struct mx_qm_data {
 	void(*reset)(struct mx_qm_data *, int);
 	void(*wakeup)(struct mx_qm_data *,int);
 	int(*update)(struct mx_qm_data *);
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	struct early_suspend early_suspend;
+#endif
 };
 
 #endif
