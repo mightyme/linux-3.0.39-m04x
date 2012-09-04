@@ -367,9 +367,8 @@ KBUILD_CPPFLAGS := -D__KERNEL__
 GCCVERSION = $(shell $(CC) --version | grep gcc | sed 's/^.* //g')
 
 ifeq ("$(GCCVERSION)", "4.6.3")
-NEAK_FLAGS   = -marm -march=armv7-a -mfloat-abi=hard -mfpu=vfp3 -mcpu=cortex-a9 \
-			   -fgraphite-identity -fsched-spec-load \
-			   -floop-interchange -floop-strip-mine -floop-block \
+NEAK_FLAGS   = -marm -march=armv7-a -mfloat-abi=hard -mfpu=vfpv3 -mcpu=cortex-a9 \
+			   -fsched-spec-load \
 			   -ffast-math -ftree-vectorize \
 			   -funswitch-loops -fpredictive-commoning -fgcse-after-reload \
 			   -fmodulo-sched -fmodulo-sched-allow-regmoves \
