@@ -38,7 +38,7 @@
 #endif
 
 #if defined(CONFIG_TOUCHSCREEN_MXT224S)
-#include <linux/i2c/atmel_mxt_ts.h>
+#include <linux/i2c/atmel_mxts_ts.h>
 #endif
 
 #ifdef CONFIG_RMI4_I2C

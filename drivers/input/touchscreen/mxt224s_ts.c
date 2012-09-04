@@ -17,7 +17,7 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
-#include <linux/i2c/atmel_mxt_ts.h>
+#include <linux/i2c/atmel_mxts_ts.h>
 #include <linux/input/mt.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -903,9 +903,9 @@ static void mxt_input_touchevent(struct mxt_data *data,
 	if (data->pdata->panel_maxy < 1024)
 		y = y >> 2;
 
- 	printk(": [%d] %s x: %d, y: %d, area: %d\n", id,
- 		status & MXT_MOVE ? "moved" : "pressed",
- 		x, y, area);
+// 	printk(": [%d] %s x: %d, y: %d, area: %d\n", id,
+// 		status & MXT_MOVE ? "moved" : "pressed",
+// 		x, y, area);
 
 	area = message->message[4];
 	pressure = message->message[5];
@@ -2498,7 +2498,8 @@ static int __devinit mxt_probe(struct i2c_client *client,
 	error = mxt_initialize(data);
 	if (error)
 		goto err_reset_gpio_req;
-	
+
+#ifdef	CONFIG_MX_DEV_KERNEL
 #ifdef	CONFIG_RMI4_I2C     
 		if(1)
 		{
@@ -2509,6 +2510,7 @@ static int __devinit mxt_probe(struct i2c_client *client,
 			mxt_stop(data);
 			goto err_reset_gpio_req;
 		}
+#endif
 #endif
 
 	data->atmel_wq = create_singlethread_workqueue("atmel_wq");
