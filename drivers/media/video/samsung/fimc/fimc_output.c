@@ -2125,6 +2125,7 @@ static int fimc_outdev_start_operation(struct fimc_control *ctrl,
 	ret = fimc_outdev_start_camif(ctrl);
 	if (ret < 0) {
 		fimc_err("Fail: fimc_start_camif\n");
+		spin_unlock_irqrestore(&ctrl->out->slock, spin_flags);
 		return -EINVAL;
 	}
 
