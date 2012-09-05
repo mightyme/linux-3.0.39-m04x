@@ -910,7 +910,7 @@ static void __init exynos4_core_down_clk(void)
 
 	__raw_writel(tmp, EXYNOS4_PWR_CTRL2);
 
-#ifdef CONFIG_M03X_ENG_KERNEL
+#ifdef CONFIG_MX_ENG_KERNEL
 	printk(KERN_INFO "Exynos4 : ARM Clock down on idle mode is enabled\n");
 #endif
 }
