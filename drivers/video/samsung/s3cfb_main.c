@@ -228,6 +228,10 @@ static int s3cfb_probe(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 #endif
 	fbfimd = kzalloc(sizeof(struct s3cfb_fimd_desc), GFP_KERNEL);
+	if (!fbfimd) {
+		dev_err(&pdev->dev, "failed to allocate for global fbfimd structure\n");
+		goto err0;
+	}
 
 	if (FIMD_MAX == 2)
 		fbfimd->dual = 1;
