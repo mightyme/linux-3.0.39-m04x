@@ -1142,6 +1142,7 @@ int fimc_s_input(struct file *file, void *fh, unsigned int i)
 		if (!ctrl->cap) {
 			fimc_err("%s: no memory for "
 				"capture device info\n", __func__);
+			mutex_unlock(&ctrl->v4l2_lock);
 			return -ENOMEM;
 		}
 	}else{
@@ -2161,6 +2162,7 @@ int fimc_cropcap_capture(void *fh, struct v4l2_cropcap *a)
 		if (!cap) {
 			fimc_err("%s: no memory for "
 				"capture device info\n", __func__);
+			mutex_unlock(&ctrl->v4l2_lock);
 			return -ENOMEM;
 		}
 
