@@ -243,7 +243,7 @@ static int s3cfb_probe(struct platform_device *pdev)
 		fbfimd->fbdev[i] = kzalloc(sizeof(struct s3cfb_global), GFP_KERNEL);
 		fbdev[i] = fbfimd->fbdev[i];
 		if (!fbdev[i]) {
-			dev_err(fbdev[i]->dev, "failed to allocate for	\
+			dev_err(&pdev->dev, "failed to allocate for	\
 				global fb structure fimd[%d]!\n", i);
 			goto err0;
 		}
