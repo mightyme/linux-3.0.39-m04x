@@ -394,13 +394,13 @@ static int __devexit gpio_switch_remove(struct platform_device *pdev)
 
 	gpio_free(switch_data->gpio);
 	switch_dev_unregister(&switch_data->sdev);
-	kfree(switch_data);
 
 	gpio_free(switch_data->gpio);
 	switch_dev_unregister(&switch_data->sdev);
-	kfree(switch_data);
 
 	s3c_adc_release(switch_data->client);
+
+	kfree(switch_data);
 
 	return 0;
 }
