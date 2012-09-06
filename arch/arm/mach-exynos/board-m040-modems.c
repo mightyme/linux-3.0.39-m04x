@@ -136,8 +136,6 @@ void set_slave_wake(void)
 
 void modem_set_active_state(int state)
 {
-	int err = 0;
-	
 	mif_debug("%s state=>:%d\n", __func__, state);
 	gpio_direction_output(umts_modem_data.gpio_host_active, state);
 }

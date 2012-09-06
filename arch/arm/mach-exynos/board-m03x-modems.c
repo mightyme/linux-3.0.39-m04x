@@ -158,17 +158,8 @@ void set_slave_wake(void)
 
 void modem_set_active_state(int state)
 {
-	int err = 0;
-	
 	mif_debug("%s state=>:%d\n", __func__, state);
-	err = gpio_request(umts_modem_data.gpio_host_active, "PDA_ACTIVE");
-	if (err)
-		pr_err("%s fail to request gpio %s:%d\n", __func__,
-				"PDA_ACTIVE", err);
-	else {
-		gpio_direction_output(umts_modem_data.gpio_host_active, state);
-		gpio_free(umts_modem_data.gpio_host_active);
-	}
+	gpio_direction_output(umts_modem_data.gpio_host_active, state);
 }
 
 static struct platform_device umts_modem_m030 = {
@@ -246,7 +237,6 @@ static void umts_modem_cfg_gpio(void)
 			       "HOST_ACTIVE", err);
 		}
 		gpio_direction_output(gpio_host_active, 0);
-		gpio_free(gpio_host_active);
 	}
 
 	if (gpio_sim_detect) {
