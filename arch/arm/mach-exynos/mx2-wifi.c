@@ -20,6 +20,7 @@
 
 #include <plat/devs.h>
 #include <plat/irqs.h>
+#include <linux/mmc/host.h>
 #include <plat/sdhci.h>
 #include <plat/gpio-cfg.h>
 
@@ -325,6 +326,7 @@ static void sdhci_wifi_set_power(unsigned int power_mode)
 static struct s3c_sdhci_platdata __initdata mx2_hsmmc3_pdata  = {
 	.cd_type		= S3C_SDHCI_CD_INTERNAL,
 	.clk_type		= S3C_SDHCI_CLK_DIV_EXTERNAL,
+	.host_caps2	= MMC_CAP2_CLOCK_GATING,
 	.set_power	= sdhci_wifi_set_power,
 };
 #endif

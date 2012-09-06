@@ -146,6 +146,9 @@ struct sdhci_host {
 
 	struct timer_list timer;	/* Timer for timeouts */
 
+	unsigned int clk_restore;	/* Saved clock (MHz) */
+	struct delayed_work gate_dwork; /* Timer for clock gating */
+
 	unsigned int caps;	/* Alternative capabilities */
 
 	unsigned int            ocr_avail_sdio;	/* OCR bit masks */

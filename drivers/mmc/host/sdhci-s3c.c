@@ -596,6 +596,8 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 	/* It supports additional host capabilities if needed */
 	if (pdata->host_caps)
 		host->mmc->caps |= pdata->host_caps;
+	if (pdata->host_caps2)
+		host->mmc->caps2 |= pdata->host_caps2;
 
 	host->mmc->pm_flags |= (MMC_PM_KEEP_POWER | MMC_PM_IGNORE_SUSPEND_RESUME);
 	host->mmc->pm_caps = MMC_PM_KEEP_POWER;

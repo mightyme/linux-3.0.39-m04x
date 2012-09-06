@@ -47,6 +47,7 @@ static void sdhci_finish_data(struct sdhci_host *);
 
 static void sdhci_send_command(struct sdhci_host *, struct mmc_command *);
 static void sdhci_finish_command(struct sdhci_host *);
+static void sdhci_set_clock(struct sdhci_host *host, unsigned int clock);
 static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode);
 static void sdhci_tuning_timer(unsigned long data);
 
@@ -1140,6 +1141,7 @@ static void sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 
 out:
 	host->clock = clock;
+	host->clk_restore = host->clock;
 }
 
 static void sdhci_set_power(struct sdhci_host *host, unsigned short power)
@@ -1215,6 +1217,12 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host = mmc_priv(mmc);
 
 	spin_lock_irqsave(&host->lock, flags);
+
+	if (host->mmc->caps2 & MMC_CAP2_CLOCK_GATING) {
+		cancel_delayed_work(&host->gate_dwork);
+		if(host->clk_restore != 0 && host->clock == 0)
+			sdhci_set_clock(host, host->clk_restore);
+	}
 
 	WARN_ON(host->mrq != NULL);
 
@@ -1917,6 +1925,13 @@ static void sdhci_tasklet_finish(unsigned long param)
 		sdhci_reset(host, SDHCI_RESET_DATA);
 	}
 
+	if (host->mmc->caps2 & MMC_CAP2_CLOCK_GATING) {
+		/* Disable the clock for power saving */
+		if (host->clock != 0) {
+			cancel_delayed_work(&host->gate_dwork);
+			schedule_delayed_work(&host->gate_dwork, msecs_to_jiffies(10));
+		}
+	}
 	host->mrq = NULL;
 	host->cmd = NULL;
 	host->data = NULL;
@@ -1959,6 +1974,31 @@ static void sdhci_timeout_timer(unsigned long data)
 	}
 
 	mmiowb();
+	spin_unlock_irqrestore(&host->lock, flags);
+}
+
+static void sdhci_clock_gate_func(struct work_struct *work)
+{
+	struct sdhci_host *host;
+	unsigned long flags;
+	u32 mask;
+
+	host = container_of(work, struct sdhci_host, gate_dwork.work);
+	mask = SDHCI_CMD_INHIBIT | SDHCI_DATA_INHIBIT;
+
+	spin_lock_irqsave(&host->lock, flags);
+
+	if ((readl(host->ioaddr + SDHCI_PRESENT_STATE) & mask)
+		|| host->cmd || host->data || host->mrq ) {
+		schedule_delayed_work(&host->gate_dwork, msecs_to_jiffies(10));
+	} else {
+		int clock = host->clock;
+		if(clock != 0) {
+			sdhci_set_clock(host, 0);
+			host->clk_restore = clock;
+		}
+	}
+
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
@@ -2302,6 +2342,16 @@ int sdhci_resume_host(struct sdhci_host *host)
 	if ((host->version >= SDHCI_SPEC_300) && host->tuning_count &&
 	    (host->tuning_mode == SDHCI_TUNING_MODE_1))
 		host->flags |= SDHCI_NEEDS_RETUNING;
+
+	if (host->mmc->caps2 & MMC_CAP2_CLOCK_GATING) {
+		unsigned long flags;
+		spin_lock_irqsave(&host->lock, flags);
+		if (host->clock != 0) {
+			cancel_delayed_work(&host->gate_dwork);
+			schedule_delayed_work(&host->gate_dwork, msecs_to_jiffies(10));
+		}
+		spin_unlock_irqrestore(&host->lock, flags);
+	}
 
 	return ret;
 }
@@ -2740,6 +2790,8 @@ int sdhci_add_host(struct sdhci_host *host)
 		sdhci_tasklet_finish, (unsigned long)host);
 
 	setup_timer(&host->timer, sdhci_timeout_timer, (unsigned long)host);
+	if (host->mmc->caps2 & MMC_CAP2_CLOCK_GATING)
+		INIT_DELAYED_WORK(&host->gate_dwork, sdhci_clock_gate_func);
 
 	if (host->version >= SDHCI_SPEC_300) {
 		init_waitqueue_head(&host->buf_ready_int);

@@ -247,6 +247,7 @@ struct mmc_host {
 #define MMC_CAP2_NO_SLEEP_CMD	(1 << 6)	/* Don't allow sleep command */
 #define MMC_CAP2_HS200_1_8V_SDR	(1 << 7)        /* can support */
 #define MMC_CAP2_HS200_1_2V_SDR	(1 << 8)        /* can support */
+#define MMC_CAP2_CLOCK_GATING	(1 << 9)	/* Clock Gating feature */
 #define MMC_CAP2_HS200		(MMC_CAP2_HS200_1_8V_SDR | \
 				 MMC_CAP2_HS200_1_2V_SDR)
 

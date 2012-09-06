@@ -69,6 +69,7 @@ enum clk_types {
 struct s3c_sdhci_platdata {
 	unsigned int	max_width;
 	unsigned int	host_caps;
+	unsigned int	host_caps2;
 	enum cd_types	cd_type;
 	enum clk_types	clk_type;
 
