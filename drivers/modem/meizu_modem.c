@@ -225,6 +225,8 @@ static void modem_shutdown(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct modem_ctl *mc = dev_get_drvdata(dev);
+
+	free_irq(mc->irq_modem_reset, mc);
 	mc->ops.modem_off(mc);
 	mc->cp_flag = MODEM_OFF;
 }

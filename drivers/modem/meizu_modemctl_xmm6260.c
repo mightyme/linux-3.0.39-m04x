@@ -542,7 +542,7 @@ int xmm6260_init_modemctl_device(struct modem_ctl *mc,
 		if (ret) {
 			mif_err("failed to enable_irq_wake of modem reset:%d\n",
 					ret);
-			goto err_cp_reset_irq;
+			goto err_reset_irq_enable_wake;
 		}
 
 	}
@@ -550,15 +550,22 @@ int xmm6260_init_modemctl_device(struct modem_ctl *mc,
 	ret = misc_register(&modem_miscdev);
 	if(ret) {
 		pr_err("Failed to register modem control device\n");
-		return ret;
+		goto err_misc_register;
 	}
 	
 	ret = device_create_file(modem_miscdev.this_device, &attr_modem_debug);
-	if (ret)
+	if (ret) {
 		pr_err("failed to create sysfs file:attr_modem_debug!\n");
+		goto err_device_create_file;
+	}
 
 	return ret;
 
+err_device_create_file:
+	misc_deregister(&modem_miscdev);
+err_misc_register:
+err_reset_irq_enable_wake:
+	free_irq(mc->irq_modem_reset, mc);
 err_cp_reset_irq:
 err_sim_detect_set_wake_irq:
 	free_irq(mc->irq_sim_detect, mc);
