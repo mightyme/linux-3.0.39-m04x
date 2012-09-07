@@ -73,9 +73,7 @@ static struct led_trigger *idle_led_trigger[4];
 #endif
 
 #if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
-#define CPUDILE_ENABLE_MASK (ENABLE_LPA | ENABLE_AFTR)
-#define M032_CPUDILE_ENABLE_MASK (ENABLE_LPA | ENABLE_AFTR)
-#define M030_CPUDILE_ENABLE_MASK (ENABLE_LPA)
+#define CPUDILE_ENABLE_MASK (ENABLE_LPA)
 #else
 #define CPUDILE_ENABLE_MASK (ENABLE_AFTR | ENABLE_LPA)
 #endif
@@ -651,7 +649,7 @@ early_wakeup:
 	s3c_pm_do_restore_core(exynos4_lpa_save,
 			       ARRAY_SIZE(exynos4_lpa_save));
 
-	if ((exynos_result_of_asv > 1) && !soc_is_exynos4210()) {
+	if (!soc_is_exynos4210()) {
 		exynos4x12_set_abb_member(ABB_ARM, abb_val);
 		exynos4x12_set_abb_member(ABB_INT, abb_val_int);
 	}
@@ -949,10 +947,7 @@ static int __init exynos4_init_cpuidle(void)
 	struct resource *res;
 	
 #if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
-	if(soc_is_exynos4210())
-		enable_mask = M030_CPUDILE_ENABLE_MASK;
-	else
-		enable_mask = M032_CPUDILE_ENABLE_MASK;
+	enable_mask = CPUDILE_ENABLE_MASK;
 #endif
 	if (soc_is_exynos4210())
 		use_clock_down = SW_CLK_DWN;
