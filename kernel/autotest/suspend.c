@@ -105,6 +105,7 @@ static int suspend_thread(void *data)
 			pr_info("%s: Sleep %d seconds for suspend\n", __func__, suspend_cycle);
 		} else {
 			suspend_cycle = 0;
+			suspend_count = 0;
 		}
 
 		/* allow suspend for CONFIG_AUTOTEST_SUSPEND_CYCLE / 2 seconds */
