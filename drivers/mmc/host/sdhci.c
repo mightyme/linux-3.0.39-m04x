@@ -1219,7 +1219,7 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	spin_lock_irqsave(&host->lock, flags);
 
 	if (host->mmc->caps2 & MMC_CAP2_CLOCK_GATING) {
-		cancel_delayed_work(&host->gate_dwork);
+		__cancel_delayed_work(&host->gate_dwork);
 		if(host->clk_restore != 0 && host->clock == 0)
 			sdhci_set_clock(host, host->clk_restore);
 	}
@@ -1928,7 +1928,7 @@ static void sdhci_tasklet_finish(unsigned long param)
 	if (host->mmc->caps2 & MMC_CAP2_CLOCK_GATING) {
 		/* Disable the clock for power saving */
 		if (host->clock != 0) {
-			cancel_delayed_work(&host->gate_dwork);
+			__cancel_delayed_work(&host->gate_dwork);
 			schedule_delayed_work(&host->gate_dwork, msecs_to_jiffies(10));
 		}
 	}
@@ -2347,7 +2347,7 @@ int sdhci_resume_host(struct sdhci_host *host)
 		unsigned long flags;
 		spin_lock_irqsave(&host->lock, flags);
 		if (host->clock != 0) {
-			cancel_delayed_work(&host->gate_dwork);
+			__cancel_delayed_work(&host->gate_dwork);
 			schedule_delayed_work(&host->gate_dwork, msecs_to_jiffies(10));
 		}
 		spin_unlock_irqrestore(&host->lock, flags);
