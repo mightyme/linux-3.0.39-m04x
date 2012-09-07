@@ -168,6 +168,8 @@ extern void dhd_pktfilter_offload_set(dhd_pub_t * dhd, char *arg);
 extern void dhd_pktfilter_offload_enable(dhd_pub_t * dhd, char *arg, int enable, int master_mode);
 #endif
 
+int write_back_macaddr(uint8 *mac);
+
 /* Interface control information */
 typedef struct dhd_if {
 	struct dhd_info *info;			/* back pointer to dhd_info */
@@ -3030,6 +3032,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 					return BCME_NOTUP;
 			} while(0);
 		}
+		write_back_macaddr(ea_addr.octet);
 		memcpy(dhd->mac.octet, ea_addr.octet, ETHER_ADDR_LEN);
 	} else {
 #endif /* GET_CUSTOM_MAC_ENABLE */
@@ -4681,6 +4684,42 @@ dhd_wait_pend8021x(struct net_device *dev)
 		pend = dhd_get_pend_8021x_cnt(dhd);
 	}
 	return pend;
+}
+
+int write_back_macaddr(uint8 *octet)
+{
+	struct file *fp      = NULL;
+	mm_segment_t oldfs    = {0};
+	char macbuffer[18]   = {0};
+	char *mac_file       = "/data/calibration/mac_addr";
+	int ret = 0;
+
+	fp = filp_open(mac_file, O_RDONLY, 0);
+	if (IS_ERR(fp)) {
+		pr_info("%s: write file(%ld) %s\n", __func__, IS_ERR(fp), mac_file);
+		snprintf(macbuffer, sizeof(macbuffer), "%02X:%02X:%02X:%02X:%02X:%02X\n",
+				octet[0], octet[1], octet[2],
+				octet[3], octet[4], octet[5]);
+
+		fp = filp_open(mac_file, O_RDWR | O_CREAT, 0644);
+		if (IS_ERR(fp)) {
+			pr_err("%s:create file %s error(%ld)\n", __func__, mac_file, IS_ERR(fp));
+			return 0;
+		} else {
+			oldfs = get_fs();
+			set_fs(get_ds());
+
+			if (fp->f_mode & FMODE_WRITE) {
+				ret = fp->f_op->write(fp, (const char *)macbuffer,
+						sizeof(macbuffer), &fp->f_pos);
+				if (ret < 0)
+					pr_err("%s:write file %s error(%d)\n", __func__, mac_file, ret);
+			}
+			set_fs(oldfs);
+		}
+	}
+	filp_close(fp, NULL);
+	return 0;
 }
 
 #ifdef DHD_DEBUG
