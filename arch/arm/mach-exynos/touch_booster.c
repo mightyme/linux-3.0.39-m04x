@@ -11,6 +11,10 @@
 #endif
 #include <mach/touch_booster.h>
 
+#include <linux/hrtimer.h>
+#include <linux/slab.h>
+#include <linux/err.h>
+
 static struct tb_private_data *tb_data=NULL;
 
 static inline int tb_input_boost(struct tb_private_data *data)
@@ -50,7 +54,7 @@ void start_touch_boost(void)
 		pr_debug("tb_input_boost time = %Lu uS, ret = %d\n", delta_us, ret);
 	}
 }
-EXPORT_SYMBOL(start_touch_boost)
+EXPORT_SYMBOL(start_touch_boost);
 
 static ssize_t get_lock_cpufreq(struct sysdev_class *class,
 				struct sysdev_class_attribute *attr, char *buf)
