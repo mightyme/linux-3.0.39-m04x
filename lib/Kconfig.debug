@@ -287,6 +287,52 @@ config BOOTPARAM_HUNG_TASK_PANIC
 
 	  Say N if unsure.
 
+config DETECT_BAD_TASK
+	bool "Detect Bad Tasks"
+	depends on DEBUG_KERNEL
+	default n
+	help
+	  Say Y here to enable the kernel to detect "bad tasks",
+	  which are bugs that cause the task to be loop always but
+	  not in  uninterruptible "D" state indefinitiley.
+
+	  When a bad task is detected, the kernel will call a user-space
+	  report tool to report the current system status, such as
+	  cpu and memory overload.
+
+config DEFAULT_BAD_TASK_NO_IDLE_TIMEOUT
+	int "Default timeout if not enter into idle for a bad task (in seconds)"
+	depends on DETECT_BAD_TASK
+	range 10 120
+	default 30
+	help
+	  This option controls the default timeout (in seconds) used
+	  to determine when a task has become a unnormal high overload task.
+
+config DEFAULT_BAD_TASK_NO_IDLE_WAIT
+	int "Default wait time for another bad task detection (in seconds)"
+	depends on DETECT_BAD_TASK
+	range 10 120
+	default 60
+	help
+	  This option controls the default wait time (in seconds) slept
+	  for another bad task detection.
+
+config DEFAULT_BAD_TASK_REPORT_TOOL
+	string "Default tool to report the bad task"
+	depends on DETECT_BAD_TASK
+	default "/system/bin/top.sh"
+	help
+	  This shell script should include something as bellow:
+
+		#!/system/bin/sh
+		#
+		# Dump the log to serial port
+		/system/bin/top	-n 1 > /dev/ttySAC3
+		# Dump the log to a file
+		/system/bin/date > /data/top.log
+		/system/bin/top -n 1 >> /data/top.log
+
 config BOOTPARAM_HUNG_TASK_PANIC_VALUE
 	int
 	depends on DETECT_HUNG_TASK

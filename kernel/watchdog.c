@@ -23,6 +23,7 @@
 #include <linux/notifier.h>
 #include <linux/module.h>
 #include <linux/sysctl.h>
+#include <linux/syscalls.h>
 
 #include <asm/irq_regs.h>
 #include <linux/perf_event.h>
@@ -588,3 +589,126 @@ void __init lockup_detector_init(void)
 
 	return;
 }
+
+#ifdef CONFIG_DETECT_BAD_TASK
+/* Bad high overload user-space task detection */
+static struct task_struct *bad_task_watchdog_task;
+static int bad_task_touch_flag = 0;
+
+static int bad_task_watchdog_idle_notifier(struct notifier_block *nb, unsigned long val,
+				void *data)
+{
+	switch (val) {
+	case IDLE_START:
+		bad_task_touch_flag = 1;
+	case IDLE_END:
+		break;
+	}
+
+	return 0;
+}
+
+static struct notifier_block bad_task_watchdog_idle_nb = {
+	.notifier_call = bad_task_watchdog_idle_notifier,
+};
+
+unsigned int  __read_mostly sysctl_bad_task_show_top = 1;
+unsigned int  __read_mostly sysctl_bad_task_show_state = 0;
+unsigned int  __read_mostly sysctl_bad_task_detect = 0;
+unsigned long __read_mostly sysctl_bad_task_timeout_secs = CONFIG_DEFAULT_BAD_TASK_NO_IDLE_TIMEOUT;
+unsigned long __read_mostly sysctl_bad_task_wait_secs = CONFIG_DEFAULT_BAD_TASK_NO_IDLE_WAIT;
+
+#ifdef CONFIG_DEFAULT_BAD_TASK_REPORT_TOOL
+#define BAD_TASK_REPORT_TOOL CONFIG_DEFAULT_BAD_TASK_REPORT_TOOL
+#else
+#define BAD_TASK_REPORT_TOOL "/system/bin/top.sh"
+#endif
+
+static void run_top_process(void)
+{
+	char *argv[] = { BAD_TASK_REPORT_TOOL, NULL };
+	char *envp[] = { NULL };
+
+	call_usermodehelper(BAD_TASK_REPORT_TOOL, argv, envp, UMH_NO_WAIT);
+}
+
+static void dump_bad_task(void)
+{
+	if (sysctl_bad_task_show_top) {
+		/* Call `ps` command to dump out the thread list and cpu load */
+		run_top_process();
+	}
+
+	if (sysctl_bad_task_show_state) {
+		printk(KERN_CRIT "Bad Task Detector: Task state:\n");
+		show_state();
+	}
+}
+
+/*
+ * Process updating of timeout sysctl
+ */
+int proc_dobad_task_detect(struct ctl_table *table, int write,
+				  void __user *buffer,
+				  size_t *lenp, loff_t *ppos)
+{
+	int ret;
+
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+
+	if (ret || !write)
+		goto out;
+
+	wake_up_process(bad_task_watchdog_task);
+
+ out:
+	return ret;
+}
+
+static unsigned long timeout_jiffies(unsigned long timeout)
+{
+	/* timeout of 0 will disable the watchdog */
+	return timeout ? timeout * HZ : MAX_SCHEDULE_TIMEOUT;
+}
+
+static int bad_task_watchdog_thread(void *data)
+{
+	while (1) {
+		unsigned long timeout = sysctl_bad_task_detect ? sysctl_bad_task_timeout_secs : 0;
+
+		pr_debug("%s: Clear bad_task_touch_flag\n", __func__);
+		bad_task_touch_flag = 0;
+
+		while (schedule_timeout_interruptible(timeout_jiffies(timeout)))
+			timeout = sysctl_bad_task_detect ? sysctl_bad_task_timeout_secs : 0;
+
+		pr_debug("%s: Check bad_task_touch_flag\n", __func__);
+		/* If not enter into idle fro pre-set thresh seconds, dump the bad_task info */
+		if (bad_task_touch_flag != 1) {
+			pr_debug("%s: Bad task detected\n", __func__);
+			dump_bad_task();
+			/* Sleep for another detection */
+			msleep_interruptible(sysctl_bad_task_wait_secs * 1000);
+		}
+	}
+
+	return 0;
+}
+
+static int __init bad_task_watchdog_init(void)
+{
+	int ret = 0;
+
+	idle_notifier_register(&bad_task_watchdog_idle_nb);
+
+	bad_task_watchdog_task = kthread_run(bad_task_watchdog_thread, NULL, "watchdog/bad_task");
+	if (IS_ERR(bad_task_watchdog_task)) {
+		pr_err("%s: Fail to create bad_task_watchdog_thread\n", __func__);
+		ret = -EFAULT;
+	}
+
+	return ret;
+}
+
+late_initcall(bad_task_watchdog_init);
+#endif

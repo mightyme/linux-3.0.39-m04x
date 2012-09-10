@@ -977,6 +977,50 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= proc_doulongvec_minmax,
 	},
 #endif
+#ifdef CONFIG_DETECT_BAD_TASK
+	{
+		.procname	= "bad_task_detect",
+		.data		= &sysctl_bad_task_detect,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dobad_task_detect,
+		.extra1		= &zero,
+		.extra2		= &one,
+	},
+	{
+		.procname	= "bad_task_show_top",
+		.data		= &sysctl_bad_task_show_top,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &one,
+	},
+	{
+		.procname	= "bad_task_show_state",
+		.data		= &sysctl_bad_task_show_state,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &one,
+	},
+	{
+		.procname	= "bad_task_timeout_secs",
+		.data		= &sysctl_bad_task_timeout_secs,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= proc_doulongvec_minmax,
+	},
+	{
+		.procname	= "bad_task_wait_secs",
+		.data		= &sysctl_bad_task_wait_secs,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= proc_doulongvec_minmax,
+	},
+#endif
+
 #ifdef CONFIG_COMPAT
 	{
 		.procname	= "compat-log",

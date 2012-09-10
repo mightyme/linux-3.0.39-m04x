@@ -363,6 +363,17 @@ extern int proc_dohung_task_timeout_secs(struct ctl_table *table, int write,
 enum { sysctl_hung_task_timeout_secs = 0 };
 #endif
 
+#ifdef CONFIG_DETECT_BAD_TASK
+extern unsigned int sysctl_bad_task_detect;
+extern unsigned int sysctl_bad_task_show_top;
+extern unsigned int sysctl_bad_task_show_state;
+extern unsigned long sysctl_bad_task_timeout_secs;
+extern unsigned long sysctl_bad_task_wait_secs;
+extern int proc_dobad_task_detect(struct ctl_table *table, int write,
+					 void __user *buffer,
+					 size_t *lenp, loff_t *ppos);
+#endif
+
 /* Attach to any functions which should be ignored in wchan output. */
 #define __sched		__attribute__((__section__(".sched.text")))
 
