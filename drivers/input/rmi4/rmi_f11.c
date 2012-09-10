@@ -26,7 +26,14 @@
 #include <linux/input.h>
 #include <linux/rmi.h>
 #include "rmi_driver.h"
-
+#ifdef CONFIG_RMI4_TOUCH_BOOSTER
+#include <linux/cpufreq.h>
+#include <linux/workqueue.h>
+#include <mach/dev.h>
+#endif
+#ifdef CONFIG_FB_DYNAMIC_FREQ
+#include <linux/fb.h>
+#endif
 #define RESUME_REZERO (1 && defined(CONFIG_PM))
 #if RESUME_REZERO
 #include <linux/delay.h>
@@ -63,6 +70,10 @@
 #define DEFAULT_MAX_ABS_MT_TRACKING_ID 10
 #define MAX_NAME_LENGTH 256
 
+#ifdef CONFIG_RMI4_TOUCH_BOOSTER
+static unsigned int down_time = HZ;
+static unsigned int lock_freq = 600000;
+#endif
 static ssize_t f11_flip_show(struct device *dev,
 				   struct device_attribute *attr, char *buf);
 
@@ -553,6 +564,12 @@ struct f11_data {
 	u16 rezero_wait_ms;
 	bool rezero_on_resume;
 #endif
+#ifdef CONFIG_RMI4_TOUCH_BOOSTER
+	struct device *bus_dev;
+	struct device *dev;
+	struct delayed_work  boost_work;
+	atomic_t boost_lock;
+#endif
 	struct f11_2d_sensor sensors[F11_MAX_NUM_OF_SENSORS];
 };
 
@@ -749,7 +766,58 @@ static int rmi_f11_virtual_button_handler(struct f11_2d_sensor *sensor)
 #else
 #define rmi_f11_virtual_button_handler(sensor)
 #endif
+#ifdef CONFIG_RMI4_TOUCH_BOOSTER
+static void rmi_f11_boost_timeout(struct work_struct *work)
+{
+	struct f11_data *data = 
+			list_entry(work, struct f11_data, boost_work.work);
 
+	if (unlikely(IS_ERR_OR_NULL(data))) {
+		pr_err("data or policy is NULL\n");
+	} else {
+		pr_debug("dev_unlock\n");
+		dev_unlock(data->bus_dev, data->dev);
+		atomic_dec(&data->boost_lock);
+	}
+}
+
+static inline int rmi_f11_input_boost(struct f11_data *data)
+{
+	bool need_work = false;
+
+	if (likely(atomic_read(&data->boost_lock))) {
+		pr_debug("rmi_f11 input boost is running\n");
+		if (delayed_work_pending(&data->boost_work)) {
+			cancel_delayed_work(&data->boost_work);
+			need_work = true;
+		}
+	} else {
+		struct cpufreq_policy *policy = cpufreq_cpu_get(0);
+		if (policy) {
+			if (policy->cur < lock_freq) {
+				int ret;
+				ret = cpufreq_driver_target(policy, lock_freq, CPUFREQ_RELATION_L);
+				if (!WARN(ret, "ret = %d\n", ret)) {
+					pr_debug("dev_lock\n");
+					dev_lock(data->bus_dev, data->dev, 267160);
+					atomic_inc(&data->boost_lock);
+					need_work = true;
+				}
+			}
+			cpufreq_cpu_put(policy);
+#ifdef CONFIG_FB_DYNAMIC_FREQ
+			do {
+				struct fb_event event;
+				event.data = data;
+				fb_notifier_call_chain(FB_EVENT_MODE_PAN, &event);
+			} while(0);
+#endif
+		}
+	}
+	return need_work ?
+		schedule_delayed_work(&data->boost_work, down_time) : 0;
+}
+#endif
 static void rmi_f11_finger_handler(struct f11_2d_sensor *sensor)
 {
 	const u8 *f_state = sensor->data.f_state;
@@ -1466,7 +1534,10 @@ static int rmi_f11_initialize(struct rmi_function_container *fc)
 	f11->rezero_on_resume = true;
 	f11->rezero_wait_ms = DEFAULT_REZERO_WAIT_MS;
 #endif
-
+#ifdef CONFIG_RMI4_TOUCH_BOOSTER
+	f11->bus_dev = dev_get("exynos-busfreq");
+	INIT_DELAYED_WORK(&f11->boost_work, rmi_f11_boost_timeout);
+#endif
 	query_base_addr = fc->fd.query_base_addr;
 	control_base_addr = fc->fd.control_base_addr;
 
@@ -1770,7 +1841,9 @@ int rmi_f11_attention(struct rmi_function_container *fc, u8 *irq_bits)
 	u16 data_base_addr_offset = 0;
 	int error;
 	int i;
-
+#ifdef CONFIG_RMI4_TOUCH_BOOSTER	
+	bool need_booster = true;
+#endif
 	for (i = 0; i < f11->dev_query.nbr_of_sensors + 1; i++) {
 		error = rmi_read_block(rmi_dev,
 				data_base_addr + data_base_addr_offset,
@@ -1778,12 +1851,26 @@ int rmi_f11_attention(struct rmi_function_container *fc, u8 *irq_bits)
 				f11->sensors[i].pkt_size);
 		if (error < 0)
 			return error;
-
+#ifdef CONFIG_RMI4_TOUCH_BOOSTER
+		if(need_booster){
+			ktime_t delta_total, rettime_total;
+			long long delta_us = 0;
+			int ret;
+			rettime_total = ktime_get();
+			f11->dev = &f11->sensors[i].input->dev;
+			ret= rmi_f11_input_boost(f11);
+			delta_total= ktime_sub(ktime_get(),rettime_total);
+			delta_us = ktime_to_us(delta_total);
+			if (delta_us > 1000) {
+				pr_debug("rmi_f11_input_boost time = %Lu uS, ret = %d\n", delta_us, ret);
+			}
+			need_booster = false;
+		}
+#endif
 		rmi_f11_finger_handler(&f11->sensors[i]);
 		rmi_f11_virtual_button_handler(&f11->sensors[i]);
 		data_base_addr_offset += f11->sensors[i].pkt_size;
 	}
-
 	return 0;
 }
 
