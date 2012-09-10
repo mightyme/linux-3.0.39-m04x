@@ -32,6 +32,7 @@
 #include <linux/version.h>
 
 #include <linux/platform_data/modem.h>
+#include <mach/usb-detect.h>
 #include "modem_prj.h"
 #include "meizu_modem_hsic.h"
 #include "modem_utils.h"
@@ -43,6 +44,31 @@ static int link_pm_runtime_get_active(struct link_pm_data *pm_data);
 static int usb_tx_urb_with_skb(struct usb_device *usbdev, struct sk_buff *skb,
 					struct if_usb_devdata *pipe_data);
 static void usb_rx_complete(struct urb *urb);
+
+static int hsic_usb_notifier_event(struct notifier_block *this,
+		unsigned long event, void *ptr)
+{
+	struct link_pm_data *pm_data =
+		container_of(this, struct link_pm_data,	usb_notifier);
+	int rtn = NOTIFY_DONE;
+
+	switch (event) {
+		case USB_HOST_INSERT:
+		case USB_DOCK_INSERT:
+			pm_data->is_usb_host_inserted = true;
+			rtn = NOTIFY_OK;
+			break;
+		case USB_HOST_REMOVE:
+		case USB_DOCK_REMOVE:
+			pm_data->is_usb_host_inserted = false;
+			rtn = NOTIFY_OK;
+			break;
+		default:
+			break;
+	}
+	queue_delayed_work(pm_data->wq, &pm_data->link_pm_start, 0);
+	return rtn;
+}
 
 static int link_pm_set_slave_wakeup(unsigned int gpio, int val)
 {
@@ -540,12 +566,18 @@ static void link_pm_runtime_start(struct work_struct *work)
 
 	if (pm_data->usb_ld->usbdev && dev->parent) {
 		mif_debug("rpm_status: %d\n", dev->power.runtime_status);
-		usb_set_autosuspend_delay(usbdev, 200);
 		ppdev = dev->parent->parent;
-		pm_runtime_forbid(dev);
-		pm_runtime_allow(dev);
-		pm_runtime_forbid(ppdev);
-		pm_runtime_allow(ppdev);
+		if(pm_data->is_usb_host_inserted) {
+			usb_disable_autosuspend(usbdev);
+			pm_runtime_forbid(dev);
+			pm_runtime_forbid(ppdev);
+		} else {
+			usb_set_autosuspend_delay(usbdev, 200);
+			pm_runtime_forbid(dev);
+			pm_runtime_allow(dev);
+			pm_runtime_forbid(ppdev);
+			pm_runtime_allow(ppdev);
+		}
 		pm_data->resume_requested = false;
 		pm_data->resume_retry_cnt = 0;
 		/* retry prvious link tx q */
@@ -1263,6 +1295,11 @@ static int usb_link_pm_init(struct usb_link_device *usb_ld, void *data)
 
 	pm_data->pm_notifier.notifier_call = link_pm_notifier_event;
 	register_pm_notifier(&pm_data->pm_notifier);
+
+	pm_data->usb_notifier.notifier_call = hsic_usb_notifier_event;
+	register_pm_notifier(&pm_data->usb_notifier);
+	
+	pm_data->is_usb_host_inserted = mx_is_usb_host_insert();
 
 	init_completion(&pm_data->active_done);
 	INIT_DELAYED_WORK(&pm_data->link_pm_work, link_pm_runtime_work);
