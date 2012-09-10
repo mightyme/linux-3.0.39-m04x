@@ -816,6 +816,13 @@ config MACH_SMDK5250
 	  Machine support for Samsung SMDK5250
 endmenu
 
+config TOUCH_BOOSTER
+	bool "Enable touch input boost"
+	depends on BUSFREQ_OPP
+	help
+	  Say Y here to enable touch boost function.
+	  If unsure, say N.
+	
 config UBLOX_GPS
 	bool "UART2 control for ublox gps support"
 	depends on MX_SERIAL_TYPE

@@ -113,8 +113,8 @@ int dev_lock_timeout(struct device *device, struct device *dev, unsigned long fr
 	lock = kzalloc(sizeof(struct domain_lock), GFP_KERNEL);
 	if (!lock) {
 		dev_err(device, "Unable to create domain_lock");
-		ret = -ENOMEM;
-		goto out;
+		mutex_unlock(&domains_mutex);
+		return -ENOMEM;
 	}
 	lock->domain = domain;
 	lock->device = dev;
@@ -123,11 +123,11 @@ int dev_lock_timeout(struct device *device, struct device *dev, unsigned long fr
 	INIT_DELAYED_WORK(&lock->work, dev_timeout_work_fn);
 	list_add(&lock->node, &domain->domain_list);
 
+out:
 	if (delayed_work_pending(&lock->work))
 		cancel_delayed_work_sync(&lock->work);	
 	queue_delayed_work(system_freezable_wq, &lock->work, msecs_to_jiffies(lock->timeout_ms));
 
-out:
 	mutex_unlock(&domains_mutex);
 	exynos_request_apply(freq, dev);
 	return ret;

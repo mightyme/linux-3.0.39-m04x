@@ -22,14 +22,9 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/earlysuspend.h>
-#ifdef CONFIG_FB_DYNAMIC_FREQ
-#include <linux/fb.h>
-#endif
 #include <linux/gpio.h>
 #ifdef CONFIG_TOUCH_BOOSTER
-#include <linux/cpufreq.h>
-#include <linux/workqueue.h>
-#include <mach/dev.h>
+#include <mach/touch_booster.h>
 #endif
 #include <asm/mach-types.h>
 #include <plat/cpu.h>
@@ -279,12 +274,6 @@ struct mxt_data {
 	struct notifier_block usb_notifier;
 	struct work_struct charger_work;
 	int charger_status;
-
-#ifdef CONFIG_TOUCH_BOOSTER
-	struct device *bus_dev;
-	struct delayed_work  boost_work;
-	atomic_t boost_lock;
-#endif
 };
 
 struct mxt_param_object {
@@ -292,11 +281,6 @@ struct mxt_param_object {
 	u8 index;
 	u8 value;
 };
-
-static unsigned int down_time = HZ;
-module_param_named(down_time, down_time, uint, 0644);
-static unsigned int lock_freq = 600000;
-module_param_named(lock_freq, lock_freq, uint, 0644);
 
 static DEFINE_MUTEX(rw_mutex);
 
@@ -671,64 +655,6 @@ static int mxt_write_charger_param(struct mxt_data *data,
 	return 0;
 }
 
-#ifdef CONFIG_TOUCH_BOOSTER
-static void mxt_boost_timeout(struct work_struct *work)
-{
-	struct mxt_data *data = 
-			list_entry(work, struct mxt_data, boost_work.work);
-
-	if (unlikely(IS_ERR_OR_NULL(data))) {
-		pr_err("data or policy is NULL\n");
-	} else {
-		pr_debug("dev_unlock\n");
-		dev_unlock(data->bus_dev, &data->client->dev);
-		atomic_dec(&data->boost_lock);
-	}
-}
-
-static inline int mxt_input_boost(struct mxt_data *data)
-{
-	bool need_work = false;
-
-	if (likely(atomic_read(&data->boost_lock))) {
-		pr_debug("mxt input boost is running\n");
-		if (delayed_work_pending(&data->boost_work)) {
-			cancel_delayed_work(&data->boost_work);
-			need_work = true;
-		}
-	} else {
-		struct cpufreq_policy *policy = cpufreq_cpu_get(0);
-		if (policy) {
-			if (policy->cur < lock_freq) {
-				int ret;
-				ret = cpufreq_driver_target(policy, lock_freq, CPUFREQ_RELATION_L);
-				if (!WARN(ret, "ret = %d\n", ret)) {
-					pr_debug("dev_lock\n");
-					if (soc_is_exynos4210()) 
-						dev_lock(data->bus_dev, &data->client->dev, 267000);
-					else
-						dev_lock(data->bus_dev, &data->client->dev, 267160);
-					atomic_inc(&data->boost_lock);
-					need_work = true;
-				}
-			}
-			cpufreq_cpu_put(policy);
-#ifdef CONFIG_FB_DYNAMIC_FREQ
-			do {
-				struct fb_event event;
-				event.data = data;
-				fb_notifier_call_chain(FB_EVENT_MODE_PAN, &event);
-			} while(0);
-#endif
-		}
-	}
-	return need_work ?
-		schedule_delayed_work(&data->boost_work, down_time) : 0;
-}
-#else
-static inline int mxt_input_boost(struct mxt_data *data) {return 0;}
-#endif
-
 static void mxt_input_report(struct mxt_data *data, int single_id)
 {
 	struct mxt_finger *finger = data->finger;
@@ -766,19 +692,11 @@ static void mxt_input_report(struct mxt_data *data, int single_id)
 	}
 
 	input_sync(input_dev);
-
+#ifdef CONFIG_TOUCH_BOOSTER
 	if (status != MXT_RELEASE) {
-		ktime_t delta_total, rettime_total;
-		long long delta_us = 0;
-		int ret;
-		rettime_total = ktime_get();
-		ret= mxt_input_boost(data);
-		delta_total= ktime_sub(ktime_get(),rettime_total);
-		delta_us = ktime_to_us(delta_total);
-		if (delta_us > 1000) {
-			pr_debug("mxt_input_boost time = %Lu uS, ret = %d\n", delta_us, ret);
-		}
+		start_touch_boost();
 	}
+#endif
 }
 
 static void mxt_input_touchevent(struct mxt_data *data,
@@ -1644,11 +1562,6 @@ static int __devinit mxt_probe(struct i2c_client *client,
 	data->early_suspends.suspend = mxt_early_suspend;
 	data->early_suspends.resume= mxt_late_resume;
 	register_early_suspend(&data->early_suspends);
-#endif
-
-#ifdef CONFIG_TOUCH_BOOSTER
-	data->bus_dev = dev_get("exynos-busfreq");
-	INIT_DELAYED_WORK(&data->boost_work, mxt_boost_timeout);
 #endif
 
 	return 0;

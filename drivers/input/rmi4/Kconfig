@@ -24,13 +24,6 @@ config RMI4_DEBUG
 
 	  If unsure, say N.
 
-config RMI4_TOUCH_BOOSTER
-	bool "Enable touch input boost"
-	depends on BUSFREQ_OPP
-	help
-	  Say Y here to enable touch boost function in the RMI4 driver.
-	  If unsure, say N.
-
 config RMI4_SPECIAL_EARLYSUSPEND
 	bool "Synaptics RMI4 special early suspend"
 	depends on HAS_EARLYSUSPEND

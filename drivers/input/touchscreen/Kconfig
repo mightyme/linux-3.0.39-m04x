@@ -228,10 +228,6 @@ config TOUCHSCREEN_MX
 
 	  If unsure, say N.
 
-config TOUCH_BOOSTER
-	bool "Enable touch input boost"
-	depends on TOUCHSCREEN_MX && BUSFREQ_OPP
-
 config TOUCHSCREEN_GUNZE
 	tristate "Gunze AHL-51S touchscreen"
 	select SERIO
