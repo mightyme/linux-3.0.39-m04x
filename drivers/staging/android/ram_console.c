@@ -53,6 +53,7 @@ enum boot_reason {
 	POWEROFF_RESTART,
 	KEXEC_RESTART,
 	EMERG_RESTART,
+	CRIT_TEMP_RESTART,
 	WR_RESTART,	/* Hardware reset */
 	WDT_RESTART,
 	PIN_RESTART,
@@ -69,6 +70,7 @@ static char boot_reason_str[END_REASON][20] = {
 	"poweroff reboot",
 	"kexec reboot",
 	"emerg reboot",
+	"crit temp reboot",
 	"warm reset",
 	"watchdog reset",
 	"pin reset",
@@ -218,15 +220,23 @@ static inline void init_reboot_test(void)
 #define init_reboot_test()	do { } while (0)
 #endif
 
+static DEFINE_SPINLOCK(recorded_spin);
+static atomic_t recorded;
+
 void record_boot_reason(enum kmsg_dump_reason reason)
 {
-	static int recorded;
-
-	if (!ram_console_buffer || recorded)
+	spin_lock(&recorded_spin);
+	if (atomic_read(&recorded)) {
+		pr_debug("Already recorded the boot reason\n");
+		spin_unlock(&recorded_spin);
 		return;
-
+	}
 	/* Record once */
-	recorded = 1;
+	atomic_set(&recorded, 1);
+	spin_unlock(&recorded_spin);
+
+	if (!ram_console_buffer)
+		return;
 
 	switch (reason) {
 	case KMSG_DUMP_OOPS:
@@ -251,6 +261,8 @@ void record_boot_reason(enum kmsg_dump_reason reason)
 	case KMSG_DUMP_KEXEC:
 		inc_boot_reason(KEXEC_RESTART);
 		break;
+	case KMSG_DUMP_CRIT_TEMP:
+		inc_boot_reason(CRIT_TEMP_RESTART);
 	default:
 		pr_warning("%s: Don't support this boot reason\n", __func__);
 		break;

@@ -1823,7 +1823,20 @@ SYSCALL_DEFINE3(getcpu, unsigned __user *, cpup, unsigned __user *, nodep,
 	return err ? -EFAULT : 0;
 }
 
-char poweroff_cmd[POWEROFF_CMD_PATH_LEN] = "/sbin/poweroff";
+/*
+ * For devel version, in order to track the problem of the high
+ * temperature, it's better to reboot instead of simply poweroff.
+ * And if want to track the high load processes, a shell script
+ * with top commands may be called here: See ktests/utils/top.sh.
+ * For example, we can push top.sh to /system/bin/top.sh and
+ * assign it to the following command string.
+ *
+ * But for the release version, poweroff is preferred to avoid
+ * potential repeated reboot. Note: There is no poweroff command
+ * in android, so, "/system/bin/reboot -p" should be used if
+ * want to poweroff the machine during critical temp.
+ */
+char poweroff_cmd[POWEROFF_CMD_PATH_LEN] = "/system/bin/reboot";
 
 static void argv_cleanup(struct subprocess_info *info)
 {
@@ -1876,7 +1889,6 @@ int orderly_poweroff(bool force)
 		emergency_sync();
 		kernel_power_off();
 	}
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(orderly_poweroff);

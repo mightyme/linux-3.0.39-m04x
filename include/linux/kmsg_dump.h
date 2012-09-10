@@ -23,6 +23,7 @@ enum kmsg_dump_reason {
 	KMSG_DUMP_HALT,
 	KMSG_DUMP_POWEROFF,
 	KMSG_DUMP_EMERG,
+	KMSG_DUMP_CRIT_TEMP,
 };
 
 /**

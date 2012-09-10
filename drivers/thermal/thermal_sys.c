@@ -32,6 +32,7 @@
 #include <linux/thermal.h>
 #include <linux/spinlock.h>
 #include <linux/reboot.h>
+#include <linux/kmsg_dump.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
 
@@ -1069,6 +1070,7 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 					printk(KERN_EMERG
 					       "Critical temperature reached (%ld C), shutting down.\n",
 					       temp/1000);
+					kmsg_dump(KMSG_DUMP_CRIT_TEMP);
 					orderly_poweroff(true);
 				}
 			}
