@@ -46,10 +46,11 @@
 #define RMI4_ADDR	(0x20)
 
 static struct rmi_device_platform_data rmi4_platformdata = {
-	.driver_name = "rmi_generic",
-	.sensor_name = "m040 touch",
-	.attn_gpio = M040_TOUCH_IRQ,
-	.attn_polarity = RMI_ATTN_ACTIVE_LOW,
+	.driver_name     = "rmi_generic",       
+	.sensor_name     = "m040 touch",
+	.attn_gpio       = M040_TOUCH_IRQ,      
+	.attn_polarity   = RMI_ATTN_ACTIVE_LOW, 
+	.level_triggered = true,                
 };
 #endif
 
