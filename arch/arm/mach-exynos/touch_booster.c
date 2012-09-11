@@ -143,7 +143,6 @@ static int __init tb_init(void)
 	if (IS_ERR_OR_NULL(data))
 		return PTR_ERR(data);
 
-#ifdef CONFIG_BUSFREQ_OPP
 	data->bus_dev = dev_get("exynos-busfreq");
 
 	device_initialize(&data->dev);
@@ -155,14 +154,12 @@ static int __init tb_init(void)
 		kfree(data);
 		return err;
 	}
-#endif
+
 	data->tb_class.name = "touchbooster";
 	data->tb_class.attrs = tb_sysdev_class_attrs;
 	err = sysdev_class_register(&data->tb_class);
 	if (err) {
-#ifdef CONFIG_BUSFREQ_OPP
 		device_del(&data->dev);
-#endif
 		kfree(data);
 		pr_err("%s: register sysdev performance erro!\n", __func__);
 		return err;
@@ -179,9 +176,7 @@ static int __init tb_init(void)
 
 static void __exit tb_exit(void)
 {
-#ifdef CONFIG_BUSFREQ_OPP
 	device_del(&tb_data->dev);
-#endif
 	kfree(tb_data);
 	tb_data=NULL;
 }
