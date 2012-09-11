@@ -575,7 +575,7 @@ static int fsa8108_probe(
 		goto err_request_input_dev;
 	}
 
-	info->input->name = "fsa8108_jack";
+	info->input->name = "mx-earphone-keypad";
 
 	for (i = 0 ; i < sizeof(fsa8108_jack_keycode); i++)
 		input_set_capability(info->input, EV_KEY, fsa8108_jack_keycode[i]);
