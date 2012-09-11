@@ -60,6 +60,9 @@ static struct m6mo_reg m6mo_fmt_jpeg[] = {
 static struct m6mo_reg m6mo_cap_vga[] = {
 	{I2C_8BIT, MAIN_IMAGE_SIZE_REG, MAIN_SIZE_640_480},
 };
+static struct m6mo_reg m6mo_cap_720p[] = {
+	{I2C_8BIT, MAIN_IMAGE_SIZE_REG, MAIN_SIZE_720p},
+};
 static struct m6mo_reg m6mo_cap_1m[] = {
 	{I2C_8BIT, MAIN_IMAGE_SIZE_REG, MAIN_SIZE_1280_960},
 };
@@ -163,6 +166,12 @@ static struct m6mo_size_struct m6mo_cap_sizes[] = {
 		.height		= 960,
 		.regs 		= m6mo_cap_1m,
 		.size			= ARRAY_SIZE(m6mo_cap_1m),
+	},
+	{  /* 720P */
+		.width		= 1280,
+		.height		= 720,
+		.regs 		= m6mo_cap_720p,
+		.size			= ARRAY_SIZE(m6mo_cap_720p),
 	},
 	{  /* VGA */
 		.width		= 640,
