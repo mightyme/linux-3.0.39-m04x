@@ -556,6 +556,8 @@ struct f11_data {
 	bool rezero_on_resume;
 #endif
 	struct f11_2d_sensor sensors[F11_MAX_NUM_OF_SENSORS];
+struct rmi_device  *rmi_dev;
+
 };
 
 enum finger_state_values {
@@ -1536,6 +1538,80 @@ static int rmi_f11_initialize(struct rmi_function_container *fc)
 	return 0;
 }
 
+#define	REG_F54_G0	0x010D
+#define	REG_F54_G1	0x011D
+static int _turn_on_calibration(struct rmi_device *rmi_dev,int bOnOff)
+{
+	u8 val = 0x00;
+	int ret;
+	
+	ret = rmi_read(rmi_dev,REG_F54_G0,&val);//0x20
+	if( ret < 0)		
+		printk("%s:read error %d\n",__func__,ret);
+
+	if( bOnOff )		
+		val |= (1<<5);
+	else
+		val &=  ~(1<<5);		
+	ret = rmi_write(rmi_dev,REG_F54_G0,val);
+	if( ret < 0)		
+		printk("%s:write error %d\n",__func__,ret);
+
+	ret = rmi_read(rmi_dev,REG_F54_G1,&val);//0x0A
+	if( ret < 0)		
+		printk("%s:read error %d\n",__func__,ret);
+
+	if( bOnOff )		
+		val = 0x0A;
+	else
+		val = 0x00;		
+	ret = rmi_write(rmi_dev,REG_F54_G1,val);	
+	if( ret < 0)		
+		printk("%s:write error %d\n",__func__,ret);
+
+	return ret;
+}
+
+static ssize_t mxt_turn_on_calibration_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
+{		
+	struct f11_data *f11 = dev_get_drvdata(dev);
+	 struct rmi_device *rmi_dev =f11->rmi_dev;
+	unsigned long turn_off;
+	char tmp_str[33];
+	int error;
+	int ret;
+	
+	ret = sscanf(buf, "%s", tmp_str);
+	if (ret != 1) {
+		dev_err(dev, "Input turn_off_calibration value error!!\n");
+		return -EINVAL;
+	}
+
+	error = strict_strtoul(tmp_str, 0, &turn_off);
+
+	if (0xff == turn_off) {
+		dev_info(dev, "%s:turn_off\n", __func__);
+		_turn_on_calibration(rmi_dev, 0);
+	} else {
+		dev_info(dev, "%s get wrong value:0x%lx!\n", __func__, turn_off);
+	}
+
+	return count;
+}
+
+
+static DEVICE_ATTR(mxt_toc, 0666, NULL, mxt_turn_on_calibration_store);
+
+static struct attribute *mxt_attrs[] = {
+	&dev_attr_mxt_toc.attr,
+	NULL
+};
+
+static const struct attribute_group mxt_attr_group = {
+	.attrs = mxt_attrs,
+};
 static int rmi_f11_register_devices(struct rmi_function_container *fc)
 {
 	struct rmi_device *rmi_dev = fc->rmi_dev;
@@ -1551,6 +1627,7 @@ static int rmi_f11_register_devices(struct rmi_function_container *fc)
 	struct rmi_device_platform_data *pdata = to_rmi_platform_data(rmi_dev);
 #endif
 
+	f11->rmi_dev = rmi_dev;
 	for (i = 0; i < (f11->dev_query.nbr_of_sensors + 1); i++) {
 		sensors_itertd = i;
 		input_dev = input_allocate_device();
@@ -1593,6 +1670,10 @@ static int rmi_f11_register_devices(struct rmi_function_container *fc)
 			f11->sensors[i].input = NULL;
 			goto error_unregister;
 		}
+
+		rc = sysfs_create_group(&input_dev->dev.kobj, &mxt_attr_group);
+		if (rc < 0) 
+			goto error_unregister;
 
 		/* how to register the virtualbutton device */
 #ifdef CONFIG_RMI4_VIRTUAL_BUTTON
@@ -1667,6 +1748,7 @@ static int rmi_f11_register_devices(struct rmi_function_container *fc)
 	return 0;
 
 error_unregister:
+	sysfs_remove_group(&input_dev->dev.kobj, &mxt_attr_group);
 	for (; sensors_itertd > 0; sensors_itertd--) {
 		if (f11->sensors[sensors_itertd].input) {
 			if (f11->sensors[sensors_itertd].mouse_input) {
@@ -1813,10 +1895,25 @@ static int rmi_f11_resume(struct rmi_function_container *fc)
 			__func__, retval);
 		return retval;
 	}
+	
+	//_turn_on_calibration(rmi_dev,0);
 
 	return retval;
 }
 #endif /* RESUME_REZERO */
+
+static int rmi_f11_suspund(struct rmi_function_container *fc)
+{
+	struct rmi_device *rmi_dev = fc->rmi_dev;
+	struct f11_data *data = fc->data;
+	int retval = 0;
+
+	dev_dbg(&fc->dev, "Suspend...\n");
+
+	_turn_on_calibration(rmi_dev,1);
+	
+	return retval;
+}
 
 static void rmi_f11_remove(struct rmi_function_container *fc)
 {
@@ -1847,9 +1944,11 @@ static struct rmi_function_handler function_handler = {
 	.remove = rmi_f11_remove,
 #if	RESUME_REZERO
 #if defined(CONFIG_HAS_EARLYSUSPEND) && !defined(CONFIG_RMI4_SPECIAL_EARLYSUSPEND)
-	.late_resume = rmi_f11_resume
+	.late_resume = rmi_f11_resume,
+	.early_suspend = rmi_f11_suspund,
 #else
-	.resume = rmi_f11_resume
+	.resume = rmi_f11_resume,
+	.suspend = rmi_f11_suspund,
 #endif  /* defined(CONFIG_HAS_EARLYSUSPEND) && !defined(CONFIG_RMI4_SPECIAL_EARLYSUSPEND) */
 #endif
 };
@@ -1863,7 +1962,7 @@ static int __init rmi_f11_module_init(void)
 		pr_err("%s: register failed!\n", __func__);
 		return error;
 	}
-
+	
 	return 0;
 }
 

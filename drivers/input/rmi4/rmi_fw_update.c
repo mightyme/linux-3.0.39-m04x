@@ -16,7 +16,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#define DEBUG
+//#define DEBUG
 
 #include <linux/delay.h>
 #include <linux/firmware.h>
@@ -28,6 +28,8 @@
 #include "rmi_driver.h"
 #include "rmi_f01.h"
 #include "rmi_f34.h"
+
+#define	CUSTOMER_CFG_ID	"T005"
 
 #define HAS_BSR_MASK 0x20
 
@@ -75,12 +77,13 @@ struct reflash_data {
 	union f34_control_status f34_controls;
 	const u8 *firmware_data;
 	const u8 *config_data;
+	u8 Customer_Cfg_id[5];
 };
 
 /* If this parameter is true, we will update the firmware regardless of
  * the versioning info.
  */
-static bool force = 1;
+static bool force = 0;
 module_param(force, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(param, "Force reflash of RMI4 devices");
 
@@ -254,6 +257,15 @@ static int read_f34_queries(struct reflash_data *data)
 	int retval;
 	u8 id_str[3];
 
+	retval = rmi_read_block(data->rmi_dev, data->f34_pdt->control_base_addr,
+				data->Customer_Cfg_id, 4);
+	if (retval < 0) {
+		dev_err(&data->rmi_dev->dev,
+			"Failed to read F34 Customer Defined Config ID (code %d).\n",
+			retval);
+		return retval;
+	}
+
 	retval = rmi_read_block(data->rmi_dev, data->f34_pdt->query_base_addr,
 				data->bootloader_id, 2);
 	if (retval < 0) {
@@ -281,6 +293,8 @@ static int read_f34_queries(struct reflash_data *data)
 	id_str[2] = 0;
 #ifdef DEBUG
 	dev_info(&data->rmi_dev->dev, "Got F34 data->f34_queries.\n");
+	dev_info(&data->rmi_dev->dev, "F34 Customer Defined Config ID: %s (%#04X %#04X %#04X %#04X)\n",
+		 data->Customer_Cfg_id, data->Customer_Cfg_id[0], data->Customer_Cfg_id[1], data->Customer_Cfg_id[2], data->Customer_Cfg_id[3]);
 	dev_info(&data->rmi_dev->dev, "F34 bootloader id: %s (%#04x %#04x)\n",
 		 id_str, data->bootloader_id[0], data->bootloader_id[1]);
 	dev_info(&data->rmi_dev->dev, "F34 has config id: %d\n",
@@ -546,6 +560,7 @@ static void reflash_firmware(struct reflash_data *data)
 
 /* Returns false if the firmware should not be reflashed.
  */
+ #if 0
 static bool go_nogo(struct reflash_data *data, struct image_header *header)
 {
 	union f01_device_status device_status;
@@ -565,6 +580,31 @@ static bool go_nogo(struct reflash_data *data, struct image_header *header)
 
 	return device_status.flash_prog || force;
 }
+#else
+static bool go_nogo(struct reflash_data *data, struct image_header *header)
+{
+	union f01_device_status device_status;
+	int retval;
+	unsigned char id0[] = CUSTOMER_CFG_ID;
+	
+	int nid = simple_strtoul(&id0[1],NULL,10);
+	int mid = simple_strtoul(&data->Customer_Cfg_id[1],NULL,10);
+
+	if (data->Customer_Cfg_id[0] !=  id0 [0] 
+		||nid > mid) {
+		dev_info(&data->rmi_dev->dev,
+			 "FW product ID(%s) is older than image product ID(%s).\n",data->Customer_Cfg_id,id0);
+		return true;
+	}
+
+	retval = read_f01_status(data, &device_status);
+	if (retval)
+		dev_err(&data->rmi_dev->dev,
+			"Failed to read F01 status. Code: %d.\n", retval);
+
+	return device_status.flash_prog || force;
+}
+#endif
 
 void rmi4_fw_update(struct rmi_device *rmi_dev,
 		struct pdt_entry *f01_pdt, struct pdt_entry *f34_pdt)
