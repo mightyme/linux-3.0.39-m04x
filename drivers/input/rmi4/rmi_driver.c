@@ -58,6 +58,9 @@ static void rmi_driver_early_suspend(struct early_suspend *h);
 static void rmi_driver_late_resume(struct early_suspend *h);
 #endif
 
+static void disable_sensor(struct rmi_device *rmi_dev);
+static int enable_sensor(struct rmi_device *rmi_dev);
+
 /* sysfs files for attributes for driver values. */
 static ssize_t rmi_driver_bsr_show(struct device *dev,
 				   struct device_attribute *attr, char *buf);
@@ -935,8 +938,10 @@ static int do_initial_reset(struct rmi_device *rmi_dev)
 	int i;
 	int retval;
 	struct rmi_device_platform_data *pdata;
+	
+	disable_sensor(rmi_dev);
 
-	dev_dbg(dev, "Initial reset.\n");
+	dev_info(dev, "Initial reset.\n");
 	pdata = to_rmi_platform_data(rmi_dev);
 	for (page = 0; (page <= RMI4_MAX_PAGE) && !done; page++) {
 		u16 page_start = RMI4_PAGE_SIZE * page;
@@ -992,11 +997,14 @@ static int do_initial_reset(struct rmi_device *rmi_dev)
 	}
 
 #ifdef CONFIG_RMI4_FWLIB
-	if (has_f34)
+	if (has_f34){
 		rmi4_fw_update(rmi_dev, &f01_pdt, &f34_pdt);
+	}
 	else
 		dev_warn(dev, "WARNING: No F34, firmware update will not be done.\n");
 #endif
+	
+	enable_sensor(rmi_dev);
 
 	return 0;
 }

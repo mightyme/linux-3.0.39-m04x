@@ -16,7 +16,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-//#define DEBUG
+#define DEBUG
 
 #include <linux/delay.h>
 #include <linux/firmware.h>
@@ -358,8 +358,11 @@ static int enter_flash_programming(struct reflash_data *data)
 	struct rmi_device *rmi_dev = data->rmi_dev;
 
 	retval = write_bootloader_id(data);
-	if (retval < 0)
+	if (retval < 0) {
+		dev_err(&rmi_dev->dev,
+			"Failed to write bootloader id. Code: %d.\n", retval);
 		return retval;
+	}
 
 	dev_info(&rmi_dev->dev, "Enabling flash programming.\n");
 	retval = write_f34_command(data, F34_ENABLE_FLASH_PROG);
@@ -497,12 +500,18 @@ static void reflash_firmware(struct reflash_data *data)
 	int retval = 0;
 
 	retval = enter_flash_programming(data);
-	if (retval)
+	if (retval) {
+		dev_err(&data->rmi_dev->dev,
+			"Failed to enter flash programming. Code: %d.\n", retval);
 		return;
+	}
 
 	retval = write_bootloader_id(data);
-	if (retval)
+	if (retval) {
+		dev_err(&data->rmi_dev->dev,
+			"Failed to write bootloader id. Code: %d.\n", retval);
 		return;
+	}
 
 #ifdef	DEBUG
 	dev_info(&data->rmi_dev->dev, "Erasing FW...\n");
