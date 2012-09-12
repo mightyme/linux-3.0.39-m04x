@@ -335,6 +335,14 @@ struct mxt_finger {
 	int pressure;
 };
 
+struct mxt_param_object {
+	u8 type;
+	u8 index;
+	u8 value;
+};
+
+static DEFINE_MUTEX(rw_mutex);
+
 /* Each client has this additional data */
 struct mxt_data {
 	struct i2c_client *client;
@@ -637,6 +645,7 @@ static int __mxt_read_reg(struct i2c_client *client,
 	struct i2c_msg xfer[2];
 	u8 buf[2];
 	int i = 0;
+	mutex_lock(&rw_mutex);
 
 	buf[0] = reg & 0xff;
 	buf[1] = (reg >> 8) & 0xff;
@@ -654,12 +663,16 @@ static int __mxt_read_reg(struct i2c_client *client,
 	xfer[1].buf = val;
 
 	do {
-		if (i2c_transfer(client->adapter, xfer, 2) == 2)
+		if (i2c_transfer(client->adapter, xfer, 2) == 2){
+			mutex_unlock(&rw_mutex);
 			return 0;
+		}
 		msleep(MXT_WAKE_TIME);
 	} while (++i < MXT_MAX_RW_TRIES);
 
 	dev_err(&client->dev, ": %s: i2c transfer failed\n", __func__);
+	
+	mutex_unlock(&rw_mutex);
 	return -EIO;
 }
 
@@ -677,18 +690,24 @@ static int __mxt_write_reg(struct i2c_client *client,
 	if (length > MXT_BLOCK_SIZE)
 		return -EINVAL;
 
+	mutex_lock(&rw_mutex);
+
 	buf[0] = addr & 0xff;
 	buf[1] = (addr >> 8) & 0xff;
 	for (i = 0; i < length; i++)
 		buf[i + 2] = *value++;
 
 	do {
-		if (i2c_master_send(client, buf, length + 2) == (length + 2))
+		if (i2c_master_send(client, buf, length + 2) == (length + 2)){
+			mutex_unlock(&rw_mutex);
 			return 0;
+		}
 		msleep(MXT_WAKE_TIME);
 	} while (++tries < MXT_MAX_RW_TRIES);
 
 	dev_err(&client->dev, "%s: i2c send failed\n", __func__);
+	
+	mutex_unlock(&rw_mutex);
 	return -EIO;
 }
 
@@ -761,6 +780,46 @@ static int mxt_write_object(struct mxt_data *data,
 
 	reg = object->start_address;
 	return mxt_write_reg(data->client, reg + offset, val);
+}
+
+static int mxt_write_multi_params(struct mxt_data *data, struct mxt_param_object *param, int size)
+{
+	const int mpn = 20; /* max packages num */
+	static unsigned char buf[20][3]; 
+	static struct i2c_msg xfer[20]; 
+	struct mxt_object *object;
+	int wcnt = 0;
+	u16 reg = 0;
+	int cnt;
+	int i;
+	
+	mutex_lock(&rw_mutex);
+
+	while (wcnt < size) {
+		cnt = min(size - wcnt, mpn);
+		for (i = 0; i < cnt; i++) {
+			object = mxt_get_object(data, param[wcnt + i].type);
+			if (object) 
+				reg = object->start_address + param[wcnt + i].index;
+			buf[i][0] = reg & 0xff;
+			buf[i][1] = (reg >> 8) & 0xff;
+			buf[i][2] = param[wcnt + i].value;
+			xfer[i].addr = data->client->addr;
+			xfer[i].flags = 0;
+			xfer[i].len = 3;
+			xfer[i].buf = buf[i];
+		}
+		if (i2c_transfer(data->client->adapter, xfer, cnt) != cnt) {
+			mutex_unlock(&rw_mutex);
+			dev_err(&data->client->dev, "%s: i2c transfer failed\n", __func__);
+			return -EIO;
+		}
+		wcnt += cnt;
+	}
+
+	mutex_unlock(&rw_mutex);
+
+	return wcnt;
 }
 
 static void mxt_input_report(struct mxt_data *data, int single_id)
@@ -1204,8 +1263,8 @@ static void mxt_check_config_version(struct mxt_data *data,
        data->config_info = cfg_info;
  	data->update_cfg = true;
 
-        printk(": >>>>>>>>>>>>> data->config_info->configlength = %d\n", 
-                            data->config_info->config_length);
+        //printk(": >>>>>>>>>>>>> data->config_info->configlength = %d\n", 
+        //                    data->config_info->config_length);
 
 }
 
@@ -1846,12 +1905,178 @@ static ssize_t mxt_update_fw_store(struct device *dev,
 	return count;
 }
 
+static ssize_t mxt_regdump_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct mxt_data *data = dev_get_drvdata(dev);
+	struct mxt_object *object;
+	unsigned long type, index, len = 1;
+	char type_str[33];
+	char index_str[33];
+	char len_str[33] = "1";
+	unsigned char val;
+	int i, error;
+	int ret;
+
+	ret = sscanf(buf, "%s %s %s", type_str, index_str, len_str);
+	if ((ret != 3) && (ret != 2)) {
+		dev_err(dev, "Invalid values!\n");
+		return -EINVAL;
+	}
+
+	error = strict_strtoul(type_str, 0, &type);
+	error = strict_strtoul(index_str, 0, &index);
+	error = strict_strtoul(len_str, 0, &len);
+
+	if (!mxt_object_readable(type)) {
+		dev_err(dev, "Invalid type!\n");
+		return -EINVAL;
+	}
+
+	object = mxt_get_object(data, type);
+
+	if (index > object->size) {
+		dev_err(dev, "Invalid index!\n");
+		return -EINVAL;
+	}
+
+	if (index + len > object->size + 1)
+		len = object->size + 1 - index;
+
+	printk(KERN_ERR"dump reg of Type:%ld, index:%ld, len:%ld:\n",
+			type, index, len);
+
+	for (i = 0; i < len; i++) {
+		error = mxt_read_object(data,
+				object->type, i + index, &val);
+		if (error)
+			return -EINVAL;
+		if (i%10 == 0 && i != 0)
+			printk(KERN_ERR"\n");
+		printk(KERN_ERR"0x%x ", val);
+	}
+	printk("\n");
+
+	return count;
+}
+
+static ssize_t mxt_regwrite_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct mxt_data *data = dev_get_drvdata(dev);
+	struct mxt_object *object;
+	unsigned long type, index, val;
+	char type_str[33];
+	char index_str[33];
+	char val_str[33];
+	int error;
+	int ret;
+
+	ret = sscanf(buf, "%s %s %s", type_str, index_str, val_str);
+	if (ret != 3) {
+		dev_err(dev, "Invalid!!Input format:reg_type index value\n");
+		return -EINVAL;
+	}
+
+	error = strict_strtoul(type_str, 0, &type);
+	error = strict_strtoul(index_str, 0, &index);
+	error = strict_strtoul(val_str, 0, &val);
+
+	if (!mxt_object_writable(type)) {
+		dev_err(dev, "Not a valid writable type!\n");
+		return -EINVAL;
+	}
+
+	object = mxt_get_object(data, type);
+
+	if (index > object->size) {
+		dev_err(dev, "Invalid index!\n");
+		return -EINVAL;
+	}
+
+	error = mxt_write_object(data,
+			object->type, index, val);
+	if (error) {
+		printk(KERN_ERR"write reg of Type:%ld, index:%ld,\
+				value:0x%02lx(%2ld) error!!\n",
+				type, index, val, val);
+		return -EINVAL;
+	} else {
+		printk(KERN_ERR"write reg of Type:%ld, index:%ld, \
+				value:0x%02lx(%2ld)\n", type, index, val, val);
+	}
+
+	return count;
+}
+
+static int mxt_turn_on_calibration(struct mxt_data *data, bool onoff)
+{
+	int ret;
+
+	if (onoff) {
+		struct mxt_param_object p[] = {
+			{8, 6, 0x00},
+			{8, 7, 0x00},
+			{8, 8, 0x01},
+		};
+
+		ret = mxt_write_multi_params(data, p, 
+				sizeof(p)/sizeof(struct mxt_param_object));
+	} else {
+		struct mxt_param_object p[] = {
+			{8, 6, 0xFF},//0x02
+			{8, 7, 0x01},//0x19
+			{8, 8, 0x00},
+		};
+
+		ret = mxt_write_multi_params(data, p,
+				sizeof(p)/sizeof(struct mxt_param_object));
+	}
+	return 0;
+}
+
+static ssize_t mxt_turn_on_calibration_store(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct mxt_data *data = dev_get_drvdata(dev);
+	unsigned long turn_off;
+	char tmp_str[33];
+	int error;
+	int ret;
+
+	ret = sscanf(buf, "%s", tmp_str);
+	if (ret != 1) {
+		dev_err(dev, "Input turn_off_calibration value error!!\n");
+		return -EINVAL;
+	}
+
+	error = strict_strtoul(tmp_str, 0, &turn_off);
+
+	if (0xff == turn_off) {
+		dev_info(dev, "%s!\n", __func__);
+		mxt_turn_on_calibration(data, 0);
+	} else {
+		dev_info(dev, "%s get wrong value:0x%lx!\n", __func__, turn_off);
+	}
+
+	return count;
+}
+
 static DEVICE_ATTR(object, 0444, mxt_object_show, NULL);
 static DEVICE_ATTR(update_fw, 0664, NULL, mxt_update_fw_store);
+static DEVICE_ATTR(regdump, 0666, NULL, mxt_regdump_store);
+static DEVICE_ATTR(regwrite, 0666, NULL, mxt_regwrite_store);
+static DEVICE_ATTR(mxt_toc, 0666, NULL, mxt_turn_on_calibration_store);
 
 static struct attribute *mxt_attrs[] = {
 	&dev_attr_object.attr,
 	&dev_attr_update_fw.attr,
+	&dev_attr_regdump.attr,
+	&dev_attr_regwrite.attr,
+	&dev_attr_mxt_toc.attr,
 	NULL
 };
 
@@ -2379,7 +2604,7 @@ static int __devinit mxt_probe(struct i2c_client *client,
 	if (!pdata)
 		return -EINVAL;
 
-       printk("\n: >>> mxt_probe <<<\n");
+       //printk("\n: >>> mxt_probe <<<\n");
 
 	data = kzalloc(sizeof(struct mxt_data), GFP_KERNEL);
 	input_dev = input_allocate_device();
@@ -2540,7 +2765,7 @@ static int __devinit mxt_probe(struct i2c_client *client,
 	if (error)
 		goto err_free_irq;
 
-	error = sysfs_create_group(&client->dev.kobj, &mxt_attr_group);
+	error = sysfs_create_group(&input_dev->dev.kobj, &mxt_attr_group);
 	if (error)
 		goto err_unregister_device;
 
@@ -2591,7 +2816,7 @@ static int __devexit mxt_remove(struct i2c_client *client)
 {
 	struct mxt_data *data = i2c_get_clientdata(client);
 
-	sysfs_remove_group(&client->dev.kobj, &mxt_attr_group);
+	sysfs_remove_group(&data->input_dev->dev.kobj, &mxt_attr_group);
 	free_irq(data->irq, data);
 	destroy_workqueue(data->atmel_wq);
 	input_unregister_device(data->input_dev);

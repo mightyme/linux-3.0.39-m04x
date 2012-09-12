@@ -16,7 +16,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#define DEBUG
+//#define DEBUG
 
 #include <linux/delay.h>
 #include <linux/firmware.h>
@@ -29,8 +29,6 @@
 #include "rmi_f01.h"
 #include "rmi_f34.h"
 
-#define	CUSTOMER_CFG_ID	"T005"
-
 #define HAS_BSR_MASK 0x20
 
 #define CHECKSUM_OFFSET 0
@@ -41,6 +39,10 @@
 #define PRODUCT_ID_SIZE 10
 #define PRODUCT_INFO_OFFSET 0x1E
 #define PRODUCT_INFO_SIZE 2
+
+#define CUSTOMER_CFG_ID_OFFSET	0xB100
+#define CUSTOMER_CFG_ID_SIZE	4
+
 
 #define F01_RESET_MASK 0x01
 
@@ -56,6 +58,7 @@ struct image_header {
 	unsigned char bootloader_version;
 	u8 product_id[RMI_PRODUCT_ID_LENGTH + 1];
 	unsigned char product_info[PRODUCT_INFO_SIZE];
+	unsigned char customer_cfg_id[CUSTOMER_CFG_ID_SIZE];
 };
 
 static u32 extract_u32(const u8 *ptr)
@@ -110,6 +113,8 @@ static void extract_header(const u8 *data, int pos, struct image_header *header)
 	header->product_id[PRODUCT_ID_SIZE] = 0;
 	memcpy(header->product_info, &data[pos + PRODUCT_INFO_OFFSET],
 	       RMI_PRODUCT_ID_LENGTH);
+	memcpy(header->customer_cfg_id, &data[pos + CUSTOMER_CFG_ID_OFFSET],
+	       CUSTOMER_CFG_ID_SIZE);
 }
 
 static int rescan_pdt(struct reflash_data *data)
@@ -594,15 +599,14 @@ static bool go_nogo(struct reflash_data *data, struct image_header *header)
 {
 	union f01_device_status device_status;
 	int retval;
-	unsigned char id0[] = CUSTOMER_CFG_ID;
 	
-	int nid = simple_strtoul(&id0[1],NULL,10);
+	int nid = simple_strtoul(&header->customer_cfg_id[1],NULL,10);
 	int mid = simple_strtoul(&data->Customer_Cfg_id[1],NULL,10);
 
-	if (data->Customer_Cfg_id[0] !=  id0 [0] 
+	if (data->Customer_Cfg_id[0] !=  header->customer_cfg_id [0] 
 		||nid > mid) {
 		dev_info(&data->rmi_dev->dev,
-			 "FW product ID(%s) is older than image product ID(%s).\n",data->Customer_Cfg_id,id0);
+			 "FW product ID(%s) is older than image product ID(%s).\n",data->Customer_Cfg_id,header->customer_cfg_id);
 		return true;
 	}
 
@@ -673,9 +677,10 @@ void rmi4_fw_update(struct rmi_device *rmi_dev,
 		return;
 	}
 
+	extract_header(fw_entry->data, 0, &header);
+	
 #ifdef	DEBUG
 	dev_info(&rmi_dev->dev, "Got firmware, size: %d.\n", fw_entry->size);
-	extract_header(fw_entry->data, 0, &header);
 	dev_info(&rmi_dev->dev, "Img checksum:           %#08X\n",
 		 header.checksum);
 	dev_info(&rmi_dev->dev, "Img image size:         %d\n",
@@ -697,6 +702,7 @@ void rmi4_fw_update(struct rmi_device *rmi_dev,
 			header.image_size;
 
 	if (go_nogo(&data, &header)) {
+		dev_info(&rmi_dev->dev, "reflash firmware.\n");
 		reflash_firmware(&data);
 		reset_device(&data);
 	} else
