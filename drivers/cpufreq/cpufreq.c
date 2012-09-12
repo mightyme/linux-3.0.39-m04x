@@ -32,7 +32,7 @@
 
 #if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 #include <linux/exynos-cpufreq.h>
-#include <asm/mach-types.h>
+#include <plat/cpu.h>
 #endif
 
 #include <trace/events/power.h>
@@ -368,34 +368,43 @@ static ssize_t show_cpuinfo_min_freq(struct cpufreq_policy *policy, char *buf)
 {
 	return sprintf(buf, "%u\n", 200000);
 }
+
 static ssize_t show_cpuinfo_max_freq(struct cpufreq_policy *policy, char *buf)
 {
-	unsigned int freq = 1400000;
-	if (machine_is_m040())
-		freq = 1600000;	
-	else if (machine_is_m030() || machine_is_m032())
-		freq = 1400000;
-	else if (machine_is_m031())
-		freq = 1500000;
+	unsigned int freq = 0;
+
+	if (soc_is_exynos4210() || 
+		(soc_is_exynos4412() && samsung_rev() <= EXYNOS4412_REV_1_1))
+		freq = 1400*1000;
+	else if (soc_is_exynos4212())
+		freq = 1500*1000;
+	else if (soc_is_exynos4412() && samsung_rev() >= EXYNOS4412_REV_2_0)
+		freq = 1600*1000;
 	else
 		freq = 1000000;
+
 	return sprintf(buf, "%u\n", freq);
 }
+
 static ssize_t show_scaling_min_freq(struct cpufreq_policy *policy, char *buf)
 {
 	return sprintf(buf, "%u\n", 200000);
 }
+
 static ssize_t show_scaling_max_freq(struct cpufreq_policy *policy, char *buf)
 {
-	unsigned int freq;
-	if (machine_is_m040())
-		freq = 1600000;
-	else if (machine_is_m030() || machine_is_m032())
-		freq = 1400000;
-	else if (machine_is_m031())
-		freq = 1500000;
+	unsigned int freq = 0;
+
+	if (soc_is_exynos4210() || 
+		(soc_is_exynos4412() && samsung_rev() <= EXYNOS4412_REV_1_1))
+		freq = 1400*1000;
+	else if (soc_is_exynos4212())
+		freq = 1500*1000;
+	else if (soc_is_exynos4412() && samsung_rev() >= EXYNOS4412_REV_2_0)
+		freq = 1600*1000;
 	else
 		freq = 1000000;
+	
 	return sprintf(buf, "%u\n", freq);
 }
 #else

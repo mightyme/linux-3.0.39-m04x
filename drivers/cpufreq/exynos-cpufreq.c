@@ -103,10 +103,11 @@ static void regulate_target_freq(struct exynos_dvfs_info *cpu_info,
 	/* qos min */
 	if (cpu_info->qos_min_freq < policy->cpuinfo.min_freq)
 		cpu_info->qos_min_freq = policy->cpuinfo.min_freq;
-	/* qos max */
+#if 0
+	/* do not regulate qos max */
 	if (cpu_info->qos_max_freq > policy->cpuinfo.max_freq)
 		cpu_info->qos_max_freq = policy->cpuinfo.max_freq;
-
+#endif
 	if (freq < cpu_info->qos_min_freq)
 		freq = cpu_info->qos_min_freq;
 
@@ -495,6 +496,7 @@ static int exynos_qos_min_notifier_call(struct notifier_block *nb,
 			list_entry(nb, struct exynos_dvfs_info, qos_min_nb);
 	
 	cpu_info->qos_min_freq = value;
+	pr_info("%s: qos_min_freq: %d\n", value);
 	
 	return NOTIFY_OK;
 }
@@ -506,7 +508,8 @@ static int exynos_qos_max_notifier_call(struct notifier_block *nb,
 			list_entry(nb, struct exynos_dvfs_info, qos_max_nb);
 	
 	cpu_info->qos_max_freq = value;
-	
+	pr_info("%s: qos_max_freq: %d\n", value);
+
 	return NOTIFY_OK;
 }
 

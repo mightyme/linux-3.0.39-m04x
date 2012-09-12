@@ -38,7 +38,8 @@
 struct cpufreq_cooling_device {
 	int id;
 	struct thermal_cooling_device *cool_dev;
-	struct pm_qos_request qos_cpu_cool;
+	struct pm_qos_request qos_cpu_cool;	/* tmu qos */
+	struct pm_qos_request qos_cpu_pfm;	/* system pfm qos*/
 	struct notifier_block qos_update_nb;
 	struct freq_pctg_table *tab_ptr;
 	unsigned int tab_size;
@@ -51,7 +52,6 @@ static LIST_HEAD(cooling_cpufreq_list);
 static DEFINE_MUTEX(cooling_cpufreq_lock);
 static DEFINE_IDR(cpufreq_idr);
 static struct cpufreq_cooling_device *notify_cpufreq;
-//static DEFINE_PER_CPU(unsigned int, max_policy_freq);
 #endif /*CONFIG_CPU_FREQ*/
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -112,7 +112,7 @@ static void cpufreq_update_policy_max(struct cpufreq_cooling_device *cpufreq_dev
 				struct cpufreq_policy *policy)
 {
 	struct freq_pctg_table *th_table;
-	unsigned long max_freq = 0;
+	unsigned int max_freq = 0;
 	unsigned int th_pctg = 0, level;
 
 	level = cpufreq_device->cpufreq_state;
@@ -127,6 +127,9 @@ static void cpufreq_update_policy_max(struct cpufreq_cooling_device *cpufreq_dev
 	max_freq = (max_freq / (100*1000)) * (100*1000);
 
 	pm_qos_update_request(&cpufreq_device->qos_cpu_cool, max_freq);
+
+	/*Fix govenors: may not poll cpufreq request at high load*/
+	cpufreq_driver_target(policy, max_freq, CPUFREQ_RELATION_H);
 
 	pr_info("%s: level:%d, th_pctg:%d, max_freq:%lu\n",
 				 __func__, level, th_pctg, max_freq);
@@ -162,7 +165,7 @@ static int cpufreq_cooling_qos_update_notifier_call(struct notifier_block *nb,
 	max_freq = (max_freq / (100*1000)) * (100*1000);
 	cpufreq_cpu_put(policy);
 	
-	pm_qos_update_request(&cpufreq_device->qos_cpu_cool, max_freq);
+	pm_qos_update_request(&cpufreq_device->qos_cpu_pfm, max_freq);
 
 	pr_info("%s: level:%d, th_pctg:%d, max_freq:%lu\n",
 				 __func__, level, th_pctg, max_freq);
@@ -321,7 +324,9 @@ struct thermal_cooling_device *cpufreq_cooling_register(
 	mutex_unlock(&cooling_cpufreq_lock);
 
 	pm_qos_add_request(&cpufreq_dev->qos_cpu_cool,
-				PM_QOS_CPUFREQ_MAX, PM_QOS_DEFAULT_VALUE);	
+				PM_QOS_CPUFREQ_MAX, PM_QOS_DEFAULT_VALUE);
+	pm_qos_add_request(&cpufreq_dev->qos_cpu_pfm,
+				PM_QOS_CPUFREQ_MAX, PM_QOS_DEFAULT_VALUE);
 
 #ifdef CONFIG_EXYNOS_CPUFREQ
 	cpufreq_dev->qos_update_nb.notifier_call = 
