@@ -373,7 +373,7 @@ static ssize_t show_cpuinfo_max_freq(struct cpufreq_policy *policy, char *buf)
 	unsigned int freq = 1400000;
 	if (machine_is_m040())
 		freq = 1600000;	
-	if (machine_is_m030() || machine_is_m032())
+	else if (machine_is_m030() || machine_is_m032())
 		freq = 1400000;
 	else if (machine_is_m031())
 		freq = 1500000;
