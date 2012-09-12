@@ -196,10 +196,14 @@ trip_point_type_show(struct device *dev, struct device_attribute *attr,
 	case THERMAL_TRIP_STATE_ACTIVE:
 		return sprintf(buf, "state-active\n");
 #ifdef CONFIG_ARCH_EXYNOS
-	case THERMAL_TRIP_COLD_TC:
+	case THERMAL_TRIP_START_COLD_TC:
 		return sprintf(buf, "EXYNOS-start-tc\n");
-	case THERMAL_TRIP_EXIT_COLD_TC:
+	case THERMAL_TRIP_STOP_COLD_TC:
 		return sprintf(buf, "EXYNOS-stop-tc\n");
+	case THERMAL_TRIP_START_MEM_TH:
+		return sprintf(buf, "EXYNOS-start-mem-th\n");
+	case THERMAL_TRIP_STOP_MEM_TH:
+		return sprintf(buf, "EXYNOS-stop-mem-th\n");
 #endif
 	default:
 		return sprintf(buf, "unknown\n");
@@ -1087,16 +1091,30 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 					tz->ops->notify(tz, count, trip_type);
 			break;
 #ifdef CONFIG_ARCH_EXYNOS
-		case THERMAL_TRIP_COLD_TC:
-			if (temp <= trip_temp && tz->cold_tc == 0) {
-				tz->cold_tc = 1;
+		case THERMAL_TRIP_START_COLD_TC:
+			if (temp <= trip_temp && tz->cold_tc == false) {
+				tz->cold_tc = true;
 				if (tz->ops->notify)
 					tz->ops->notify(tz, count, trip_type);
 			}
 			break;
-		case THERMAL_TRIP_EXIT_COLD_TC:
-			if (temp >= trip_temp && tz->cold_tc == 1) {
-				tz->cold_tc = 0;
+		case THERMAL_TRIP_STOP_COLD_TC:
+			if (temp >= trip_temp && tz->cold_tc == true) {
+				tz->cold_tc = false;
+				if (tz->ops->notify)
+					tz->ops->notify(tz, count, trip_type);
+			}
+			break;
+		case THERMAL_TRIP_START_MEM_TH:
+			if (temp >= trip_temp && tz->mem_th == false) {
+				tz->mem_th = true;
+				if (tz->ops->notify)
+					tz->ops->notify(tz, count, trip_type);
+			}
+			break;
+		case THERMAL_TRIP_STOP_MEM_TH:
+			if (temp <= trip_temp && tz->mem_th == true) {
+				tz->mem_th = false;
 				if (tz->ops->notify)
 					tz->ops->notify(tz, count, trip_type);
 			}

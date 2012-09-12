@@ -45,8 +45,10 @@ enum thermal_trip_type {
 	THERMAL_TRIP_CRITICAL,
 	THERMAL_TRIP_STATE_ACTIVE,
 #ifdef CONFIG_ARCH_EXYNOS
-	THERMAL_TRIP_COLD_TC,	/*Temperature compensated voltage*/
-	THERMAL_TRIP_EXIT_COLD_TC,
+	THERMAL_TRIP_START_COLD_TC,	/*Start temperature compensated voltage*/
+	THERMAL_TRIP_STOP_COLD_TC,
+	THERMAL_TRIP_START_MEM_TH,	/*Start mem throttle refresh rate*/
+	THERMAL_TRIP_STOP_MEM_TH,
 #endif
 };
 
@@ -121,7 +123,8 @@ struct thermal_zone_device {
 	int last_trip_level;
 	struct pm_qos_request qos_cpu_tmu_tc;
 #ifdef CONFIG_ARCH_EXYNOS
-	unsigned int cold_tc;
+	bool cold_tc;
+	bool mem_th;
 #endif
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry *d_entry;

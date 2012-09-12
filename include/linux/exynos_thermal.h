@@ -23,6 +23,10 @@
 #define SAFE_ZONE       1
 #define NO_ACTION       0
 
+#define FREQ_IN_PLL                     24000000  /* 24MHZ in Hz */
+#define AUTO_REFRESH_PERIOD_TQ0         1950
+#define AUTO_REFRESH_PERIOD_NORMAL      3900
+#define TIMING_AREF_OFFSET              0x30
 
 struct	thermal_trip_point_conf {
 	int trip_val[MAX_TRIP_COUNT];

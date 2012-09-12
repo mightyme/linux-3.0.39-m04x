@@ -55,13 +55,6 @@ static struct exynos4_tmu_platform_data exynos4210_tmu_data = {
 		.freq_clip_pctg = 50,
 	},
 	.freq_tab_count = 3,
-	.tc = {
-		.start_tc = 10,	/*start temperature compensate voltage*/
-		.stop_tc  = 13,
-		.arm_volt = 925000,
-		.bus_volt = 900000,
-		.g3d_volt = 900000,
-	}
 };
 
 static struct exynos4_tmu_platform_data exynos4x12_tmu_data = {
@@ -88,11 +81,16 @@ static struct exynos4_tmu_platform_data exynos4x12_tmu_data = {
 	},
 	.freq_tab_count = 3,
 	.tc = {
+		/*arm,bus,g3d*/
 		.start_tc = 10,
 		.stop_tc  = 13,
 		.arm_volt = 925000,
 		.bus_volt = 900000,
 		.g3d_volt = 900000,
+
+		/*mem refresh*/
+		.stop_mem_th = 80,
+		.start_mem_th = 85,
 	}
 };
 

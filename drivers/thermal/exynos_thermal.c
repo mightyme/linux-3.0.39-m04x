@@ -14,11 +14,15 @@
 #include <linux/cpufreq.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 #include <linux/pm_qos.h>
 #include <linux/cpu_cooling.h>
 #include <linux/exynos_thermal.h>
 
 #include <plat/cpu.h>
+
+#include <mach/smc.h>
+#include <mach/map.h>
 
 #ifdef CONFIG_EXYNOS_TMU_TC
 #include <linux/exynos-cpufreq.h>
@@ -113,10 +117,16 @@ static int exynos4_get_trip_type(struct thermal_zone_device *thermal, int trip,
 			*type = THERMAL_TRIP_CRITICAL;
 			break;
 		case 4:
-			*type = THERMAL_TRIP_COLD_TC;
+			*type = THERMAL_TRIP_START_COLD_TC;
 			break;
 		case 5:
-			*type = THERMAL_TRIP_EXIT_COLD_TC;
+			*type = THERMAL_TRIP_STOP_COLD_TC;
+			break;
+		case 6:
+			*type = THERMAL_TRIP_START_MEM_TH;
+			break;
+		case 7:
+			*type = THERMAL_TRIP_STOP_MEM_TH;
 			break;
 		default:
 			pr_err("%s: error trip %d\n", __func__, trip);
@@ -138,6 +148,12 @@ static int exynos4_get_trip_temp(struct thermal_zone_device *thermal, int trip,
 			break;
 		case 5:
 			*temp = th_zone->sensor_conf->tc_data.stop_tc;
+			break;
+		case 6:
+			*temp = th_zone->sensor_conf->tc_data.start_mem_th;
+			break;
+		case 7:
+			*temp = th_zone->sensor_conf->tc_data.stop_mem_th;
 			break;
 		default:
 			pr_err("%s error trip %d\n", __func__, trip);
@@ -220,6 +236,52 @@ static int exynos4_get_temp(struct thermal_zone_device *thermal,
 	return 0;
 }
 
+/*tmu mem throttle refresh*/
+static unsigned int get_refresh_interval(unsigned int freq_ref,
+					unsigned int refresh_nsec)
+{
+	unsigned int uRlk, refresh = 0;
+
+	/*
+	 * uRlk = FIN / 100000;
+	 * refresh_usec =  (unsigned int)(fMicrosec * 10);
+	 * uRegVal = ((unsigned int)(uRlk * uMicroSec / 100)) - 1;
+	 * refresh =
+	 * (unsigned int)(freq_ref * (unsigned int)(refresh_usec * 10) /
+	 * 100) - 1;
+	*/
+	uRlk = freq_ref / 1000000;
+	refresh = ((unsigned int)(uRlk * refresh_nsec / 1000));
+
+	pr_info("@@@ get_refresh_interval = 0x%02x\n", refresh);
+	return refresh;
+}
+
+static void set_refresh_rate(unsigned int auto_refresh)
+{
+	/*
+	 * uRlk = FIN / 100000;
+	 * refresh_usec =  (unsigned int)(fMicrosec * 10);
+	 * uRegVal = ((unsigned int)(uRlk * uMicroSec / 100)) - 1;
+	*/
+	pr_debug("@@@ set_auto_refresh = 0x%02x\n", auto_refresh);
+
+	if (trustzone_on()) {
+		exynos_smc(SMC_CMD_REG,
+			SMC_REG_ID_SFR_W((EXYNOS4_PA_DMC0_4212 + TIMING_AREF_OFFSET)),
+			auto_refresh, 0);
+		exynos_smc(SMC_CMD_REG,
+			SMC_REG_ID_SFR_W((EXYNOS4_PA_DMC1_4212 + TIMING_AREF_OFFSET)),
+			auto_refresh, 0);
+	} else {
+		/* change auto refresh period in TIMING_AREF register of dmc0  */
+		__raw_writel(auto_refresh, S5P_VA_DMC0 + TIMING_AREF_OFFSET);
+
+		/* change auto refresh period in TIMING_AREF regisger of dmc1 */
+		__raw_writel(auto_refresh, S5P_VA_DMC1 + TIMING_AREF_OFFSET);
+	}
+}
+
 static int exynos4_notify(struct thermal_zone_device *thermal,int val,
 				enum thermal_trip_type trip_type)
 {
@@ -228,12 +290,10 @@ static int exynos4_notify(struct thermal_zone_device *thermal,int val,
 	unsigned int cpufreq;
 	unsigned long busfreq;
 	unsigned int arm_volt = 0, bus_volt = 0, g3d_volt = 0;
-	
-	if (soc_is_exynos4210())
-		goto out;
+	unsigned int refresh_rate;
 	
 	switch (trip_type) {
-	case THERMAL_TRIP_COLD_TC:
+	case THERMAL_TRIP_START_COLD_TC:
 		pr_info("THERMAL_TRIP_COLD_VC:\n");
 		
 		/*arm*/
@@ -268,7 +328,7 @@ static int exynos4_notify(struct thermal_zone_device *thermal,int val,
 			goto err_lock;
 		}
 		break;
-	case THERMAL_TRIP_EXIT_COLD_TC:	
+	case THERMAL_TRIP_STOP_COLD_TC:	
 		pr_info("THERMAL_TRIP_EXIT_COLD_VC:\n");
 		pm_qos_update_request(&thermal->qos_cpu_tmu_tc, 
 					PM_QOS_DEFAULT_VALUE);
@@ -285,16 +345,26 @@ static int exynos4_notify(struct thermal_zone_device *thermal,int val,
 			pr_err("TMU: g3d_pop error\n");
 			goto err_unlock;
 		}
-
+		break;
+	case THERMAL_TRIP_START_MEM_TH:
+		pr_info("THERMAL_TRIP_START_MEM_TH\n");
+		refresh_rate = get_refresh_interval(FREQ_IN_PLL,
+				 AUTO_REFRESH_PERIOD_TQ0);
+		set_refresh_rate(refresh_rate);
+		break;
+	case THERMAL_TRIP_STOP_MEM_TH:
+		pr_info("THERMAL_TRIP_STOP_MEM_TH\n");
+		refresh_rate = get_refresh_interval(FREQ_IN_PLL, 
+				AUTO_REFRESH_PERIOD_NORMAL);
+		set_refresh_rate(refresh_rate);
 		break;
 	default:
-		pr_debug("%s: do not implement for type %d\n",
+		pr_debug("%s: Haven't implemented for type %d\n",
 					 __func__, trip_type);
 	}
 
 err_lock:
 err_unlock:
-out:
 #endif
 	return 0;
 }
@@ -339,6 +409,8 @@ static struct thermal_zone_device_ops exynos4_dev_ops = {
 int exynos4_register_thermal(struct thermal_sensor_conf *sensor_conf)
 {
 	int ret, count, tab_size;
+	int trip_num = 4;
+
 	struct freq_pctg_table *tab_ptr;
 
 	if (!sensor_conf || !sensor_conf->read_temperature) {
@@ -370,9 +442,13 @@ int exynos4_register_thermal(struct thermal_sensor_conf *sensor_conf)
 		th_zone->cool_dev_size = 0;
 		goto err_unregister;
 	}
-
+	
+#ifdef CONFIG_EXYNOS_TMU_TC
+	if (soc_is_exynos4212() || soc_is_exynos4412())
+		trip_num = 8;
+#endif
 	th_zone->therm_dev = thermal_zone_device_register(sensor_conf->name,
-				6, NULL, &exynos4_dev_ops, 0, 0, 0, 1000);
+				trip_num, NULL, &exynos4_dev_ops, 0, 0, 0, 1000);
 	if (IS_ERR(th_zone->therm_dev)) {
 		pr_err("Failed to register thermal zone device\n");
 		ret = -EINVAL;
