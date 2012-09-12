@@ -47,7 +47,7 @@ struct usb_detect_info {
 
 	struct delayed_work usb_work;
 	struct regulator *reverse;
-#ifdef CONFIG_HAS_WAKELOCK	
+#ifdef CONFIG_HAS_WAKELOCK
 	struct wake_lock usb_detect_lock;
 #endif
 };
@@ -55,7 +55,7 @@ struct usb_detect_info {
 static struct usb_detect_info *g_ud_info = NULL;
 static struct blocking_notifier_head usb_notifier_list = BLOCKING_NOTIFIER_INIT(usb_notifier_list);
 
-#ifdef CONFIG_HAS_WAKELOCK	
+#ifdef CONFIG_HAS_WAKELOCK
 static void usb_detect_wake_lock_initial(struct usb_detect_info *ud_info)
 {
 	wake_lock_init(&ud_info->usb_detect_lock, WAKE_LOCK_SUSPEND, "usb-detect");
@@ -104,7 +104,7 @@ static void m030_usb_detect_work(struct work_struct *work)
 	int usbid;
 	static int last_vbus = 0;
 	static int last_usbid = 0;
-	
+
 	vbus = gpio_get_value(ud_info->usb_vbus_gpio) == USB_VBUS_INSERT_LEVEL;
 	usbid = gpio_get_value(ud_info->usb_host_gpio) == USB_HOST_INSERT_LEVEL;
 
@@ -135,7 +135,7 @@ static void mx_usb_detect_work(struct work_struct *work)
 	static int last_vbus = 0;
 	static int last_usbid = 0;
 	static int last_dock = 0;
-	
+
 	vbus = gpio_get_value(ud_info->usb_vbus_gpio) == USB_VBUS_INSERT_LEVEL;
 	dock = gpio_get_value(ud_info->usb_dock_gpio) == USB_DOCK_INSERT_LEVEL;
 
@@ -219,7 +219,7 @@ static int __devinit usb_detect_probe(struct platform_device *pdev)
 	g_ud_info->usb_vbus_gpio = pdata->usb_vbus_gpio;
 	g_ud_info->usb_host_gpio = pdata->usb_host_gpio;
 	g_ud_info->usb_dock_gpio = pdata->usb_dock_gpio;
-	
+
 	usb_detect_wake_lock_initial(g_ud_info);
 
 	error = request_irq(gpio_to_irq(g_ud_info->usb_vbus_gpio),
@@ -274,7 +274,7 @@ fail2:
 fail1:
 	free_irq(gpio_to_irq(g_ud_info->usb_vbus_gpio), g_ud_info);
 fail0:
-	usb_detect_wake_lock_destroy(g_ud_info);	
+	usb_detect_wake_lock_destroy(g_ud_info);
 	kfree(g_ud_info);
 	return error;
 }
@@ -321,9 +321,9 @@ int unregister_mx_usb_notifier(struct notifier_block *nb)
 EXPORT_SYMBOL_GPL(unregister_mx_usb_notifier);
 
 int mx_is_usb_vbus_insert(void)
-{	
+{
 	if(g_ud_info)
-		return (gpio_get_value(g_ud_info->usb_vbus_gpio) == USB_VBUS_INSERT_LEVEL) ? 1 : 0;		
+		return (gpio_get_value(g_ud_info->usb_vbus_gpio) == USB_VBUS_INSERT_LEVEL) ? 1 : 0;
 	else
 		return 0;
 }
@@ -380,7 +380,7 @@ static struct platform_driver usb_detect_driver = {
 static int __init usb_detect_init(void)
 {
 	platform_driver_register(&usb_detect_driver);
-	return 0; 
+	return 0;
 }
 
 static void __exit usb_detect_exit(void)

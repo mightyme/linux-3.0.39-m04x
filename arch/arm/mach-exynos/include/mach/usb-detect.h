@@ -22,3 +22,4 @@ enum usb_insert_status {
 	USB_DOCK_REMOVE,
 };
 #endif
+
