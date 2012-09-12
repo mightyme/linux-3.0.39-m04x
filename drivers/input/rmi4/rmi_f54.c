@@ -821,6 +821,7 @@ static struct attribute *attrs_reg_17__19[] = {
 	attrify(disable),
 	attrify(burst_count),
 	attrify(stretch_duration),
+	NULL
 };
 
 static struct attribute *attrs_reg_20[] = {
