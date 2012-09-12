@@ -56,6 +56,7 @@ BLOCKING_NOTIFIER_HEAD(exynos_busfreq_notifier_list);
 struct busfreq_control {
 	struct opp *opp_lock;
 	struct device *dev;
+	bool init_done;
 };
 
 static int sample_time = 100;	//100ms
@@ -212,13 +213,13 @@ static int exynos_busfreq_reboot_event(struct notifier_block *this,
 			exynos_reboot_notifier);
 
 	unsigned long voltage = opp_get_voltage(data->max_opp);
-	unsigned long freq = opp_get_freq(data->max_opp);
+	unsigned int index = data->get_table_index(data->max_opp);
 
 	mutex_lock(&busfreq_lock);
 
 	if (data->soc_type == SOC_TYPE_EXYNOS4X12)
 		regulator_set_voltage(data->vdd_mif, voltage, voltage + 25000);
-	voltage = data->get_int_volt(freq);
+	voltage = data->get_int_volt(index);
 	regulator_set_voltage(data->vdd_int, voltage, voltage + 25000);
 	data->use = false;
 
@@ -362,9 +363,9 @@ static ssize_t show_time_in_state(struct device *device,
 	return len;
 }
 
-static DEVICE_ATTR(curr_freq, 0666, show_level_lock, store_level_lock);
-static DEVICE_ATTR(lock_list, 0666, show_locklist, NULL);
-static DEVICE_ATTR(time_in_state, 0666, show_time_in_state, NULL);
+static DEVICE_ATTR(curr_freq, 0640, show_level_lock, store_level_lock);
+static DEVICE_ATTR(lock_list, 0440, show_locklist, NULL);
+static DEVICE_ATTR(time_in_state, 0440, show_time_in_state, NULL);
 
 static struct attribute *busfreq_attributes[] = {
 	&dev_attr_curr_freq.attr,
@@ -380,11 +381,17 @@ int exynos_request_register(struct notifier_block *n)
 
 void exynos_request_apply(unsigned long freq, struct device *dev)
 {
-	blocking_notifier_call_chain(&exynos_busfreq_notifier_list, freq, dev);
+	if (bus_ctrl.init_done) {
+		blocking_notifier_call_chain(&exynos_busfreq_notifier_list,
+								 freq, dev);
+	} else {
+		pr_err("%s: bus not initialized!\n");
+	}
 }
 
 #ifdef CONFIG_EXYNOS4_DEV_PPMU
-static int exynos4x12_notifier_call(struct notifier_block *nb, unsigned long type, void *pdata)
+static int exynos4x12_notifier_call(struct notifier_block *nb, 
+					unsigned long type, void *pdata)
 {
 	struct busfreq_data *data = list_entry(nb, struct busfreq_data, ppmu_nb);
 	int ret;
@@ -475,6 +482,7 @@ static __devinit int exynos_busfreq_probe(struct platform_device *pdev)
 	}
 
 	data->use = true;
+	bus_ctrl.init_done = true;
 
 	if (register_reboot_notifier(&data->exynos_reboot_notifier))
 		pr_err("Failed to setup reboot notifier\n");

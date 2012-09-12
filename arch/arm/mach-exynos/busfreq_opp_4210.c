@@ -385,7 +385,7 @@ static void exynos4210_set_bus_volt(void)
 	return;
 }
 
-static unsigned int exynos4210_get_int_volt(unsigned long index)
+static unsigned int exynos4210_get_int_volt(unsigned int index)
 {
 	return exynos4210_int_volt[asv_group_index][index];
 }

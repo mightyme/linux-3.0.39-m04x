@@ -66,7 +66,7 @@ struct busfreq_data {
 	int (*init)	(struct device *dev, struct busfreq_data *data);
 	struct opp *(*monitor)(struct busfreq_data *data);
 	void (*target)	(int index);
-	unsigned int (*get_int_volt) (unsigned long freq);
+	unsigned int (*get_int_volt) (unsigned int index);
 	unsigned int (*get_table_index) (struct opp *opp);
 	void (*busfreq_prepare) (unsigned int index);
 	void (*busfreq_post) (unsigned int index);
