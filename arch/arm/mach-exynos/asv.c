@@ -25,6 +25,8 @@
 
 static struct samsung_asv *exynos_asv;
 unsigned int exynos_result_of_asv;
+unsigned int exynos_special_flag;
+bool exynos_dynamic_ema;
 
 static int __init exynos4_asv_init(void)
 {
@@ -44,10 +46,8 @@ static int __init exynos4_asv_init(void)
 		 * There is already value for asv group.
 		 * So, It is not necessary to execute for getting asv group.
 		 */
-		if (ret) {
-			kfree(exynos_asv);
+		if (ret)
 			return 0;
-		}
 	} else {
 		pr_info("EXYNOS: There is no type for ASV\n");
 		goto out2;
