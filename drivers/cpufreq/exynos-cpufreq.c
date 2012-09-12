@@ -212,7 +212,7 @@ static int exynos_target(struct cpufreq_policy *policy,
 				     safe_arm_volt + 25000);
 
 	if (cpu_info->freqs.new != cpu_info->freqs.old)
-		cpu_info->set_freq(old_index, index);
+		cpu_info->set_freq(cpu_info, old_index, index);
 
 	cpufreq_notify_transition(&cpu_info->freqs, CPUFREQ_POSTCHANGE);
 

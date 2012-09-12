@@ -33,6 +33,8 @@ struct cpufreq_clkdiv {
 	unsigned int	clkdiv1;
 };
 
+static bool need_dynamic_ema = false;
+
 static int abb_arm = ABB_MODE_130V;
 module_param_named(abb_arm, abb_arm, uint, 0644);
 
@@ -552,8 +554,8 @@ static bool exynos4x12_pms_change(unsigned int old_index, unsigned int new_index
 	return (old_pm == new_pm) ? 0 : 1;
 }
 
-static void exynos4x12_set_frequency(unsigned int old_index,
-				  unsigned int new_index)
+static void exynos4x12_set_frequency(struct exynos_dvfs_info *info,
+			unsigned int old_index, unsigned int new_index)
 {
 	unsigned int tmp;
 
@@ -563,6 +565,10 @@ static void exynos4x12_set_frequency(unsigned int old_index,
 	}
 
 	if (old_index > new_index) {
+		if (info->full_volt_table[new_index] >= 950000 &&
+				need_dynamic_ema)
+			__raw_writel(0x101, EXYNOS4_EMA_CONF);
+	
 		if (!exynos4x12_pms_change(old_index, new_index)) {
 			/* 1. Change the system clock divider values */
 			set_clkdiv(new_index);
@@ -595,6 +601,10 @@ static void exynos4x12_set_frequency(unsigned int old_index,
 			/* 2. Change the system clock divider values */
 			set_clkdiv(new_index);
 		}
+
+		if (info->full_volt_table[new_index] < 950000 &&
+				need_dynamic_ema)
+			__raw_writel(0x404, EXYNOS4_EMA_CONF);
 	}
 
 	/* ABB value is changed in below case */
@@ -608,7 +618,7 @@ static void exynos4x12_set_frequency(unsigned int old_index,
 
 static int __init exynos4x12_set_param(struct exynos_dvfs_info *info)
 {
-	unsigned int i;
+	unsigned int i, tmp;
 
 	if (soc_is_exynos4212()) {
 		switch (samsung_rev()) {
@@ -663,6 +673,45 @@ static int __init exynos4x12_set_param(struct exynos_dvfs_info *info)
 			pr_err("%s: Can't find SoC type \n", __func__);
 		}
 	}
+
+	if (soc_is_exynos4412() && (samsung_rev() >= EXYNOS4412_REV_2_0)) {
+		tmp = (is_special_flag() >> ARM_LOCK_FLAG) & 0x3;
+
+		if (tmp) {
+			pr_info("%s : special flag[%d]\n", __func__, tmp);
+			switch (tmp) {
+			case 1:
+				/* 500MHz fixed volt */
+				i = L11;
+				break;
+			case 2:
+				/* 700MHz fixed volt */
+				i = L9;
+				break;
+			case 3:
+				/* 800MHz fixed volt */
+				i = L8;
+				break;
+			default:
+				break;
+			}
+
+			pr_info("ARM voltage locking at L%d\n", i);
+
+			for (tmp = (i + 1) ; tmp < CPUFREQ_LEVEL_END ; tmp++) {
+				info->full_volt_table[tmp] =
+						info->full_volt_table[i];
+				pr_info("CPUFREQ: L%d : %d\n", 
+						tmp, info->full_volt_table[tmp]);
+			}
+		}
+
+		if (exynos_dynamic_ema) {
+			need_dynamic_ema = true;
+			pr_info("%s: Dynamic EMA is enabled\n", __func__);
+		}
+	}
+
 	
 	return 0;
 }

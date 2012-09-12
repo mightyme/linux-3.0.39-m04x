@@ -66,7 +66,7 @@ struct exynos_dvfs_info {
 	unsigned int	pll_safe_idx;
 	bool cpufreq_accessable;
 
-	void (*set_freq)(unsigned int, unsigned int);
+	void (*set_freq)(struct exynos_dvfs_info *, unsigned int, unsigned int);
 	bool (*need_apll_change)(unsigned int, unsigned int);
 	int (*update_dvs_voltage)(struct regulator_dev *, const int *,const unsigned int);
 };

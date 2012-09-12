@@ -179,7 +179,6 @@ static const unsigned int asv_voltage_A[CPUFREQ_LEVEL_END][8] = {
 	{ 1200000, 1150000, 1100000, 1075000, 1050000, 1050000, 1000000, 975000 },
 	{ 1100000, 1050000, 1000000, 975000, 975000, 975000, 925000, 925000 },
 	{ 1050000, 1000000, 975000, 950000, 950000, 925000, 925000, 925000 },
-
 };
 
 static const unsigned int asv_voltage_B[CPUFREQ_LEVEL_END][5] = {
@@ -308,8 +307,8 @@ bool exynos4210_pms_change(unsigned int old_index, unsigned int new_index)
 	return (old_pm == new_pm) ? 0 : 1;
 }
 
-static void exynos4210_set_frequency(unsigned int old_index,
-				  unsigned int new_index)
+static void exynos4210_set_frequency(struct exynos_dvfs_info *info,
+			unsigned int old_index, unsigned int new_index)
 {
 	unsigned int tmp;
 
