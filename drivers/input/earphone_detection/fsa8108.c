@@ -505,11 +505,11 @@ static void fsa8108_initialization(struct fsa8108_info *info)
     struct i2c_client *client = info->client;
 	int int_type=0;	
 /*** Set Comparator Thresholds setting Send/End***/
-    fsa8108_SetValue(FSA8108_REG_COMPARATOR_12, FSA8108_NO_SE_KEY_CMP, FSA8108_NO_SE_KEY_CMP_SHIFT, 0x0F);//0.083
+    fsa8108_SetValue(FSA8108_REG_COMPARATOR_12, FSA8108_NO_SE_KEY_CMP, FSA8108_NO_SE_KEY_CMP_SHIFT, 0x0F);//0.083 //0.05
 /*** Set Comparator Thresholds setting for volum up***/
-	fsa8108_SetValue(FSA8108_REG_COMPARATOR_34, FSA8108_VOL_UP_CMP, FSA8108_VOL_UP_CMP_SHIFT , 0x0d);//0.299
+	fsa8108_SetValue(FSA8108_REG_COMPARATOR_34, FSA8108_VOL_UP_CMP, FSA8108_VOL_UP_CMP_SHIFT , /*0x0d*/0x06);//0.299 //0.18
 /*** Set Comparator Thresholds setting for volum down***/
-	fsa8108_SetValue(FSA8108_REG_COMPARATOR_34, FSA8108_VOL_DOWN_CMP, FSA8108_VOL_DOWN__CMP_SHIFT , 0x06);//0.620
+	fsa8108_SetValue(FSA8108_REG_COMPARATOR_34, FSA8108_VOL_DOWN_CMP, FSA8108_VOL_DOWN__CMP_SHIFT , /*0x06*/0x0F);//0.620 //0.29
 
 /*** Set Timing parameters and Global Multiplier setting ***/
     fsa8108_SetValue(FSA8108_REG_KEY_PRS_T,FSA8108_TDOUBLE,FSA8108_TDOUBLE_SHIFT,0x02);
