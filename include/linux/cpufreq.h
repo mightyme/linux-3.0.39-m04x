@@ -110,9 +110,6 @@ struct cpufreq_policy {
 #if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	struct device *dev;
 #endif
-#ifdef CONFIG_CPU_THERMAL
-	unsigned int cpu_freq_limit;
-#endif
 };
 
 #define CPUFREQ_ADJUST		(0)

@@ -22,6 +22,7 @@
 #include <linux/reboot.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
+#include <linux/pm_qos.h>
 #include <linux/performance.h>
 #include <linux/exynos-cpufreq.h>
 
@@ -38,6 +39,8 @@ extern int exynos4210_cpufreq_init(struct exynos_dvfs_info *info);
 #else
 static int exynos4210_cpufreq_init(struct exynos_dvfs_info *info) {return 0;}
 #endif
+
+static BLOCKING_NOTIFIER_HEAD(exynos_cpufreq_policy_chain_head);
 
 static unsigned int exynos_get_safe_armvolt(struct exynos_dvfs_info *cpu_info, 
 		unsigned int old_index, unsigned int new_index)
@@ -83,6 +86,36 @@ static unsigned int exynos_getspeed(unsigned int cpu)
 	rate = clk_get_rate(cpu_clk) / 1000;
 	clk_put(cpu_clk);
 	return rate;
+}
+
+static void regulate_target_freq(struct exynos_dvfs_info *cpu_info, 
+		struct cpufreq_policy *policy, unsigned int *target_freq)
+{
+	int freq = *target_freq;
+	
+	/* 
+	 * ignore qos if not accessable
+	 * priority: lock target > qos
+	 */
+	if (!cpu_info->cpufreq_accessable)
+		return;
+	
+	/* qos min */
+	if (cpu_info->qos_min_freq < policy->cpuinfo.min_freq)
+		cpu_info->qos_min_freq = policy->cpuinfo.min_freq;
+	/* qos max */
+	if (cpu_info->qos_max_freq > policy->cpuinfo.max_freq)
+		cpu_info->qos_max_freq = policy->cpuinfo.max_freq;
+
+	if (freq < cpu_info->qos_min_freq)
+		freq = cpu_info->qos_min_freq;
+
+	if (freq > cpu_info->qos_max_freq && 
+		cpu_info->qos_min_freq < cpu_info->qos_max_freq) {
+		freq = cpu_info->qos_max_freq;
+	}
+	
+	*target_freq = freq;
 }
 
 static int exynos_target(struct cpufreq_policy *policy,
@@ -131,9 +164,8 @@ static int exynos_target(struct cpufreq_policy *policy,
 		cpu_info->cpufreq_accessable = false;
 	relation &= ~MASK_FURTHER_CPUFREQ;
 
-#ifdef CONFIG_CPU_THERMAL
-	target_freq = (target_freq > policy->cpu_freq_limit) ? policy->cpu_freq_limit : target_freq;
-#endif
+	/*depends on qos*/
+	regulate_target_freq(cpu_info, policy, &target_freq);
 
 	cpu_info->freqs.old = exynos_getspeed(policy->cpu);
 	
@@ -242,11 +274,7 @@ static int exynos_cpu_init(struct cpufreq_policy *policy)
 	if (unlikely(ret)) {
 		cpufreq_frequency_table_put_attr(policy->cpu);
 		goto cpu_init_err;
-	} else {
-#ifdef CONFIG_CPU_THERMAL
-		policy->cpu_freq_limit = policy->max;
-#endif
-	}
+	} 
 	
 	return 0;
 cpu_init_err:
@@ -355,18 +383,36 @@ static int exynos_update_table(struct exynos_dvfs_info *cpu_info)
 
 static int exynos_cpufreq_update_voltage(struct exynos_dvfs_info *cpu_info)
 {
-	int ret = 0;
+	int i, ret = 0;
 	if (cpu_info->update_dvs_voltage) {
 		ret = cpu_info->update_dvs_voltage (cpu_info->r_dev,
 							cpu_info->used_volt_table, 
 							cpu_info->volt_table_num);
 		if (!ret) {
-			int i;
 			for (i=0;i<cpu_info->volt_table_num;i++)
-				pr_debug("volt_table[%d] = %d\n", i, cpu_info->used_volt_table[i]);
+				pr_debug("volt_table[%d] = %d\n",
+					 i, cpu_info->used_volt_table[i]);
 		}
 	}
 	return ret;
+}
+
+int register_exynos_cpufreq_policy_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&exynos_cpufreq_policy_chain_head, nb);
+}
+EXPORT_SYMBOL_GPL(register_exynos_cpufreq_policy_notifier);
+
+int unregister_exynos_cpufreq_policy_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&exynos_cpufreq_policy_chain_head, nb);
+}
+EXPORT_SYMBOL_GPL(unregister_exynos_cpufreq_policy_notifier);
+
+static int exynos_cpufreq_policy_notifier_call_chain(unsigned long val)
+{
+	return (blocking_notifier_call_chain(&exynos_cpufreq_policy_chain_head, val, NULL)
+			== NOTIFY_BAD) ? -EINVAL : 0;
 }
 
 static int exynos_update_cpufreq_profile(struct cpufreq_policy *policy)
@@ -383,9 +429,7 @@ static int exynos_update_cpufreq_profile(struct cpufreq_policy *policy)
 		/* Important: updating necessary policy components of user */
 		policy->user_policy.max = policy->cpuinfo.max_freq;
 		policy->user_policy.min = policy->cpuinfo.min_freq;
-#ifdef CONFIG_CPU_THERMAL
-		policy->cpu_freq_limit = policy->cpuinfo.max_freq;
-#endif
+		exynos_cpufreq_policy_notifier_call_chain(policy->cpuinfo.max_freq);
 	} else {
 		pr_err("%s: to do cpufreq_frequency_table_cpuinfo failed\n", __func__);
 	}
@@ -444,6 +488,60 @@ err:
 	return (ret < 0) ? NOTIFY_DONE : NOTIFY_OK;
 }
 
+static int exynos_qos_min_notifier_call(struct notifier_block *nb,
+				     unsigned long value, void *devp)
+{
+	struct exynos_dvfs_info *cpu_info = 
+			list_entry(nb, struct exynos_dvfs_info, qos_min_nb);
+	
+	cpu_info->qos_min_freq = value;
+	
+	return NOTIFY_OK;
+}
+
+static int exynos_qos_max_notifier_call(struct notifier_block *nb,
+				     unsigned long value, void *devp)
+{
+	struct exynos_dvfs_info *cpu_info = 
+			list_entry(nb, struct exynos_dvfs_info, qos_max_nb);
+	
+	cpu_info->qos_max_freq = value;
+	
+	return NOTIFY_OK;
+}
+
+#ifdef CONFIG_EXYNOS_TMU_TC
+static struct exynos_dvfs_info *cpu_info_glb = NULL;
+int exynos_find_cpufreq_by_volt(const unsigned int voltage, unsigned int *freq)
+{
+	int i, tmp_freq = -EINVAL;
+	struct exynos_dvfs_info *cpu_info = cpu_info_glb;
+	
+	if (!cpu_info) {
+		pr_err("%s: there is no cpu info\n", __func__);
+		return -EINVAL;
+	}
+
+	for (i=0; cpu_info->full_freq_table[i].frequency 
+			!= CPUFREQ_TABLE_END; i++) {
+		/*Find the lowest level*/
+		if (cpu_info->full_volt_table[i] < voltage && 
+				cpu_info->full_volt_table[i] != 0)
+			break;
+
+		tmp_freq = cpu_info->full_freq_table[i].frequency;
+	}
+	
+	if (tmp_freq > 0) {
+		*freq = tmp_freq;
+		return 0;
+	} else {
+		pr_err("%s: Can not find suitable cpufreq\n");
+		return -EINVAL;
+	}
+}
+#endif
+
 static int __devinit exynos_cpufreq_probe(struct platform_device *pdev)
 {
 	struct exynos_cpufreq_platdata *pdata = pdev->dev.platform_data;
@@ -454,6 +552,9 @@ static int __devinit exynos_cpufreq_probe(struct platform_device *pdev)
 	if (NULL == cpu_info)
 		return -ENOMEM;
 
+#ifdef CONFIG_EXYNOS_TMU_TC	
+	cpu_info_glb = cpu_info;
+#endif
 	cpu_info->cputype = platform_get_device_id(pdev)->driver_data;
 	cpu_info->dev = &pdev->dev;
 	cpu_info->gpio_dvfs = pdata->gpio_dvfs;
@@ -531,6 +632,24 @@ static int __devinit exynos_cpufreq_probe(struct platform_device *pdev)
 		goto err_notifier3;
 	}
 
+	/*Add cpufreq qos min notifier*/
+	cpu_info->qos_min_freq = PM_QOS_CPUFREQ_MIN_DEFAULT_VALUE;
+	cpu_info->qos_min_nb.notifier_call = exynos_qos_min_notifier_call;
+	ret = pm_qos_add_notifier(PM_QOS_CPUFREQ_MIN, &cpu_info->qos_min_nb);
+	if (ret) {
+		pr_err("failed to add cpufreq qos min notifier\n");
+		goto err_qos_min_nb;
+	}
+
+	/*Add cpufreq qos max notifier*/
+	cpu_info->qos_max_freq = PM_QOS_CPUFREQ_MAX_DEFAULT_VALUE;
+	cpu_info->qos_max_nb.notifier_call = exynos_qos_max_notifier_call;
+	ret = pm_qos_add_notifier(PM_QOS_CPUFREQ_MAX, &cpu_info->qos_max_nb);
+	if (ret) {
+		pr_err("failed to add cpufreq qos max notifier\n");
+		goto err_qos_max_nb;
+	}
+
 	ret = cpufreq_register_driver(&cpu_info->driver);
 	if (ret) {
 		pr_err("failed to register cpufreq driver\n");
@@ -542,6 +661,10 @@ static int __devinit exynos_cpufreq_probe(struct platform_device *pdev)
 	return 0;
 
 err_cpufreq:
+	pm_qos_remove_notifier(PM_QOS_CPUFREQ_MAX, &cpu_info->qos_max_nb);
+err_qos_max_nb:
+	pm_qos_remove_notifier(PM_QOS_CPUFREQ_MIN, &cpu_info->qos_min_nb);
+err_qos_min_nb:
 	unregister_pfm_notifier(&cpu_info->pfm_notifier);
 err_notifier3:
 	unregister_pm_notifier(&cpu_info->pm_notifier);

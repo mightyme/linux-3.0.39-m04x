@@ -14,11 +14,27 @@
 #include <linux/cpufreq.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/pm_qos.h>
 #include <linux/cpu_cooling.h>
 #include <linux/exynos_thermal.h>
 
+#include <plat/cpu.h>
+
+#ifdef CONFIG_EXYNOS_TMU_TC
+#include <linux/exynos-cpufreq.h>
+#include <mach/dev.h>
+#include <mach/busfreq_exynos4.h>
+
+extern int mali_voltage_lock_init(void);
+extern int mali_voltage_lock_deinit(void);
+extern int mali_voltage_lock_push(int lock_vol);
+extern int mali_voltage_lock_pop(void);
+#endif
+
 
 #define MAX_COOLING_DEVICE 4
+#define COOLING_DEVICE_NUM 3
+
 struct exynos4_thermal_zone {
 	unsigned long user_temp;
 	unsigned int idle_interval;
@@ -26,7 +42,6 @@ struct exynos4_thermal_zone {
 	struct thermal_zone_device *therm_dev;
 	struct thermal_cooling_device *cool_dev[MAX_COOLING_DEVICE];
 	unsigned int cool_dev_size;
-	struct platform_device *exynos4_dev;
 	struct thermal_sensor_conf *sensor_conf;
 };
 
@@ -90,12 +105,23 @@ void exynos4_report_trigger(void)
 static int exynos4_get_trip_type(struct thermal_zone_device *thermal, int trip,
 				 enum thermal_trip_type *type)
 {
-	if (trip == 0 || trip == 1 ) 
-		*type = THERMAL_TRIP_STATE_ACTIVE;
-	else if (trip == 2)
-		*type = THERMAL_TRIP_CRITICAL;
-	else
-		return -EINVAL;
+	switch (trip) {
+		case 0 ... 2:
+			*type = THERMAL_TRIP_STATE_ACTIVE;
+			break;
+		case 3: 
+			*type = THERMAL_TRIP_CRITICAL;
+			break;
+		case 4:
+			*type = THERMAL_TRIP_COLD_TC;
+			break;
+		case 5:
+			*type = THERMAL_TRIP_EXIT_COLD_TC;
+			break;
+		default:
+			pr_err("%s: error trip %d\n", __func__, trip);
+			return -EINVAL;
+	}
 
 	return 0;
 }
@@ -103,17 +129,20 @@ static int exynos4_get_trip_type(struct thermal_zone_device *thermal, int trip,
 static int exynos4_get_trip_temp(struct thermal_zone_device *thermal, int trip,
 				 unsigned long *temp)
 {
-	/*Monitor zone*/
-	if (trip == 0)
-		*temp = th_zone->sensor_conf->trip_data.trip_val[0];
-	/*Warn zone*/
-	else if (trip == 1)
-		*temp = th_zone->sensor_conf->trip_data.trip_val[1];
-	/*Panic zone*/
-	else if (trip == 2)
-		*temp = th_zone->sensor_conf->trip_data.trip_val[2];
-	else
-		return -EINVAL;
+	switch (trip) {
+		case 0 ... 3:
+			*temp = th_zone->sensor_conf->trip_data.trip_val[trip];
+			break;
+		case 4:
+			*temp = th_zone->sensor_conf->tc_data.start_tc;
+			break;
+		case 5:
+			*temp = th_zone->sensor_conf->tc_data.stop_tc;
+			break;
+		default:
+			pr_err("%s error trip %d\n", __func__, trip);
+			return -EINVAL;
+	}
 	/*convert the temperature into millicelsius*/
 	*temp = *temp * 1000;
 
@@ -124,7 +153,7 @@ static int exynos4_get_crit_temp(struct thermal_zone_device *thermal,
 				 unsigned long *temp)
 {
 	/*Panic zone*/
-	*temp = th_zone->sensor_conf->trip_data.trip_val[2];
+	*temp = th_zone->sensor_conf->trip_data.trip_val[3];
 	/*convert the temperature into millicelsius*/
 	*temp = *temp * 1000;
 	return 0;
@@ -133,17 +162,16 @@ static int exynos4_get_crit_temp(struct thermal_zone_device *thermal,
 static int exynos4_bind(struct thermal_zone_device *thermal,
 			struct thermal_cooling_device *cdev)
 {
+	int i;
 	/* if the cooling device is the one from exynos4 bind it */
 	if (cdev != th_zone->cool_dev[0])
 		return 0;
-
-	if (thermal_zone_bind_cooling_device(thermal, 0, cdev)) {
-		pr_err("error binding cooling dev\n");
-		return -EINVAL;
-	}
-	if (thermal_zone_bind_cooling_device(thermal, 1, cdev)) {
-		pr_err("error binding cooling dev\n");
-		return -EINVAL;
+	
+	for (i=0; i<COOLING_DEVICE_NUM; i++) {
+		if (thermal_zone_bind_cooling_device(thermal, i, cdev)) {
+			pr_err("error binding cooling dev\n");
+			return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -152,42 +180,25 @@ static int exynos4_bind(struct thermal_zone_device *thermal,
 static int exynos4_unbind(struct thermal_zone_device *thermal,
 			  struct thermal_cooling_device *cdev)
 {
+	int i;
+
 	if (cdev != th_zone->cool_dev[0])
 		return 0;
-	if (thermal_zone_unbind_cooling_device(thermal, 0, cdev)) {
-		pr_err("error unbinding cooling dev\n");
-		return -EINVAL;
+	
+	for (i=0; i<COOLING_DEVICE_NUM; i++) {
+		if (thermal_zone_unbind_cooling_device(thermal, i, cdev)) {
+			pr_err("error unbinding cooling dev\n");
+			return -EINVAL;
+		}
 	}
-	if (thermal_zone_unbind_cooling_device(thermal, 1, cdev)) {
-		pr_err("error unbinding cooling dev\n");
-		return -EINVAL;
-	}
+
 	return 0;
-}
-
-int register_exynos_tmu_notifier(struct notifier_block *nb)
-{
-	return blocking_notifier_chain_register(&exynos_tmu_chain_head, nb);
-}
-EXPORT_SYMBOL_GPL(register_exynos_tmu_notifier);
-
-int unregister_exynos_tmu_notifier(struct notifier_block *nb)
-{
-	return blocking_notifier_chain_unregister(&exynos_tmu_chain_head, nb);
-}
-EXPORT_SYMBOL_GPL(unregister_exynos_tmu_notifier);
-
-static int exynos_tmu_notifier_call_chain(unsigned long val)
-{
-	return (blocking_notifier_call_chain(&exynos_tmu_chain_head, val, NULL)
-			== NOTIFY_BAD) ? -EINVAL : 0;
 }
 
 static int exynos4_get_temp(struct thermal_zone_device *thermal,
 			       unsigned long *temp)
 {
 	void *data;
-	int ret;
 
 	if (!th_zone->sensor_conf) {
 		pr_debug("Temperature sensor not initialised\n");
@@ -203,13 +214,88 @@ static int exynos4_get_temp(struct thermal_zone_device *thermal,
 		/*convert the temperature into millicelsius*/
 		*temp = *temp * 1000;
 	}
+
 	pr_debug("%s: temp is :%lu\n", __func__, *temp);
 	
-	ret = exynos_tmu_notifier_call_chain(*temp);
-	if (ret < 0) {
-		pr_err("%s notifier_call_chain failed!\n", __func__);
-	}
+	return 0;
+}
+
+static int exynos4_notify(struct thermal_zone_device *thermal,int val,
+				enum thermal_trip_type trip_type)
+{
+#ifdef CONFIG_EXYNOS_TMU_TC
+	int ret;
+	unsigned int cpufreq;
+	unsigned long busfreq;
+	unsigned int arm_volt = 0, bus_volt = 0, g3d_volt = 0;
 	
+	if (soc_is_exynos4210())
+		goto out;
+	
+	switch (trip_type) {
+	case THERMAL_TRIP_COLD_TC:
+		pr_info("THERMAL_TRIP_COLD_VC:\n");
+		
+		/*arm*/
+		arm_volt = th_zone->sensor_conf->tc_data.arm_volt;
+		ret = exynos_find_cpufreq_by_volt(arm_volt, &cpufreq);
+		if (ret < 0) {
+			pr_err("%s: Find cpufreq erro\n");
+			goto err_lock;
+		}
+		pm_qos_update_request(&thermal->qos_cpu_tmu_tc, cpufreq);
+		
+		/*bus*/
+		bus_volt = th_zone->sensor_conf->tc_data.bus_volt;
+		ret = exynos4x12_find_busfreq_by_volt(bus_volt, &busfreq);
+		if (ret < 0) {
+			pr_err("%s: Find busfreq erro\n");
+			goto err_lock;
+		}
+
+		ret = dev_lock(th_zone->therm_dev->bus_dev, 
+			&th_zone->therm_dev->device, busfreq);
+		if (ret) {
+			pr_err("TMU: Bus lock erro\n");
+			goto err_lock;
+		}
+
+		/*g3d*/
+		g3d_volt = th_zone->sensor_conf->tc_data.g3d_volt;
+		ret = mali_voltage_lock_push(g3d_volt);
+		if (ret < 0) {
+			pr_err("TMU: g3d_push error: %u uV\n", g3d_volt);
+			goto err_lock;
+		}
+		break;
+	case THERMAL_TRIP_EXIT_COLD_TC:	
+		pr_info("THERMAL_TRIP_EXIT_COLD_VC:\n");
+		pm_qos_update_request(&thermal->qos_cpu_tmu_tc, 
+					PM_QOS_DEFAULT_VALUE);
+	
+		ret = dev_unlock(th_zone->therm_dev->bus_dev,
+				&th_zone->therm_dev->device);
+		if (ret) {
+			pr_err("TMU: Bus unlock erro\n");
+			goto err_unlock;
+		}
+
+		ret = mali_voltage_lock_pop();
+		if (ret < 0) {
+			pr_err("TMU: g3d_pop error\n");
+			goto err_unlock;
+		}
+
+		break;
+	default:
+		pr_debug("%s: do not implement for type %d\n",
+					 __func__, trip_type);
+	}
+
+err_lock:
+err_unlock:
+out:
+#endif
 	return 0;
 }
 
@@ -247,6 +333,7 @@ static struct thermal_zone_device_ops exynos4_dev_ops = {
 	.get_trip_type = exynos4_get_trip_type,
 	.get_trip_temp = exynos4_get_trip_temp,
 	.get_crit_temp = exynos4_get_crit_temp,
+	.notify = exynos4_notify,
 };
 
 int exynos4_register_thermal(struct thermal_sensor_conf *sensor_conf)
@@ -285,7 +372,7 @@ int exynos4_register_thermal(struct thermal_sensor_conf *sensor_conf)
 	}
 
 	th_zone->therm_dev = thermal_zone_device_register(sensor_conf->name,
-				3, NULL, &exynos4_dev_ops, 0, 0, 0, 1000);
+				6, NULL, &exynos4_dev_ops, 0, 0, 0, 1000);
 	if (IS_ERR(th_zone->therm_dev)) {
 		pr_err("Failed to register thermal zone device\n");
 		ret = -EINVAL;
@@ -300,6 +387,18 @@ int exynos4_register_thermal(struct thermal_sensor_conf *sensor_conf)
 	ret = device_create_file(&th_zone->therm_dev->device, &dev_attr_user_temp);
 	if (ret)
 		goto err_unregister;
+
+#ifdef CONFIG_EXYNOS_TMU_TC	
+	pm_qos_add_request(&th_zone->therm_dev->qos_cpu_tmu_tc, 
+				PM_QOS_CPUFREQ_MIN, PM_QOS_DEFAULT_VALUE);
+	th_zone->therm_dev->bus_dev = dev_get("exynos-busfreq");
+
+	ret = mali_voltage_lock_init();
+	if (ret) {
+		pr_err("Failed to initialize mail voltage lock.\n");
+		goto err_unregister;
+	}
+#endif
 
 	pr_debug("Exynos: Kernel Thermal management registered\n");
 
@@ -322,7 +421,10 @@ void exynos4_unregister_thermal(void)
 
 	if (th_zone && th_zone->therm_dev)
 		thermal_zone_device_unregister(th_zone->therm_dev);
-
+#ifdef CONFIG_EXYNOS_TMU_TC	
+	pm_qos_remove_request(&th_zone->therm_dev->qos_cpu_tmu_tc);
+	mali_voltage_lock_deinit();
+#endif
 	kfree(th_zone);
 
 	pr_info("Exynos: Kernel Thermal management unregistered\n");

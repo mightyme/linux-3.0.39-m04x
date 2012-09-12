@@ -35,9 +35,9 @@ static struct resource exynos4_tmu_resource[] = {
 static struct exynos4_tmu_platform_data exynos4210_tmu_data = {
 	.threshold = 75,
 	.trigger_levels[0] = 5,
-	.trigger_levels[1] = 20,
-	.trigger_levels[2] = 30,
-	.trigger_levels[3] = 40,
+	.trigger_levels[1] = 15,
+	.trigger_levels[2] = 25,
+	.trigger_levels[3] = 35,
 	.trigger_level0_en = 1,
 	.trigger_level1_en = 1,
 	.trigger_level2_en = 1,
@@ -51,15 +51,25 @@ static struct exynos4_tmu_platform_data exynos4210_tmu_data = {
 	.freq_tab[1] = {
 		.freq_clip_pctg = 30,
 	},
-	.freq_tab_count = 2,
+	.freq_tab[2] = {
+		.freq_clip_pctg = 50,
+	},
+	.freq_tab_count = 3,
+	.tc = {
+		.start_tc = 10,	/*start temperature compensate voltage*/
+		.stop_tc  = 13,
+		.arm_volt = 925000,
+		.bus_volt = 900000,
+		.g3d_volt = 900000,
+	}
 };
 
 static struct exynos4_tmu_platform_data exynos4x12_tmu_data = {
 	.threshold = 75,
 	.trigger_levels[0] = 5,
-	.trigger_levels[1] = 20,
-	.trigger_levels[2] = 30,
-	.trigger_levels[3] = 40,
+	.trigger_levels[1] = 15,
+	.trigger_levels[2] = 25,
+	.trigger_levels[3] = 35,
 	.trigger_level0_en = 1,
 	.trigger_level1_en = 1,
 	.trigger_level2_en = 1,
@@ -73,7 +83,17 @@ static struct exynos4_tmu_platform_data exynos4x12_tmu_data = {
 	.freq_tab[1] = {
 		.freq_clip_pctg = 30,
 	},
-	.freq_tab_count = 2,
+	.freq_tab[2] = {
+		.freq_clip_pctg = 50,
+	},
+	.freq_tab_count = 3,
+	.tc = {
+		.start_tc = 10,
+		.stop_tc  = 13,
+		.arm_volt = 925000,
+		.bus_volt = 900000,
+		.g3d_volt = 900000,
+	}
 };
 
 struct platform_device exynos4_device_tmu = {

@@ -50,7 +50,12 @@ struct exynos_dvfs_info {
 	struct notifier_block reboot_notifier;
 	struct notifier_block pm_notifier;
 	struct notifier_block pfm_notifier;
-
+	struct notifier_block qos_min_nb;
+	struct notifier_block qos_max_nb;
+	
+	int qos_min_freq;
+	int qos_max_freq;
+	
 	struct mutex freq_lock;
 	struct mutex pfm_lock;
 
@@ -83,6 +88,12 @@ extern int max8997_update_dvs_voltage(struct regulator_dev *rdev,
 #ifdef CONFIG_REGULATOR_MAX77686
 extern int max77686_update_dvs_voltage(struct regulator_dev *rdev, 
 				const int *volt_table, const unsigned int size);
+#endif
+
+extern int register_exynos_cpufreq_policy_notifier(struct notifier_block *nb);
+extern int unregister_exynos_cpufreq_policy_notifier(struct notifier_block *nb);
+#ifdef CONFIG_EXYNOS_TMU_TC
+extern int exynos_find_cpufreq_by_volt(const unsigned voltage, unsigned int *freq);
 #endif
 
 #endif

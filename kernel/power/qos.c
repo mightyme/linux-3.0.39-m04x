@@ -85,7 +85,6 @@ static struct pm_qos_object network_lat_pm_qos = {
 	.name = "network_latency",
 };
 
-
 static BLOCKING_NOTIFIER_HEAD(network_throughput_notifier);
 static struct pm_qos_constraints network_tput_constraints = {
 	.list = PLIST_HEAD_INIT(network_tput_constraints.list),
@@ -98,7 +97,6 @@ static struct pm_qos_object network_throughput_pm_qos = {
 	.constraints = &network_tput_constraints,
 	.name = "network_throughput",
 };
-
 
 static BLOCKING_NOTIFIER_HEAD(bus_dma_throughput_notifier);
 static struct pm_qos_constraints bus_dma_tput_constraints = {
@@ -113,18 +111,30 @@ static struct pm_qos_object bus_dma_throughput_pm_qos = {
 	.name = "bus_dma_throughput",
 };
 
-
-static BLOCKING_NOTIFIER_HEAD(dvfs_lat_notifier);
-static struct pm_qos_constraints dvfs_lat_constraints = {
-	.list = PLIST_HEAD_INIT(dvfs_lat_constraints.list),
-	.target_value = PM_QOS_DVFS_LAT_DEFAULT_VALUE,
-	.default_value = PM_QOS_DVFS_LAT_DEFAULT_VALUE,
-	.type = PM_QOS_MIN,
-	.notifiers = &dvfs_lat_notifier,
+static BLOCKING_NOTIFIER_HEAD(cpufreq_min_notifier);
+static struct pm_qos_constraints cpufreq_min_constraints = {
+	.list = PLIST_HEAD_INIT(cpufreq_min_constraints.list),
+	.target_value = PM_QOS_CPUFREQ_MIN_DEFAULT_VALUE,
+	.default_value = PM_QOS_CPUFREQ_MIN_DEFAULT_VALUE,
+	.type = PM_QOS_MAX,
+	.notifiers = &cpufreq_min_notifier,
 };
-static struct pm_qos_object dvfs_lat_pm_qos = {
-	.constraints = &dvfs_lat_constraints,
-	.name = "dvfs_latency",
+static struct pm_qos_object cpufreq_min_pm_qos = {
+	.constraints = &cpufreq_min_constraints,
+	.name = "cpufreq_min",
+};
+
+static BLOCKING_NOTIFIER_HEAD(cpufreq_max_notifier);
+static struct pm_qos_constraints cpufreq_max_constraints = {
+	.list = PLIST_HEAD_INIT(cpufreq_max_constraints.list),
+	.target_value = PM_QOS_CPUFREQ_MAX_DEFAULT_VALUE,
+	.default_value = PM_QOS_CPUFREQ_MAX_DEFAULT_VALUE,
+	.type = PM_QOS_MIN,
+	.notifiers = &cpufreq_max_notifier,
+};
+static struct pm_qos_object cpufreq_max_pm_qos = {
+	.constraints = &cpufreq_max_constraints,
+	.name = "cpufreq_max",
 };
 
 static BLOCKING_NOTIFIER_HEAD(bus_qos_notifier);
@@ -146,7 +156,8 @@ static struct pm_qos_object *pm_qos_array[] = {
 	&network_lat_pm_qos,
 	&network_throughput_pm_qos,
 	&bus_dma_throughput_pm_qos,
-	&dvfs_lat_pm_qos,
+	&cpufreq_min_pm_qos,
+	&cpufreq_max_pm_qos,
 	&bus_qos_pm_qos,
 };
 

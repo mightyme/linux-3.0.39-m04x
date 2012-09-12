@@ -121,6 +121,13 @@ u32 pmu_get_power_up_down_info(void);
 #endif
 #endif
 
+#ifdef CONFIG_EXYNOS_TMU_TC
+int mali_voltage_lock_push(int lock_vol);
+int mali_voltage_lock_pop(void);
+int mali_voltage_lock_init(void);
+int mali_vol_get_from_table(int vol);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

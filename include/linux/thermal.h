@@ -28,6 +28,7 @@
 #include <linux/idr.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
+#include <linux/pm_qos.h>
 
 struct thermal_zone_device;
 struct thermal_cooling_device;
@@ -43,6 +44,10 @@ enum thermal_trip_type {
 	THERMAL_TRIP_HOT,
 	THERMAL_TRIP_CRITICAL,
 	THERMAL_TRIP_STATE_ACTIVE,
+#ifdef CONFIG_ARCH_EXYNOS
+	THERMAL_TRIP_COLD_TC,	/*Temperature compensated voltage*/
+	THERMAL_TRIP_EXIT_COLD_TC,
+#endif
 };
 
 struct thermal_zone_device_ops {
@@ -98,6 +103,7 @@ struct thermal_zone_device {
 	int id;
 	char type[THERMAL_NAME_LENGTH];
 	struct device device;
+	struct device *bus_dev;
 	void *devdata;
 	int trips;
 	int tc1;
@@ -113,6 +119,10 @@ struct thermal_zone_device {
 	struct mutex lock;	/* protect cooling devices list */
 	struct thermal_cooling_stats *stat;
 	int last_trip_level;
+	struct pm_qos_request qos_cpu_tmu_tc;
+#ifdef CONFIG_ARCH_EXYNOS
+	unsigned int cold_tc;
+#endif
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry *d_entry;
 #endif
@@ -169,22 +179,6 @@ void thermal_cooling_device_unregister(struct thermal_cooling_device *);
 extern int thermal_generate_netlink_event(u32 orig, enum events event);
 #else
 static inline int thermal_generate_netlink_event(u32 orig, enum events event)
-{
-	return 0;
-}
-#endif
-
-#ifdef CONFIG_SAMSUNG_THERMAL_INTERFACE
-#include <linux/notifier.h>
-extern int register_exynos_tmu_notifier(struct notifier_block *nb);
-extern int unregister_exynos_tmu_notifier(struct notifier_block *nb);
-#else
-static inline int register_exynos_tmu_notifier(struct notifier_block *nb)
-{
-	return 0;
-}
-
-static inline int unregister_exynos_tmu_notifier(struct notifier_block *nb)
 {
 	return 0;
 }

@@ -35,9 +35,11 @@
 #endif
 
 #ifdef CONFIG_CPU_FREQ
-	struct cpufreq_cooling_device {
+struct cpufreq_cooling_device {
 	int id;
 	struct thermal_cooling_device *cool_dev;
+	struct pm_qos_request qos_cpu_cool;
+	struct notifier_block qos_update_nb;
 	struct freq_pctg_table *tab_ptr;
 	unsigned int tab_size;
 	unsigned int cpufreq_state;
@@ -124,11 +126,50 @@ static void cpufreq_update_policy_max(struct cpufreq_cooling_device *cpufreq_dev
 	max_freq = (policy->cpuinfo.max_freq * (100 - th_pctg)) / 100;
 	max_freq = (max_freq / (100*1000)) * (100*1000);
 
-	policy->cpu_freq_limit = max_freq;
-	
+	pm_qos_update_request(&cpufreq_device->qos_cpu_cool, max_freq);
+
 	pr_info("%s: level:%d, th_pctg:%d, max_freq:%lu\n",
 				 __func__, level, th_pctg, max_freq);
 }
+
+#ifdef CONFIG_EXYNOS_CPUFREQ
+static int cpufreq_cooling_qos_update_notifier_call(struct notifier_block *nb,
+				     unsigned long value, void *devp)
+{
+	struct cpufreq_cooling_device *cpufreq_device = 
+		list_entry(nb, struct cpufreq_cooling_device, qos_update_nb);
+
+	struct cpufreq_policy *policy = NULL;
+	struct freq_pctg_table *th_table;
+	unsigned long max_freq = 0;
+	unsigned int th_pctg = 0, level;
+	
+	policy = cpufreq_cpu_get(0);
+	if (!policy) {
+		pr_err("%s: failed to get cpufreq policy", __func__);
+		return NOTIFY_DONE;
+	}
+	
+	level = cpufreq_device->cpufreq_state;
+
+	if (level > 0) {
+		th_table = 
+			&(cpufreq_device->tab_ptr[level - 1]);
+		th_pctg = th_table->freq_clip_pctg;
+	}
+
+	max_freq = (policy->cpuinfo.max_freq * (100 - th_pctg)) / 100;
+	max_freq = (max_freq / (100*1000)) * (100*1000);
+	cpufreq_cpu_put(policy);
+	
+	pm_qos_update_request(&cpufreq_device->qos_cpu_cool, max_freq);
+
+	pr_info("%s: level:%d, th_pctg:%d, max_freq:%lu\n",
+				 __func__, level, th_pctg, max_freq);
+	
+	return NOTIFY_OK;
+}
+#endif
 
 static int cpufreq_apply_cooling(struct cpufreq_cooling_device *cpufreq_device,
 				unsigned long cooling_state)
@@ -164,7 +205,6 @@ err_policy:
 	WARN_ON(1);
 	return -EINVAL;
 }
-
 
 /*
   * cpufreq cooling device callback functions
@@ -279,6 +319,19 @@ struct thermal_cooling_device *cpufreq_cooling_register(
 	mutex_lock(&cooling_cpufreq_lock);
 	list_add_tail(&cpufreq_dev->node, &cooling_cpufreq_list);
 	mutex_unlock(&cooling_cpufreq_lock);
+
+	pm_qos_add_request(&cpufreq_dev->qos_cpu_cool,
+				PM_QOS_CPUFREQ_MAX, PM_QOS_DEFAULT_VALUE);	
+
+#ifdef CONFIG_EXYNOS_CPUFREQ
+	cpufreq_dev->qos_update_nb.notifier_call = 
+			cpufreq_cooling_qos_update_notifier_call;
+	ret = register_exynos_cpufreq_policy_notifier(&cpufreq_dev->qos_update_nb);
+	if (ret) {
+		pr_err("%s failed to regiter exynos cpufreq notifier\n", __func__);
+		return ERR_PTR(-EINVAL); 
+	}
+#endif
 	return cool_dev;
 }
 EXPORT_SYMBOL(cpufreq_cooling_register);
@@ -299,11 +352,16 @@ void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 		mutex_unlock(&cooling_cpufreq_lock);
 		return;
 	}
-
+	
 	list_del(&cpufreq_dev->node);
 	mutex_unlock(&cooling_cpufreq_lock);
 	thermal_cooling_device_unregister(cpufreq_dev->cool_dev);
 	release_idr(&cpufreq_idr, &cooling_cpufreq_lock, cpufreq_dev->id);
+	pm_qos_remove_request(&cpufreq_dev->qos_cpu_cool);
+
+#ifdef CONFIG_EXYNOS_CPUFREQ
+	unregister_exynos_cpufreq_policy_notifier(&cpufreq_dev->qos_update_nb);
+#endif
 	kfree(cpufreq_dev);
 }
 EXPORT_SYMBOL(cpufreq_cooling_unregister);

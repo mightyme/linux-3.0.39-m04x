@@ -602,6 +602,19 @@ void mali_pegasus_default_step_set(int step, mali_bool boostup)
 		set_mali_pegasus_dvfs_status(step, boostup);
 }
 
+#ifdef CONFIG_EXYNOS_TMU_TC
+int mali_vol_get_from_table(int vol)
+{
+	int i;
+	for (i = 0; i < MALI_DVFS_STEPS; i++) {
+		if (mali_dvfs[i].vol >= vol)
+			return mali_dvfs[i].vol;
+	}
+	MALI_PRINT(("Failed to get voltage from mali_dvfs table, maximum voltage is %d uV\n", mali_dvfs[MALI_DVFS_STEPS-1].vol));
+	return 0;
+}
+#endif
+
 #if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 extern int max77686_update_dvs_voltage(struct regulator_dev *,
 			const int *,const unsigned int);

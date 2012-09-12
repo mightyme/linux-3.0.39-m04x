@@ -34,6 +34,14 @@ enum tmu_type {
 	TYPE_EXYNOS4X12,
 };
 
+struct tmu_tc {
+	unsigned int start_tc;
+	unsigned int stop_tc;
+	unsigned int arm_volt; /* temperature compensated voltage for ARM */
+	unsigned int bus_volt; /* temperature compensated voltage for BUS */
+	unsigned int g3d_volt; /* temperature compensated voltage for G3D */
+};
+
 /**
   * struct exynos4_tmu_platform_data
   * @threshold: basic temperature for generating interrupt
@@ -91,6 +99,7 @@ struct exynos4_tmu_platform_data {
 
 	struct freq_pctg_table freq_tab[4];
 	unsigned int freq_tab_count;
+	struct tmu_tc tc;
 };
 
 extern void exynos4_tmu_set_platdata(void);

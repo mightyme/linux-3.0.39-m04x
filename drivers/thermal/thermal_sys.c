@@ -195,6 +195,12 @@ trip_point_type_show(struct device *dev, struct device_attribute *attr,
 		return sprintf(buf, "active\n");
 	case THERMAL_TRIP_STATE_ACTIVE:
 		return sprintf(buf, "state-active\n");
+#ifdef CONFIG_ARCH_EXYNOS
+	case THERMAL_TRIP_COLD_TC:
+		return sprintf(buf, "EXYNOS-start-tc\n");
+	case THERMAL_TRIP_EXIT_COLD_TC:
+		return sprintf(buf, "EXYNOS-stop-tc\n");
+#endif
 	default:
 		return sprintf(buf, "unknown\n");
 	}
@@ -1080,6 +1086,22 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 				if (tz->ops->notify)
 					tz->ops->notify(tz, count, trip_type);
 			break;
+#ifdef CONFIG_ARCH_EXYNOS
+		case THERMAL_TRIP_COLD_TC:
+			if (temp <= trip_temp && tz->cold_tc == 0) {
+				tz->cold_tc = 1;
+				if (tz->ops->notify)
+					tz->ops->notify(tz, count, trip_type);
+			}
+			break;
+		case THERMAL_TRIP_EXIT_COLD_TC:
+			if (temp >= trip_temp && tz->cold_tc == 1) {
+				tz->cold_tc = 0;
+				if (tz->ops->notify)
+					tz->ops->notify(tz, count, trip_type);
+			}
+			break;
+#endif
 		case THERMAL_TRIP_ACTIVE:
 			list_for_each_entry(instance, &tz->cooling_devices,
 					    node) {
@@ -1103,13 +1125,14 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 				if (temp <= last_trip_change)
 					continue;
 #if 1
-				for (i = 0; i < tz->trips - 1; i++) {
+				for (i = 0; i < tz->trips; i++) {
 					tz->ops->get_trip_temp(tz, i, &trip_temp);
-					if (temp >= trip_temp)
+					tz->ops->get_trip_type(tz, i, &trip_type);
+					if (temp >= trip_temp && 
+						trip_type == THERMAL_TRIP_STATE_ACTIVE)
 						level = i+1;
-					
 				}
-	
+
 				if (tz->last_trip_level != level) {
 					tz->last_trip_level = level;
 					cdev = instance->cdev;

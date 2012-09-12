@@ -50,3 +50,11 @@ config SENSORS_EXYNOS4_TMU
 
 	  This driver can also be built as a module. If so, the module
 	  will be called exynos4-tmu.
+
+config EXYNOS_TMU_TC
+	bool "EXYNOS4412/4212 TMU temperature compensation support"
+	depends on (SAMSUNG_THERMAL_INTERFACE && SENSORS_EXYNOS4_TMU && \
+		 EXYNOS_CPUFREQ && BUSFREQ_OPP && VIDEO_MALI400MP)
+	default y
+	help 
+	  EXYNOS4412/4212 TMU temperature compensation voltage support.

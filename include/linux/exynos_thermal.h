@@ -8,6 +8,8 @@
   * published by the Free Software Foundation.
   */
 
+#include <linux/platform_data/exynos4_tmu.h>
+
 #ifndef THERMAL_INTERFACE_H
 #define THERMAL_INTERFACE_H
 /* CPU Zone information */
@@ -44,6 +46,7 @@ struct thermal_sensor_conf {
 	int	(*read_temperature)(void *data);
 	struct	thermal_trip_point_conf trip_data;
 	struct	thermal_cooling_conf cooling_data;
+	struct	tmu_tc tc_data;
 	void	*private_data;
 };
 

@@ -99,4 +99,8 @@ extern int exynos4x12_init(struct device *dev, struct busfreq_data *data);
 static inline int exynos4x12_init(struct device *dev, struct busfreq_data *data) {return -ENODEV;}
 #endif
 
+#ifdef CONFIG_EXYNOS_TMU_TC
+extern int exynos4x12_find_busfreq_by_volt(unsigned int req_volt, unsigned long *freq);
+#endif
+
 #endif /* __ASM_ARCH_BUSFREQ_H */

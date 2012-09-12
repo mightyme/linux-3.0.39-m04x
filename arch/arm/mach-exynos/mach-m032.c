@@ -799,7 +799,7 @@ static struct platform_device exynos4_busfreq = {
 };
 #endif
 
-#ifdef CONFIG_CPU_FREQ
+#ifdef CONFIG_EXYNOS_CPUFREQ
 static struct exynos_cpufreq_platdata __initdata m032_cpufreq_pd = {
 	.regulator = "vdd_arm",
 	.gpio_dvfs = true,
@@ -940,7 +940,7 @@ static struct platform_device __initdata *m032_devices[]  = {
 	&m032_bt_ctr,
 #endif
 
-#ifdef CONFIG_CPU_FREQ
+#ifdef CONFIG_EXYNOS_CPUFREQ
 	&exynos_device_cpufreq,
 #endif
 
@@ -1097,7 +1097,7 @@ static void __init m032_machine_init(void)
 #endif
 #endif
 
-#ifdef CONFIG_CPU_FREQ
+#ifdef CONFIG_EXYNOS_CPUFREQ
 	exynos_cpufreq_set_platdata(&m032_cpufreq_pd);
 #endif
 

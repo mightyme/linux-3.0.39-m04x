@@ -153,8 +153,12 @@ static int code_to_temp(struct exynos4_tmu_data *data, u8 temp_code)
 	} else {
 		/* temp_code should range between 49 and 151 */
 		if (temp_code < 49 || temp_code > 151) {
+#ifdef CONFIG_EXYNOS_TMU_TC
+			pr_info("%s: temperature inaccurate\n", __func__);
+#else
 			temp = -ENODATA;
 			goto out;
+#endif
 		}
 	}
 
@@ -480,7 +484,7 @@ static int __devinit exynos4_tmu_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_SAMSUNG_THERMAL_INTERFACE
 	exynos4_sensor_conf.private_data = data;
-	exynos4_sensor_conf.trip_data.trip_count = 3;
+	exynos4_sensor_conf.trip_data.trip_count = 4;
 	for (i = 0; i < exynos4_sensor_conf.trip_data.trip_count; i++)
 		exynos4_sensor_conf.trip_data.trip_val[i] =
 			pdata->threshold + pdata->trigger_levels[i];
@@ -490,6 +494,8 @@ static int __devinit exynos4_tmu_probe(struct platform_device *pdev)
 	for (i = 0; i < pdata->freq_tab_count; i++)
 		exynos4_sensor_conf.cooling_data.freq_data[i].freq_clip_pctg =
 					pdata->freq_tab[i].freq_clip_pctg;
+	
+	exynos4_sensor_conf.tc_data = pdata->tc;
 
 	ret = exynos4_register_thermal(&exynos4_sensor_conf);
 	if (ret) {
@@ -581,7 +587,11 @@ static int __init exynos4_tmu_driver_init(void)
 {
 	return platform_driver_register(&exynos4_tmu_driver);
 }
+#ifdef CONFIG_EXYNOS_TMU_TC
+late_initcall_sync(exynos4_tmu_driver_init);
+#else
 module_init(exynos4_tmu_driver_init);
+#endif
 
 static void __exit exynos4_tmu_driver_exit(void)
 {
