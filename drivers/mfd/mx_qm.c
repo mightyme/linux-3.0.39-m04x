@@ -38,6 +38,10 @@
 #define QM_MX_FW 		"qm/qm_mx_led.bin"
 #endif
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+//#define	QM_HAS_EARLYSUSPEND
+#endif
+
 #define 	RESET_COLD	1
 #define	RESET_SOFT	0
 
@@ -51,41 +55,13 @@ struct mx_qm_reg_data {
 };
 
 //led_bu26507
-const struct mx_qm_reg_data init_regsb[] = {
-	{0x7F, 0x00}, 	/* Change to the control register map */
-	{0x01, 0x08}, 	/* oscen */
-	{0x11, 0x3F}, 	/* led1 on - led6 on */
-	{0x20, 0x02}, 	/* pwmset, default 2*/
-
-	{0x7F, 0x01}, 	/* Change to the led register map */
-	{0x01, 0x01},	/*leds current default 1*/
-	{0x02, 0x00},	
-	{0x03, 0x00},	
-	{0x04, 0x00},	
-	{0x05, 0x01},	
-	{0x07, 0x01},
-	{0x0D, 0x01},
-	{0x13, 0x01},
-	{0x19, 0x01},
-	{0x1E, 0x01},
-
-	{0x7F, 0x00},	/* Change to the control register map */
-	{0X21, 0x08},   	/*sync pin disable, high is led on*/
-	{0x2D, 0x00}, 	/* scroll setting, useless*/
-	{0x7F, 0x00}, 	/* oab */
-	{0x2D, 0x04}, 	/* default pwmen enable, scroll and slope disable*/
-	{0x30, 0x01}, 	/* start */
-	
-//	{LED_REG_LEDMAUTO,0},
-	{},
-};
-const struct mx_qm_reg_data init_regst[] = {
-//	{LED_REG_LEDMAUTO,1},
-//	{LED_REG_LEDM6, 0x02},
-	{LED_REG8_MAXINTENSITY, 0xFF},
-	{LED_REG0_SELECT0, 0x00},
-	{LED_REG1_SELECT1, 0x3E},
-	{LED_REG2_SELECT2, 0x00},
+const struct mx_qm_reg_data init_regs[] = {
+	{LED_REG_PWM, 0xFF},
+//	{LED_REG_CUR0, 0x00},
+//	{LED_REG_CUR1, 0x00},
+//	{LED_REG_CUR2, 0x00},
+//	{LED_REG_CUR3, 0x00},
+	{LED_REG_CUR4, 0x02},		
 	{},
 };
 
@@ -321,26 +297,12 @@ static void __devinit mx_qm_init_registers(struct mx_qm_data *mx)
 	int i, ret;
 	unsigned char buf[2];
 
-	if( mx->LedVer == LED_VERSION1)
-	{
-		for (i=0; i<ARRAY_SIZE(init_regst); i++) {		
-			buf[0] = init_regst[i].addr;
-			buf[1] = init_regst[i].value;
-			ret = mx_qm_write(mx->client,2,buf);
-			if (ret) {
-				dev_err(mx->dev, "failed to init reg[%d], ret = %d\n", i, ret);
-			}
-		}
-	}
-	else
-	{
-		for (i=0; i<ARRAY_SIZE(init_regsb); i++) {		
-			buf[0] = init_regsb[i].addr;
-			buf[1] = init_regsb[i].value;
-			ret = mx_qm_write(mx->client,2,buf);
-			if (ret) {
-				dev_err(mx->dev, "failed to init reg[%d], ret = %d\n", i, ret);
-			}
+	for (i=0; i<ARRAY_SIZE(init_regs); i++) {		
+		buf[0] = init_regs[i].addr;
+		buf[1] = init_regs[i].value;
+		ret = mx_qm_write(mx->client,2,buf);
+		if (ret) {
+			dev_err(mx->dev, "failed to init reg[%d], ret = %d\n", i, ret);
 		}
 	}
 }
@@ -830,9 +792,9 @@ static ssize_t qm_store(struct device *dev,
 	case QM_LED:
 		ret = count;
 		if (sscanf(buf, "%x %x", &reg, &value) == 2) {
-			reg = reg+LED_REG_LEDM0;
+			reg = reg+LED_REG_CUR0;
 			
-			if(reg <= LED_REG_LEDM6 && value < 7)
+			if(reg <= LED_REG_CUR4 && value < 0xFF)
 			{				
 				ret = mx_qm_writebyte(qm->client,reg,value);
 				if (ret < 0)
@@ -890,7 +852,7 @@ static void qm_destroy_atts(struct device * dev)
 		device_remove_file(dev, &qm_attrs[i]);
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef QM_HAS_EARLYSUSPEND
  static void mx_qm_early_suspend(struct early_suspend *h)
  {
 	 struct mx_qm_data *mx =
@@ -994,7 +956,7 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 		goto err_free_mem;
 	}
 	
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef QM_HAS_EARLYSUSPEND
 		 data->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
 		 data->early_suspend.suspend = mx_qm_early_suspend;
 		 data->early_suspend.resume = mx_qm_late_resume;
@@ -1019,7 +981,7 @@ static int mx_qm_suspend(struct device *dev)
 	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
 	struct mx_qm_data *mx = i2c_get_clientdata(i2c);
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef QM_HAS_EARLYSUSPEND
 	if( !mx->poll )
 	{
 		disable_irq(mx->irq);
@@ -1043,7 +1005,7 @@ static int mx_qm_resume(struct device *dev)
 	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
 	struct mx_qm_data *mx = i2c_get_clientdata(i2c);
 	
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef QM_HAS_EARLYSUSPEND
 	if( !mx->poll )
 	{
 		disable_irq_wake(mx->irq);
@@ -1075,7 +1037,7 @@ static int __devexit mx_qm_remove(struct i2c_client *client)
 {
 	struct mx_qm_data *data = i2c_get_clientdata(client);
 	
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef QM_HAS_EARLYSUSPEND
 	unregister_early_suspend(&data->early_suspend);
 #endif
 

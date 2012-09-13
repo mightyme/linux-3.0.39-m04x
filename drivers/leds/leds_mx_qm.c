@@ -22,10 +22,10 @@
 #include <linux/gpio.h>
 #include	<linux/mx_qm.h>
 
-#define	MODE_CURRENT			0x0
-#define	MODE_PWM				0x1
+#define	MODE_CURRENT			0x00
+#define	MODE_PWM				0x01
 #define	MODE_SLOPE			0x02
-#define	MODE_DEVICE_OFFSET	0x03
+#define	MODE_SHOWTYPE		0x03
 
 #define DEVICE_MODE_OFF          0x00
 #define DEVICE_MODE_OFF_1        0x01
@@ -38,68 +38,28 @@
 #define DEVICE_MODE_MAX      0x08
 
 #define	GET_MODE(x)	((x>>8)&0x0F)
+//////////////////////////////////////////////////////////////////
+union LEDType                       // LED show byte 
+{
+    unsigned char byte;
+    struct
+    {
+        unsigned char led0:1;      
+        unsigned char led1:1;      
+        unsigned char led2:1;      
+        unsigned char led3:1;      
+        unsigned char led4:1;      
+        unsigned char delay_cnt:3; 
+    };
+}; 
+unsigned char   ledarra0[] = {0xFF}; 
+unsigned char   ledarra1[] = {((2<<5)|(1<<0)),((2<<5)|(1<<1)),((2<<5)|(1<<2)),((2<<5)|(1<<3)),((2<<5)|(1<<3)),((2<<5)|(1<<2)),((2<<5)|(1<<1)),((2<<5)|(1<<0)),0xFF}; 
+unsigned char   ledarra2[] = {((2<<5)|(1<<0)),((2<<5)|(1<<1)),((2<<5)|(1<<2)),((2<<5)|(1<<3)),0xFF}; 
+unsigned char   ledarra3[] = {((2<<5)|(1<<3)),((2<<5)|(1<<2)),((2<<5)|(1<<1)),((2<<5)|(1<<0)),0xFF}; 
+unsigned char   ledarra4[] = {0x2F,0x20,0x2F,0x20,0xFF}; 
+unsigned char   ledarra5[] = {((1<<5)|0x08),((1<<5)|0x0C),((1<<5)|0x0E),((3<<5)|0x0F),0xFF}; 
+unsigned char   ledarra6[] = {((1<<5)|0x01),((1<<5)|0x03),((1<<5)|0x07),((3<<5)|0x0F),0xFF}; 
 ////////////////////////////////////////////////////////////////// 
- 
- /*default we set the slope cycle to 3 second, 
- if slope is disable, this setting doesn't work*/
-#define LED_REG_VAL(x) (x | SLOPE_CYCLE_3)
- /*whether slope is enable or not, pwm is enabled all the time*/
-#define SLOPE_ENABLE_VAL (SLOPE_EN | SLOPE_QUARTER | PWN_EN)
-#define SLOPE_DISABLE_VAL (SLOPE_NONE | PWN_EN)
-
- /* Slave addr = 0x74: device registers */
- enum bu26507_led_reg {
-	 REG_SOFTWARE_RESET = 0x00,
-	 REG_OSC_CONTROL = 0x01,
-	 REG_LED_ENABLE = 0x11,
-	 REG_LED_PWM = 0x20,
-	 REG_SYNC_CONTROL = 0x21,
-	 REG_SETTING = 0x2d,
-	 REG_SCROLL_SETTING = 0x2f,
-	 REG_MATRIX_CONTROL = 0x30,
-	 REG_REGISTER_MAP = 0x7f,
- };
- 
- 
- enum bu26507_reg_map {
-	 RMCG_CONTROL = 0x00,
-	 RMCG_AB,
- };
- 
- /* pattern register data */
- enum bu26507_reg_data {
-	 REG_LED1 = 0x01,	/*DA00*/
-	 REG_LED2 = 0x07,	/*DA11*/
-	 REG_LED3 = 0x0D,	/*DA22*/
-	 REG_LED4 = 0x13,	/*DA33*/
-	 REG_LED5 = 0x19,	/*DA44*/
-	 REG_LED6 = 0x1E,	/*DA54*/
- };
- 
- /*REG_SETTING setting values*/
- enum bu26507_setting_type {
-	 SCROLL_EN = 1 << 0,
-	 SLOPE_EN = 1 << 1,
-	 PWN_EN = 1 << 2,
-	 SLOPE_QUARTER = 0 << 3,	 /*1/4 slope*/
-	 SLOPE_NONE = 1 << 3,	 /*none slope*/
-	 SLOPE_HALF = 2 << 3,	 /*1/2 slope*/
- };
- 
- /*led matrix control, start or stop*/
- enum bu26507_matrix_control {
-	 MATRIX_LED_STOP = 0x00,
-	 MATRIX_LED_START,
- };
- 
- /*slope cycle time values, 0~3 second*/
- enum bu26507_slope_cycle_time {
-	 SLOPE_CYCLE_0 = 0 << 6,
-	 SLOPE_CYCLE_1 = 1 << 6,
-	 SLOPE_CYCLE_2 = 2 << 6,
-	 SLOPE_CYCLE_3 = 3 << 6,
- };
-
 
  /*led private data*/
 struct mx_qm_led {
@@ -111,24 +71,7 @@ struct mx_qm_led {
 	 struct early_suspend early_suspend;
 #endif
 };
- 
- /*all led register address*/
- static unsigned char led_addr_arrayu[] = {
-	 REG_LED2,
-	 REG_LED1,
-	 REG_LED4,
-	 REG_LED5,
-	 REG_LED3,
- };
-
- /*all led register address*/
- static unsigned char led_addr_arrayt[] = {
-	 3,
-	 1,
-	 2,
-	 4,
-	 5,
- };
+static int gSlope = 0;
  
  static int bu26507_set_led_current(struct led_classdev *led_cdev, int cur)
  {
@@ -137,31 +80,13 @@ struct mx_qm_led {
 	 struct mx_qm_data *mx = led->data;
 	 int ret = 0;
 	 
-	 /*led current level, from 0~15*/
-	cur = (cur >> 4) & 0xF;
+	 /*led current level, from 0~15
+	 default we set the slope cycle to 3 second */
+	cur = (3<<6) | ( (cur >> 4) & 0xF );
 	 
-	pr_debug("%s: id = %d (0x%.2X)  cur  = 0x%.2X\n", __func__,led->id,led_addr_arrayu[led->id],cur); 
+	pr_debug("%s: id = %d   cur  = 0x%.2X\n", __func__,led->id,cur); 
 
-	/* change to led registers map */
-	ret = mx->i2c_writebyte(mx->client, REG_REGISTER_MAP, RMCG_AB);
-	if (ret < 0) {
-		pr_err("%s: change to led registers map fail!\n", __func__);
-		return ret;
-	}
-	usleep_range(50, 60);
-
-	ret = mx->i2c_writebyte(mx->client, led_addr_arrayu[led->id], LED_REG_VAL(cur));
-	if (ret < 0)   /* don't return but try to recover the register map instead */
-		pr_err("%s: change led setting fail!\n", __func__); 
-	else
-		usleep_range(50, 60);
-	
-	/* recovery back to control registers map and light on the leds */
-	ret = mx->i2c_writebyte(mx->client, REG_REGISTER_MAP, RMCG_CONTROL);
-	if (ret < 0)
-		pr_err("%s: recovery registers map fail!\n", __func__);
-	else 
-		usleep_range(50, 60);
+	ret = mx->i2c_writebyte(mx->client,(LED_REG_CUR0+led->id), cur);
 
 	return ret;
 }
@@ -173,12 +98,14 @@ static int bu26507_set_led_pwm(struct led_classdev *led_cdev, int pwm)
 	 struct mx_qm_data *mx = led->data;
 	 int ret = 0;
 	 
+ 	  pwm = pwm *63 /100;
+	  
 	 /*led pwm level, from 0~63*/
 	 pwm = (pwm >> 2) & 0x3F;
 
 	pr_debug("%s: pwm  = 0x%X\n", __func__,pwm); 
 
-	ret = mx->i2c_writebyte(mx->client, REG_LED_PWM, (u8)pwm);
+	ret = mx->i2c_writebyte(mx->client, LED_REG_PWM, (u8)pwm);
 
 	return ret;
 }
@@ -192,80 +119,12 @@ static int bu26507_set_led_pwm(struct led_classdev *led_cdev, int pwm)
 	 
 	 pr_debug("%s: enable  = 0x%X\n", __func__,enable); 
 
-	/*stop all leds first*/
-	ret = mx->i2c_writebyte(mx->client, REG_MATRIX_CONTROL, MATRIX_LED_STOP);
-	if (ret < 0) {
-		pr_err("%s: stop all leds fail!\n", __func__);
-		return ret;
-	}
-
-	if (enable)
-		ret = mx->i2c_writebyte(mx->client, REG_SETTING, SLOPE_ENABLE_VAL);
-	else 
-		ret = mx->i2c_writebyte(mx->client, REG_SETTING, SLOPE_DISABLE_VAL);
-
-	if (ret < 0)
-		pr_err("%s: setting REG_SETTING fail!\n", __func__);
-
-	/*start all leds again*/
-	ret = mx->i2c_writebyte(mx->client, REG_MATRIX_CONTROL, MATRIX_LED_START);
-	if (ret < 0)
-		pr_err("%s: start all leds fail!\n", __func__);
+	 if(enable)
+	 	ret = mx->i2c_writebyte(mx->client,LED_REG_CUR4,0xCF);	  
+	 ret = mx->i2c_writebyte(mx->client,LED_REG_SLOPE,enable);	  
 	
 	return ret;
 }
- 
- static int bu26507_set_led_mode(struct led_classdev *led_cdev, int mode)
- {
-	 int ret = 0;
-	 struct mx_qm_led *led =
-			 container_of(led_cdev, struct mx_qm_led, led_cdev);
-	 struct mx_qm_data *mx = led->data;
-	 pr_debug("%s:\n",__func__);
-
-	 if( mode > DEVICE_MODE_MAX )
-	 	return -EINVAL;
-
- 	//ret = mx->i2c_writebyte(mx->client,led_addr_array[led->id],mode);
- 
-	 return ret;
- }
-
- 
-  static int tca6507_set_led_mode(struct led_classdev *led_cdev, int mode)
-  {
-	  int ret = 0;
-	  int i,j;
-	  struct mx_qm_led *led =
-			  container_of(led_cdev, struct mx_qm_led, led_cdev);
-	  struct mx_qm_data *mx = led->data;
-	  static unsigned char select[3] = {0x00,0x3E,0x00};
-	  
-	  pr_debug("%s:\n",__func__);
- 
-	  if( mode > DEVICE_MODE_MAX )
-		 return -EINVAL;
-
-	 if(mode == DEVICE_MODE_ON_BANK0 )
-	 	j =2;
-	 else
-	 	j = led->id;
-	 
-	for(i = 0;i <3;i++)
-	{
-		if( mode & 0x01)
-			select[i] |= (1 << j);
-		else
-			select[i] &= ~(1 << j); 
-		mode>>=1;
-	}  
-	ret = mx->i2c_writebyte(mx->client,LED_REG0_SELECT0,select[0]);
-	ret = mx->i2c_writebyte(mx->client,LED_REG1_SELECT1,select[1]);
-	ret = mx->i2c_writebyte(mx->client,LED_REG2_SELECT2,select[2]);
-
-	return ret;
-}
-
  
 static int tca6507_set_led_current(struct led_classdev *led_cdev, int value)
 {
@@ -277,14 +136,14 @@ static int tca6507_set_led_current(struct led_classdev *led_cdev, int value)
 
 	if( value )
 	{		
-		ret = tca6507_set_led_mode(led_cdev,DEVICE_MODE_ON_PWM0);
+		ret = mx->i2c_writebyte(mx->client,(LED_REG_CUR0+led->id),DEVICE_MODE_ON_PWM0);	
 	}
 	else
 	{
-		ret = tca6507_set_led_mode(led_cdev,DEVICE_MODE_OFF);
+		ret = mx->i2c_writebyte(mx->client,(LED_REG_CUR0+led->id),DEVICE_MODE_OFF);	
 	}
 		
-	pr_debug("%s:id = %d (0x%.2X)\n",__func__,led->id,led_addr_arrayt[led->id]);
+	pr_debug("%s:id = %d (0x%.2X)\n",__func__,led->id,led->id);
 
 	return ret;
 }
@@ -297,31 +156,29 @@ static int tca6507_set_led_current(struct led_classdev *led_cdev, int value)
 	  int ret = 0;
 	  unsigned char data;
 	  pr_debug("%s:value = %d\n",__func__,value);
- 
-	  data = (value & 0xF0) |((value >> 4) & 0xF);	  
-	  
-	  ret = mx->i2c_writebyte(mx->client,LED_REG8_MAXINTENSITY,data);	 
-  
-	  return ret;
-  }
-  
-  static int tca6507_set_led_slope(struct led_classdev *led_cdev, int enable)
-  {
-	  int ret = 0;
-	  
-	  pr_debug("%s:enable = %d\n",__func__,enable);
 
-	 if( enable )
-	 {
-		ret = tca6507_set_led_mode(led_cdev,DEVICE_MODE_ON_BANK0);
-	 }
-	 else
-	 {
-		ret = tca6507_set_led_mode(led_cdev,DEVICE_MODE_OFF);
-	 }
+ 	  value = value *255 /100;
+	  
+	  data = (value & 0xF0) |((value >> 4) & 0xF);	  
+	  pr_info("%s:pwm = 0x%.2X\n",__func__,data);
+	  
+	  ret = mx->i2c_writebyte(mx->client,LED_REG_PWM,data);	 
   
 	  return ret;
   }
+  
+static int tca6507_set_led_slope(struct led_classdev *led_cdev, int enable)
+{
+	struct mx_qm_led *led =container_of(led_cdev, struct mx_qm_led, led_cdev);
+	struct mx_qm_data *mx = led->data;
+	int ret = 0;
+
+	pr_debug("%s:enable = %d\n",__func__,enable);
+
+	ret = mx->i2c_writebyte(mx->client,LED_REG_SLOPE,enable);	  
+
+	return ret;
+}
   
 static int mx_qm_set_led_current(struct led_classdev *led_cdev, int value)
 {
@@ -350,6 +207,8 @@ static int mx_qm_set_led_slope(struct led_classdev *led_cdev, int enable)
 {
 	 struct mx_qm_led *led =container_of(led_cdev, struct mx_qm_led, led_cdev);
 	 struct mx_qm_data *mx = led->data;
+
+	 gSlope = !!enable;
 	 
 	if( mx->LedVer == LED_VERSION1)
 		return tca6507_set_led_slope(led_cdev,enable);
@@ -357,100 +216,145 @@ static int mx_qm_set_led_slope(struct led_classdev *led_cdev, int enable)
 		return bu26507_set_led_slope(led_cdev,enable);
 }
 
-  
+
 static int mx_qm_set_led_mode(struct led_classdev *led_cdev, int mode)
 {
-	 struct mx_qm_led *led =container_of(led_cdev, struct mx_qm_led, led_cdev);
-	 struct mx_qm_data *mx = led->data;
-	 
-	if( mx->LedVer == LED_VERSION1)
-		return tca6507_set_led_mode(led_cdev,mode);
-	else
-		return bu26507_set_led_mode(led_cdev,mode);
-}
+	struct mx_qm_led *led =
+		 container_of(led_cdev, struct mx_qm_led, led_cdev);
+	struct mx_qm_data *mx = led->data;
+	int ret = 0;
+	unsigned char * pLedarr;
+	unsigned char Ledsize;
+	
 
- static void mx_qm_led_brightness_set(struct led_classdev *led_cdev,
-				 enum led_brightness value)
- {
-	 //struct mx_qm_led *led =container_of(led_cdev, struct mx_qm_led, led_cdev);
-	 //struct mx_qm_data *mx = led->data;
-	 int ret = 0;
-	 int mode;
-	 int data;
 
-	 dev_info(led_cdev->dev, "value = 0x%.4X \n",value);
+	pr_info("%s:%d\n",__func__,mode);
 
-	 mode = GET_MODE(value);
-	 data = value & 0xFF; 
-	 
-	 switch( mode )
- 	{
-		case MODE_CURRENT:
-			ret = mx_qm_set_led_current(led_cdev,data);
+	//ret = mx->i2c_writebyte(mx->client,LED_REG_LEDMAUTO,mode);
+	
+	switch(mode	)
+	{
+		case 0:
+			pLedarr = (unsigned char * )ledarra0;
+			Ledsize = sizeof(ledarra0);
 			break;
-
-		case MODE_PWM:
-			ret = mx_qm_set_led_pwm(led_cdev,data);
+			
+		case 1:
+			pLedarr = (unsigned char * )ledarra1;
+			Ledsize = sizeof(ledarra1);
 			break;
-
-		case MODE_SLOPE:
-			ret = mx_qm_set_led_slope(led_cdev,data);
+			
+		case 2:
+			pLedarr = (unsigned char * )ledarra2;
+			Ledsize = sizeof(ledarra2);
+			break;
+			
+		case 3:
+			pLedarr = (unsigned char * )ledarra3;
+			Ledsize = sizeof(ledarra3);
+			break;
+			
+		case 4:
+			pLedarr = (unsigned char * )ledarra4;
+			Ledsize = sizeof(ledarra4);
+			break;
+			
+		case 5:
+			pLedarr = (unsigned char * )ledarra5;
+			Ledsize = sizeof(ledarra5);
+			break;
+			
+		case 6:
+			pLedarr = (unsigned char * )ledarra6;
+			Ledsize = sizeof(ledarra6);
 			break;
 
 		default:
-			mode = mode -MODE_DEVICE_OFFSET;
-			
-			 if(mode < DEVICE_MODE_MAX)
-			{
-				ret = mx_qm_set_led_mode(led_cdev,mode);	
-				if(ret < 0)
-					dev_err(led_cdev->dev, "set %d mode failed %d \n",mode,ret);			
-			}
-			 else
-			{
-				dev_err(led_cdev->dev, "mode  %d is valite \n",mode);
-				ret = -EINVAL;
-			}
-			
+			pLedarr = (unsigned char * )ledarra0;
+			Ledsize = sizeof(ledarra0);
 			break;
- 	}
+
+	}
+	ret = mx->i2c_writebuf(mx->client,LED_REG_LEDMAUTO,Ledsize,pLedarr);
+
+	return ret;
+}  
+
+static void mx_qm_led_brightness_set(struct led_classdev *led_cdev,
+		 enum led_brightness value)
+{
+	//struct mx_qm_led *led =container_of(led_cdev, struct mx_qm_led, led_cdev);
+	//struct mx_qm_data *mx = led->data;
+	int ret = 0;
+	int mode;
+	int data;
+
+	dev_info(led_cdev->dev, "value = 0x%.4X \n",value);
+
+	mode = GET_MODE(value);
+	data = value & 0xFF; 
+
+	switch( mode )
+	{
+	case MODE_CURRENT:
+		ret = mx_qm_set_led_current(led_cdev,data);
+		break;
+
+	case MODE_PWM:
+		ret = mx_qm_set_led_pwm(led_cdev,data);
+		break;
+
+	case MODE_SLOPE:
+		ret = mx_qm_set_led_slope(led_cdev,data);
+		break;
+		
+	case MODE_SHOWTYPE:
+		ret = mx_qm_set_led_mode(led_cdev,data);	
+		break;
+
+	default:		
+		dev_err(led_cdev->dev, "mode  %d is valite \n",mode);
+		ret = -EINVAL;			
+		break;
+	}
 
 	if(ret < 0)
-		dev_err(led_cdev->dev, "brightness set failed ret = %d \n",ret);
-		
- }
+	dev_err(led_cdev->dev, "brightness set failed ret = %d \n",ret);
+
+}
  
- static int mx_qm_led_blink_set(struct led_classdev *led_cdev,
+static int mx_qm_led_blink_set(struct led_classdev *led_cdev,
 				     unsigned long *delay_on,
 				     unsigned long *delay_off)
- {
+{
 	 int ret = 0;
 	 struct mx_qm_led *led =container_of(led_cdev, struct mx_qm_led, led_cdev);
 	 struct mx_qm_data *mx = led->data;
 	 
  	return ret;
- }
+}
  
 #ifdef CONFIG_HAS_EARLYSUSPEND
- static void mx_qm_early_suspend(struct early_suspend *h)
- {
+static void mx_qm_led_early_suspend(struct early_suspend *h)
+{
 	 struct mx_qm_led *led =
 			 container_of(h, struct mx_qm_led, early_suspend);
-
-	 led->led_cdev.brightness_set(&led->led_cdev,LED_OFF); 
- }
+	 
+	 if( led->id == 4)
+		led->led_cdev.brightness_set(&led->led_cdev,((MODE_SLOPE<<8) | gSlope)); 
+}
  
- static void mx_qm_late_resume(struct early_suspend *h)
- {
+static void mx_qm_led_late_resume(struct early_suspend *h)
+{
 	 struct mx_qm_led *led =
 			 container_of(h, struct mx_qm_led, early_suspend);
  
-	 led->led_cdev.brightness_set(&led->led_cdev,LED_FULL);
- }
+	 led->led_cdev.brightness_set(&led->led_cdev,LED_OFF);
+}
 #endif
  
- static int __devinit mx_qm_led_probe(struct platform_device *pdev)
- {
+static int __devinit mx_qm_led_probe(struct platform_device *pdev)
+{
 	 struct mx_qm_data *data = dev_get_drvdata(pdev->dev.parent);
 	 struct mx_qm_platform_data *pdata = dev_get_platdata(data->dev);
 	 struct mx_qm_led *led;
@@ -488,8 +392,8 @@ static int mx_qm_set_led_mode(struct led_classdev *led_cdev, int mode)
  
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	 led->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
-	 led->early_suspend.suspend = mx_qm_early_suspend;
-	 led->early_suspend.resume = mx_qm_late_resume;
+	 led->early_suspend.suspend = mx_qm_led_early_suspend;
+	 led->early_suspend.resume = mx_qm_led_late_resume;
 	 register_early_suspend(&led->early_suspend);
 #endif
  
@@ -499,10 +403,10 @@ static int mx_qm_set_led_mode(struct led_classdev *led_cdev, int mode)
 	 kfree(led);
  err_mem:
 	 return ret;
- }
+}
  
- static int __devexit mx_qm_led_remove(struct platform_device *pdev)
- {
+static int __devexit mx_qm_led_remove(struct platform_device *pdev)
+{
 	 struct mx_qm_led *led = platform_get_drvdata(pdev);
  
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -512,14 +416,14 @@ static int mx_qm_set_led_mode(struct led_classdev *led_cdev, int mode)
 	 kfree(led);
  
 	 return 0;
- }
+}
  
- const struct platform_device_id mx_qm_id[] = {
+const struct platform_device_id mx_qm_id[] = {
 	 { "mx-qm-led",0 },
 	 { },
- };
+};
  
- static struct platform_driver mx_qm_led_driver = {
+static struct platform_driver mx_qm_led_driver = {
 	 .driver = {
 		 .name	= "mx-qm-led",
 		 .owner = THIS_MODULE,
@@ -527,19 +431,19 @@ static int mx_qm_set_led_mode(struct led_classdev *led_cdev, int mode)
 	 .probe  = mx_qm_led_probe,
 	 .remove = __devexit_p(mx_qm_led_remove),
 	 .id_table = mx_qm_id,
- };
+};
  
- static int __init mx_qm_led_init(void)
- {
-	 return platform_driver_register(&mx_qm_led_driver);
- }
- module_init(mx_qm_led_init);
+static int __init mx_qm_led_init(void)
+{
+	return platform_driver_register(&mx_qm_led_driver);
+}
+module_init(mx_qm_led_init);
  
- static void __exit mx_qm_led_exit(void)
- {
-	 platform_driver_unregister(&mx_qm_led_driver);
- }
- module_exit(mx_qm_led_exit); 
+static void __exit mx_qm_led_exit(void)
+{
+	platform_driver_unregister(&mx_qm_led_driver);
+}
+module_exit(mx_qm_led_exit); 
 
 
 MODULE_AUTHOR("Chwei <Chwei@meizu.com>");

@@ -16,7 +16,7 @@
 #include <linux/wakelock.h>
 
 
-#define FW_VERSION     				0x0B
+#define FW_VERSION     				0x08
 #define FLASH_ADDR_FW_VERSION   	0x3F
 #define MX_QM_DEVICE_ID     			'M'
 
@@ -37,27 +37,16 @@ enum mx_qm_reg {
         LED_REG10_INITIALIZATION					= 0x0A,
         LED_REG15               = 0x0F,
         
-        LED_REG0_R                = 0x80,
-        LED_REG1_R                = 0x81,
-        LED_REG2_R                = 0x82,
-        LED_REG3_R                = 0x83,
-        LED_REG4_R                = 0x84,
-        LED_REG5_R                = 0x85,
-        LED_REG6_R                = 0x86,
-        LED_REG7_R                = 0x87,
-        LED_REG8_R                = 0x88,
-        LED_REG9_R                = 0x89,
-        LED_REG10_R               = 0x8A,
-        LED_REG15_R               = 0x8F,
+        LED_CONCONTOL            = 0x7F,
         
-        LED_REG_LEDM0               = 0x90,
-        LED_REG_LEDM1               = 0x91,
-        LED_REG_LEDM2               = 0x92,
-        LED_REG_LEDM3               = 0x93,
-        LED_REG_LEDM4               = 0x94,
-        LED_REG_LEDM5               = 0x95,
-        LED_REG_LEDM6               = 0x96,
-        LED_REG_LEDMAUTO            = 0x9F,
+        LED_REG_CUR0               = 0x90,
+        LED_REG_CUR1               = 0x91,
+        LED_REG_CUR2               = 0x92,
+        LED_REG_CUR3               = 0x93,
+        LED_REG_CUR4               = 0x94,
+        LED_REG_PWM                = 0x95,
+        LED_REG_SLOPE              = 0x96,
+        LED_REG_LEDMAUTO           = 0x9F,
         
 	QM_REG_DEVICE_ID	= 0xA0,
 	QM_REG_VERSION		= 0xA1,

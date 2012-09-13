@@ -439,7 +439,7 @@ static irqreturn_t mx_qm_irq_handler(int irq, void *dev_id)
 	struct mx_qm_data * mx = touch->data;
 
 	touch->early_suspend_flag = true;
-	//mx->i2c_writebyte(mx->client, QM_REG_STATUS,QM_STATE_SLEEP);
+	mx->i2c_writebyte(mx->client, QM_REG_STATUS,QM_STATE_SLEEP);
 
 }
  
@@ -449,7 +449,7 @@ static irqreturn_t mx_qm_irq_handler(int irq, void *dev_id)
 			 container_of(h, struct mx_qm_touch, early_suspend);
 	struct mx_qm_data * mx = touch->data;
 
-	//mx->i2c_writebyte(mx->client, QM_REG_STATUS,QM_STATE_NORMAL);
+	mx->i2c_writebyte(mx->client, QM_REG_STATUS,QM_STATE_NORMAL);
 	touch->early_suspend_flag = false;
  }
 #endif 
