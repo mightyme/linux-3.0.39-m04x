@@ -39,7 +39,6 @@ struct cpufreq_cooling_device {
 	int id;
 	struct thermal_cooling_device *cool_dev;
 	struct pm_qos_request qos_cpu_cool;	/* tmu qos */
-	struct pm_qos_request qos_cpu_pfm;	/* system pfm qos*/
 	struct notifier_block qos_update_nb;
 	struct freq_pctg_table *tab_ptr;
 	unsigned int tab_size;
@@ -131,7 +130,7 @@ static void cpufreq_update_policy_max(struct cpufreq_cooling_device *cpufreq_dev
 	/*Fix govenors: may not poll cpufreq request at high load*/
 	cpufreq_driver_target(policy, max_freq, CPUFREQ_RELATION_H);
 
-	pr_info("%s: level:%d, th_pctg:%d, max_freq:%lu\n",
+	pr_info("%s: level:%d, th_pctg:%d, max_freq:%u\n",
 				 __func__, level, th_pctg, max_freq);
 }
 
@@ -144,7 +143,7 @@ static int cpufreq_cooling_qos_update_notifier_call(struct notifier_block *nb,
 
 	struct cpufreq_policy *policy = NULL;
 	struct freq_pctg_table *th_table;
-	unsigned long max_freq = 0;
+	unsigned int max_freq = 0;
 	unsigned int th_pctg = 0, level;
 	
 	policy = cpufreq_cpu_get(0);
@@ -165,9 +164,9 @@ static int cpufreq_cooling_qos_update_notifier_call(struct notifier_block *nb,
 	max_freq = (max_freq / (100*1000)) * (100*1000);
 	cpufreq_cpu_put(policy);
 	
-	pm_qos_update_request(&cpufreq_device->qos_cpu_pfm, max_freq);
+	pm_qos_update_request(&cpufreq_device->qos_cpu_cool, max_freq);
 
-	pr_info("%s: level:%d, th_pctg:%d, max_freq:%lu\n",
+	pr_info("%s: level:%d, th_pctg:%d, max_freq:%u\n",
 				 __func__, level, th_pctg, max_freq);
 	
 	return NOTIFY_OK;
@@ -324,8 +323,6 @@ struct thermal_cooling_device *cpufreq_cooling_register(
 	mutex_unlock(&cooling_cpufreq_lock);
 
 	pm_qos_add_request(&cpufreq_dev->qos_cpu_cool,
-				PM_QOS_CPUFREQ_MAX, PM_QOS_DEFAULT_VALUE);
-	pm_qos_add_request(&cpufreq_dev->qos_cpu_pfm,
 				PM_QOS_CPUFREQ_MAX, PM_QOS_DEFAULT_VALUE);
 
 #ifdef CONFIG_EXYNOS_CPUFREQ
