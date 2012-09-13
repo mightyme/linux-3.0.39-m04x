@@ -688,8 +688,7 @@ static unsigned int exynos4x12_get_int_volt(unsigned int index)
 
 #ifdef CONFIG_EXYNOS_TMU_TC
 /**
- * exynos4x12_find_busfreq_by_voltage - find busfreq by requested
- * voltage.
+ * exynos4x12_find_busfreq_by_volt - find busfreq by requested voltage.
  *
  * This function finds the busfreq to set for voltage above req_volt
  * and return its value.
@@ -719,7 +718,7 @@ int exynos4x12_find_busfreq_by_volt(unsigned int req_volt, unsigned long *freq)
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL_GPL(exynos4x12_find_busfreq_by_voltage);
+EXPORT_SYMBOL_GPL(exynos4x12_find_busfreq_by_volt);
 #endif
 
 static struct opp *exynos4x12_monitor(struct busfreq_data *data)
