@@ -41,13 +41,13 @@ static int atdebugfunc(struct io_device *iod, const char* buf, int len)
 
 	if (iod->atdebug) {
 		char *atdebugbuf;
-		
+
 		atdebuglen = iod->atdebug > len ? len : iod->atdebug;
 		atdebugbuf = format_hex_string(buf, atdebuglen);
 		pr_info("%pF, iod id:%d, data:\n%s\n", __builtin_return_address(0),
 				iod->id, atdebugbuf);
 	}
-		
+
 	return atdebuglen;
 }
 
@@ -83,31 +83,95 @@ static ssize_t store_atdebug(struct device *dev,
 static struct device_attribute attr_atdebug =
 	__ATTR(atdebug, S_IRUGO | S_IWUSR, show_atdebug, store_atdebug);
 
-static void modem_tty_notify(struct io_device *iod)
+static int get_ip_packet_size(struct io_device *iod)
 {
+	struct net_device *ndev = iod->ndev;
+	struct vnet *vnet = netdev_priv(ndev);
+	struct sk_buff *tmp_skb = NULL;
+	struct sk_buff *skb = NULL;
+	struct sk_buff *skb2 = NULL;
+	struct iphdr rx_ip_hdr;
+	int pkt_sz;
+
+retry:
+	skb = skb_dequeue(&iod->net_rx_q);
+	if (skb->len >= sizeof(struct iphdr)) {
+		memcpy(&rx_ip_hdr, skb->data, sizeof(struct iphdr));
+		skb_pull(skb, sizeof(struct iphdr));
+		if (skb->len)
+			skb_queue_head(&iod->net_rx_q, skb);
+		else
+			dev_kfree_skb_any(skb);
+	} else {
+		/*combind two skb to one, and continue*/
+		skb2 = skb_dequeue(&iod->net_rx_q);
+		if (skb2 == NULL) {
+			skb_queue_head(&iod->net_rx_q, skb);
+			return -EINVAL;
+		} else {
+			tmp_skb = dev_alloc_skb(skb->len + skb2->len);
+			if (tmp_skb) {
+				dev_kfree_skb_any(skb);
+				dev_kfree_skb_any(skb2);
+				skb_queue_head(&iod->net_rx_q, tmp_skb);
+				goto retry;
+			} else
+				return -EINVAL;
+		}
+	}
+
+	if(rx_ip_hdr.ihl != 5 && rx_ip_hdr.version != 4) {
+		pr_err("%s no IP packet!\n", __func__);
+		pkt_sz = -EINVAL;
+		return pkt_sz;
+	}
+	pkt_sz = ntohs(rx_ip_hdr.tot_len);
+	switch(rx_ip_hdr.protocol) {
+	case IPPROTO_IP:
+		pr_debug("IP dummy packet", pkt_sz);
+		break;
+	case IPPROTO_ICMP:
+		pr_debug("IP ICMP packet", pkt_sz);
+		break;
+	case IPPROTO_IGMP:
+		pr_debug("IP IGMP packet", pkt_sz);
+		break;
+	case IPPROTO_IPIP:
+		pr_debug("IP tunnel packet", pkt_sz);
+		break;
+	case IPPROTO_TCP:
+		pr_debug("IP TCP packet", pkt_sz);
+		break;
+	case IPPROTO_UDP:
+		pr_debug("IP UDP packet", pkt_sz);
+		break;
+	default:
+		break;
+	}
+
+	return pkt_sz;
+}
+
+static void tty_data_handler(struct io_device *iod)
+{
+	struct tty_struct *tty = iod->tty;
+	struct sk_buff *skb = NULL;
 	unsigned char *buf;
 	int count;
-	struct sk_buff *skb = NULL;
-	struct tty_struct *tty = iod->tty;
-	
+
 	if (!tty)
 		return;
-	
-	skb = skb_dequeue(&iod->sk_rx_q);
-
+	skb = skb_dequeue(&iod->tty_rx_q);
 	while(skb) {
 		if (test_bit(TTY_THROTTLED, &tty->flags))
 			break;
 		wake_lock_timeout(&iod->wakelock, HZ*0.5);
-
 		count = tty_prepare_flip_string(tty, &buf, skb->len);
-
-		if (count == 0) {
+		if (count <= 0) {
 			mif_err("%s:tty buffer avail size=%d\n",
 							__func__, count);
 			break;
 		}
-
 		if (skb->len > count) {
 			mif_err("skb->len %d > count %d\n", skb->len, count);
 			memcpy(buf, skb->data, count);
@@ -117,7 +181,7 @@ static void modem_tty_notify(struct io_device *iod)
 			if (skb->len) {
 				mif_debug("queue-head, skb->len = %d\n",
 						skb->len);
-				skb_queue_head(&iod->sk_rx_q, skb);
+				skb_queue_head(&iod->tty_rx_q, skb);
 			}
 		} else {
 			memcpy(buf, skb->data, count);
@@ -125,15 +189,80 @@ static void modem_tty_notify(struct io_device *iod)
 				iod->atdebugfunc(iod, skb->data, count);
 			dev_kfree_skb_any(skb);
 		}
-
 		tty_flip_buffer_push(tty);
-		
-		skb = skb_dequeue(&iod->sk_rx_q);
+
+		skb = skb_dequeue(&iod->tty_rx_q);
 	}
 }
 
+static void net_data_handler(struct io_device *iod)
+{
+	struct net_device *ndev = iod->ndev;
+	struct vnet *vnet = netdev_priv(ndev);
+	struct sk_buff *net_skb = NULL;
+	struct sk_buff *skb = NULL;
+	struct sk_buff *skb2 = NULL;
+	unsigned char *buf;
+	int count;
+
+	if (vnet->pkt_sz <= 0)
+		vnet->pkt_sz = get_ip_packet_size(iod);
+
+	skb = skb_dequeue(&iod->net_rx_q);
+	while(skb) {
+		wake_lock_timeout(&iod->wakelock, HZ * 0.5);
+		if (vnet->pkt_sz <= 0) {
+			dev_kfree_skb_any(skb);
+			break;
+		}
+		if (vnet->skb == NULL) {
+			net_skb = dev_alloc_skb(vnet->pkt_sz);
+			if (net_skb == NULL) {
+				pr_err("%s allocate skb err!\n", __func__);
+				dev_kfree_skb_any(skb);
+				break;
+			} else {
+				net_skb->dev = ndev;
+				net_skb->protocol = htons(ETH_P_IP);
+				vnet->skb = net_skb;
+			}
+		} else
+			net_skb = vnet->skb;
+
+		buf = net_skb->data + (net_skb->len - vnet->pkt_sz);
+
+		if (vnet->pkt_sz >= skb->len) {
+			memcpy(buf, skb->data, skb->len);
+			vnet->pkt_sz -= skb->len;
+			dev_kfree_skb_any(skb);
+		} else {
+			memcpy(net_skb->data, skb->data, vnet->pkt_sz);
+			skb_pull(skb, vnet->pkt_sz);
+			skb_queue_head(&iod->net_rx_q, skb);
+		}
+
+		if (vnet->pkt_sz == 0) {
+			vnet->stats.rx_packets++;
+			vnet->stats.rx_bytes += net_skb->len;
+			skb_reset_mac_header(net_skb);
+			netif_rx(net_skb);
+			vnet->skb = NULL;
+			pr_debug("%s rx size=%d", __func__, net_skb->len);
+			if (iod->atdebug)
+				iod->atdebugfunc(iod, net_skb->data, net_skb->len);
+			vnet->pkt_sz = get_ip_packet_size(iod);
+			if (vnet->pkt_sz <= 0)
+				break;
+		}
+
+		skb = skb_dequeue(&iod->net_rx_q);
+	}
+out:
+	return;
+}
+
 /* called from link device when a packet arrives for this io device */
-static int io_dev_recv_data_from_link_dev(struct io_device *iod,
+static int recv_data_handler(struct io_device *iod,
 		struct link_device *ld, const char *data, unsigned int len)
 {
 	struct sk_buff *skb;
@@ -144,12 +273,21 @@ static int io_dev_recv_data_from_link_dev(struct io_device *iod,
 		return -ENOMEM;
 	}
 
-	memcpy(skb_put(skb, len), data, len);
-	skb_queue_tail(&iod->sk_rx_q, skb);
-
-	modem_tty_notify(iod);
-
-	wake_up(&iod->wq);
+	switch (iod->io_typ) {
+	case IODEV_TTY:
+		memcpy(skb_put(skb, len), data, len);
+		skb_queue_tail(&iod->tty_rx_q, skb);
+		tty_data_handler(iod);
+	case IODEV_NET:
+		memcpy(skb_put(skb, len), data, len);
+		skb_queue_tail(&iod->net_rx_q, skb);
+		net_data_handler(iod);
+		break;
+	default:
+		mif_err("wrong io_type : %d\n", iod->io_typ);
+		dev_kfree_skb_any(skb);
+		return -EINVAL;
+	}
 
 	return len;
 }
@@ -157,6 +295,7 @@ static int io_dev_recv_data_from_link_dev(struct io_device *iod,
 static int vnet_open(struct net_device *ndev)
 {
 	struct vnet *vnet = netdev_priv(ndev);
+
 	netif_start_queue(ndev);
 	atomic_inc(&vnet->iod->opened);
 	return 0;
@@ -165,6 +304,7 @@ static int vnet_open(struct net_device *ndev)
 static int vnet_stop(struct net_device *ndev)
 {
 	struct vnet *vnet = netdev_priv(ndev);
+
 	atomic_dec(&vnet->iod->opened);
 	netif_stop_queue(ndev);
 	return 0;
@@ -172,96 +312,50 @@ static int vnet_stop(struct net_device *ndev)
 
 static int vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
-#if 0
-	int ret = 0;
-	int headroom = 0;
-	int tailroom = 0;
-	struct sk_buff *skb_new = NULL;
 	struct vnet *vnet = netdev_priv(ndev);
 	struct io_device *iod = vnet->iod;
 	struct link_device *ld = get_current_link(iod);
-	struct raw_hdr hd;
+	int ret = 0;
 
-	/* When use `handover' with Network Bridge,
-	 * user -> TCP/IP(kernel) -> bridge device -> TCP/IP(kernel) -> this.
-	 *
-	 * We remove the one ethernet header of skb before using skb->len,
-	 * because the skb has two ethernet headers.
-	 */
-	if (iod->use_handover) {
-		if (iod->id >= PSD_DATA_CHID_BEGIN &&
-			iod->id <= PSD_DATA_CHID_END)
-			skb_pull(skb, sizeof(struct ethhdr));
-	}
-
-	hd.len = skb->len + sizeof(hd);
-	hd.control = 0;
-	hd.channel = iod->id & 0x1F;
-
-	headroom = sizeof(hd) + sizeof(hdlc_start);
-	tailroom = sizeof(hdlc_end);
-	if (ld->aligned)
-		tailroom += MAX_LINK_PADDING_SIZE;
-	if (skb_headroom(skb) < headroom || skb_tailroom(skb) < tailroom) {
-		skb_new = skb_copy_expand(skb, headroom, tailroom, GFP_ATOMIC);
-		/* skb_copy_expand success or not, free old skb from caller */
-		dev_kfree_skb_any(skb);
-		if (!skb_new)
-			return -ENOMEM;
-	} else
-		skb_new = skb;
-
-	memcpy(skb_push(skb_new, sizeof(hd)), &hd, sizeof(hd));
-	memcpy(skb_push(skb_new, sizeof(hdlc_start)), hdlc_start,
-				sizeof(hdlc_start));
-	memcpy(skb_put(skb_new, sizeof(hdlc_end)), hdlc_end, sizeof(hdlc_end));
-	skb_put(skb_new, calc_padding_size(iod, ld,  skb_new->len));
-
-	skbpriv(skb_new)->iod = iod;
-	skbpriv(skb_new)->ld = ld;
-
-	ret = ld->send(ld, iod, skb_new);
+	ret = ld->send(ld, iod, skb);
 	if (ret < 0) {
 		netif_stop_queue(ndev);
-		dev_kfree_skb_any(skb_new);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_BUSY;
 	}
-
 	ndev->stats.tx_packets++;
 	ndev->stats.tx_bytes += skb->len;
-#endif	
+	dev_kfree_skb_any(skb);
+
 	return NETDEV_TX_OK;
 }
 
+static struct net_device_stats *vnet_get_stats(struct net_device *dev)
+{
+	struct vnet *vnet = netdev_priv(dev);
+
+	return &vnet->stats;
+}
+
 static struct net_device_ops vnet_ops = {
-	.ndo_open = vnet_open,
-	.ndo_stop = vnet_stop,
+	.ndo_open       = vnet_open,
+	.ndo_stop       = vnet_stop,
+	.ndo_get_stats  = vnet_get_stats,
 	.ndo_start_xmit = vnet_xmit,
 };
 
 static void vnet_setup(struct net_device *ndev)
 {
-	ndev->netdev_ops = &vnet_ops;
-	ndev->type = ARPHRD_PPP;
-	ndev->flags = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
-	ndev->addr_len = 0;
+	ndev->mtu             = ETH_DATA_LEN;
+	ndev->type            = ARPHRD_NONE;
+	ndev->flags           = IFF_POINTOPOINT | IFF_NOARP;
+	ndev->features        = 0;
+	ndev->addr_len        = 0;
+	ndev->destructor      = free_netdev;
+	ndev->netdev_ops      = &vnet_ops;
+	ndev->tx_queue_len    = 1000;
+	ndev->watchdog_timeo  = 20 * HZ;
 	ndev->hard_header_len = 0;
-	ndev->tx_queue_len = 1000;
-	ndev->mtu = ETH_DATA_LEN;
-	ndev->watchdog_timeo = 5 * HZ;
-}
-
-static void vnet_setup_ether(struct net_device *ndev)
-{
-	ndev->netdev_ops = &vnet_ops;
-	ndev->type = ARPHRD_ETHER;
-	ndev->flags = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST | IFF_SLAVE;
-	ndev->addr_len = ETH_ALEN;
-	random_ether_addr(ndev->dev_addr);
-	ndev->hard_header_len = 0;
-	ndev->tx_queue_len = 1000;
-	ndev->mtu = ETH_DATA_LEN;
-	ndev->watchdog_timeo = 5 * HZ;
 }
 
 static int modem_tty_open(struct tty_struct *tty, struct file *f)
@@ -271,13 +365,13 @@ static int modem_tty_open(struct tty_struct *tty, struct file *f)
 	struct link_device *ld;
 	struct io_device *iod;
 	int ret = 0;
-	
+
 	iod = get_iod_with_channel(&modemctl->commons, tty->index);
 	commons = &iod->mc->commons;
 
 	tty->driver_data = iod;
 	iod->tty = tty;
-	
+
 	mutex_lock(&modem_tty_lock);
 
 	if (atomic_inc_and_test(&iod->opened))
@@ -295,7 +389,7 @@ static int modem_tty_open(struct tty_struct *tty, struct file *f)
 			}
 		}
 	}
-	
+
 	return ret;
 }
 
@@ -310,7 +404,7 @@ static void modem_tty_close(struct tty_struct *tty, struct file *f)
 	if (atomic_read(&iod->opened) == 0) {
 		tty->driver_data = NULL;
 		mif_debug("iod = %s\n", iod->name);
-		skb_queue_purge(&iod->sk_rx_q);
+		skb_queue_purge(&iod->tty_rx_q);
 		list_for_each_entry(ld, &commons->link_dev_list, list) {
 			if (IS_CONNECTED(iod, ld) && ld->terminate_comm)
 				ld->terminate_comm(ld, iod);
@@ -326,7 +420,8 @@ static int modem_tty_write_room(struct tty_struct *tty)
 	return ret;
 }
 
-static int modem_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
+static int
+modem_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
 	struct io_device *iod = tty->driver_data;
 	struct link_device *ld = get_current_link(iod);
@@ -339,10 +434,10 @@ static int modem_tty_write(struct tty_struct *tty, const unsigned char *buf, int
 		mif_err("fail alloc skb (%d)\n", __LINE__);
 		return -ENOMEM;
 	}
-	wake_lock_timeout(&iod->wakelock, HZ*0.5);
+	wake_lock_timeout(&iod->wakelock, HZ * 0.5);
 
 	memcpy(skb_put(skb, count), buf, count);
-	
+
 	if (iod->atdebug) {
 		char *atdebugbuf;
 		int atdebuglen = iod->atdebug > count ? count : iod->atdebug;
@@ -374,16 +469,16 @@ static int modem_tty_write(struct tty_struct *tty, const unsigned char *buf, int
 static void modem_tty_throttle(struct tty_struct *tty)
 {
 	struct io_device *iod = tty->driver_data;
-		
-	skb_queue_purge(&iod->sk_rx_q);
+
+	skb_queue_purge(&iod->tty_rx_q);
 }
 
 static struct tty_operations tty_ops = {
 	.open       = modem_tty_open,
 	.close      = modem_tty_close,
 	.write      = modem_tty_write,
-	.write_room = modem_tty_write_room,
 	.throttle   = modem_tty_throttle,
+	.write_room = modem_tty_write_room,
 };
 
 int modem_tty_driver_init(struct modem_ctl *modemctl)
@@ -396,33 +491,29 @@ int modem_tty_driver_init(struct modem_ctl *modemctl)
 		pr_err("%s alloc_tty_driver -ENOMEM!!\n", __func__);
 		return -ENOMEM;
 	}
-
-	tty_driver->owner = THIS_MODULE;
-	tty_driver->driver_name = "tty_driver";
-	tty_driver->name = "ttyACM";
-	tty_driver->major = 0;
-	tty_driver->minor_start = 0;
-	tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
-	tty_driver->subtype = SERIAL_TYPE_NORMAL;
+	tty_driver->name         = "ttyACM";
+	tty_driver->type         = TTY_DRIVER_TYPE_SERIAL;
+	tty_driver->major        = 0;
+	tty_driver->owner        = THIS_MODULE;
+	tty_driver->subtype      = SERIAL_TYPE_NORMAL;
+	tty_driver->minor_start  = 0;
+	tty_driver->driver_name  = "tty_driver";
 	tty_driver->init_termios = tty_std_termios;
 	tty_driver->init_termios.c_iflag = 0;
 	tty_driver->init_termios.c_oflag = 0;
 	tty_driver->init_termios.c_cflag = B4000000 | CS8 | CREAD;
 	tty_driver->init_termios.c_lflag = 0;
 	tty_driver->flags = TTY_DRIVER_RESET_TERMIOS |
-		TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
-	
+				TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	tty_set_operations(tty_driver, &tty_ops);
-
 	ret = tty_register_driver(tty_driver);
 	if (ret) {
 		pr_err("%s error!!\n", __func__);
 		return ret;
 	}
-
 	tty_driver->driver_state = modemctl;
 	modemctl->tty_driver = tty_driver;
-	
+
 	return 0;
 }
 
@@ -431,52 +522,39 @@ int meizu_ipc_init_io_device(struct io_device *iod)
 	int ret = 0;
 	struct vnet *vnet;
 
-	/* Get data from link device */
-	iod->recv = io_dev_recv_data_from_link_dev;
-
-	/* Register misc or net device */
+	iod->recv = recv_data_handler;
 	switch (iod->io_typ) {
 	case IODEV_TTY:
-		init_waitqueue_head(&iod->wq);
-		skb_queue_head_init(&iod->sk_rx_q);
+		skb_queue_head_init(&iod->tty_rx_q);
 		/*INIT_DELAYED_WORK(&iod->rx_work, rx_iodev_work);*/
-
 		iod->atdebugfunc = atdebugfunc;
 		iod->atdebug = 0;
 		iod->ttydev = tty_register_device
 			(iod->mc->tty_driver, iod->id, NULL);
-		
+
 		dev_set_drvdata(iod->ttydev, iod);
 		ret = device_create_file(iod->ttydev, &attr_atdebug);
 		if (ret)
 			mif_err("failed to create sysfs file : %s\n",
 					iod->name);
 		break;
-
 	case IODEV_NET:
-		skb_queue_head_init(&iod->sk_rx_q);
-		if (iod->use_handover)
-			iod->ndev = alloc_netdev(0, iod->name,
-						vnet_setup_ether);
-		else
-			iod->ndev = alloc_netdev(0, iod->name, vnet_setup);
-
+		skb_queue_head_init(&iod->net_rx_q);
+		iod->ndev = alloc_netdev(sizeof(struct vnet), iod->name,
+			vnet_setup);
 		if (!iod->ndev) {
 			mif_err("failed to alloc netdev\n");
 			return -ENOMEM;
 		}
-
 		ret = register_netdev(iod->ndev);
 		if (ret)
 			free_netdev(iod->ndev);
-
-		mif_debug("(iod:0x%p)\n", iod);
 		vnet = netdev_priv(iod->ndev);
 		mif_debug("(vnet:0x%p)\n", vnet);
+		vnet->pkt_sz = 0;
 		vnet->iod = iod;
-
+		vnet->skb = NULL;
 		break;
-
 	default:
 		mif_err("wrong io_type : %d\n", iod->io_typ);
 		return -EINVAL;
@@ -486,4 +564,3 @@ int meizu_ipc_init_io_device(struct io_device *iod)
 				iod->name, iod->io_typ, ret);
 	return ret;
 }
-

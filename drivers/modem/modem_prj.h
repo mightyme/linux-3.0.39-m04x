@@ -16,14 +16,15 @@
 #ifndef __MODEM_PRJ_H__
 #define __MODEM_PRJ_H__
 
-#include <linux/wait.h>
-#include <linux/miscdevice.h>
-#include <linux/skbuff.h>
 #include <linux/completion.h>
-#include <linux/wakelock.h>
+#include <linux/miscdevice.h>
+#include <linux/netdevice.h>
 #include <linux/rbtree.h>
+#include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/tty.h>
+#include <linux/wait.h>
+#include <linux/wakelock.h>
 
 #define MAX_CPINFO_SIZE		512
 
@@ -316,7 +317,10 @@ static inline unsigned sipc5_calc_padding_size(unsigned len)
 }
 
 struct vnet {
+	int pkt_sz;
 	struct io_device *iod;
+	struct sk_buff *skb;
+	struct net_device_stats stats;
 };
 
 /* for fragmented data from link devices */
@@ -372,9 +376,6 @@ struct io_device {
 
 	atomic_t opened;
 
-	/* Wait queue for the IO device */
-	wait_queue_head_t wq;
-
 	/* Misc and net device structures for the IO device */
 	//struct miscdevice  miscdev;
 	struct device *ttydev;
@@ -395,7 +396,8 @@ struct io_device {
 	enum sipc_ver ipc_version;
 
 	/* Rx queue of sk_buff */
-	struct sk_buff_head sk_rx_q;
+	struct sk_buff_head tty_rx_q;
+	struct sk_buff_head net_rx_q;
 
 	/*
 	** work for each io device, when delayed work needed

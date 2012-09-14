@@ -556,6 +556,14 @@ static void link_pm_runtime_start(struct work_struct *work)
 
 	dev = &pm_data->usb_ld->usbdev->dev;
 
+	/* wait interface driver resumming */
+	if (dev->power.runtime_status == RPM_SUSPENDED) {
+		mif_debug("suspended yet, delayed work\n");
+		queue_delayed_work(pm_data->wq, &pm_data->link_pm_start,
+			msecs_to_jiffies(10));
+		return;
+	}
+
 	if (pm_data->usb_ld->usbdev && dev->parent) {
 		mif_debug("rpm_status: %d\n", dev->power.runtime_status);
 		ppdev = dev->parent->parent;
@@ -570,17 +578,6 @@ static void link_pm_runtime_start(struct work_struct *work)
 			pm_runtime_forbid(ppdev);
 			pm_runtime_allow(ppdev);
 		}
-	}
-	
-	/* wait interface driver resumming */
-	if (dev->power.runtime_status == RPM_SUSPENDED) {
-		mif_info("suspended yet, delayed work\n");
-		queue_delayed_work(pm_data->wq, &pm_data->link_pm_start,
-			msecs_to_jiffies(20));
-		return;
-	}
-
-	if (pm_data->usb_ld->usbdev && dev->parent) {
 		pm_data->resume_requested = false;
 		pm_data->resume_retry_cnt = 0;
 		/* retry prvious link tx q */
@@ -813,7 +810,7 @@ static int link_pm_release(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations link_pm_fops = {
-	.owner   = THIS_MODULE,     
+	.owner   = THIS_MODULE,
 	.open    = link_pm_open,
 	.release = link_pm_release,
 };
@@ -1081,7 +1078,7 @@ static int __devinit if_usb_probe(struct usb_interface *intf,
 	}
 	control_interface = usb_ifnum_to_if(usbdev, union_hdr->bMasterInterface0);
 	control_interface->needs_remote_wakeup = 0;
-	pm_runtime_set_autosuspend_delay(&root_usbdev->dev, 500); /*200ms*/
+	pm_runtime_set_autosuspend_delay(&root_usbdev->dev, 200); /*200ms*/
 
 	data_intf = usb_ifnum_to_if(usbdev, union_hdr->bSlaveInterface0);
 	if (!data_intf) {
