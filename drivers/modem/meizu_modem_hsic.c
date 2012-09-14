@@ -294,10 +294,11 @@ static void usb_rx_complete(struct urb *urb)
 				queue_delayed_work(usb_ld->ld.tx_wq,
 					&usb_ld->rx_retry_work, 0);
 				return;
-			} else if (ret < 0) {
-				mif_err("io device recv error (%d)\n", ret);
 			} else {
-				pipe_data->hsic_channel_rx_count --;
+				if (ret < 0)
+					mif_err("io device recv err:%d\n", ret);
+				else
+					pipe_data->hsic_channel_rx_count --;
 			}
 		}
 rx_submit:
