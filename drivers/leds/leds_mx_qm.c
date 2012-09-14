@@ -98,7 +98,7 @@ static int bu26507_set_led_pwm(struct led_classdev *led_cdev, int pwm)
 	 struct mx_qm_data *mx = led->data;
 	 int ret = 0;
 	 
- 	  pwm = pwm *63 /100;
+ 	  //pwm = pwm *63 /100;
 	  
 	 /*led pwm level, from 0~63*/
 	 pwm = (pwm >> 2) & 0x3F;
@@ -155,12 +155,11 @@ static int tca6507_set_led_current(struct led_classdev *led_cdev, int value)
 	  struct mx_qm_data *mx = led->data;
 	  int ret = 0;
 	  unsigned char data;
-	  pr_debug("%s:value = %d\n",__func__,value);
 
- 	  value = value *255 /100;
+ 	  //value = value *255 /100;
 	  
 	  data = (value & 0xF0) |((value >> 4) & 0xF);	  
-	  pr_info("%s:pwm = 0x%.2X\n",__func__,data);
+	  pr_debug("%s:pwm = 0x%.2X\n",__func__,data);
 	  
 	  ret = mx->i2c_writebyte(mx->client,LED_REG_PWM,data);	 
   
