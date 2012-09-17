@@ -26,10 +26,13 @@
 #ifndef	__WM8958_PATH_H__
 #define	__WM8958_PATH_H__
 
-// #define	VOL_NORMAL_SPK				(0x39+4)							//4dB 0dB = 0x39
+#if defined(CONFIG_MACH_M040)
 #define	VOL_NORMAL_SPK				(0x39+6)							//6dB 0dB = 0x39
-// #define	VOL_NORMAL_SPK_BOOST		(0<<WM8994_SPKOUTL_BOOST_SHIFT)		// 3dB
 #define	VOL_NORMAL_SPK_BOOST		(3<<WM8994_SPKOUTL_BOOST_SHIFT)		// 4dB
+#else
+#define	VOL_NORMAL_SPK				(0x39+4)							//4dB 0dB = 0x39
+#define	VOL_NORMAL_SPK_BOOST		(0<<WM8994_SPKOUTL_BOOST_SHIFT)		// 3dB
+#endif
 #define	VOL_NORMAL_REC				(0x39+4)							// 4dB
 #define	VOL_NORMAL_HP2				(0<<WM8994_HPOUT2_VOL_SHIFT)		// 0:0dB  1: -6dB
 #define	VOL_NORMAL_HP				(0x39-6)							// -6dB
@@ -46,10 +49,9 @@
 #define	VOL_INCALL_SPK				(0x39+4)							//4dB 0dB = 0x39
 #define	VOL_INCALL_SPK_BOOST		(4<<WM8994_SPKOUTL_BOOST_SHIFT)		// 6dB
 #define	VOL_INCALL_REC				(0x39+4)							// 4dB
-// #define	VOL_INCALL_REC				(0x39+2)							// 2dB
 #define	VOL_INCALL_HP2				(0<<WM8994_HPOUT2_VOL_SHIFT)		// 0:0dB  1: -6dB
 #define	VOL_INCALL_HP				(0x39-6)							// -6dB
-#define	VOL_INCALL_AIF2DAC_BOOST			(1<<WM8994_AIF2DAC_BOOST_SHIFT)		// 12dB			
+#define	VOL_INCALL_AIF2DAC_BOOST			(1<<WM8994_AIF2DAC_BOOST_SHIFT)		// 6dB			
 
 #define	VOL_VOIP_SPK				(0x39+4)							//4dB 0dB = 0x39
 #define	VOL_VOIP_SPK_BOOST			(4<<WM8994_SPKOUTL_BOOST_SHIFT)		// 6dB
