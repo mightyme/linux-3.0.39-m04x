@@ -126,6 +126,7 @@ static struct s3c2410_uartcfg __initdata m040_uartcfgs[] = {
 #if defined(CONFIG_BT)
 		.wake_peer	= bt_uart_wake_peer,
 #endif
+		.has_afc	= 1,
 	},
 	[1] = {
 		.hwport		= 1,
@@ -133,13 +134,15 @@ static struct s3c2410_uartcfg __initdata m040_uartcfgs[] = {
 		.ucon		= M040_UCON_DEFAULT,
 		.ulcon		= M040_ULCON_DEFAULT,
 		.ufcon		= M040_UFCON_DEFAULT,
+		.has_afc	= 0,
 	},
 	[2] = {
 		.hwport		= 2,
-		.flags			= 0,
+		.flags		= 0,
 		.ucon		= M040_UCON_DEFAULT,
 		.ulcon		= M040_ULCON_DEFAULT,
 		.ufcon		= M040_UFCON_DEFAULT,
+		.has_afc	= 1,
 	},
 #ifndef CONFIG_EXYNOS_FIQ_DEBUGGER
 	[3] = {
@@ -148,6 +151,7 @@ static struct s3c2410_uartcfg __initdata m040_uartcfgs[] = {
 		.ucon		= M040_UCON_DEFAULT,
 		.ulcon		= M040_ULCON_DEFAULT,
 		.ufcon		= M040_UFCON_DEFAULT,
+		.has_afc	= 0,
 	},
 #endif
 };
@@ -1135,7 +1139,7 @@ static struct fimg2d_platdata __initdata fimg2d_data = {
 	.parent_clkname = "mout_g2d0",
 	.clkname = "sclk_fimg2d",
 	.gate_clkname = "g2d_acp",
-	.clkrate = 201 * 1000000,	/* 200 Mhz */
+	.clkrate = 200 * 1000000,	/* 200 Mhz */
 };
 #endif
 

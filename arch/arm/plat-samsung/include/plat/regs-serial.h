@@ -292,9 +292,13 @@ struct s3c2410_uartcfg {
 
 	struct s3c24xx_uart_clksrc *clocks;
 	unsigned int		    clocks_size;
-#if defined(CONFIG_BT) && (defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE))
+
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+#if defined(CONFIG_BT)
 	void (*wake_peer)(struct uart_port *);
-#endif	
+#endif
+	unsigned short has_afc;
+#endif
 };
 
 /* s3c24xx_uart_devs

@@ -134,24 +134,26 @@ static struct s3c2410_uartcfg __initdata m030_uartcfgs[] = {
 		.ucon		= M030_UCON_DEFAULT,
 		.ulcon		= M030_ULCON_DEFAULT,
 		.ufcon		= M030_UFCON_DEFAULT,
-#if defined(CONFIG_BT) && defined(CONFIG_MX_SERIAL_TYPE)
+#if defined(CONFIG_BT)
 		.wake_peer	= bt_uart_wake_peer,
-#endif		
+#endif
+		.has_afc	= 1,
 	},
 	[1] = {
 		.hwport		= 1,
-		.flags			= 0,
+		.flags		= 0,
 		.ucon		= M030_UCON_DEFAULT,
 		.ulcon		= M030_ULCON_DEFAULT,
 		.ufcon		= M030_UFCON_DEFAULT,
-		
+		.has_afc	= 0,
 	},
 	[2] = {
 		.hwport		= 2,
-		.flags			= 0,
+		.flags		= 0,
 		.ucon		= M030_UCON_DEFAULT,
 		.ulcon		= M030_ULCON_DEFAULT,
 		.ufcon		= M030_UFCON_DEFAULT,
+		.has_afc	= 0,
 	},
 #ifndef CONFIG_EXYNOS_FIQ_DEBUGGER
 	[3] = {
@@ -160,6 +162,7 @@ static struct s3c2410_uartcfg __initdata m030_uartcfgs[] = {
 		.ucon		= M030_UCON_DEFAULT,
 		.ulcon		= M030_ULCON_DEFAULT,
 		.ufcon		= M030_UFCON_DEFAULT,
+		.has_afc	= 0,
 	},
 #endif	
 };

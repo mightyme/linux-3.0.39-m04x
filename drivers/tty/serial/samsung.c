@@ -352,19 +352,16 @@ static void s3c24xx_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
 	/* todo - possibly remove AFC and do manual CTS */
 #if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+	struct s3c2410_uartcfg *cfg = s3c24xx_port_to_cfg(port);
 	unsigned int umcon = 0;
 	umcon = rd_regl(port, S3C2410_UMCON);
 
-	/* uart2 and uart3 do not support AFC feature ?? */
-	if (port->line == 0 || port->line == 1) {
+	/* uart do not support AFC feature ?? */
+	if (cfg->has_afc == 1) {
 		if (mctrl & TIOCM_RTS)
 			umcon |= S3C2410_UMCOM_AFC;
 		else
 			umcon &= ~(S3C2410_UMCOM_AFC | S3C2410_UMCOM_RTS_LOW);
-#if defined(CONFIG_MACH_M040)
-	} else if (port->line == 2) {	/* enable AFC for gps on m040 */
-		umcon |= S3C2410_UMCOM_AFC;
-#endif
 	} else {
 		umcon &= ~S3C2410_UMCOM_AFC;
 	}
