@@ -37,7 +37,8 @@
 
 #define	DETECT_POS_INTERVAL		(10)
 
-#define	MAX_REC_POS_SIZE		(64)
+#define	MAX_REC_POS_SIZE		(0x20)
+#define	MAX_REC_POS_SIZE_MASK		(0x1F)
 #define	MAX_REC_POS_USED		(16)
 #define	MAX_REC_POS_SILIDER	(64)
 
@@ -119,103 +120,107 @@ unsigned short qm_touch_cal_key(struct input_dev *dev, unsigned char pos)
 
 
 #define ABS(x)		((x) < 0 ? (-x) : (x))
+
+#define POS_KEY_THR       32
+#define POS_KEYS_INTERVAL_THR       80
 unsigned short qm_touch_cal_key2(struct mx_qm_touch	*touch)
 {
 	//struct mx_qm_data * mx = touch->data;
 	//struct i2c_client *client = mx->client;
 	struct input_dev *input = touch->input;
 	
-	int cal_buf[MAX_REC_POS_SIZE];
-	int i;
-	int j;
-	int res;
-	int dir0,dir1;
-	unsigned char keypos;
-	
-	pr_debug("%s:ppos = %d\n",__func__, touch->precpos);
-	for(i= 0;i < sizeof(touch->rec_pos) ;i ++)
-	{
-		pr_debug("%.3d  ", touch->rec_pos[i] );			
-	}
-	pr_debug( "\n");
+  signed short i,j;
+  unsigned char len=0,dir0,dir1,mx_qt_key;
+  unsigned char posBuf[16];
+  
+  // Get the valid data
+  j = touch->precpos;  
+  for(i=0;i< 16;i++) 
+  {
+    j--;
+    ++len;
+    posBuf[i] = touch->rec_pos[j&0x1F];  
+    if(j == 0)
+      break;    
+  }
+  pr_info("%s:j = %.2d  i = %d len = %d", __func__,j,i,len );	
+  
+  mx_qt_key = (posBuf[0] >> 6) + QM_KEY_1;
+  //mx_qt_key = (posBuf[0] / 86 ) + QM_KEY_1;
 
-	j = touch->precpos;
-	memset(cal_buf,0,sizeof(cal_buf));
-	for(i= 0;i < MAX_REC_POS_USED  ;i ++)
-	{	
-		if(j == 0)		
-			j = MAX_REC_POS_SIZE-1;
-		else
-			j --;
-		cal_buf[i] = touch->rec_pos[j];
-		pr_debug("%.2d  ", cal_buf[i] );		
-	}
+  if( touch->precpos > 0x1F )
+    goto end90;
+  
+#if 0//#ifndef  __LED_TCA6507__  
+  // clear the remain buffer
+  for(i = len;i< 16;i++) 
+    posBuf[i] = 0;  
+#endif  
+  
+  // Get the sum of steps
+  len--;
+  j = 0;
+  dir0 = 0; 
+  dir1 = 0;
+  for(i = 0;i< len ;i++) 
+  {
+    if( posBuf[i] > posBuf[i+1])
+      dir1 ++;
+    else if( posBuf[i] < posBuf[i+1])
+      dir0 ++;      
+  }
+  j = posBuf[0] - posBuf[i];
+  pr_info("%s:THR = %.2d  dir1 = %d ,dir0 = %d posBuf[len] = %d posBuf[0] = %d len = %d", __func__,j,dir1,dir0,posBuf[len] ,posBuf[0],len );	
+  
+    
+  //i = posBuf[len] - posBuf[0]; // Check the interval of start and end postion
+  //i = abs(i);
+  //if( (j > POS_KEY_THR || j < -POS_KEY_THR) && i > POS_KEYS_INTERVAL_THR)
+  if(j > POS_KEY_THR || j < -POS_KEY_THR)
+  {
+	pr_info("%s:key = %.2d  ", __func__,j);	
+    if( j > POS_KEY_THR )
+    {
+      if( dir0 <= 3 )
+      {
+        if(posBuf[len] < 80 && posBuf[0] > 160)
+        {
+          mx_qt_key = QM_KEY_L2R;
+        }
+        else if(posBuf[len] > 192)
+          mx_qt_key = QM_KEY_M2R;
+        else if(posBuf[0] < 64)
+          mx_qt_key = QM_KEY_L2M;
+      }
+    }
+    else
+    {
+      if( dir1 <= 3 )
+      {
+        if(posBuf[0] < 80 && posBuf[len] > 160) // ?
+        {
+          mx_qt_key = QM_KEY_R2L;
+        } 
+        else if(posBuf[len] > 192)
+          mx_qt_key = QM_KEY_R2M;
+        else if(posBuf[0] < 64)
+          mx_qt_key = QM_KEY_M2L;
+      }
+    }          
+  } 
+  
+end90:  
+	pr_info("%s:key = %.2d  ", __func__,mx_qt_key);		
 
-	keypos = cal_buf[0];
-
-	pr_debug( "\n");
-	dir0 = 0;
-	dir1 = 0;
-	for(i= 0;i < MAX_REC_POS_USED-1  ;i ++)
-	{	
-		if( cal_buf[i] > cal_buf[i+1] )
-			dir1 ++;
-		else if( cal_buf[i] < cal_buf[i+1] )
-			dir0 --;
-		
-		cal_buf[i] = cal_buf[i] - cal_buf[i+1];
-		pr_debug("%.2d  ", cal_buf[i] );		
-	}
-	pr_debug( "\ndir0=%d dir1=%d \n",dir0,dir1);
-	j = 0;
-	for(i= 0;i < MAX_REC_POS_USED  ;i ++)
-	{	
-		if( cal_buf[i] != 0)
-			cal_buf[j++] = cal_buf[i];	
-	}
-	
-	if( j )	 j--;
-	for(i= j;i < MAX_REC_POS_USED  ;i ++)
-	{	
-		cal_buf[i] = 0;				
-	}
-	pr_debug( "\n");
-	res = 0;
-	for(i= 0;i < MAX_REC_POS_USED ;i ++)
-	{
-		res += cal_buf[i];
-		pr_debug("%d  ", cal_buf[i] );			
-	}
-	pr_debug( "\n");
-
-	pr_debug("%s:res = %d\n",__func__, res);
-
-	if( ABS( res ) < MAX_REC_POS_SILIDER )
-	{
-		touch->last_key = qm_touch_cal_key(input,keypos);
-	}
-	else
-	{
-		if(res < 0)
-		{
-			if(dir1 > 3)
-				touch->last_key = qm_touch_cal_key(input,keypos);
-			else
-				touch->last_key = KEY_POWER;
-		}
-		else
-		{
-			if(dir0 < 3)
-				touch->last_key = qm_touch_cal_key(input,keypos);
-			else
-				touch->last_key = KEY_HOME;
-		}
-	}			
-	
-	qm_touch_report_key(input, touch->last_key, 1);
-	qm_touch_report_key(input, touch->last_key, 0);
-			
-	return 0;
+ 
+  printk("\nposBuf:len = %.d \n",len+1);
+  for(i=0;i<16;i++) 
+  	printk("%.3d ",posBuf[i] );
+  
+  printk("\nprecpos = %.d \n",touch->precpos);
+  for(i=0;i<MAX_REC_POS_SIZE;i++) 
+  	printk("%.3d ",touch->rec_pos[i] );
+  touch->precpos = 0;  
 }
 
 
@@ -324,9 +329,8 @@ static void get_slider_position_poll_func(struct work_struct *work)
 
 	/* Read which key changed */
 	pos = mx->i2c_readbyte(client, QM_REG_POSITION);
-	touch->rec_pos[touch->precpos++] = pos;
-	if( touch->precpos >= sizeof(touch->rec_pos) )
-		touch->precpos = 0;
+	touch->rec_pos[touch->precpos & 0x1F] = pos;
+	touch->precpos++;
 
 	dev_dbg(&client->dev, "pos = %d\n", pos);
 
@@ -367,7 +371,7 @@ static void get_slider_position_func(struct work_struct *work)
 	struct i2c_client *client = mx->client;
 	struct input_dev *input = touch->input;
 	
-	u8 new_key,pos;
+	u8 key,pos;
 	u8 state;		
 	
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -380,21 +384,21 @@ static void get_slider_position_func(struct work_struct *work)
 		
 	/* Read the detected status register, thus clearing interrupt */
 	state = mx->i2c_readbyte(client, QM_REG_STATE);
+	
+	/* Read which key changed */
+	pos = mx->i2c_readbyte(client, QM_REG_POSITION);
+	touch->rec_pos[touch->precpos++] = pos;
+	if( touch->precpos >= sizeof(touch->rec_pos) )
+		touch->precpos = 0;
+	
+	dev_dbg(&client->dev, "pos = %d\n", pos);
+	
+	if( touch->pos != pos )
+		qm_touch_report_pos(touch->input,pos,1);
+	touch->pos = pos;	
 
 	if( state ) 	
-	{
-		/* Read which key changed */
-		pos = mx->i2c_readbyte(client, QM_REG_POSITION);
-		touch->rec_pos[touch->precpos++] = pos;
-		if( touch->precpos >= sizeof(touch->rec_pos) )
-			touch->precpos = 0;
-
-		dev_dbg(&client->dev, "pos = %d\n", pos);
-
-		if( touch->pos != pos )
-			qm_touch_report_pos(touch->input,pos,0);
-		touch->pos = pos;	
-		
+	{		
 #ifdef __TEST_TOCHPAP_DELTA__
 		{
 			u16 ref[4],sig[4],delta[4]; 
@@ -413,7 +417,7 @@ static void get_slider_position_func(struct work_struct *work)
 	{		
 		pos = mx->i2c_readbyte(client, QM_REG_POSITION);
 		qm_touch_report_pos(touch->input,pos,1);
-		qm_touch_get_key(touch);
+		key = qm_touch_get_key(touch);
 	}
 
 end:	
