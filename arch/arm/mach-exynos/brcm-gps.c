@@ -147,6 +147,18 @@ static int __devinit gps_probe(struct platform_device *pdev)
 
 	gpio_direction_output(data->gps_power, 0);
 
+	if (mx_is_factory_test_mode(MX_FACTORY_TEST_BT)) {
+		s3c_gpio_cfgpin(M040_GPS_RTS, S3C_GPIO_INPUT);
+		s3c_gpio_cfgpin(M040_GPS_CTS, S3C_GPIO_INPUT);
+		s3c_gpio_cfgpin(M040_GPS_RXD, S3C_GPIO_INPUT);
+		s3c_gpio_cfgpin(M040_GPS_TXD, S3C_GPIO_INPUT);
+		s3c_gpio_setpull(M040_GPS_RTS, GPIO_PULL_DOWN);
+		s3c_gpio_setpull(M040_GPS_CTS, GPIO_PULL_DOWN);
+		s3c_gpio_setpull(M040_GPS_RXD, GPIO_PULL_DOWN);
+		gpio_direction_output(data->gps_power, 1);
+		printk("GPS in test mode!\n");
+	}
+
 	pr_info("gps successfully probed!\n");
 	
 	return 0;
