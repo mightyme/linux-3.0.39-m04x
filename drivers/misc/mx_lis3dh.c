@@ -465,7 +465,7 @@ static int write_reg(struct device *dev, const char *buf, u8 reg,
 /* selftest start */
 #define SELFTEST_MEASURE_TIMEOUT 100
 #define SELFTEST_ZYXDA (0x1 << 3)
-#define SELFTEST_SAMPLES 5
+#define SELFTEST_SAMPLES 100
 
 static int selftest_init_lis3dh(struct lis3dh_acc_data *acc)
 {
@@ -579,41 +579,35 @@ static int selftest_read(struct lis3dh_acc_data *acc, struct lis3dh_t *data)
 
 /*
  * Part Number Min_X Max_X Min_Y Max_Y Min_Z Max_Z Unit
- * LIS3DH 80 1700 80 1700 80 1400 LSB (@ FS = +/-2g)
+ * LIS3DH 60 1700 60 1700 60 1400 LSB (@ FS = +/-2g,2.8v)
  */
 
-#define SELFTEST_MIN 80UL	/* mg/digit */
-#define SELFTEST_MAX 1700UL	/* mg/digit */
-#define CONVERT_TO_MG	1	/* for range = +/-2g */
+#define CONVERT_TO_MG   1      /* for range = +/-2g */ 
 
-#define SELFTEST_NORMAL(st, nost, axis)			\
-({							\
-	unsigned long __abs_data = abs(st->axis - nost->axis) * CONVERT_TO_MG;	\
-	int __ret;					\
-	__ret = (__abs_data <= SELFTEST_MAX) && (__abs_data >= SELFTEST_MIN);	\
-	__ret;									\
-})
-
-static inline int selftest_check(struct lis3dh_t *data_nost, 
+static int check_selftest_result(struct lis3dh_t *data_nost,
 		struct lis3dh_t *data_st)
 {
-	pr_debug("%s\n", __func__);
-	pr_info("%s:  MAX: %lu, MIN: %lu\n", __func__, 
-			SELFTEST_MAX, SELFTEST_MIN);
-	pr_debug("%s:X: %lu\t", __func__, 
-			abs(data_st->x - data_nost->x) * CONVERT_TO_MG);
-	pr_debug("%s:Y: %lu\t", __func__,
-		       	abs(data_st->y - data_nost->y) * CONVERT_TO_MG);
-	pr_debug("%s:Z: %lu\t", __func__,
-		       	abs(data_st->z - data_nost->z) * CONVERT_TO_MG);
+	data_st->x = abs(data_st->x - data_nost->x) * CONVERT_TO_MG;
+	data_st->y = abs(data_st->y - data_nost->y) * CONVERT_TO_MG;
+	data_st->z = abs(data_st->z - data_nost->z) * CONVERT_TO_MG;
 
-	/* Pass return 0, fail return -1 */
-	if (SELFTEST_NORMAL(data_st, data_nost, x) \
-		&& SELFTEST_NORMAL(data_st, data_nost, y) \
-		&& SELFTEST_NORMAL(data_st, data_nost, z)) {
-		return 0;
+	if(data_st->x >= 60 && data_st->x <= 1700){
+		pr_debug("expect 60 =< x <= 1700, x = %d selftest pass\n", data_st->x);
 	}
 
+	if(data_st->y >= 60 && data_st->y <= 1700){
+		pr_debug("expect 60 =< y <= 1700, y = %d selftest pass\n", data_st->y);
+	}
+
+	if(data_st->z >= 60 && data_st->z <= 1400){
+		pr_debug("expect 60 =< z <= 1400, z = %d selftest pass\n",data_st->z);
+	}
+
+	if(data_st->x >= 60 && data_st->x <= 1700 && data_st->y >= 60
+			&& data_st->y <= 1700 && data_st->z >= 60 &&
+			data_st->z <= 1400){
+		return 1;
+	}
 	return -1;
 }
 
@@ -661,7 +655,7 @@ static int lis3dh_selftest(struct lis3dh_acc_data *acc, int *test_result,
 	}
 	
 	/* Check output */
-	ret = selftest_check(&data_nost, self_data);
+	ret = check_selftest_result(&data_nost, self_data);
 	if (ret < 0) {
 		pr_err("%s: ***fail***\n", __func__);
 		*test_result = 0;
@@ -907,15 +901,11 @@ static ssize_t attr_get_selftest_data(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct lis3dh_acc_data *acc = dev_get_drvdata(dev);
-	struct lis3dh_t self_data ;
+	struct lis3dh_t self_data;
 	int self_result, ret;
 
 	ret = lis3dh_selftest(acc, &self_result, &self_data);
-	if(ret < 0){
-		pr_err("%s():self test fail\n",__func__);
-		return ret;
-	}
-
+	
 	ret = sprintf(buf, "SELFTEST RESULT : %d, %d, %d\n", 
 			self_data.x, self_data.y, self_data.z);
 
@@ -1210,7 +1200,6 @@ static long lis3dh_misc_ioctl_init(struct file *file,
 	case LIS3DH_IOCTL_SELFTEST:
 		ret = lis3dh_selftest(lis3dh, &test_result, &self_data);
 
-		pr_info("%s: self test\n", __func__);
 		if (copy_to_user((void __user *)arg, &test_result,
 				       	sizeof(int)) != 0) {
 			pr_err("%s: copy_to_user error\n", __func__);
