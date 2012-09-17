@@ -126,6 +126,7 @@ static int es305b_i2c_write(struct i2c_client *client, int bytes, const void *sr
 	xfer.buf = (char *)src;
 
 #ifdef AUDIO_DEBUG
+
 	{
 			int i = 0;
 			for (i = 1; i < bytes; i++) {
@@ -156,6 +157,7 @@ static void es305b_cold_reset(void)
 	const struct firmware *fw;
 	const char *fw_name;
 
+	AUD_DBG("es305b_software_reset");
 	fw_name = ES305B_24M_SOC_FW;
 
 	err = request_firmware(&fw, fw_name,  es305b->dev);
@@ -198,7 +200,7 @@ static void es305b_hardware_reset(void)
 	/* Take out of reset */
 	gpio_set_value(es305b->gpio_es305b_reset, 1);
 
-	mdelay(50);
+	msleep(50);
 }
 
 static int es305b_sleep(void)
@@ -224,8 +226,7 @@ static int es305b_sleep(void)
 
 	es305b->status = ES305B_SLEEP;
 
-	//msleep(120);
-	mdelay(120);
+	msleep(20);
 	/* Disable ES305B clock */
 	// gpio_set_value(es305b->gpio_es305_clk, 0);
 	// poweroff es305b
@@ -790,6 +791,8 @@ static void es305b_soc_firmware_handler(const struct firmware *fw, void *context
 	short cmds;
 	int ret;
 
+	es305b_wakeup();
+
 	es305b_hardware_reset();
 
 	cmds = be16_to_cpu(ES305B_MSG_BOOT);
@@ -799,6 +802,7 @@ static void es305b_soc_firmware_handler(const struct firmware *fw, void *context
 		goto error_fw;
 	}
 
+	mdelay(1);
 	ret = es305b_i2c_read(es305b->client, sizeof(cmds), &cmds);
 	if (ret) {
 		AUD_ERR("failed to es305b_i2c_read\n");
@@ -831,7 +835,7 @@ static void es305b_soc_firmware_handler(const struct firmware *fw, void *context
 			ret = es305b_i2c_write(es305b->client, fw->size % ES305B_CMD_FIFO_DEPTH, index);
 
 		if (ret == 0) {
-			msleep(20); /* Delay time before issue a Sync Cmd */
+			msleep(120); /* Delay time before issue a Sync Cmd */
 			ret = es305b_execute_cmdmsg((A200_msg_Sync << 16) | A200_msg_Sync_Polling);
 			if (ret < 0) {
 				AUD_ERR("failed to es305b_i2c_write\n");
@@ -858,7 +862,7 @@ static void es305b_soc_firmware_handler(const struct firmware *fw, void *context
 	}
 #endif
 	/* waiting es305b initialize done */
-	msleep(20);
+	msleep(120);
 
 	ret = es305b_setmode(ES305B_SUSPEND);
 	if (!ret)
