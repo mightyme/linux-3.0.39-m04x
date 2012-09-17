@@ -305,6 +305,9 @@ static int brcm_wlan_get_mac_addr(unsigned char *buf)
 		if (fp)
 			filp_close(fp, NULL);
 	}
+	buf[0] = 0x38;
+	buf[1] = 0xBC;
+	buf[2] = 0x1A;
 	pr_info("mac address mac=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
 
 	return 0;
