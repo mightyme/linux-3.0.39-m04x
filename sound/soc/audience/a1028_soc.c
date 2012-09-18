@@ -347,7 +347,7 @@ static ssize_t a1028_store(struct device *dev,
 
 #define A1028_ATTR(_name)\
 {\
-    .attr = { .name = #_name, .mode = S_IRUGO | S_IWUGO},\
+    .attr = { .name = #_name, .mode = S_IRUGO | S_IWUSR},\
     .show = a1028_show_property,\
     .store = a1028_store,\
 }

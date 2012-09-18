@@ -604,7 +604,7 @@ static ssize_t wm8958_store(struct device *dev,
 
 #define WM8958_CODEC_ATTR(_name)\
 {\
-    .attr = { .name = #_name, .mode = S_IRUGO | S_IWUGO},\
+    .attr = { .name = #_name, .mode = S_IRUGO | S_IWUGO|S_IWUSR},\
     .show = wm8958_show_property,\
     .store = wm8958_store,\
 }
