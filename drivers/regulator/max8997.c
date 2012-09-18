@@ -1468,6 +1468,13 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 		}
 	}
 
+#ifdef CONFIG_MX_SERIAL_TYPE
+	/* No active discharge safeout1 and safeout2 */
+	max8997_update_reg(i2c, MAX8997_REG_SAFEOUTCTRL, 0x0, 0x3<<4);
+	/* Disable safeout2 */
+	max8997_update_reg(i2c, MAX8997_REG_SAFEOUTCTRL, 0x0, 0x1<<7);
+#endif
+
 	return 0;
 err:
 	for (i = 0; i < max8997->num_regulators; i++)
