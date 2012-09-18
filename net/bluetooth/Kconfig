@@ -35,6 +35,12 @@ menuconfig BT
 
 if BT != n
 
+config BT_MGMT
+	bool "Bluetooth 4.0"
+	default n
+	help
+	  This is for bluetooth 4.0
+
 config BT_L2CAP
 	bool "L2CAP protocol support"
 	select CRC16
