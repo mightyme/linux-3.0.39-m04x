@@ -71,7 +71,7 @@ static ssize_t set_cpufreq_pfm_level(struct sysdev_class *class,
 		}
 		info->pfm_id = pfm_level;
 #ifdef CONFIG_SCHED_MC
-		sched_mc_power_savings = pfm_level;
+		sched_mc_power_savings = pfm_level + POWERSAVINGS_BALANCE_BASIC;
 #endif
 	}
 
