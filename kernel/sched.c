@@ -7840,6 +7840,27 @@ static int update_runtime(struct notifier_block *nfb,
 	}
 }
 
+#if defined(CONFIG_CPU_FREQ) && defined(CONFIG_MX_SERIAL_TYPE)
+#include <linux/performance.h>
+
+static int sched_notifier_call(struct notifier_block *nb,
+		unsigned long code, void *data)
+{
+	if (code >= MAX_POWERSAVINGS_BALANCE_LEVELS)
+		return -EINVAL;
+
+	sched_mc_power_savings = code;
+
+	reinit_sched_domains();
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block sched_nb = {
+	.notifier_call = sched_notifier_call,
+};
+#endif
+
 void __init sched_init_smp(void)
 {
 	cpumask_var_t non_isolated_cpus;
@@ -7871,6 +7892,10 @@ void __init sched_init_smp(void)
 	free_cpumask_var(non_isolated_cpus);
 
 	init_sched_rt_class();
+
+#if defined(CONFIG_CPU_FREQ) && defined(CONFIG_MX_SERIAL_TYPE)
+	register_pfm_notifier(&sched_nb);
+#endif
 }
 #else
 void __init sched_init_smp(void)
