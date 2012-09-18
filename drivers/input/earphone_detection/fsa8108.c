@@ -58,7 +58,7 @@
 
 /* FSA8108_REG_DEVICE_ID (0x01) */
 #define FSA8108_VER_ID             (0x0f << 4)
-#define FSA8108_VER_ID_SHIFT                 4
+#define FSA8108_VER_ID_SHIFT        4
 
 /* FSA8108_REG_INT_1 (0x02) */
 #define FSA8108_3POLE_CONNECT       0x01
@@ -128,7 +128,7 @@
 #define FSA8108_ALL_KEY_SE_FUNCTION        (0x01 << 6)
 #define FSA8108_ALL_KEY_SE_FUNCTION_SHIFT   6
 #define FSA8108_STUCK_KEY_FUNCTION         (0x01 << 7)
-#define FSA8108_STUCK_KEY_FUNCTION_SHIFT                 7
+#define FSA8108_STUCK_KEY_FUNCTION_SHIFT    7
 
 /* FSA8108_REG_COMPARATOR_12 (0x0d) */
 #define FSA8108_NO_SE_KEY_CMP              (0x0f)
@@ -505,11 +505,14 @@ static void fsa8108_initialization(struct fsa8108_info *info)
     struct i2c_client *client = info->client;
 	int int_type=0;	
 /*** Set Comparator Thresholds setting Send/End***/
-    fsa8108_SetValue(FSA8108_REG_COMPARATOR_12, FSA8108_NO_SE_KEY_CMP, FSA8108_NO_SE_KEY_CMP_SHIFT, 0x0F);//0.083 //0.05
+    fsa8108_SetValue(FSA8108_REG_COMPARATOR_12, FSA8108_NO_SE_KEY_CMP,
+    FSA8108_NO_SE_KEY_CMP_SHIFT, 0x0F);//0.083 //0.05
 /*** Set Comparator Thresholds setting for volum up***/
-	fsa8108_SetValue(FSA8108_REG_COMPARATOR_34, FSA8108_VOL_UP_CMP, FSA8108_VOL_UP_CMP_SHIFT , /*0x0d*/0x06);//0.299 //0.18
+//	fsa8108_SetValue(FSA8108_REG_COMPARATOR_34, FSA8108_VOL_UP_CMP, 
+//	FSA8108_VOL_UP_CMP_SHIFT , /*0x0d*/0x06);//0.299 //0.18 //default 0.25
 /*** Set Comparator Thresholds setting for volum down***/
-	fsa8108_SetValue(FSA8108_REG_COMPARATOR_34, FSA8108_VOL_DOWN_CMP, FSA8108_VOL_DOWN__CMP_SHIFT , /*0x06*/0x0F);//0.620 //0.29
+	fsa8108_SetValue(FSA8108_REG_COMPARATOR_34, FSA8108_VOL_DOWN_CMP, 
+	FSA8108_VOL_DOWN__CMP_SHIFT , /*0x06*/0x0F);//0.620 //0.29
 
 /*** Set Timing parameters and Global Multiplier setting ***/
     fsa8108_SetValue(FSA8108_REG_KEY_PRS_T,FSA8108_TDOUBLE,FSA8108_TDOUBLE_SHIFT,0x02);
