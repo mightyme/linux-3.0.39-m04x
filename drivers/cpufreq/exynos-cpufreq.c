@@ -255,7 +255,7 @@ static int exynos_cpu_init(struct cpufreq_policy *policy)
 	cpufreq_frequency_table_get_attr(cpu_info->used_freq_table, policy->cpu);
 
 	/* set the transition latency value */
-	policy->cpuinfo.transition_latency = 50000;
+	policy->cpuinfo.transition_latency = 100000;
 	
 
 	/*
