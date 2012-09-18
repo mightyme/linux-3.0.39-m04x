@@ -498,6 +498,7 @@ static int s3c_adc_resume(struct device *dev)
 	if (cpu == TYPE_ADCV2 || cpu == TYPE_ADCV3 || cpu == TYPE_ADCV4)
 		tmp |= S3C64XX_ADCCON_RESSEL;
 
+	tmp |= S3C2410_ADCCON_STDBM;
 	writel(tmp, adc->regs + S3C2410_ADCCON);
 	writel(adc->delay, adc->regs + S3C2410_ADCDLY);
 
