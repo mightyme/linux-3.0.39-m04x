@@ -373,7 +373,9 @@ static void dump_allregs(struct fiq_debugger_state *state, unsigned *regs)
 static void dump_irqs(struct fiq_debugger_state *state)
 {
 	int n;
+#ifdef CONFIG_SMP
 	unsigned int cpu;
+#endif
 
 	debug_printf(state, "irqnr       total  since-last   status  name\n");
 	for (n = 0; n < NR_IRQS; n++) {
@@ -388,8 +390,8 @@ static void dump_irqs(struct fiq_debugger_state *state)
 		state->last_irqs[n] = kstat_irqs(n);
 	}
 
+#ifdef CONFIG_SMP
 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
-
 		debug_printf(state, "LOC %d: %10u %11u\n", cpu,
 			     __IRQ_STAT(cpu, local_timer_irqs),
 			     __IRQ_STAT(cpu, local_timer_irqs) -
@@ -397,6 +399,7 @@ static void dump_irqs(struct fiq_debugger_state *state)
 		state->last_local_timer_irqs[cpu] =
 			__IRQ_STAT(cpu, local_timer_irqs);
 	}
+#endif	
 }
 
 struct stacktrace_state {
