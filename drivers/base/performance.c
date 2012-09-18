@@ -79,7 +79,7 @@ out:
 	return count; 
 }
 
-static SYSDEV_CLASS_ATTR(cpufreq_pfm_level, 0666, get_cpufreq_pfm_level, 
+static SYSDEV_CLASS_ATTR(cpufreq_pfm_level, 0644, get_cpufreq_pfm_level, 
 			set_cpufreq_pfm_level);
 
 static struct sysdev_class_attribute *pfm_sysdev_class_attrs[] = {

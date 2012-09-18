@@ -1399,9 +1399,9 @@ static ssize_t mxt_debug_show(struct device *dev,
 static DEVICE_ATTR(object, 0444, mxt_object_show, NULL);
 static DEVICE_ATTR(update_fw, 0664, NULL, mxt_update_fw_store);
 static DEVICE_ATTR(debug, 0444, mxt_debug_show, NULL);
-static DEVICE_ATTR(regdump, 0666, NULL, mxt_regdump_store);
-static DEVICE_ATTR(regwrite, 0666, NULL, mxt_regwrite_store);
-static DEVICE_ATTR(mxt_toc, 0666, NULL, mxt_turn_on_calibration_store);
+static DEVICE_ATTR(regdump, 0664, NULL, mxt_regdump_store);
+static DEVICE_ATTR(regwrite, 0664, NULL, mxt_regwrite_store);
+static DEVICE_ATTR(mxt_toc, 0664, NULL, mxt_turn_on_calibration_store);
 
 static struct attribute *mxt_attrs[] = {
 	&dev_attr_object.attr,
