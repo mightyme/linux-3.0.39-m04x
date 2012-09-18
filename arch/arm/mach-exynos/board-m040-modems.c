@@ -30,40 +30,40 @@
 static struct modem_io_t m040_io_devices[] = {
 	[0] = {
 		.id = 0x0,
-		.name    = "ttyACM0",              
-		.links   = LINKTYPE(LINKDEV_HSIC), 
-		.format  = IPC_RAW,                
-		.io_type = IODEV_TTY,              
+		.name    = "ttyACM0",
+		.links   = LINKTYPE(LINKDEV_HSIC),
+		.format  = IPC_RAW,
+		.io_type = IODEV_TTY,
 	},
 	[1] = {
 		.id = 0x1,
-		.name    = "ttyACM1",              
-		.links   = LINKTYPE(LINKDEV_HSIC), 
-		.format  = IPC_RAW,                
-		.io_type = IODEV_TTY,              
+		.name    = "ttyACM1",
+		.links   = LINKTYPE(LINKDEV_HSIC),
+		.format  = IPC_RAW,
+		.io_type = IODEV_TTY,
 	},
 	[2] = {
 		.id = 0x2,
-		.name    = "ttyACM2",              
-		.links   = LINKTYPE(LINKDEV_HSIC), 
-		.format  = IPC_RAW,                
-		.io_type = IODEV_TTY,              
+		.name    = "ttyACM2",
+		.links   = LINKTYPE(LINKDEV_HSIC),
+		.format  = IPC_RAW,
+		.io_type = IODEV_TTY,
 	},
 	[3] = {
 		.id = 0x3,
-		.name    = "ttyACM3",              
-		.links   = LINKTYPE(LINKDEV_HSIC), 
-		.format  = IPC_RAW,                
-		.io_type = IODEV_TTY,              
+		.name    = "rmnet0",
+		.links   = LINKTYPE(LINKDEV_HSIC),
+		.format  = IPC_RAW,
+		.io_type = IODEV_NET,
 	},
 };
 
 static struct resource umts_modem_res[] = {
 	[0] = {
-		.name  = "link_pm_hostwake", 
-		.start = IRQ_EINT16_31,      
-		.end   = IRQ_EINT16_31,      
-		.flags = IORESOURCE_IRQ,     
+		.name  = "link_pm_hostwake",
+		.start = IRQ_EINT16_31,
+		.end   = IRQ_EINT16_31,
+		.flags = IORESOURCE_IRQ,
 	},
 };
 
@@ -71,9 +71,9 @@ static void xmm_gpio_revers_bias_restore(void);
 
 static struct modemlink_pm_data modem_link_pm_data = {
 	.name = "link_pm",
-	.gpio_link_enable    = 0,                      
-	.gpio_link_hostwake  = M040_GPIO_HOST_WAKEUP, 
-	.gpio_link_slavewake = M040_GPIO_SLAVE_WAKEUP, 
+	.gpio_link_enable    = 0,
+	.gpio_link_hostwake  = M040_GPIO_HOST_WAKEUP,
+	.gpio_link_slavewake = M040_GPIO_SLAVE_WAKEUP,
 };
 
 static struct modem_data umts_modem_data;
@@ -153,13 +153,13 @@ static struct platform_device umts_modem_m040 = {
 static void umts_modem_cfg_gpio(void)
 {
 	int err = 0;
-	unsigned gpio_cp_on        = umts_modem_data.gpio_cp_on;        
-	unsigned gpio_cp_rst       = umts_modem_data.gpio_cp_reset;     
-	unsigned gpio_host_active   = umts_modem_data.gpio_host_active;   
-	unsigned gpio_sim_detect   = umts_modem_data.gpio_sim_detect;   
-	unsigned gpio_reset_req_n  = umts_modem_data.gpio_reset_req_n;  
-	unsigned gpio_cp_reset_int = umts_modem_data.gpio_cp_reset_int; 
-	
+	unsigned gpio_cp_on        = umts_modem_data.gpio_cp_on;
+	unsigned gpio_cp_rst       = umts_modem_data.gpio_cp_reset;
+	unsigned gpio_host_active  = umts_modem_data.gpio_host_active;
+	unsigned gpio_sim_detect   = umts_modem_data.gpio_sim_detect;
+	unsigned gpio_reset_req_n  = umts_modem_data.gpio_reset_req_n;
+	unsigned gpio_cp_reset_int = umts_modem_data.gpio_cp_reset_int;
+
 	if (gpio_reset_req_n) {
 		err = gpio_request(gpio_reset_req_n, "RESET_REQ_N");
 		if (err) {
@@ -185,7 +185,7 @@ static void umts_modem_cfg_gpio(void)
 			       "CP_RST", err);
 		}
 		gpio_direction_output(gpio_cp_rst, 0);
-		s3c_gpio_setpull(gpio_cp_rst, S3C_GPIO_PULL_NONE);
+		s3c_gpio_setpull(gpio_cp_rst, S3C_GPIO_PULL_UP);
 	}
 
 	if (gpio_cp_reset_int) {
@@ -198,10 +198,10 @@ static void umts_modem_cfg_gpio(void)
 	}
 
 	if (gpio_host_active) {
-		err = gpio_request(gpio_host_active, "PDA_ACTIVE");
+		err = gpio_request(gpio_host_active, "HOST_ACTIVE");
 		if (err) {
 			printk(KERN_ERR "fail to request gpio %s : %d\n",
-			       "PDA_ACTIVE", err);
+			       "HOST_ACTIVE", err);
 		}
 		gpio_direction_output(gpio_host_active, 0);
 	}
@@ -223,9 +223,9 @@ static void umts_modem_cfg_gpio(void)
 static void modem_link_pm_config_gpio(void)
 {
 	int err = 0;
-	unsigned gpio_link_enable    = modem_link_pm_data.gpio_link_enable;    
-	unsigned gpio_link_hostwake  = modem_link_pm_data.gpio_link_hostwake;  
-	unsigned gpio_link_slavewake = modem_link_pm_data.gpio_link_slavewake; 
+	unsigned gpio_link_enable    = modem_link_pm_data.gpio_link_enable;
+	unsigned gpio_link_hostwake  = modem_link_pm_data.gpio_link_hostwake;
+	unsigned gpio_link_slavewake = modem_link_pm_data.gpio_link_slavewake;
 
 	if (gpio_link_enable) {
 		err = gpio_request(gpio_link_enable, "LINK_EN");
@@ -270,7 +270,7 @@ static int __init init_modem(void)
 	int ret;
 
 	pr_info("[MODEM_IF] init_modem\n");
-	
+
 	umts_modem_data = umts_modem_data_m040;
 
 	umts_modem_cfg_gpio();

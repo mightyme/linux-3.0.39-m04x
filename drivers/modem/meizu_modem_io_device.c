@@ -35,6 +35,35 @@
 
 static DEFINE_MUTEX(modem_tty_lock);
 
+int atdebugchannel = 0;
+int atdebuglen = 0;
+
+static int __init atdebugchannel_setup(char *args)
+{
+	int error;
+	unsigned long val;
+
+	error = strict_strtoul(args, 16, &val);
+	if (!error)
+		atdebugchannel = val;
+
+	return error;
+}
+__setup("atdebugchannel=", atdebugchannel_setup);
+
+static int __init atdebuglen_setup(char *args)
+{
+	int error;
+	unsigned long val;
+
+	error = strict_strtoul(args, 10, &val);
+	if (!error)
+		atdebuglen = val;
+
+	return error;
+}
+__setup("atdebuglen=", atdebuglen_setup);
+
 static int atdebugfunc(struct io_device *iod, const char* buf, int len)
 {
 	int atdebuglen = 0;
@@ -44,8 +73,8 @@ static int atdebugfunc(struct io_device *iod, const char* buf, int len)
 
 		atdebuglen = iod->atdebug > len ? len : iod->atdebug;
 		atdebugbuf = format_hex_string(buf, atdebuglen);
-		pr_info("%pF, iod id:%d, data:\n%s\n", __builtin_return_address(0),
-				iod->id, atdebugbuf);
+		pr_info("\n%pF, iod id:%d, data len:%d, data:\n%s\n",
+			__builtin_return_address(0), iod->id, len, atdebugbuf);
 	}
 
 	return atdebuglen;
@@ -83,7 +112,14 @@ static ssize_t store_atdebug(struct device *dev,
 static struct device_attribute attr_atdebug =
 	__ATTR(atdebug, S_IRUGO | S_IWUSR, show_atdebug, store_atdebug);
 
-static int get_ip_packet_size(struct io_device *iod)
+static int vnet_is_opened(struct net_device *ndev)
+{
+	struct vnet *vnet = netdev_priv(ndev);
+
+	return (atomic_read(&vnet->iod->opened));
+}
+
+static int get_ip_packet_sz(struct io_device *iod)
 {
 	struct net_device *ndev = iod->ndev;
 	struct vnet *vnet = netdev_priv(ndev);
@@ -95,13 +131,14 @@ static int get_ip_packet_size(struct io_device *iod)
 
 retry:
 	skb = skb_dequeue(&iod->rx_q);
+	if (!skb) {
+		return 0;
+	}
+	if (iod->atdebug)
+		iod->atdebugfunc(iod, skb->data, skb->len);
 	if (skb->len >= sizeof(struct iphdr)) {
 		memcpy(&rx_ip_hdr, skb->data, sizeof(struct iphdr));
-		skb_pull(skb, sizeof(struct iphdr));
-		if (skb->len)
-			skb_queue_head(&iod->rx_q, skb);
-		else
-			dev_kfree_skb_any(skb);
+		skb_queue_head(&iod->rx_q, skb);
 	} else {
 		/*combind two skb to one, and continue*/
 		skb2 = skb_dequeue(&iod->rx_q);
@@ -111,12 +148,19 @@ retry:
 		} else {
 			tmp_skb = dev_alloc_skb(skb->len + skb2->len);
 			if (tmp_skb) {
+				memcpy(skb_put(tmp_skb, skb->len),
+							skb->data,skb->len);
+				memcpy(skb_put(tmp_skb, skb2->len),
+							skb->data, skb2->len);
 				dev_kfree_skb_any(skb);
 				dev_kfree_skb_any(skb2);
 				skb_queue_head(&iod->rx_q, tmp_skb);
 				goto retry;
-			} else
+			} else {
+				skb_queue_head(&iod->rx_q, skb2);
+				skb_queue_head(&iod->rx_q, skb);
 				return -EINVAL;
+			}
 		}
 	}
 
@@ -152,7 +196,7 @@ retry:
 	return pkt_sz;
 }
 
-static void tty_data_handler(struct io_device *iod)
+static void hsic_tty_data_handler(struct io_device *iod)
 {
 	struct tty_struct *tty = iod->tty;
 	struct sk_buff *skb = NULL;
@@ -195,7 +239,7 @@ static void tty_data_handler(struct io_device *iod)
 	}
 }
 
-static void net_data_handler(struct io_device *iod)
+static void hsic_net_data_handler(struct io_device *iod)
 {
 	struct net_device *ndev = iod->ndev;
 	struct vnet *vnet = netdev_priv(ndev);
@@ -205,8 +249,18 @@ static void net_data_handler(struct io_device *iod)
 	unsigned char *buf;
 	int count;
 
+	if (!vnet_is_opened(ndev)) {
+		skb = skb_dequeue(&iod->rx_q);
+		if (skb) {
+			if (iod->atdebug)
+				iod->atdebugfunc(iod, skb->data, skb->len);
+			dev_kfree_skb_any(skb);
+		}
+		return;
+	}
+
 	if (vnet->pkt_sz <= 0)
-		vnet->pkt_sz = get_ip_packet_size(iod);
+		vnet->pkt_sz = get_ip_packet_sz(iod);
 
 	skb = skb_dequeue(&iod->rx_q);
 	while(skb) {
@@ -229,13 +283,14 @@ static void net_data_handler(struct io_device *iod)
 		} else
 			net_skb = vnet->skb;
 
-		buf = net_skb->data + (net_skb->len - vnet->pkt_sz);
 
 		if (vnet->pkt_sz >= skb->len) {
+			buf = skb_put(net_skb, skb->len);
 			memcpy(buf, skb->data, skb->len);
 			vnet->pkt_sz -= skb->len;
 			dev_kfree_skb_any(skb);
 		} else {
+			buf = skb_put(net_skb, vnet->pkt_sz);
 			memcpy(net_skb->data, skb->data, vnet->pkt_sz);
 			skb_pull(skb, vnet->pkt_sz);
 			skb_queue_head(&iod->rx_q, skb);
@@ -249,8 +304,9 @@ static void net_data_handler(struct io_device *iod)
 			vnet->skb = NULL;
 			pr_debug("%s rx size=%d", __func__, net_skb->len);
 			if (iod->atdebug)
-				iod->atdebugfunc(iod, net_skb->data, net_skb->len);
-			vnet->pkt_sz = get_ip_packet_size(iod);
+				iod->atdebugfunc(iod, net_skb->data,
+								net_skb->len);
+			vnet->pkt_sz = get_ip_packet_sz(iod);
 			if (vnet->pkt_sz <= 0)
 				break;
 		}
@@ -278,12 +334,12 @@ static int recv_data_handler(struct io_device *iod,
 	case IODEV_TTY:
 		memcpy(skb_put(skb, len), data, len);
 		skb_queue_tail(&iod->rx_q, skb);
-		tty_data_handler(iod);
+		hsic_tty_data_handler(iod);
 		break;
 	case IODEV_NET:
 		memcpy(skb_put(skb, len), data, len);
 		skb_queue_tail(&iod->rx_q, skb);
-		net_data_handler(iod);
+		hsic_net_data_handler(iod);
 		break;
 	default:
 		mif_err("wrong io_type : %d\n", iod->io_typ);
@@ -318,19 +374,34 @@ static int vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 	struct vnet *vnet = netdev_priv(ndev);
 	struct io_device *iod = vnet->iod;
 	struct link_device *ld = get_current_link(iod);
+	struct sk_buff *tmp_skb = NULL;
 	int ret = 0;
 
-	ret = ld->send(ld, iod, skb);
-	if (ret < 0) {
-		netif_stop_queue(ndev);
-		dev_kfree_skb_any(skb);
-		return NETDEV_TX_BUSY;
+	if (iod->atdebug)
+		iod->atdebugfunc(iod, skb->data, skb->len);
+	wake_lock_timeout(&iod->wakelock, HZ * 0.5);
+	tmp_skb = skb_clone(skb, GFP_ATOMIC);
+	if (!tmp_skb) {
+		mif_err("fail alloc tmp_skb (%d)\n", __LINE__);
+		return -ENOMEM;
 	}
-	ndev->stats.tx_packets++;
-	ndev->stats.tx_bytes += skb->len;
+	memcpy(tmp_skb->data, skb->data, skb->len);
+	skbpriv(tmp_skb)->iod = iod;
+	skbpriv(tmp_skb)->ld = ld;
+	ret = ld->send(ld, iod, tmp_skb);
+	if (ret < 0) {
+		dev_kfree_skb_any(tmp_skb);
+		ret = NETDEV_TX_BUSY;
+	} else {
+		if(skb->protocol == htons(ETH_P_IP)) {
+			ndev->stats.tx_packets++;
+			ndev->stats.tx_bytes += skb->len;
+		}
+	}
 	dev_kfree_skb_any(skb);
+	ret = NETDEV_TX_OK;
 
-	return NETDEV_TX_OK;
+	return ret;
 }
 
 static struct net_device_stats *vnet_get_stats(struct net_device *dev)
@@ -531,7 +602,13 @@ int meizu_ipc_init_io_device(struct io_device *iod)
 		skb_queue_head_init(&iod->rx_q);
 		/*INIT_DELAYED_WORK(&iod->rx_work, rx_iodev_work);*/
 		iod->atdebugfunc = atdebugfunc;
-		iod->atdebug = 0;
+		if (atdebugchannel & (0x1 << iod->id))
+			if (atdebuglen)
+				iod->atdebug = atdebuglen;
+			else
+				iod->atdebug = 255;
+		else
+			iod->atdebug = 0;
 		iod->ttydev = tty_register_device
 			(iod->mc->tty_driver, iod->id, NULL);
 
@@ -543,6 +620,14 @@ int meizu_ipc_init_io_device(struct io_device *iod)
 		break;
 	case IODEV_NET:
 		skb_queue_head_init(&iod->rx_q);
+		iod->atdebugfunc = atdebugfunc;
+		if (atdebugchannel & (0x1 << iod->id))
+			if (atdebuglen)
+				iod->atdebug = atdebuglen;
+			else
+				iod->atdebug = 255;
+		else
+			iod->atdebug = 0;
 		iod->ndev = alloc_netdev(sizeof(struct vnet), iod->name,
 			vnet_setup);
 		if (!iod->ndev) {
@@ -552,6 +637,12 @@ int meizu_ipc_init_io_device(struct io_device *iod)
 		ret = register_netdev(iod->ndev);
 		if (ret)
 			free_netdev(iod->ndev);
+
+		dev_set_drvdata(&iod->ndev->dev, iod);
+		ret = device_create_file(&iod->ndev->dev, &attr_atdebug);
+		if (ret)
+			mif_err("failed to create sysfs file : %s\n",
+					iod->name);
 		vnet = netdev_priv(iod->ndev);
 		mif_debug("(vnet:0x%p)\n", vnet);
 		vnet->pkt_sz = 0;

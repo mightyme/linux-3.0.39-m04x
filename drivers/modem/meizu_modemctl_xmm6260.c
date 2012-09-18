@@ -408,11 +408,14 @@ modem_write(struct file *filp, const char __user *buffer, size_t count,
 		}
 	}
 
-	if(count >= 7 && !strncmp(buffer, "debug=0", 7))
-		modem_debug = 0;
+	if(count >= 7 && !strncmp(buffer, "debug=", 6)) {
+		int error;
+		unsigned long val;
 
-	if(count >= 7 && !strncmp(buffer, "debug=1", 7))
-		modem_debug = 5;
+		error = strict_strtoul(buffer + 6, 10, &val);
+		if (!error)
+			modem_debug = val;
+	}
 
 	return count;
 }
@@ -464,12 +467,12 @@ unsigned int modem_poll (struct file *filp, struct poll_table_struct *wait)
 
 static struct file_operations modem_file_ops = {
 	.owner          = THIS_MODULE,
+	.poll           = modem_poll,
 	.open           = modem_open,
-	.release        = modem_close,
 	.read           = modem_read,
 	.write          = modem_write,
+	.release        = modem_close,
 	.unlocked_ioctl = modem_ioctl,
-	.poll           = modem_poll,
 };
 
 static struct miscdevice modem_miscdev = {

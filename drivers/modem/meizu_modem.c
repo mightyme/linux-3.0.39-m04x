@@ -170,7 +170,6 @@ static int __devinit modem_probe(struct platform_device *pdev)
 	struct io_device *iod[pdata->num_iodevs];
 	struct link_device *ld;
 
-	/*mif_err("%s\n", pdev->name);*/
 	memset(iod, 0, sizeof(iod));
 
 	modemctl = create_modemctl_device(pdev);
@@ -242,8 +241,8 @@ static int modem_resume(struct device *pdev)
 }
 
 static const struct dev_pm_ops modem_pm_ops = {
-	.suspend    = modem_suspend,
-	.resume     = modem_resume,
+	.suspend = modem_suspend,
+	.resume  = modem_resume,
 };
 
 static struct platform_driver modem_driver = {

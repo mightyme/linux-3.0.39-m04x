@@ -199,10 +199,10 @@ extern void modem_set_active_state(int state);
 	pr_info(LOG_TAG "%s: " pr_fmt(fmt), __func__, ##__VA_ARGS__)
 
 #define mif_trace(fmt, ...) if (modem_debug > 2) \
-	pr_debug("mif: %s: %d: called(%pF): " fmt, __func__,\
+	pr_info("mif: %s: %d: called(%pF): " fmt, __func__,\
 			__LINE__, __builtin_return_address(0), ##__VA_ARGS__)
 
 #define mif_debug(fmt, ...) if (modem_debug > 3) \
-	pr_debug(LOG_TAG "%s: " pr_fmt(fmt), __func__, ##__VA_ARGS__)
+	pr_info(LOG_TAG "%s: " pr_fmt(fmt), __func__, ##__VA_ARGS__)
 
 #endif
