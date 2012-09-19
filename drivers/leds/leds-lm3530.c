@@ -116,6 +116,7 @@ struct lm3530_data {
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	atomic_t suspended;
 	struct early_suspend early_suspend;
+	bool	initialised;
 #endif
 };
 
@@ -192,7 +193,7 @@ static int lm3530_init_registers(struct lm3530_data *drvdata)
 	brt_ramp = (pltfm->brt_ramp_fall << LM3530_BRT_RAMP_FALL_SHIFT) |
 			(pltfm->brt_ramp_rise << LM3530_BRT_RAMP_RISE_SHIFT);
 
-	if (drvdata->brightness)
+	if (drvdata->initialised)
 		brightness = drvdata->brightness;
 	else
 		brightness = drvdata->brightness = pltfm->brt_val;
@@ -367,7 +368,7 @@ static void lm3530_late_resume(struct early_suspend *h)
 	struct lm3530_data *drvdata = container_of(h, struct lm3530_data, early_suspend);
 
 	atomic_set(&drvdata->suspended, 0);
-	lm3530_brightness_set(&drvdata->led_dev,drvdata->brightness);
+	lm3530_brightness_set(&drvdata->led_dev, 2);
 }
 #endif
 static int __devinit lm3530_probe(struct i2c_client *client,
@@ -448,8 +449,9 @@ static int __devinit lm3530_probe(struct i2c_client *client,
 	atomic_set(&drvdata->suspended, 0);
 	drvdata->early_suspend.suspend = lm3530_early_suspend;
 	drvdata->early_suspend.resume = lm3530_late_resume;
-	drvdata->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
+	drvdata->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
 	register_early_suspend(&drvdata->early_suspend);
+	drvdata->initialised = true;
 #endif
 
 	return 0;
