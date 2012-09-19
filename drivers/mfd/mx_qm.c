@@ -942,7 +942,12 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 		}
 		
 		pr_info("%s:poll = %d \n",__func__,data->poll);
-		pr_info("This is an old PCB for USB,and it can't wake up system when system suspend!!!\n");
+		pr_info("mx_qm:This is an old PCB for USB,and the HOME key can't wake up system when system suspend!!!\n");
+	}
+	else
+	{	
+		s3c_gpio_setpull(pdata->gpio_irq, S3C_GPIO_PULL_UP);
+		s3c_gpio_cfgpin(pdata->gpio_irq, S3C_GPIO_INPUT);
 	}
 
 	qm_create_attrs(&client->dev);
