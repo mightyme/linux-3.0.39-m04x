@@ -2122,7 +2122,9 @@ irqreturn_t usb_hcd_irq (int irq, void *__hcd)
 	 */
 	local_irq_save(flags);
 
-	if (unlikely(HCD_DEAD(hcd) || !HCD_HW_ACCESSIBLE(hcd))) {
+	if(! hcd->rh_registered) {
+		rc = IRQ_HANDLED;
+	} else if (unlikely(HCD_DEAD(hcd) || !HCD_HW_ACCESSIBLE(hcd))) {
 		rc = IRQ_NONE;
 	} else if (hcd->driver->irq(hcd) == IRQ_NONE) {
 		rc = IRQ_NONE;
@@ -2441,7 +2443,8 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		retval = usb_hcd_request_irqs(hcd, irqnum, irqflags);
 		if (retval)
 			goto err_request_irq;
-	}
+	} else
+			WARN_ON(1);
 
 	hcd->state = HC_STATE_RUNNING;
 	retval = hcd->driver->start(hcd);
@@ -2555,7 +2558,8 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	if (usb_hcd_is_primary_hcd(hcd)) {
 		if (hcd->irq >= 0)
 			free_irq(hcd->irq, hcd);
-	}
+	} else
+			WARN_ON(1);
 
 	usb_put_dev(hcd->self.root_hub);
 	usb_deregister_bus(&hcd->self);
