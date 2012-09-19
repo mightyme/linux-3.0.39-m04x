@@ -5783,17 +5783,17 @@ wl_notify_pfn_status(struct wl_priv *wl, struct net_device *ndev,
 {
 	WL_ERR((" PNO Event\n"));
 
-	mutex_lock(&wl->usr_sync);
 #ifndef WL_SCHED_SCAN
 	/* TODO: Use cfg80211_sched_scan_results(wiphy); */
+	mutex_lock(&wl->usr_sync);
 	cfg80211_disconnected(ndev, 0, NULL, 0, GFP_KERNEL);
+	mutex_unlock(&wl->usr_sync);
 #else
 	/* If cfg80211 scheduled scan is supported, report the pno results via sched
 	 * scan results
 	 */
 	wl_notify_sched_scan_results(wl, ndev, e, data);
 #endif /* WL_SCHED_SCAN */
-	mutex_unlock(&wl->usr_sync);
 	return 0;
 }
 #endif /* PNO_SUPPORT */
