@@ -880,7 +880,7 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 	int err = 0;
 	pr_debug("%s:++\n",__func__);
 	
-	s3c_gpio_setpull(pdata->gpio_irq, S3C_GPIO_PULL_UP);
+	s3c_gpio_setpull(pdata->gpio_irq, S3C_GPIO_PULL_DOWN);
 	s3c_gpio_cfgpin(pdata->gpio_irq, S3C_GPIO_INPUT);
 	
 	s3c_gpio_setpull(pdata->gpio_wake, S3C_GPIO_PULL_UP);
@@ -942,6 +942,7 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 		}
 		
 		pr_info("%s:poll = %d \n",__func__,data->poll);
+		pr_info("This is an old PCB for USB,and it can't wake up system when system suspend!!!\n");
 	}
 
 	qm_create_attrs(&client->dev);
