@@ -503,7 +503,7 @@ modem_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
 	int err;
 	size_t tx_size;
 
-	skb = alloc_skb(count, GFP_KERNEL);
+	skb = alloc_skb(count, GFP_DMA);
 	if (!skb) {
 		mif_err("fail alloc skb (%d)\n", __LINE__);
 		return -ENOMEM;
