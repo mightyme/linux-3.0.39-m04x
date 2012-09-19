@@ -121,8 +121,6 @@ static int vnet_is_opened(struct net_device *ndev)
 
 static int get_ip_packet_sz(struct io_device *iod)
 {
-	struct net_device *ndev = iod->ndev;
-	struct vnet *vnet = netdev_priv(ndev);
 	struct sk_buff *tmp_skb = NULL;
 	struct sk_buff *skb = NULL;
 	struct sk_buff *skb2 = NULL;
@@ -172,22 +170,22 @@ retry:
 	pkt_sz = ntohs(rx_ip_hdr.tot_len);
 	switch(rx_ip_hdr.protocol) {
 	case IPPROTO_IP:
-		pr_debug("IP dummy packet", pkt_sz);
+		pr_debug("IP dummy packet, sz:%d", pkt_sz);
 		break;
 	case IPPROTO_ICMP:
-		pr_debug("IP ICMP packet", pkt_sz);
+		pr_debug("IP ICMP packet, sz:%d", pkt_sz);
 		break;
 	case IPPROTO_IGMP:
-		pr_debug("IP IGMP packet", pkt_sz);
+		pr_debug("IP IGMP packet, sz:%d", pkt_sz);
 		break;
 	case IPPROTO_IPIP:
-		pr_debug("IP tunnel packet", pkt_sz);
+		pr_debug("IP tunnel packet, sz:%d", pkt_sz);
 		break;
 	case IPPROTO_TCP:
-		pr_debug("IP TCP packet", pkt_sz);
+		pr_debug("IP TCP packet, sz:%d", pkt_sz);
 		break;
 	case IPPROTO_UDP:
-		pr_debug("IP UDP packet", pkt_sz);
+		pr_debug("IP UDP packet, sz:%d", pkt_sz);
 		break;
 	default:
 		break;
@@ -245,9 +243,7 @@ static void hsic_net_data_handler(struct io_device *iod)
 	struct vnet *vnet = netdev_priv(ndev);
 	struct sk_buff *net_skb = NULL;
 	struct sk_buff *skb = NULL;
-	struct sk_buff *skb2 = NULL;
 	unsigned char *buf;
-	int count;
 
 	if (!vnet_is_opened(ndev)) {
 		skb = skb_dequeue(&iod->rx_q);
@@ -313,7 +309,6 @@ static void hsic_net_data_handler(struct io_device *iod)
 
 		skb = skb_dequeue(&iod->rx_q);
 	}
-out:
 	return;
 }
 

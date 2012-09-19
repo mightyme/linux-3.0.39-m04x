@@ -296,7 +296,7 @@ static void usb_rx_complete(struct urb *urb)
 				return;
 			} else {
 				if (ret < 0)
-					mif_err("io device recv err:%d\n", ret);
+					pr_err("io device recv err:%d\n", ret);
 				else
 					pipe_data->hsic_channel_rx_count --;
 			}
