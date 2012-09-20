@@ -231,7 +231,7 @@ static void hsic_tty_data_handler(struct io_device *iod)
 				iod->atdebugfunc(iod, skb->data, count);
 			dev_kfree_skb_any(skb);
 		}
-		if(tty)
+		if(tty && tty->driver_data)
 			tty_flip_buffer_push(tty);
 		else
 			break;
