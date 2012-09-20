@@ -874,11 +874,12 @@ static void sco_chan_del(struct sock *sk, int err)
 static void sco_conn_ready(struct sco_conn *conn)
 {
 	struct sock *parent;
-	struct sock *sk = conn->sk;
+	struct sock *sk = NULL;
 
 	BT_DBG("conn %p", conn);
 
 	sco_conn_lock(conn);
+	sk = conn->sk;
 
 	if (sk) {
 		sco_sock_clear_timer(sk);
