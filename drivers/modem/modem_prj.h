@@ -375,6 +375,7 @@ struct io_device {
 	char *name;
 
 	atomic_t opened;
+	atomic_t is_tty_op;
 
 	/* Misc and net device structures for the IO device */
 	//struct miscdevice  miscdev;
@@ -424,8 +425,6 @@ struct io_device {
 	 * you MUST use skbpriv(skb)->ld in mc, link, etc..
 	 */
 	struct link_device *__current_link;
-
-	spinlock_t op_lock;
 };
 #define to_io_device(misc) container_of(misc, struct io_device, miscdev)
 

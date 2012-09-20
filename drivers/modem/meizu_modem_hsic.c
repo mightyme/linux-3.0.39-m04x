@@ -174,7 +174,7 @@ static void usb_terminate_communication(struct link_device *ld,
 			struct io_device *iod)
 {
 	/*ld->com_state = COM_NONE;*/
-	pr_info("%s\n", __func__);
+	pr_info("%s iod id:%d\n", __func__, iod->id);
 }
 
 static int usb_rx_submit(struct usb_link_device *usb_ld,
