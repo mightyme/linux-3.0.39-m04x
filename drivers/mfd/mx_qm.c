@@ -25,6 +25,7 @@
 #include <linux/delay.h>
 #include <linux/earlysuspend.h>
 #include <linux/gpio.h>
+#include <linux/i2c-gpio.h>
 #include <plat/gpio-cfg.h>
 #include <mach/gpio-m040.h>
 #include <linux/firmware.h>
@@ -918,31 +919,58 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 	mutex_init(&data->iolock);
 	wake_lock_init(&data->wake_lock, WAKE_LOCK_SUSPEND, "qm_pad");
 
-//	mx_qm_update(data);
+	//mx_qm_update(data);
 	
 	mx_qm_wakeup(data,true);
 	/* Identify the mx_qm chip */
 	if (!mx_qm_identify(data))
 	{		
-		data->gpio_wake = pdata->gpio_irq;
-		data->gpio_reset = pdata->gpio_reset;
-		data->gpio_irq = pdata->gpio_wake;
-
-		data->poll = 1;
-		
-		mx_qm_wakeup(data,false);
-		mx_qm_reset(data,RESET_COLD); 
-		msleep(250);	
-		mx_qm_wakeup(data,true);
-
-		if (!mx_qm_identify(data))
 		{
-			err = -ENODEV;
-			goto err_free_mem;
-		}
-		
-		pr_info("%s:poll = %d \n",__func__,data->poll);
-		pr_info("mx_qm:This is an old PCB for USB,and the HOME key can't wake up system when system suspend!!!\n");
+			struct device *parent = client->adapter->dev.parent;
+			struct i2c_gpio_platform_data *pi2cdata;
+
+			pi2cdata = parent->platform_data;
+
+			gpio_free(pi2cdata->sda_pin);
+			gpio_free(pi2cdata->scl_pin);
+			
+			//#define  M040_SCL_TOUCHPAD  EXYNOS4_GPY2(0)
+			//#define  M040_SDA_TOUCHPAD  EXYNOS4_GPY1(3)
+
+			pi2cdata->scl_pin = EXYNOS4_GPY2(0);
+			pi2cdata->sda_pin = EXYNOS4_GPY1(3);
+			
+			gpio_request(pi2cdata->sda_pin, "sda");
+			gpio_request(pi2cdata->scl_pin, "scl");
+			msleep(5);	
+			
+			if (!mx_qm_identify(data))
+			{
+				data->gpio_wake = pdata->gpio_irq;
+				data->gpio_reset = pdata->gpio_reset;
+				data->gpio_irq = pdata->gpio_wake;
+
+				data->poll = 1;
+				
+				mx_qm_wakeup(data,false);
+				mx_qm_reset(data,RESET_COLD); 
+				msleep(250);	
+				mx_qm_wakeup(data,true);
+
+				if (!mx_qm_identify(data))
+				{
+					err = -ENODEV;
+					goto err_free_mem;
+				}
+				
+				pr_info("%s:poll = %d \n",__func__,data->poll);
+				pr_info("mx_qm:This is an old PCB for USB,and the HOME key can't wake up system when system suspend!!!\n");			
+			}
+			else
+			{
+				pr_info("mx_qm:This is an old PCB !!!\n");
+			}
+		}	
 	}
 	else
 	{	
