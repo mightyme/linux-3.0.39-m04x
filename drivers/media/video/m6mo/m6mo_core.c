@@ -44,6 +44,9 @@ static struct m6mo_reg m6mo_prev_960x720[] = {
 static struct m6mo_reg m6mo_prev_720p[] = {
 	{I2C_8BIT, MON_SIZE_REG, MON_720P},
 };
+static struct m6mo_reg m6mo_prev_1216x912[] = {
+	{I2C_8BIT, MON_SIZE_REG, MON_1216X912},
+};
 static struct m6mo_reg m6mo_prev_1080p[] = {
 	{I2C_8BIT, MON_SIZE_REG, MON_1080P},
 };
@@ -86,6 +89,12 @@ static struct m6mo_size_struct m6mo_prev_sizes[] = {
 		.height		= 1088,
 		.regs 		= m6mo_prev_1080p,
 		.size			= ARRAY_SIZE(m6mo_prev_1080p),
+	},
+	{  /* 1216 * 912 */
+		.width		= 1216,
+		.height		= 912,
+		.regs 		= m6mo_prev_1216x912,
+		.size			= ARRAY_SIZE(m6mo_prev_1216x912),
 	},
 	{  /* 720P */
 		.width		= 1280,
