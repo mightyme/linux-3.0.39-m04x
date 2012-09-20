@@ -35,11 +35,11 @@ static void mx2_reboot_internal(const char *cmd)
 	local_irq_disable();
 
 	if(cmd) {
-		if (!strcmp(cmd, "charge"))
+		if (strstr(cmd, "charge"))
 			__raw_writel(REBOOT_MODE_CHARGE, S5P_INFORM4);
-		else if (!strcmp(cmd, "wipe"))
+		else if (strstr(cmd, "wipe"))
 			__raw_writel(REBOOT_MODE_WIPE, S5P_INFORM4);
-		else if (!strcmp(cmd, "upgrade"))
+		else if (strstr(cmd, "upgrade"))
 			__raw_writel(REBOOT_MODE_UPGRADE, S5P_INFORM4);
 	}
 
