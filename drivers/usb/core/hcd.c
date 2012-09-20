@@ -2122,12 +2122,16 @@ irqreturn_t usb_hcd_irq (int irq, void *__hcd)
 	 */
 	local_irq_save(flags);
 
-	if(! hcd->rh_registered) {
-		rc = IRQ_HANDLED;
-	} else if (unlikely(HCD_DEAD(hcd) || !HCD_HW_ACCESSIBLE(hcd))) {
-		rc = IRQ_NONE;
+	if (unlikely(HCD_DEAD(hcd) || !HCD_HW_ACCESSIBLE(hcd))) {
+		if(! hcd->rh_registered)
+			rc = IRQ_HANDLED;
+		else
+			rc = IRQ_NONE;
 	} else if (hcd->driver->irq(hcd) == IRQ_NONE) {
-		rc = IRQ_NONE;
+		if(! hcd->rh_registered)
+			rc = IRQ_HANDLED;
+		else
+			rc = IRQ_NONE;
 	} else {
 		set_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
 		if (hcd->shared_hcd)

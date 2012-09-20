@@ -425,6 +425,7 @@ struct io_device {
 	 * you MUST use skbpriv(skb)->ld in mc, link, etc..
 	 */
 	struct link_device *__current_link;
+	struct mutex op_mutex;
 };
 #define to_io_device(misc) container_of(misc, struct io_device, miscdev)
 
