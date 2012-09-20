@@ -231,8 +231,10 @@ static void hsic_tty_data_handler(struct io_device *iod)
 				iod->atdebugfunc(iod, skb->data, count);
 			dev_kfree_skb_any(skb);
 		}
-		tty_flip_buffer_push(tty);
-
+		if(tty)
+			tty_flip_buffer_push(tty);
+		else
+			break;
 		skb = skb_dequeue(&iod->rx_q);
 	}
 }
@@ -498,7 +500,7 @@ modem_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
 	int err;
 	size_t tx_size;
 
-	skb = alloc_skb(count, GFP_DMA);
+	skb = alloc_skb(count, GFP_ATOMIC);
 	if (!skb) {
 		mif_err("fail alloc skb (%d)\n", __LINE__);
 		return -ENOMEM;
