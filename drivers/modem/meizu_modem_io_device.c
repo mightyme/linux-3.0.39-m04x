@@ -33,8 +33,6 @@
 #include "modem_prj.h"
 #include "modem_utils.h"
 
-static DEFINE_MUTEX(modem_tty_lock);
-
 int atdebugchannel = 0;
 int atdebuglen = 0;
 
@@ -201,8 +199,10 @@ static void hsic_tty_data_handler(struct io_device *iod)
 	unsigned char *buf;
 	int count;
 
-	if (!tty)
+	if(!(tty && tty->driver_data)) {
+		skb_queue_purge(&iod->rx_q);
 		return;
+	}
 	skb = skb_dequeue(&iod->rx_q);
 	while(skb) {
 		if (test_bit(TTY_THROTTLED, &tty->flags))
@@ -331,7 +331,9 @@ static int recv_data_handler(struct io_device *iod,
 	case IODEV_TTY:
 		memcpy(skb_put(skb, len), data, len);
 		skb_queue_tail(&iod->rx_q, skb);
+		spin_lock_irq(&iod->op_lock);
 		hsic_tty_data_handler(iod);
+		spin_unlock_irq(&iod->op_lock);
 		break;
 	case IODEV_NET:
 		memcpy(skb_put(skb, len), data, len);
@@ -438,28 +440,26 @@ static int modem_tty_open(struct tty_struct *tty, struct file *f)
 	int ret = 0;
 
 	iod = get_iod_with_channel(&modemctl->commons, tty->index);
-	commons = &iod->mc->commons;
 
+	spin_lock_irq(&iod->op_lock);
+
+	commons = &iod->mc->commons;
 	tty->driver_data = iod;
 	iod->tty = tty;
-
-	mutex_lock(&modem_tty_lock);
-
-	if (atomic_inc_and_test(&iod->opened))
-		tty->low_latency = 1;
-
-	mutex_unlock(&modem_tty_lock);
-
+	atomic_inc(&iod->opened);
+	tty->low_latency = 1;
+	spin_unlock_irq(&iod->op_lock);
 	list_for_each_entry(ld, &commons->link_dev_list, list) {
 		if (IS_CONNECTED(iod, ld) && ld->init_comm) {
 			ret = ld->init_comm(ld, iod);
 			if (ret < 0) {
 				mif_err("%s: init_comm error: %d\n",
 						ld->name, ret);
-				return ret;
+				break;
 			}
 		}
 	}
+	
 
 	return ret;
 }
@@ -470,18 +470,18 @@ static void modem_tty_close(struct tty_struct *tty, struct file *f)
 	struct mif_common *commons = &iod->mc->commons;
 	struct link_device *ld;
 
-	mutex_lock(&modem_tty_lock);
+	spin_lock_irq(&iod->op_lock);
 	atomic_dec(&iod->opened);
 	if (atomic_read(&iod->opened) == 0) {
-		tty->driver_data = NULL;
 		mif_debug("iod = %s\n", iod->name);
 		skb_queue_purge(&iod->rx_q);
+		tty->driver_data = NULL;
 		list_for_each_entry(ld, &commons->link_dev_list, list) {
 			if (IS_CONNECTED(iod, ld) && ld->terminate_comm)
 				ld->terminate_comm(ld, iod);
 		}
 	}
-	mutex_unlock(&modem_tty_lock);
+	spin_unlock_irq(&iod->op_lock);
 }
 
 static int modem_tty_write_room(struct tty_struct *tty)
@@ -597,6 +597,7 @@ int meizu_ipc_init_io_device(struct io_device *iod)
 	switch (iod->io_typ) {
 	case IODEV_TTY:
 		skb_queue_head_init(&iod->rx_q);
+		spin_lock_init(&iod->op_lock);
 		/*INIT_DELAYED_WORK(&iod->rx_work, rx_iodev_work);*/
 		iod->atdebugfunc = atdebugfunc;
 		if (atdebugchannel & (0x1 << iod->id))
@@ -617,6 +618,7 @@ int meizu_ipc_init_io_device(struct io_device *iod)
 		break;
 	case IODEV_NET:
 		skb_queue_head_init(&iod->rx_q);
+		spin_lock_init(&iod->op_lock);
 		iod->atdebugfunc = atdebugfunc;
 		if (atdebugchannel & (0x1 << iod->id))
 			if (atdebuglen)
