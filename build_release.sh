@@ -18,17 +18,20 @@ function get_svn_ver()
 
 function save_image()
 {
-	local config=$(echo ${1#*_})
+	local config=$(echo ${2#*_})
 
 	config=$(echo ${config%_*})
-	cp vmlinux r$1.$config.vmlinux
-	cp System.map r$1.$config.System.map
+	cp vmlinux output/r$1.$config.vmlinux
+	cp System.map output/r$1.$config.System.map
 }
 
 function save_all_image()
 {
 	if [ -d ~/dev/kernelimage ];then
-		cp output ~/dev/kernelimage/r$1 -r
+		if [ -d ~/dev/kernelimage/r$1 ];then
+			/bin/rm ~/dev/kernelimage/r$1 -rf
+		fi
+		cp output ~/dev/kernelimage/r$1 -rf
 	fi
 }
 
@@ -41,9 +44,8 @@ function gen_all_kernel_image()
 
 	mkdir -p output
 	svn up
-	make distclean -j$CPU_JOB_NUM
-
 	local svn_rev=$(get_svn_ver)
+	make distclean -j$CPU_JOB_NUM
 
 	function check_kernel_build_result() {
 		if [ $? != 0 ];then
@@ -52,35 +54,35 @@ function gen_all_kernel_image()
 		fi
 	}
 
+	make mx_eng_defconfig
+	make all -j$CPU_JOB_NUM
+	check_kernel_build_result mx_eng_defconfig
+	mv arch/arm/boot/zImage output/zImage-dev
+	save_image $svn_rev mx_eng_defconfig
+
 	make mx_user_defconfig
 	make all -j$CPU_JOB_NUM
 	check_kernel_build_result mx_user_defconfig
 	mv arch/arm/boot/zImage output/zImage
-	save_image mx_user_defconfig
-
-	make mx_overseas_defconfig
-	make all -j$CPU_JOB_NUM
-	check_kernel_build_result mx_overseas_defconfig
-	mv arch/arm/boot/zImage output/zImage-overseas
-	save_image mx_overseas_defconfig
+	save_image $svn_rev mx_user_defconfig
 
 	make mx_release_recovery_defconfig
 	make all -j$CPU_JOB_NUM
 	check_kernel_build_result mx_release_recovery_defconfig
 	mv arch/arm/boot/zImage output/zImage-release-recovery
-	save_image mx_release_recovery_defconfig
+	save_image $svn_rev mx_release_recovery_defconfig
 
 	make mx_recovery_defconfig
 	make all -j$CPU_JOB_NUM
 	check_kernel_build_result mx_recovery_defconfig
 	mv arch/arm/boot/zImage output/zImage-recovery
-	save_image mx_recovery_defconfig
-
-	make mx_eng_defconfig
+	save_image $svn_rev mx_recovery_defconfig
+	
+	make mx_overseas_defconfig
 	make all -j$CPU_JOB_NUM
-	check_kernel_build_result mx_eng_defconfig
-	mv arch/arm/boot/zImage output/zImage-dev
-	save_image mx_eng_defconfig
+	check_kernel_build_result mx_overseas_defconfig
+	mv arch/arm/boot/zImage output/zImage-overseas
+	save_image $svn_rev mx_overseas_defconfig
 
 	save_all_image $svn_rev
 
