@@ -238,7 +238,7 @@ unsigned short qm_touch_get_key(struct mx_qm_touch	*touch)
 	key = mx->i2c_readbyte(client, QM_REG_KEY);
 
 	pr_debug("%s:%.2d  ", __func__,key );		
-
+	
 	switch( key )
 	{
 		case QM_KEY_1:
@@ -277,6 +277,11 @@ unsigned short qm_touch_get_key(struct mx_qm_touch	*touch)
 
 
 	touch->last_key =  key;
+	
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	if( ( touch->early_suspend_flag ) &&(key == KEY_MENU ||key == KEY_BACK ))
+		return key;
+#endif	
 
 	if(ret == 0)
 	{
@@ -523,6 +528,9 @@ static int __devinit mx_qm_touch_probe(struct platform_device *pdev)
 	}
 	else
 	{
+		s3c_gpio_setpull(data->gpio_irq, S3C_GPIO_PULL_UP);
+		s3c_gpio_cfgpin(data->gpio_irq, S3C_GPIO_INPUT);
+	
 		 err = request_threaded_irq(touch->irq, NULL, mx_qm_irq_handler,
 			// IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING | IRQF_ONESHOT, input->name, touch);
 			 IRQF_TRIGGER_LOW | IRQF_ONESHOT, input->name, touch);
