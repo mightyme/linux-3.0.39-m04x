@@ -7840,7 +7840,7 @@ static int update_runtime(struct notifier_block *nfb,
 	}
 }
 
-#if defined(CONFIG_CPU_FREQ) && defined(CONFIG_MX_SERIAL_TYPE)
+#if defined(CONFIG_CPU_FREQ) && defined(CONFIG_SCHED_MC) && (defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE))
 #include <linux/performance.h>
 
 static int sched_notifier_call(struct notifier_block *nb,
@@ -7893,7 +7893,7 @@ void __init sched_init_smp(void)
 
 	init_sched_rt_class();
 
-#if defined(CONFIG_CPU_FREQ) && defined(CONFIG_MX_SERIAL_TYPE)
+#if defined(CONFIG_CPU_FREQ) && defined(CONFIG_SCHED_MC) && (defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE))
 	register_pfm_notifier(&sched_nb);
 #endif
 }
