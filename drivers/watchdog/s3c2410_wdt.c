@@ -91,13 +91,14 @@ static DEFINE_SPINLOCK(wdt_lock);
 
 static int s3c2410wdt_keepalive(struct watchdog_device *wdd)
 {
-	spin_lock(&wdt_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&wdt_lock, flags);
 	__raw_writel(wdt_count, wdt_base + S3C2410_WTCNT);
-	spin_unlock(&wdt_lock);
+	spin_unlock_irqrestore(&wdt_lock, flags);
 
 	return 0;
 }
-
 static void __s3c2410wdt_stop(void)
 {
 	unsigned long wtcon;
@@ -109,9 +110,11 @@ static void __s3c2410wdt_stop(void)
 
 static int s3c2410wdt_stop(struct watchdog_device *wdd)
 {
-	spin_lock(&wdt_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&wdt_lock, flags);
 	__s3c2410wdt_stop();
-	spin_unlock(&wdt_lock);
+	spin_unlock_irqrestore(&wdt_lock, flags);
 
 	return 0;
 }
@@ -119,8 +122,9 @@ static int s3c2410wdt_stop(struct watchdog_device *wdd)
 static int s3c2410wdt_start(struct watchdog_device *wdd)
 {
 	unsigned long wtcon;
+	unsigned long flags;
 
-	spin_lock(&wdt_lock);
+	spin_lock_irqsave(&wdt_lock, flags);
 
 	__s3c2410wdt_stop();
 
@@ -141,7 +145,7 @@ static int s3c2410wdt_start(struct watchdog_device *wdd)
 	__raw_writel(wdt_count, wdt_base + S3C2410_WTDAT);
 	__raw_writel(wdt_count, wdt_base + S3C2410_WTCNT);
 	__raw_writel(wtcon, wdt_base + S3C2410_WTCON);
-	spin_unlock(&wdt_lock);
+	spin_unlock_irqrestore(&wdt_lock, flags);
 
 	return 0;
 }
@@ -311,8 +315,7 @@ static int watchdog_thread(void *data)
 	while (1) {
 		pr_debug("%s: feed the watchdog\n", __func__);
 		s3c2410wdt_keepalive(&s3c2410_wdd);
-		if (schedule_timeout_interruptible(HZ/10))
-			break;
+		schedule_timeout_interruptible(HZ);
 	}
 	return 0;
 }
