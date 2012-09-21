@@ -71,6 +71,7 @@
 
 static const char	hcd_name [] = "ehci_hcd";
 
+static int is_ehci_removed;
 
 #undef VERBOSE_DEBUG
 #undef EHCI_URB_TRACE
@@ -509,7 +510,7 @@ static void ehci_work (struct ehci_hcd *ehci)
 static void ehci_stop (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
-
+	
 	ehci_dbg (ehci, "stop\n");
 
 	/* no more interrupts ... */
@@ -819,7 +820,10 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 	/* Shared IRQ? */
 	if (!masked_status || unlikely(hcd->state == HC_STATE_HALT)) {
 		spin_unlock(&ehci->lock);
-		return IRQ_NONE;
+		if (is_ehci_removed)
+			return IRQ_HANDLED;
+		else
+			return IRQ_NONE;
 	}
 
 	/* clear (just) interrupts */
