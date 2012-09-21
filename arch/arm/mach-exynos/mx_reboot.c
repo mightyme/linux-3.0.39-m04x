@@ -17,6 +17,7 @@
 
 #include <linux/delay.h>
 #include <linux/pm.h>
+#include <linux/sched.h>
 
 #include <asm/io.h>
 #include <asm/cacheflush.h>
@@ -64,9 +65,20 @@ static void mx_disable_inand(void)
 
 static void mx_power_off(void)
 {
+	struct task_struct *task = get_current();
+	char task_com[TASK_COMM_LEN];
 	int regs;
 	int gpio;
 
+	pr_emerg("func:%s, process is:%d:%s\n", __func__, task->pid, get_task_comm(task_com, task));
+	if (task->parent) {
+		task = task->parent;
+		pr_emerg("func:%s, parent:%d:%s\n", __func__, task->pid, get_task_comm(task_com, task));
+		if (task->parent) {
+			task = task->parent;
+			pr_emerg("func:%s, pparent:%d:%s\n", __func__, task->pid, get_task_comm(task_com, task));
+		}
+	}
 	if (machine_is_m030())
 		gpio = EXYNOS4_GPX2(5);
 	else
@@ -79,7 +91,7 @@ static void mx_power_off(void)
 		regs = __raw_readl(S5P_PS_HOLD_CONTROL);
 		/* dead loop to avoid sometimes auto restart*/
 		while(1) {
-			pr_emerg("%s: waiting for reboot\n", __func__);
+			pr_emerg("%s: waiting for power off\n", __func__);
 			__raw_writel(regs & 0xFFFFFEFF, S5P_PS_HOLD_CONTROL);
 		}
 	}
@@ -87,7 +99,20 @@ static void mx_power_off(void)
 
 static void mx_reboot(char str, const char *cmd)
 {
+	struct task_struct *task = get_current();
+	char task_com[TASK_COMM_LEN];
+	
 	pr_emerg("%s (%c, %s)\n", __func__, str, cmd ? cmd : "(null)");
+	pr_emerg("func:%s, process is:%d:%s\n", __func__, task->pid, get_task_comm(task_com, task));
+	if (task->parent) {
+		task = task->parent;
+		pr_emerg("func:%s, parent:%d:%s\n", __func__, task->pid, get_task_comm(task_com, task));
+		if (task->parent) {
+			task = task->parent;
+			pr_emerg("func:%s, pparent:%d:%s\n", __func__, task->pid, get_task_comm(task_com, task));
+		}
+	}
+
 	mx_disable_inand();
 	mx_reboot_internal(cmd);
 }

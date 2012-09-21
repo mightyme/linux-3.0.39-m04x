@@ -17,6 +17,7 @@
 
 #include <linux/delay.h>
 #include <linux/pm.h>
+#include <linux/sched.h>
 
 #include <asm/io.h>
 #include <asm/cacheflush.h>
@@ -72,7 +73,18 @@ static inline int is_cable_insert(void)
 
 static void mx2_power_off(void)
 {
+	struct task_struct *task = get_current();
+	char task_com[TASK_COMM_LEN];
 
+	pr_emerg("func:%s, process is:%d:%s\n", __func__, task->pid, get_task_comm(task_com, task));
+	if (task->parent) {
+		task = task->parent;
+		pr_emerg("func:%s, parent:%d:%s\n", __func__, task->pid, get_task_comm(task_com, task));
+		if (task->parent) {
+			task = task->parent;
+			pr_emerg("func:%s, pparent:%d:%s\n", __func__, task->pid, get_task_comm(task_com, task));
+		}
+	}
 	mx2_disable_inand();
 	if(is_cable_insert()){ /* 1. Check reboot charging */
 		mx2_reboot_internal("charge");
@@ -81,6 +93,7 @@ static void mx2_power_off(void)
 		regs = __raw_readl(S5P_PS_HOLD_CONTROL);
 		/* dead loop to avoid sometimes auto restart*/
 		while(1) {
+			pr_emerg("%s: waiting for power off\n", __func__);
 			__raw_writel(regs & 0xFFFFFEFF, S5P_PS_HOLD_CONTROL);
 		}
 	}
@@ -88,7 +101,20 @@ static void mx2_power_off(void)
 
 static void mx2_reboot(char str, const char *cmd)
 {
+	struct task_struct *task = get_current();
+	char task_com[TASK_COMM_LEN];
+	
 	pr_emerg("%s (%d, %s)\n", __func__, str, cmd ? cmd : "(null)");
+	pr_emerg("func:%s, process is:%d:%s\n", __func__, task->pid, get_task_comm(task_com, task));
+	if (task->parent) {
+		task = task->parent;
+		pr_emerg("func:%s, parent:%d:%s\n", __func__, task->pid, get_task_comm(task_com, task));
+		if (task->parent) {
+			task = task->parent;
+			pr_emerg("func:%s, pparent:%d:%s\n", __func__, task->pid, get_task_comm(task_com, task));
+		}
+	}
+
 	mx2_disable_inand();
 	mx2_reboot_internal(cmd);
 }
