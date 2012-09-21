@@ -136,9 +136,10 @@ static struct check_device_op chk_usbotg_op = {
 #define GPIO_END_OFFSET		0x200
 
 /* GPIO_END_OFFSET value of exynos4212 */
-#define GPIO1_END_OFFSET	0x280
-#define GPIO2_END_OFFSET	0x200
-#define GPIO4_END_OFFSET	0xE0
+#define GPIO1_END_OFFSET		0x280
+#define GPIO2_END_OFFSET		0x200
+#define GPIO2_E4212_END_OFFSET	0x300
+#define GPIO4_END_OFFSET		0xE0
 
 static void exynos4_gpio_conpdn_reg(void)
 {
@@ -188,6 +189,8 @@ static void exynos4212_gpio_conpdn_reg(void)
 			gpio_base = S5P_VA_GPIO + 0x180;
 		else if (gpio_base == (S5P_VA_GPIO + 0x200))
 			gpio_base = S5P_VA_GPIO + 0x240;
+		else if (gpio_base == (S5P_VA_GPIO2 + 0x200))
+			gpio_base = S5P_VA_GPIO2 + 0x260;
 		else if (gpio_base == (S5P_VA_GPIO4 + 0x40))
 			gpio_base = S5P_VA_GPIO4 + 0x60;
 		else if (gpio_base == (S5P_VA_GPIO4 + 0xA0))
@@ -196,7 +199,7 @@ static void exynos4212_gpio_conpdn_reg(void)
 		if (gpio_base == S5P_VA_GPIO + GPIO1_END_OFFSET)
 			gpio_base = S5P_VA_GPIO2 + 0x40; /* GPK0CON */
 
-		if (gpio_base == S5P_VA_GPIO2 + GPIO2_END_OFFSET)
+		if (gpio_base == S5P_VA_GPIO2 + GPIO2_E4212_END_OFFSET)
 			gpio_base = S5P_VA_GPIO4;
 
 	} while (gpio_base <= S5P_VA_GPIO4 + GPIO4_END_OFFSET);
@@ -649,7 +652,7 @@ early_wakeup:
 	s3c_pm_do_restore_core(exynos4_lpa_save,
 			       ARRAY_SIZE(exynos4_lpa_save));
 
-	if (!soc_is_exynos4210()) {
+	if ( !soc_is_exynos4210()) {
 		exynos4x12_set_abb_member(ABB_ARM, abb_val);
 		exynos4x12_set_abb_member(ABB_INT, abb_val_int);
 	}
@@ -689,7 +692,7 @@ static struct cpuidle_state exynos4_cpuidle_set[] = {
 #ifdef CONFIG_EXYNOS4_LOWPWR_IDLE
 	[1] = {
 		.enter			= exynos4_enter_lowpower,
-		.exit_latency		= 300,
+		.exit_latency		= 5000,
 		.target_residency	= 10000,
 		.flags			= CPUIDLE_FLAG_TIME_VALID,
 		.name			= "LOW_POWER",
