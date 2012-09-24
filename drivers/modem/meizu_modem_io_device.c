@@ -319,6 +319,26 @@ static void hsic_net_data_handler(struct io_device *iod)
 	return;
 }
 
+static void recv_data_handler_work(struct work_struct *work)
+{
+	int ret = 0;
+	struct sk_buff *skb = NULL;
+	struct io_device *iod = container_of(work, struct io_device,
+				rx_work.work);
+	
+	switch (iod->io_typ) {
+	case IODEV_TTY:
+		hsic_tty_data_handler(iod);
+		break;
+	case IODEV_NET:
+		hsic_net_data_handler(iod);
+		break;
+	default:
+		mif_err("wrong io_type : %d\n", iod->io_typ);
+		break;
+	}
+}
+
 /* called from link device when a packet arrives for this io device */
 static int recv_data_handler(struct io_device *iod,
 		struct link_device *ld, const char *data, unsigned int len)
@@ -337,13 +357,13 @@ static int recv_data_handler(struct io_device *iod,
 		memcpy(skb_put(skb, len), data, len);
 		skb_queue_tail(&iod->rx_q, skb);
 		atomic_inc(&iod->is_tty_op);
-		hsic_tty_data_handler(iod);
+		queue_delayed_work(iod->mc->rx_wq, &iod->rx_work, 0);
 		atomic_dec(&iod->is_tty_op);
 		break;
 	case IODEV_NET:
 		memcpy(skb_put(skb, len), data, len);
 		skb_queue_tail(&iod->rx_q, skb);
-		hsic_net_data_handler(iod);
+		queue_delayed_work(iod->mc->rx_wq, &iod->rx_work, 0);
 		break;
 	default:
 		mif_err("wrong io_type : %d\n", iod->io_typ);
@@ -609,7 +629,7 @@ int meizu_ipc_init_io_device(struct io_device *iod)
 	case IODEV_TTY:
 		skb_queue_head_init(&iod->rx_q);
 		mutex_init(&iod->op_mutex);
-		/*INIT_DELAYED_WORK(&iod->rx_work, rx_iodev_work);*/
+		INIT_DELAYED_WORK(&iod->rx_work, recv_data_handler_work);
 		iod->atdebugfunc = atdebugfunc;
 		if (atdebugchannel & (0x1 << iod->id))
 			if (atdebuglen)
@@ -630,6 +650,7 @@ int meizu_ipc_init_io_device(struct io_device *iod)
 	case IODEV_NET:
 		skb_queue_head_init(&iod->rx_q);
 		mutex_init(&iod->op_mutex);
+		INIT_DELAYED_WORK(&iod->rx_work, recv_data_handler_work);
 		iod->atdebugfunc = atdebugfunc;
 		if (atdebugchannel & (0x1 << iod->id))
 			if (atdebuglen)

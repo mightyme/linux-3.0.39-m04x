@@ -180,6 +180,11 @@ static int __devinit modem_probe(struct platform_device *pdev)
 	
 	platform_set_drvdata(pdev, modemctl);
 #ifndef CONFIG_MX_RECOVERY_KERNEL
+	modemctl->rx_wq = create_singlethread_workqueue("modem_rx_wq");
+	if (!modemctl->rx_wq) {
+		mif_err("fail to create wq\n");
+		return -EINVAL;
+	}
 	for (i = 0; i < LINKDEV_MAX ; i++) {
 		if (pdata->link_types & LINKTYPE(i)) {
 			ld = call_link_init_func(pdev, i);
@@ -192,7 +197,6 @@ static int __devinit modem_probe(struct platform_device *pdev)
 			list_add(&ld->list, &modemctl->commons.link_dev_list);
 		}
 	}
-
 	/* create io deivces and connect to modemctl device */
 	for (i = 0; i < pdata->num_iodevs; i++) {
 		iod[i] = create_io_device(&pdata->iodevs[i], modemctl, pdata);

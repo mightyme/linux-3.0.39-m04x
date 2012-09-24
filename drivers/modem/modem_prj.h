@@ -553,6 +553,7 @@ struct modem_ctl {
 	int irq_sim_detect;
 	int irq_link_hostwake;
 
+	struct workqueue_struct *rx_wq;
 	struct work_struct work;
 
 	struct modemctl_ops ops;
