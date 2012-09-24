@@ -29,6 +29,17 @@
 #include <mach/gpio.h>
 #include "modem_prj.h"
 
+static char modem_event_str[8][25] = {
+	"MODEM_EVENT_POWEROFF",
+	"MODEM_EVENT_RESET",
+	"MODEM_EVENT_CRASH",
+	"MODEM_EVENT_DUMP",
+	"MODEM_EVENT_CONN",
+	"MODEM_EVENT_DISCONN",
+	"MODEM_EVENT_SIM",
+	"MODEM_EVENT_BOOT_INIT",
+};
+
 #ifdef CONFIG_USB_EHCI_S5P
 extern int  s5p_ehci_power(int value);
 #else
@@ -107,10 +118,8 @@ void modem_notify_event(int type)
 			break;
 
 		case MODEM_EVENT_RESET:
-			if(global_mc->enum_done) {
-				global_mc->cp_flag |= MODEM_RESET_FLAG;
-				wake_up_interruptible(&global_mc->read_wq);
-			}
+			global_mc->cp_flag |= MODEM_RESET_FLAG;
+			wake_up_interruptible(&global_mc->read_wq);
 			break;
 
 		case MODEM_EVENT_CRASH:
@@ -149,7 +158,7 @@ void modem_notify_event(int type)
 			break;
 	}
 
-	mif_info("%s: type:0x%x, cp_flag:0x%x\n", __func__, type,
+	pr_info("%s:%s, cp_flag:0x%x\n", __func__, modem_event_str[type],
 							global_mc->cp_flag);
 }
 
@@ -203,9 +212,7 @@ static int xmm6260_main_enum(struct modem_ctl *mc)
 	modem_wake_lock(mc);
 	mc->enum_done = 0;
 	xmm6260_off(mc);
-	if (! (mc->cp_flag & MODEM_INIT_ON_FLAG)) {
-		s5p_ehci_power(0);
-	}
+	s5p_ehci_power(0);
 	modem_set_active_state(0);
 	msleep(100);
 	mc->cp_flag =0;
@@ -325,7 +332,8 @@ static irqreturn_t modem_cpreset_irq(int irq, void *dev_id)
 
 	pr_info("%s CP_RESET_INT:%d\n",  __func__, val);
 	modem_wake_lock_timeout(mc, HZ*30);
-	modem_notify_event(MODEM_EVENT_RESET);
+	if(global_mc->enum_done)
+		modem_notify_event(MODEM_EVENT_RESET);
 
 	return IRQ_HANDLED;
 }

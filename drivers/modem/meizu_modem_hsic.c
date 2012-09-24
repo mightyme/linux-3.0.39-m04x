@@ -267,13 +267,10 @@ static void usb_rx_complete(struct urb *urb)
 	switch (urb->status) {
 	case -ENOENT:
 		/* case for 'link pm suspended but rx data had remained' */
-		mif_debug("urb->status = -ENOENT\n");
 	case 0:
 		pipe_data->hsic_channel_rx_count ++;
-		if (!urb->actual_length) {
-			mif_debug("urb has zero length!\n");
+		if (!urb->actual_length)
 			goto rx_submit;
-		}
 		usb_ld->link_pm_data->rx_cnt++;
 
 		iod = link_get_iod_with_channel(&usb_ld->ld,
