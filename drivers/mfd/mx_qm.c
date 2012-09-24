@@ -333,7 +333,7 @@ static bool __devinit mx_qm_identify(struct mx_qm_data *mx)
 		
 	if( ver != img_ver)
 	{
-		dev_info(&client->dev, "Old firmware version %x , img ver %d,need be update\n", ver,img_ver);
+		dev_info(&client->dev, "Old firmware version %X.%X , img ver %X.%X,need be update\n", ((ver>>4)&0x0F),(ver&0x0F), ((img_ver>>4)&0x0F),(img_ver&0x0F));
 		mx_qm_update(mx);
 		mx_qm_wakeup(mx,true);
 		
@@ -582,6 +582,7 @@ static int mx_qm_update(struct mx_qm_data *mx)
 
 		cmd = TWI_CMD_CRC;
 		ret = mx_qm_write(mx->client,1,&cmd);
+		msleep(100);
 		ret = mx_qm_read(mx->client,1,&crc1);
 		crc1 <<= 8;
 		ret = mx_qm_read(mx->client,1,&crc1);
@@ -972,12 +973,7 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 			}
 		}	
 	}
-	else
-	{	
-		s3c_gpio_setpull(pdata->gpio_irq, S3C_GPIO_PULL_UP);
-		s3c_gpio_cfgpin(pdata->gpio_irq, S3C_GPIO_INPUT);
-	}
-
+	
 	qm_create_attrs(&client->dev);
 		
 	/*initial registers*/

@@ -93,15 +93,15 @@ static int gSlope = 0;
  
 static int bu26507_set_led_pwm(struct led_classdev *led_cdev, int pwm)
 {
-	 struct mx_qm_led *led =
-			 container_of(led_cdev, struct mx_qm_led, led_cdev);
-	 struct mx_qm_data *mx = led->data;
-	 int ret = 0;
-	 
- 	  //pwm = pwm *63 /100;
-	  
-	 /*led pwm level, from 0~63*/
-	 pwm = (pwm >> 2) & 0x3F;
+	struct mx_qm_led *led =
+		 container_of(led_cdev, struct mx_qm_led, led_cdev);
+	struct mx_qm_data *mx = led->data;
+	int ret = 0;
+
+	  //pwm = pwm *63 /100;
+
+	/*led pwm level, from 0~63*/
+	pwm = (pwm >> 2) & 0x3F;
 
 	pr_debug("%s: pwm  = 0x%X\n", __func__,pwm); 
 
@@ -110,19 +110,19 @@ static int bu26507_set_led_pwm(struct led_classdev *led_cdev, int pwm)
 	return ret;
 }
  
- static int bu26507_set_led_slope(struct led_classdev *led_cdev, int enable)
- {
-	 struct mx_qm_led *led =
-			 container_of(led_cdev, struct mx_qm_led, led_cdev);
-	 struct mx_qm_data *mx = led->data;
-	 int ret = 0;
-	 
-	 pr_debug("%s: enable  = 0x%X\n", __func__,enable); 
+static int bu26507_set_led_slope(struct led_classdev *led_cdev, int enable)
+{
+	struct mx_qm_led *led =
+		 container_of(led_cdev, struct mx_qm_led, led_cdev);
+	struct mx_qm_data *mx = led->data;
+	int ret = 0;
 
-	 if(enable)
-	 	ret = mx->i2c_writebyte(mx->client,LED_REG_CUR4,0xCF);	  
-	 ret = mx->i2c_writebyte(mx->client,LED_REG_SLOPE,enable);	  
-	
+	pr_debug("%s: enable  = 0x%X\n", __func__,enable); 
+
+	if(enable)
+		ret = mx->i2c_writebyte(mx->client,LED_REG_CUR4,0xCF);	  
+	ret = mx->i2c_writebyte(mx->client,LED_REG_SLOPE,enable);	  
+
 	return ret;
 }
  
@@ -148,23 +148,23 @@ static int tca6507_set_led_current(struct led_classdev *led_cdev, int value)
 	return ret;
 }
   
-  static int tca6507_set_led_pwm(struct led_classdev *led_cdev, int value)
-  {
-	  struct mx_qm_led *led =
-			  container_of(led_cdev, struct mx_qm_led, led_cdev);
-	  struct mx_qm_data *mx = led->data;
-	  int ret = 0;
-	  unsigned char data;
+static int tca6507_set_led_pwm(struct led_classdev *led_cdev, int value)
+{
+  struct mx_qm_led *led =
+		  container_of(led_cdev, struct mx_qm_led, led_cdev);
+  struct mx_qm_data *mx = led->data;
+  int ret = 0;
+  unsigned char data;
 
- 	  //value = value *255 /100;
-	  
-	  data = (value & 0xF0) |((value >> 4) & 0xF);	  
-	  pr_debug("%s:pwm = 0x%.2X\n",__func__,data);
-	  
-	  ret = mx->i2c_writebyte(mx->client,LED_REG_PWM,data);	 
+	  value = value *255 /100;
   
-	  return ret;
-  }
+  data = (value & 0xF0) |((value >> 4) & 0xF);	  
+  pr_debug("%s:pwm = 0x%.2X\n",__func__,data);
+  
+  ret = mx->i2c_writebyte(mx->client,LED_REG_PWM,data);	 
+
+  return ret;
+}
   
 static int tca6507_set_led_slope(struct led_classdev *led_cdev, int enable)
 {
@@ -340,7 +340,10 @@ static void mx_qm_led_early_suspend(struct early_suspend *h)
 			 container_of(h, struct mx_qm_led, early_suspend);
 	 
 	 if( led->id == 4)
+	 {
+		led->led_cdev.brightness_set(&led->led_cdev,((MODE_PWM<<8) | 0x20)); 	 	
 		led->led_cdev.brightness_set(&led->led_cdev,((MODE_SLOPE<<8) | gSlope)); 
+	 }
 }
  
 static void mx_qm_led_late_resume(struct early_suspend *h)
