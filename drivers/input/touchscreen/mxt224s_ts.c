@@ -1045,8 +1045,8 @@ static int mxt_check_reg_init(struct mxt_data *data)
 
 		for (j = 0; j < object->size; j++) {
 			config_offset = index + j;
-                     printk(": config_offset = %d, config_info->config_length = %d\n",
-                                    config_offset, config_info->config_length);
+                     //printk(": config_offset = %d, config_info->config_length = %d\n",
+                     //               config_offset, config_info->config_length);
 			if (config_offset > config_info->config_length) {
  				printk(": Not enough config data!\n");
  				return -EINVAL;
@@ -1187,11 +1187,11 @@ static int mxt_get_object_table(struct mxt_data *data)
 		if (end_address >= data->mem_size)
 			data->mem_size = end_address + 1;
 
-		printk(": T%u, start:%u size:%u instances:%u "
-			"min_reportid:%u max_reportid:%u\n",
-			object->type, object->start_address, object->size,
-			object->instances,
-			object->min_reportid, object->max_reportid);
+		//printk(": T%u, start:%u size:%u instances:%u "
+		//	"min_reportid:%u max_reportid:%u\n",
+		//	object->type, object->start_address, object->size,
+		//	object->instances,
+		//	object->min_reportid, object->max_reportid);
 	}
 
 	/* Store maximum reportid */
@@ -1262,7 +1262,7 @@ static void mxt_check_config_version(struct mxt_data *data,
 
        data->config_info = cfg_info;
  	data->update_cfg = true;
-
+	
         //printk(": >>>>>>>>>>>>> data->config_info->configlength = %d\n", 
         //                    data->config_info->config_length);
 
