@@ -855,10 +855,12 @@ static void sco_chan_del(struct sock *sk, int err)
 	BT_DBG("sk %p, conn %p, err %d", sk, conn, err);
 
 	if (conn) {
+		local_bh_disable();
 		sco_conn_lock(conn);
 		conn->sk = NULL;
 		sco_pi(sk)->conn = NULL;
 		sco_conn_unlock(conn);
+		local_bh_enable();
 
 		if (conn->hcon)
 			hci_conn_put(conn->hcon);
