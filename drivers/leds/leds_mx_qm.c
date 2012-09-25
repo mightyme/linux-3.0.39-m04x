@@ -59,6 +59,9 @@ unsigned char   ledarra3[] = {((2<<5)|(1<<3)),((2<<5)|(1<<2)),((2<<5)|(1<<1)),((
 unsigned char   ledarra4[] = {0x2F,0x20,0x2F,0x20,0xFF}; 
 unsigned char   ledarra5[] = {((1<<5)|0x08),((1<<5)|0x0C),((1<<5)|0x0E),((3<<5)|0x0F),0xFF}; 
 unsigned char   ledarra6[] = {((1<<5)|0x01),((1<<5)|0x03),((1<<5)|0x07),((3<<5)|0x0F),0xFF}; 
+unsigned char   ledarra7[] = {((2<<5)|(1<<0)),((2<<5)|(1<<1)),((2<<5)|(1<<2)),((2<<5)|(1<<3)),
+						((2<<5)|(1<<0)),((2<<5)|(1<<1)),((2<<5)|(1<<2)),((2<<5)|(1<<3)),
+						((2<<5)|(1<<0)),((2<<5)|(1<<1)),((2<<5)|(1<<2)),((2<<5)|(1<<3)),0xFF}; 
 ////////////////////////////////////////////////////////////////// 
 
  /*led private data*/
@@ -266,6 +269,11 @@ static int mx_qm_set_led_mode(struct led_classdev *led_cdev, int mode)
 		case 6:
 			pLedarr = (unsigned char * )ledarra6;
 			Ledsize = sizeof(ledarra6);
+			break;
+			
+		case 7:
+			pLedarr = (unsigned char * )ledarra7;
+			Ledsize = sizeof(ledarra7);
 			break;
 
 		default:
