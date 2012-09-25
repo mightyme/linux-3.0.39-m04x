@@ -3,6 +3,7 @@
 
 static const u8 incall_receiver_buf[] =
 {
+	0x80, 0x52, 0x00, 0x00,
 	// select path route 0x0001
 	0x80, 0x26, 0x00, 0x01,
 
@@ -65,6 +66,7 @@ static const u8 incall_receiver_buf[] =
 
 static const u8 incall_speaker_buf[] =
 {
+	0x80, 0x52, 0x00, 0x00,
 	// select path route 0x0001
 	0x80, 0x26, 0x00, 0x01,
 
@@ -123,6 +125,7 @@ static const u8 incall_speaker_buf[] =
 
 static const u8 incall_headphone_buf[] =
 {
+	0x80, 0x52, 0x00, 0x00,
 	// select path route 0x0001
 	0x80, 0x26, 0x00, 0x01,
 
@@ -182,6 +185,7 @@ static const u8 incall_headphone_buf[] =
 
 static const u8 incall_bt_buf[] =
 {
+	0x80, 0x52, 0x00, 0x00,
 	// select path route 0x0095
 	0x80, 0x26, 0x00, 0x95,
 
@@ -204,6 +208,7 @@ static const u8 incall_bt_buf[] =
 
 static const u8 incall_bt_vpoff_buf[] =
 {
+	0x80, 0x52, 0x00, 0x00,
 	// select path route 0x0095
 	0x80, 0x26, 0x00, 0x95,
 
@@ -226,6 +231,7 @@ static const u8 incall_bt_vpoff_buf[] =
 
 static const u8 voip_receiver_buf[] =
 {
+	0x80, 0x52, 0x00, 0x00,
 	// select path route 0x0093
 	0x80, 0x26, 0x00, 0x93,
 
@@ -248,6 +254,7 @@ static const u8 voip_receiver_buf[] =
 
 static const u8 voip_speaker_buf[] =
 {
+	0x80, 0x52, 0x00, 0x00,
 	// select path route 0x0093
 	0x80, 0x26, 0x00, 0x93,
 
@@ -270,6 +277,7 @@ static const u8 voip_speaker_buf[] =
 
 static const u8 voip_headphone_buf[] =
 {
+	0x80, 0x52, 0x00, 0x00,
 	// select path route 0x0093
 	0x80, 0x26, 0x00, 0x93,
 
@@ -292,6 +300,7 @@ static const u8 voip_headphone_buf[] =
 
 static const u8 voip_bt_buf[] =
 {
+	0x80, 0x52, 0x00, 0x00,
 	// select path route 0x0096
 	0x80, 0x26, 0x00, 0x96,
 
@@ -316,6 +325,7 @@ static const u8 voip_bt_buf[] =
 
 static const u8 voip_bt_vpoff_buf[] =
 {
+	0x80, 0x52, 0x00, 0x00,
 	// select path route 0x0096
 	0x80, 0x26, 0x00, 0x96,
 
@@ -348,7 +358,6 @@ static const u8 bypassed_c_2_a[] = {
 
 static const u8 bt_ring_buf[] = {
 	0x80, 0x52, 0x00, 0xF3,
-	0x80, 0x10, 0x00, 0x01
 };
 
 #endif /* __LINUX_ES305B_PARAM_H_ */

@@ -840,8 +840,12 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		break;	
 
 	case PLAYBACK_BT_INCALL:	
-		OpenAIF2(codec);
+#ifdef CONFIG_MACH_M040
+		SetAIF3_2_AIF2(codec,false);
+#else
 		SetAIF3_2_AIF2(codec,true);
+#endif
+		OpenAIF2(codec);
 		audio_switch(SWTICH_TO_BB);	
 #ifdef CONFIG_AUDIENCE_ES305B
 		es305b_setmode(ES305B_INCALL_BT);
@@ -946,7 +950,11 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 
 	case PLAYBACK_BT_VOIP:	
 		audio_switch(SWTICH_TO_AP);	
+#ifdef CONFIG_MACH_M040
+		SetAIF3_2_AIF2(codec,false);
+#else
 		SetAIF3_2_AIF2(codec,true);
+#endif
 #ifdef CONFIG_AUDIENCE_ES305B
 		es305b_setmode(ES305B_VOIP_BT);
 #endif
