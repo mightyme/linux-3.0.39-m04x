@@ -955,6 +955,51 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 #endif
 		
 		break;	
+
+	/* Test */
+	case PLAYBACK_MIC_TEST:
+#ifdef CONFIG_AUDIENCE_ES305B
+		es305b_setmode(ES305B_VOIP_HEADPHONE_NB);
+#endif
+		SetVolume_VoIP(codec);
+		SetVolume_Mixerin_rec(codec);
+		SetHpMute(codec,0);
+		break;
+	case PLAYBACK_REC_TEST:
+#ifdef CONFIG_AUDIENCE_ES305B
+		es305b_setmode(ES305B_VOIP_HEADPHONE_NB);
+#endif
+		SetVolume_VoIP(codec);
+		SetVolume_Mixerin_rec(codec);
+		SetRecMute(codec,0);
+		break;
+	case PLAYBACK_SPK_TEST:
+#ifdef CONFIG_AUDIENCE_ES305B
+		es305b_setmode(ES305B_VOIP_HEADPHONE_NB);
+#endif
+		SetVolume_VoIP(codec);
+		SetVolume_Mixerin_rec(codec);
+		SetSpkMute(codec,0);
+		break;
+	case PLAYBACK_REC_ECHO_TEST:
+#ifdef CONFIG_AUDIENCE_ES305B
+		es305b_setmode(ES305B_VOIP_HEADPHONE_NB);
+#endif
+		SetVolume_VoIP(codec);
+		SetVolume_Mixerin_rec(codec);
+		SetHpMute(codec,0);
+		SetRecMute(codec,0);
+		break;
+	case PLAYBACK_SPK_ECHO_TEST:
+#ifdef CONFIG_AUDIENCE_ES305B
+		es305b_setmode(ES305B_VOIP_HEADPHONE_NB);
+#endif
+		SetVolume_VoIP(codec);
+		SetVolume_Mixerin_rec(codec);
+		SetHpMute(codec,0);
+		SetSpkMute(codec,0);
+		break;
+
 	case PLAYBACK_NONE:
 		break;
 		
@@ -1013,6 +1058,10 @@ int set_capture_path(struct snd_soc_codec *codec,u8 capture_path)
 		case CAPTURE_NONE:
 			printk ("%s() :invalid path = %d\n", __func__,capture_path);
 			ret = -1;
+			break;
+
+		case CAPTURE_TEST:
+			audio_switch(SWTICH_TO_AP);
 			break;
 			
 		default:			

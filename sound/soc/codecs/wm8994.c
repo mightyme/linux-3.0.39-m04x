@@ -334,10 +334,12 @@ static const char *playback_path_name[] = { "None",
 									"Speaker ringtone","Headphone ringtone","Receiver ringtone","Spk_Hp ringtone",
 									"BT Nomal","BT incall","BT ringtone","BT VoIP",
 									"Speaker VoIP","Headset VoIP","Receiver VoIP","Spk_Hs VoIP","Headphone VoIP","Spk_Hp VoIP",
+
+									"Microphone Test", "Receiver Test", "Speaker Test", "Receiver echo Test", "Speaker echo Test",
 									};
 static const char *capture_path_name[] = { "None","Main_Mic Nomal","Sencond_Mic Nomal","Hand_Mic Nomal",
 									"Main_Mic incall","Sencond_Mic incall","Hand_Mic incall",
-									"Main_Mic VoIP","Sencond_Mic VoIP","Hand_Mic VoIP",};
+									"Main_Mic VoIP","Sencond_Mic VoIP","Hand_Mic VoIP","Audio test"};
 static const char *string_on_off[] = { "Off","On",};
 static const struct soc_enum path_enum[] = {
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(playback_path_name), playback_path_name),
