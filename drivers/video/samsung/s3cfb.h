@@ -161,6 +161,7 @@ struct s3cfb_global {
 	struct workqueue_struct *fimd_dvfs;
 	struct delayed_work  dvfs_work;
 	struct notifier_block dvfs_nb;
+	u32 src_clk;
 #endif	
 };
 

@@ -166,12 +166,15 @@ int s3cfb_set_clock(struct s3cfb_global *ctrl)
 	if (pdata->hw_ver == 0x70) {
 		cfg &= ~(S3C_VIDCON0_CLKVALUP_MASK |
 			S3C_VIDCON0_VCLKEN_MASK);
-#if defined(CONFIG_FB_S5P_MIPI_DSIM)
-		cfg |= (S3C_VIDCON0_CLKVALUP_ALWAYS |
-			S3C_VIDCON0_VCLKEN_FREERUN);
+#if defined(CONFIG_FB_DYNAMIC_FREQ)
+		cfg |= S3C_VIDCON0_CLKVALUP_START_FRAME;
 #else
-		cfg |= (S3C_VIDCON0_CLKVALUP_ALWAYS |
-			S3C_VIDCON0_VCLKEN_NORMAL);
+		cfg |= S3C_VIDCON0_CLKVALUP_ALWAYS;
+#endif
+#if defined(CONFIG_FB_S5P_MIPI_DSIM)
+		cfg |= S3C_VIDCON0_VCLKEN_FREERUN;
+#else
+		cfg |= S3C_VIDCON0_VCLKEN_NORMAL;
 #endif
 		src_clk = clk_get_rate(ctrl->clock);
 		printk(KERN_DEBUG "FIMD src sclk = %d\n", src_clk);
@@ -180,10 +183,13 @@ int s3cfb_set_clock(struct s3cfb_global *ctrl)
 			S3C_VIDCON0_CLKVALUP_MASK |
 			S3C_VIDCON0_VCLKEN_MASK |
 			S3C_VIDCON0_CLKDIR_MASK);
-		cfg |= (S3C_VIDCON0_CLKVALUP_ALWAYS |
-			S3C_VIDCON0_VCLKEN_NORMAL |
+		cfg |= (S3C_VIDCON0_VCLKEN_NORMAL |
 			S3C_VIDCON0_CLKDIR_DIVIDED);
-
+#if defined(CONFIG_FB_DYNAMIC_FREQ)
+		cfg |= S3C_VIDCON0_CLKVALUP_START_FRAME;
+#else
+		cfg |= S3C_VIDCON0_CLKVALUP_ALWAYS;
+#endif
 		if (strcmp(pdata->clk_name, "sclk_fimd") == 0) {
 			cfg |= S3C_VIDCON0_CLKSEL_SCLK;
 			src_clk = clk_get_rate(ctrl->clock);
@@ -218,13 +224,62 @@ int s3cfb_set_clock(struct s3cfb_global *ctrl)
 	cfg &= ~S3C_VIDCON0_CLKVAL_F(0xff);
 	cfg |= S3C_VIDCON0_CLKVAL_F(div - 1);
 	writel(cfg, ctrl->regs + S3C_VIDCON0);
+#ifdef CONFIG_FB_DYNAMIC_FREQ
+	ctrl->src_clk = src_clk;
+#endif
+	dev_dbg(ctrl->dev, "parent clock: %d, vclk: %d, vclk div: %d\n",
+			src_clk, vclk, div);
+
+	return 0;
+}
+#ifdef CONFIG_FB_DYNAMIC_FREQ
+int s3cfb_set_reflesh_rate(struct s3cfb_global *ctrl, int lcd_freq)
+{
+	struct s3c_platform_fb *pdata = to_fb_plat(ctrl->dev);
+	u32 cfg, maxclk, src_clk, vclk, div, pixclock;
+	struct fb_var_screeninfo *var = &ctrl->fb[pdata->default_win]->var;
+	/* spec is under 100MHz */
+	maxclk = 100 * 1000000;
+
+	cfg = readl(ctrl->regs + S3C_VIDCON0);
+	src_clk = ctrl->src_clk;
+	
+	pixclock = (lcd_freq *
+		(var->left_margin + var->right_margin
+		+ var->hsync_len + var->xres) *
+		(var->upper_margin + var->lower_margin
+		+ var->vsync_len + var->yres));
+	pixclock = KHZ2PICOS(pixclock/1000);
+	
+	vclk = PICOS2KHZ(pixclock) * 1000;
+
+	if (vclk > maxclk) {
+		dev_info(ctrl->dev, "vclk(%d) should be smaller than %d\n",
+			vclk, maxclk);
+		/* vclk = maxclk; */
+	}
+
+	div = DIV_ROUND_CLOSEST(src_clk, vclk);
+
+	if (div == 0) {
+		dev_err(ctrl->dev, "div(%d) should be non-zero\n", div);
+		div = 1;
+	}
+
+	if ((src_clk/div) > maxclk)
+		dev_info(ctrl->dev, "vclk(%d) should be smaller than %d Hz\n",
+			src_clk/div, maxclk);
+
+	cfg &= ~S3C_VIDCON0_CLKVAL_F(0xff);
+	cfg |= S3C_VIDCON0_CLKVAL_F(div - 1);
+	writel(cfg, ctrl->regs + S3C_VIDCON0);
 
 	dev_dbg(ctrl->dev, "parent clock: %d, vclk: %d, vclk div: %d\n",
 			src_clk, vclk, div);
 
 	return 0;
 }
-
+#endif
 int s3cfb_set_polarity(struct s3cfb_global *ctrl)
 {
 	struct s3cfb_lcd_polarity *pol;
@@ -513,38 +568,10 @@ int s3cfb_frame_adjust(struct s3cfb_global *ctrl, fb_refresh freq)
 
 	switch (freq) {
 	case FB_DYNAMIC_HIGH_FREQ:
-		do {
-			regs = __raw_readl(ctrl->regs + S3C_VIDCON1);
-			regs &= S3C_VIDCON1_VSTATUS_MASK;
-			if (S3C_VIDCON1_VSTATUS_BACK == regs)
-				break;
-		} while(--remain_cnt);
-		/* 60HZ */
-#ifdef CONFIG_MACH_M040
-		__raw_writel(0x2e3, ctrl->regs + S3C_VIDCON0);
-#else
-		__raw_writel(0x533, ctrl->regs + S3C_VIDCON0);
-#endif
+		s3cfb_set_reflesh_rate(ctrl, 60);
 		break;
-	case FB_DYNAMIC_LOW_FREQ:	
-		do {
-			regs = __raw_readl(ctrl->regs + S3C_VIDCON1);
-			regs &= S3C_VIDCON1_VSTATUS_MASK;
-			if (S3C_VIDCON1_VSTATUS_FRONT == regs)
-				break;
-		} while(--remain_cnt);
-
-#ifdef CONFIG_MACH_M040
-		__raw_writel(0x3a3, ctrl->regs + S3C_VIDCON0);
-#else
-		/*
-		  *40HZ : 0x7a3
-		  *42HZ : 0x763
-		  *43HZ : 0x723
-		  *45HZ : 0x6e3
-		  */
-		__raw_writel(0x6e3, ctrl->regs + S3C_VIDCON0);
-#endif
+	case FB_DYNAMIC_LOW_FREQ:
+		s3cfb_set_reflesh_rate(ctrl, 45);
 		break;
 	default:
 		break;
