@@ -1465,7 +1465,7 @@ static int __devinit gp2ap_probe(struct i2c_client *client, const struct i2c_dev
 	}
 
 	/* create sysfs attributes */
-	ret = sysfs_create_group(&gp2ap->input_dev->dev.kobj, &gp2ap_attribute_group);
+	ret = sysfs_create_group(&client->dev.kobj, &gp2ap_attribute_group);
 	if (ret < 0) {
 		pr_err("%s()->%d:can not create sysfs group attributes!\n",
 			__func__, __LINE__);
@@ -1529,7 +1529,7 @@ static int __devexit gp2ap_remove(struct i2c_client *client)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	unregister_early_suspend(&gp2ap->early_suspend);
 #endif
-	sysfs_remove_group(&gp2ap->input_dev->dev.kobj, &gp2ap_attribute_group);
+	sysfs_remove_group(&client->dev.kobj, &gp2ap_attribute_group);
 	misc_deregister(&gp2ap->misc_device);
 	free_irq(gp2ap->irq, gp2ap);
 	gpio_free(client->irq);
