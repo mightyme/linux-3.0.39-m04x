@@ -401,10 +401,10 @@ static int __init exynos4_l2x0_cache_init(void)
 	}
 
 	l2x0_init(S5P_VA_L2CC, aux_val, aux_mask);
-
-	if (trustzone_on())	/*modified by lvcha; 2012.7.22*/
+#if defined(CONFIG_PL310_ERRATA_588369) || defined(CONFIG_PL310_ERRATA_727915)
+	if (trustzone_on() && soc_is_exynos4210())	/*modified by lvcha; 2012.7.22*/
 		outer_cache.set_debug = exynos4_l2x0_set_debug;
-
+#endif
 	/* Enable the full line of zero */
 	enable_cache_foz();
 	return 0;

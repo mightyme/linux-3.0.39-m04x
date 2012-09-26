@@ -95,15 +95,8 @@ static inline void l2x0_inv_line(unsigned long addr)
 }
 
 #if defined(CONFIG_PL310_ERRATA_588369) || defined(CONFIG_PL310_ERRATA_727915)
-/* modified by lvcha to fix 4x12; 
-  * default:
-  * #define debug_writel(val) outer_cache.set_debug(val)
-  */
-#define debug_writel(val) \
-	do { \
-		if (soc_is_exynos4210()) \
-			outer_cache.set_debug(val); \
-	} while(0)
+
+#define debug_writel(val)	outer_cache.set_debug(val)
 
 static void l2x0_set_debug(unsigned long val)
 {
