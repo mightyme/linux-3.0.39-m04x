@@ -394,63 +394,6 @@ static void mx_qm_wakeup(struct mx_qm_data *mx,int bEn)
 	dev_dbg(&mx->client->dev, "mx_qm_wakeup %s\n",bEn?"enable":"disable");
 }
 
-
-#if 0
-static int mx_qm_update_async(struct mx_qm_data *mx)
-{
-	int ret = 0;
-	
-	if( mx->poll )
-	{
-		disable_irq(mx->irq);	
-		msleep(100);
-	}
-
-	ret = request_firmware_nowait(THIS_MODULE,
-	        FW_ACTION_HOTPLUG,
-	        QM_MX_FW,
-	        &mx->client->dev,
-	        GFP_KERNEL | __GFP_ZERO,
-	        mx,
-	        mx_qm_firmware_handler);
-	
-	if( mx->poll )
-	{
-		enable_irq(mx->irq);
-	}
-	
-	return ret;
-}
-
-//¼ÆËãCRC 
-uint16_t calcrc16(char *ptr, int count) 
-{ 
-    int  j = 0; 
-    uint16_t crc = 0; 
-    uint8_t data;
-    char i; 
-  
-    while (j < count )
-  {
-      data = *ptr++;
-    
-        crc = crc ^ (uint16_t) data << 8; 
-        i = 8; 
-        do 
-        { 
-        if (crc & 0x8000) 
-            crc = crc << 1 ^ 0x1021; 
-        else 
-            crc = crc << 1; 
-        } while(--i); 
-          
-    j++;
-  }
-  
-  return (crc); 
-} 
-#endif
-
 static int mx_qm_getimgfwversion(struct mx_qm_data *mx)
 {
 	int err = 0;
@@ -496,11 +439,8 @@ static int mx_qm_update(struct mx_qm_data *mx)
 		
 	is_update = true;
 	
-	if( !mx->poll )
-	{
-		disable_irq(mx->irq);	
-		msleep(100);
-	}
+	disable_irq(mx->irq);	
+	msleep(100);
 
 	mx_qm_reset(mx,RESET_COLD);
 	mx_qm_wakeup(mx,true);
@@ -627,10 +567,7 @@ exit:
 	/*initial registers*/
 	mx_qm_init_registers(mx);
 	
-	if( !mx->poll )
-	{
-		enable_irq(mx->irq);
-	}
+	enable_irq(mx->irq);
 	
 	wake_unlock(&mx->wake_lock);
 	return ret;
@@ -904,8 +841,6 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 	data->gpio_reset = pdata->gpio_reset;
 	data->gpio_irq = pdata->gpio_irq;
 
-       data->poll = 0;
-
 	data->client = client;
 	data->irq = __gpio_to_irq(data->gpio_irq);//client->irq;//
 	data->i2c_readbyte = mx_qm_readbyte;
@@ -947,25 +882,8 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 			
 			if (!mx_qm_identify(data))
 			{
-				data->gpio_wake = pdata->gpio_irq;
-				data->gpio_reset = pdata->gpio_reset;
-				data->gpio_irq = pdata->gpio_wake;
-
-				data->poll = 1;
-				
-				mx_qm_wakeup(data,false);
-				mx_qm_reset(data,RESET_COLD); 
-				msleep(250);	
-				mx_qm_wakeup(data,true);
-
-				if (!mx_qm_identify(data))
-				{
-					err = -ENODEV;
-					goto err_free_mem;
-				}
-				
-				pr_info("%s:poll = %d \n",__func__,data->poll);
-				pr_info("mx_qm:This is an old PCB for USB,and the HOME key can't wake up system when system suspend!!!\n");			
+				err = -ENODEV;	
+				goto err_free_mem;					
 			}
 			else
 			{
@@ -1012,17 +930,12 @@ static int mx_qm_suspend(struct device *dev)
 	struct mx_qm_data *mx = i2c_get_clientdata(i2c);
 
 #ifdef QM_HAS_EARLYSUSPEND
-	if( !mx->poll )
-	{
-		disable_irq(mx->irq);
-		enable_irq_wake(mx->irq);
+	disable_irq(mx->irq);
+	enable_irq_wake(mx->irq);
 	}
 #else
-	if( !mx->poll )
-	{
-		disable_irq(mx->irq);
-		enable_irq_wake(mx->irq);
-	}
+	disable_irq(mx->irq);
+	enable_irq_wake(mx->irq);
 
 	mx->wakeup(mx,false);
 #endif
@@ -1036,19 +949,13 @@ static int mx_qm_resume(struct device *dev)
 	struct mx_qm_data *mx = i2c_get_clientdata(i2c);
 	
 #ifdef QM_HAS_EARLYSUSPEND
-	if( !mx->poll )
-	{
-		disable_irq_wake(mx->irq);
-		enable_irq(mx->irq);
-	}
+	disable_irq_wake(mx->irq);
+	enable_irq(mx->irq);
 #else
 	mx->wakeup(mx,true);
-	
-	if( !mx->poll )
-	{
-		disable_irq_wake(mx->irq);
-		enable_irq(mx->irq);
-	}
+
+	disable_irq_wake(mx->irq);
+	enable_irq(mx->irq);
 #endif	
 
 	return 0;

@@ -29,7 +29,6 @@
 #include <linux/firmware.h>
 #include	<linux/mx_qm.h>
 
-//#define	__POLL_SENSOR__DATA__
 //#define	__TEST_TOCHPAP_DELTA__
 
 #define RESET_COLD	1
@@ -58,14 +57,14 @@ static const unsigned short mx_qm_keycode[] = {
 
 struct mx_qm_touch {
 	 struct mx_qm_data *data;
-	struct input_dev *input;
+	struct input_dev *input_key;
+	struct input_dev *input_pad;
 	int irq;			/* irq issued by device		*/
 	unsigned short keycodes[ARRAY_SIZE(mx_qm_keycode)];
 	u8 last_key;
 	u8 keys_press;
 	u8 pos;
 	struct work_struct detect_work;
-	struct delayed_work pos_work;
 	unsigned char  precpos;
 	unsigned char rec_pos[MAX_REC_POS_SIZE];
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -75,17 +74,17 @@ struct mx_qm_touch {
 };
 
 
-void qm_touch_report_pos(struct input_dev *dev, int pos,int bsync)
+void qm_touch_report_pos(struct input_dev *dev, int pos,int bPress)
 {
-	pr_debug("%s:Pos = %d  \n",__func__,pos);
+	pr_info("%s:Pos = %d  \n",__func__,pos);
+	input_report_key(dev, BTN_TOUCH, bPress);
 	input_report_abs(dev, ABS_X, pos);
-	if( bsync )
-		input_sync(dev);
+	input_sync(dev);
 }
 
 void qm_touch_report_key(struct input_dev *dev, unsigned int code, int value)
 {
-	pr_debug("%s:KeyCode = %d  S = %d  \n",__func__,code,value);
+	pr_info("%s:KeyCode = %d  S = %d  \n",__func__,code,value);
 	input_report_key(dev, code, value);
 	input_sync(dev);
 }
@@ -127,100 +126,102 @@ unsigned short qm_touch_cal_key2(struct mx_qm_touch	*touch)
 {
 	//struct mx_qm_data * mx = touch->data;
 	//struct i2c_client *client = mx->client;
-	struct input_dev *input = touch->input;
-	
-  signed short i,j;
-  unsigned char len=0,dir0,dir1,mx_qt_key;
-  unsigned char posBuf[16];
-  
-  // Get the valid data
-  j = touch->precpos;  
-  for(i=0;i< 16;i++) 
-  {
-    j--;
-    ++len;
-    posBuf[i] = touch->rec_pos[j&0x1F];  
-    if(j == 0)
-      break;    
-  }
-  pr_info("%s:j = %.2d  i = %d len = %d", __func__,j,i,len );	
-  
-  mx_qt_key = (posBuf[0] >> 6) + QM_KEY_1;
-  //mx_qt_key = (posBuf[0] / 86 ) + QM_KEY_1;
+	struct input_dev *input = touch->input_key;
 
-  if( touch->precpos > 0x1F )
-    goto end90;
-  
+	signed short i,j;
+	unsigned char len=0,dir0,dir1,mx_qt_key;
+	unsigned char posBuf[16];
+
+	// Get the valid data
+	j = touch->precpos;  
+	for(i=0;i< 16;i++) 
+	{
+		j--;
+		++len;
+		posBuf[i] = touch->rec_pos[j&0x1F];  
+		if(j == 0)
+			break;    
+	}
+	pr_info("%s:j = %.2d  i = %d len = %d", __func__,j,i,len );	
+
+	mx_qt_key = (posBuf[0] >> 6) + QM_KEY_1;
+	//mx_qt_key = (posBuf[0] / 86 ) + QM_KEY_1;
+
+	if( touch->precpos > 0x1F )
+		goto end90;
+
 #if 0//#ifndef  __LED_TCA6507__  
-  // clear the remain buffer
-  for(i = len;i< 16;i++) 
-    posBuf[i] = 0;  
+	// clear the remain buffer
+	for(i = len;i< 16;i++) 
+	posBuf[i] = 0;  
 #endif  
-  
-  // Get the sum of steps
-  len--;
-  j = 0;
-  dir0 = 0; 
-  dir1 = 0;
-  for(i = 0;i< len ;i++) 
-  {
-    if( posBuf[i] > posBuf[i+1])
-      dir1 ++;
-    else if( posBuf[i] < posBuf[i+1])
-      dir0 ++;      
-  }
-  j = posBuf[0] - posBuf[i];
-  pr_info("%s:THR = %.2d  dir1 = %d ,dir0 = %d posBuf[len] = %d posBuf[0] = %d len = %d", __func__,j,dir1,dir0,posBuf[len] ,posBuf[0],len );	
-  
-    
-  //i = posBuf[len] - posBuf[0]; // Check the interval of start and end postion
-  //i = abs(i);
-  //if( (j > POS_KEY_THR || j < -POS_KEY_THR) && i > POS_KEYS_INTERVAL_THR)
-  if(j > POS_KEY_THR || j < -POS_KEY_THR)
-  {
-	pr_info("%s:key = %.2d  ", __func__,j);	
-    if( j > POS_KEY_THR )
-    {
-      if( dir0 <= 3 )
-      {
-        if(posBuf[len] < 80 && posBuf[0] > 160)
-        {
-          mx_qt_key = QM_KEY_L2R;
-        }
-        else if(posBuf[len] > 192)
-          mx_qt_key = QM_KEY_M2R;
-        else if(posBuf[0] < 64)
-          mx_qt_key = QM_KEY_L2M;
-      }
-    }
-    else
-    {
-      if( dir1 <= 3 )
-      {
-        if(posBuf[0] < 80 && posBuf[len] > 160) // ?
-        {
-          mx_qt_key = QM_KEY_R2L;
-        } 
-        else if(posBuf[len] > 192)
-          mx_qt_key = QM_KEY_R2M;
-        else if(posBuf[0] < 64)
-          mx_qt_key = QM_KEY_M2L;
-      }
-    }          
-  } 
-  
+
+	// Get the sum of steps
+	len--;
+	j = 0;
+	dir0 = 0; 
+	dir1 = 0;
+	for(i = 0;i< len ;i++) 
+	{
+		if( posBuf[i] > posBuf[i+1])
+			dir1 ++;
+		else if( posBuf[i] < posBuf[i+1])
+			dir0 ++;      
+	}
+	j = posBuf[0] - posBuf[i];
+	pr_info("%s:THR = %.2d  dir1 = %d ,dir0 = %d posBuf[len] = %d posBuf[0] = %d len = %d", __func__,j,dir1,dir0,posBuf[len] ,posBuf[0],len );	
+
+
+	//i = posBuf[len] - posBuf[0]; // Check the interval of start and end postion
+	//i = abs(i);
+	//if( (j > POS_KEY_THR || j < -POS_KEY_THR) && i > POS_KEYS_INTERVAL_THR)
+	if(j > POS_KEY_THR || j < -POS_KEY_THR)
+	{
+		pr_info("%s:key = %.2d  ", __func__,j);	
+		if( j > POS_KEY_THR )
+		{
+			if( dir0 <= 3 )
+			{
+				if(posBuf[len] < 80 && posBuf[0] > 160)
+				{
+					mx_qt_key = QM_KEY_L2R;
+				}
+				else if(posBuf[len] > 192)
+					mx_qt_key = QM_KEY_M2R;
+				else if(posBuf[0] < 64)
+					mx_qt_key = QM_KEY_L2M;
+			}
+		}
+		else
+		{
+			if( dir1 <= 3 )
+			{
+				if(posBuf[0] < 80 && posBuf[len] > 160) // ?
+				{
+					mx_qt_key = QM_KEY_R2L;
+				} 
+				else if(posBuf[len] > 192)
+					mx_qt_key = QM_KEY_R2M;
+				else if(posBuf[0] < 64)
+					mx_qt_key = QM_KEY_M2L;
+				}
+			}          
+		} 
+
 end90:  
 	pr_info("%s:key = %.2d  ", __func__,mx_qt_key);		
 
- 
-  printk("\nposBuf:len = %.d \n",len+1);
-  for(i=0;i<16;i++) 
-  	printk("%.3d ",posBuf[i] );
-  
-  printk("\nprecpos = %.d \n",touch->precpos);
-  for(i=0;i<MAX_REC_POS_SIZE;i++) 
-  	printk("%.3d ",touch->rec_pos[i] );
-  touch->precpos = 0;  
+
+	printk("\nposBuf:len = %.d \n",len+1);
+	for(i=0;i<16;i++) 
+	printk("%.3d ",posBuf[i] );
+
+	printk("\nprecpos = %.d \n",touch->precpos);
+	for(i=0;i<MAX_REC_POS_SIZE;i++) 
+	printk("%.3d ",touch->rec_pos[i] );
+	touch->precpos = 0;  
+
+	return mx_qt_key;
 }
 
 
@@ -228,7 +229,7 @@ unsigned short qm_touch_get_key(struct mx_qm_touch	*touch)
 {
 	struct mx_qm_data * mx = touch->data;
 	struct i2c_client *client = mx->client;
-	struct input_dev *input = touch->input;
+	struct input_dev *input = touch->input_key;
 	unsigned short * keycodes;
 	int key;
 	int ret = 0;
@@ -293,80 +294,6 @@ unsigned short qm_touch_get_key(struct mx_qm_touch	*touch)
 	return key;
 }
 
-static void get_slider_position_poll_func(struct work_struct *work)
-{
-	struct mx_qm_touch	*touch =
-		container_of(work, struct mx_qm_touch,pos_work.work);
-	struct mx_qm_data * mx = touch->data;
-	struct i2c_client *client = mx->client;
-	struct input_dev *input = touch->input;
-	
-	u8 new_key,pos;
-	u8 state;
-		
-	/* Read the detected status register, thus clearing interrupt */
-	state = mx->i2c_readbyte(client, QM_REG_STATE);
-		
-	if( mx->poll )
-	{
-		if(state == 0)
-		{
-			if(touch->keys_press == 1 )
-			{
-				//qm_touch_report_key(input, touch->last_key, 1);
-				//qm_touch_report_key(input, touch->last_key, 0);
-
-				//qm_touch_cal_key2(touch);
-				qm_touch_get_key(touch);
-			}
-
-			schedule_delayed_work(&touch->pos_work, msecs_to_jiffies(DETECT_POS_INTERVAL));
-			touch->keys_press = 0;
-			return;
-		}		
-		if( touch->keys_press !=  state)
-		{
-			touch->precpos = 0;
-			memset(touch->rec_pos,0,sizeof(touch->rec_pos));
-		}
-		touch->keys_press = state;
-	}
-
-	/* Read which key changed */
-	pos = mx->i2c_readbyte(client, QM_REG_POSITION);
-	touch->rec_pos[touch->precpos & 0x1F] = pos;
-	touch->precpos++;
-
-	dev_dbg(&client->dev, "pos = %d\n", pos);
-
-	if( touch->pos != pos )
-		qm_touch_report_pos(touch->input,pos,1);
-	touch->pos = pos;	
-	
-	//new_key = qm_touch_cal_key(input,pos);
-	
-	//if (data->last_key != new_key)
-	//	qm_touch_report_key(input, data->last_key, data->keys_press);
-
-	//touch->last_key = new_key;
-	
-#ifdef __TEST_TOCHPAP_DELTA__
-	{
-		u16 ref[4],sig[4],delta[4];	
-		mx->i2c_readbuf(client, QM_REG_REF,8,ref);
-		dev_info(&client->dev, "ref = 0x%.4X  0x%.4X  0x%.4X  0x%.4X  \n", ref[0],ref[1],ref[2],ref[3]);
-		mx->i2c_readbuf(client, QM_REG_SIG,8,sig);
-		dev_info(&client->dev, "sig = 0x%.4X  0x%.4X  0x%.4X  0x%.4X  \n", sig[0],sig[1],sig[2],sig[3]);
-		mx->i2c_readbuf(client, QM_REG_DELTA,8,delta);
-		dev_info(&client->dev, "delta = 0x%.4X  0x%.4X  0x%.4X  0x%.4X  \n", delta[0],delta[1],delta[2],delta[3]);
-		dev_info(&client->dev, "pos = %d\n", pos);
-	}			
-#endif	
-
-	schedule_delayed_work(&touch->pos_work, msecs_to_jiffies(DETECT_POS_INTERVAL));
-}
-
-
 static void get_slider_position_func(struct work_struct *work)
 {
 	struct mx_qm_touch	*touch =
@@ -374,7 +301,7 @@ static void get_slider_position_func(struct work_struct *work)
 	
 	struct mx_qm_data * mx = touch->data;
 	struct i2c_client *client = mx->client;
-	struct input_dev *input = touch->input;
+	struct input_dev *input = touch->input_key;
 	
 	u8 key,pos;
 	u8 state;		
@@ -399,7 +326,7 @@ static void get_slider_position_func(struct work_struct *work)
 	dev_dbg(&client->dev, "pos = %d\n", pos);
 	
 	if( touch->pos != pos )
-		qm_touch_report_pos(touch->input,pos,1);
+		qm_touch_report_pos(touch->input_pad,pos,state);
 	touch->pos = pos;	
 
 	if( state ) 	
@@ -421,7 +348,7 @@ static void get_slider_position_func(struct work_struct *work)
 	else
 	{		
 		pos = mx->i2c_readbyte(client, QM_REG_POSITION);
-		qm_touch_report_pos(touch->input,pos,1);
+		qm_touch_report_pos(touch->input_pad,pos,0);
 		key = qm_touch_get_key(touch);
 	}
 
@@ -469,7 +396,7 @@ static int __devinit mx_qm_touch_probe(struct platform_device *pdev)
 	struct mx_qm_platform_data *pdata = dev_get_platdata(data->dev);
 	struct i2c_client *client;
 	struct mx_qm_touch*touch;
-	struct input_dev *input;
+	struct input_dev *input_key,*input_pad;
 
 	int i;
 	int err;
@@ -482,72 +409,87 @@ static int __devinit mx_qm_touch_probe(struct platform_device *pdev)
 	 }
  
 	 touch = kzalloc(sizeof(struct mx_qm_touch), GFP_KERNEL);
-	 input = input_allocate_device();
-	 if (!touch || !input) {
+	 input_key = input_allocate_device();
+	 if (!touch || !input_key) {
+		 dev_err(&client->dev, "insufficient memory\n");
+		 err = -ENOMEM;
+		 goto err_free_mem_key;
+	 }
+	 
+	 input_pad = input_allocate_device();
+	 if (!touch || !input_pad) {
 		 dev_err(&client->dev, "insufficient memory\n");
 		 err = -ENOMEM;
 		 goto err_free_mem;
 	 }
-	 
-	platform_set_drvdata(pdev, touch);
 
 	 touch->data = data;
-	 touch->input = input;
-	 touch->irq = data->irq;//client->irq;
-	 input->name = "mx-touch-keypad";
-	 input->dev.parent = &client->dev;
-	 input->id.bustype = BUS_I2C;
+	 touch->input_key = input_key;
+	 touch->input_pad = input_pad;
+	 touch->irq = data->irq;//client->irq
+	 
+	platform_set_drvdata(pdev, touch);;
+
+	 
+	 input_key->name = "mx-touch-keypad";
+	 input_key->dev.parent = &client->dev;
+	 input_key->id.bustype = BUS_I2C;
  
 	 /* Add the keycode */
-	 input->keycode = touch->keycodes;
-	 input->keycodesize = sizeof(touch->keycodes[0]);
-	 input->keycodemax = ARRAY_SIZE(mx_qm_keycode);
+	 input_key->keycode = touch->keycodes;
+	 input_key->keycodesize = sizeof(touch->keycodes[0]);
+	 input_key->keycodemax = ARRAY_SIZE(mx_qm_keycode);
  
-	 __set_bit(EV_KEY, input->evbit);
+	 __set_bit(EV_KEY, input_key->evbit);
  
 	 for (i = 0; i < ARRAY_SIZE(mx_qm_keycode); i++) {
 		 touch->keycodes[i] = mx_qm_keycode[i];
-		 __set_bit(mx_qm_keycode[i], input->keybit);
+		 __set_bit(mx_qm_keycode[i], input_key->keybit);
 	 }
-	 
-	__set_bit(EV_ABS, input->evbit);
+	input_set_drvdata(input_key, data);
+
+	input_pad->name = "mx-touch-pad";
+	input_pad->id.bustype = BUS_I2C;
+	input_pad->dev.parent = &client->dev;
+
+	__set_bit(EV_ABS, input_pad->evbit);
+	__set_bit(EV_KEY, input_pad->evbit);
+	__set_bit(BTN_TOUCH, input_pad->keybit);
 
 	/* For single touch */
-	input_set_abs_params(input, ABS_X,0, 255, 0, 0);
+	input_set_abs_params(input_pad, ABS_X,0, 255, 0, 0);
+	input_set_abs_params(input_pad, ABS_Y,0, 255, 0, 0);
+
+	input_set_drvdata(input_pad, data);
+		
+	/* Register the input_pad device */
+	err = input_register_device(touch->input_pad);
+	if (err) {
+		dev_err(&client->dev, "Failed to register input pad device\n");
+		goto err_free_mem;
+	}
+	
+	/* Register the input_key device */
+	err = input_register_device(touch->input_key);
+	if (err) {
+		dev_err(&client->dev, "Failed to register input key device\n");
+		goto err_un_input_pad;
+	}	 
 
 	INIT_WORK(&touch->detect_work, get_slider_position_func);
-	INIT_DELAYED_WORK(&touch->pos_work, get_slider_position_poll_func);
- 
-#ifdef	__POLL_SENSOR__DATA__	 
-	 data->poll  = 1;
-#endif
 
-	if( data->poll )
-	{
-		schedule_delayed_work(&touch->pos_work, msecs_to_jiffies(5000));
-	}
-	else
-	{
-		s3c_gpio_setpull(data->gpio_irq, S3C_GPIO_PULL_UP);
-		s3c_gpio_cfgpin(data->gpio_irq, S3C_GPIO_INPUT);
-	
-		 err = request_threaded_irq(touch->irq, NULL, mx_qm_irq_handler,
-			// IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING | IRQF_ONESHOT, input->name, touch);
-			 IRQF_TRIGGER_LOW | IRQF_ONESHOT, input->name, touch);
-		 if (err) {
-			 dev_err(&client->dev, "fail to request irq\n");
-			 goto err_free_mem;
-		 }
-		enable_irq_wake(touch->irq);
-	}
- 
-	 /* Register the input device */
-	 err = input_register_device(touch->input);
+	s3c_gpio_setpull(data->gpio_irq, S3C_GPIO_PULL_UP);
+	s3c_gpio_cfgpin(data->gpio_irq, S3C_GPIO_INPUT);
+
+	 err = request_threaded_irq(touch->irq, NULL, mx_qm_irq_handler,
+		// IRQF_TRIGGER_FALLING|IRQF_TRIGGER_RISING | IRQF_ONESHOT, input_key->name, touch);
+		 IRQF_TRIGGER_LOW | IRQF_ONESHOT, input_key->name, touch);
 	 if (err) {
-		 dev_err(&client->dev, "Failed to register input device\n");
-		 goto err_free_irq;
+		 dev_err(&client->dev, "fail to request irq\n");
+		 goto err_un_input_key;
 	 }
- 	  
+	enable_irq_wake(touch->irq);
+	
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	 touch->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
 	 touch->early_suspend.suspend = mx_qm_touch_early_suspend;
@@ -559,10 +501,15 @@ static int __devinit mx_qm_touch_probe(struct platform_device *pdev)
 	 return 0;
  
  err_free_irq:
-	if(data->poll  == 0)
-		free_irq(client->irq, data);
+	free_irq(client->irq, data);	
+ err_un_input_key:
+	input_unregister_device(touch->input_key);
+err_un_input_pad:
+	input_unregister_device(touch->input_pad);	
  err_free_mem:
-	 input_free_device(input);
+	 input_free_device(input_pad);
+ err_free_mem_key:
+	 input_free_device(input_key);
 	 kfree(data);
 	 return err;
 
@@ -577,15 +524,12 @@ static int __devexit mx_qm_touch_remove(struct platform_device *pdev)
 	 unregister_early_suspend(&touch->early_suspend);
 #endif
 
-	if(mx->poll  == 0)
-	{
-		/* Release IRQ */
-		free_irq(touch->data->client->irq, touch);
-	}
-		
-	cancel_delayed_work_sync(&touch->pos_work);
+	/* Release IRQ */
+	free_irq(touch->data->client->irq, touch);
 
-	input_unregister_device(touch->input);
+	input_unregister_device(touch->input_key);
+	input_unregister_device(touch->input_pad);
+
 	kfree(touch);
 
 	return 0;
