@@ -76,15 +76,15 @@ struct mx_qm_touch {
 
 void qm_touch_report_pos(struct input_dev *dev, int pos,int bPress)
 {
-	pr_info("%s:Pos = %d  \n",__func__,pos);
-	input_report_key(dev, BTN_TOUCH, bPress);
+	pr_debug("%s:Pos = %d  \n",__func__,pos);
+	//input_report_key(dev, BTN_TOUCH, bPress);
 	input_report_abs(dev, ABS_X, pos);
 	input_sync(dev);
 }
 
 void qm_touch_report_key(struct input_dev *dev, unsigned int code, int value)
 {
-	pr_info("%s:KeyCode = %d  S = %d  \n",__func__,code,value);
+	pr_debug("%s:KeyCode = %d  S = %d  \n",__func__,code,value);
 	input_report_key(dev, code, value);
 	input_sync(dev);
 }
