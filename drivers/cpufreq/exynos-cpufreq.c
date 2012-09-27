@@ -496,7 +496,7 @@ static int exynos_qos_min_notifier_call(struct notifier_block *nb,
 			list_entry(nb, struct exynos_dvfs_info, qos_min_nb);
 	
 	cpu_info->qos_min_freq = value;
-	pr_info("%s: qos_min_freq: %d\n", __func__, value);
+	pr_info("%s: qos_min_freq: %ld\n", __func__, value);
 	
 	return NOTIFY_OK;
 }
@@ -508,7 +508,7 @@ static int exynos_qos_max_notifier_call(struct notifier_block *nb,
 			list_entry(nb, struct exynos_dvfs_info, qos_max_nb);
 	
 	cpu_info->qos_max_freq = value;
-	pr_info("%s: qos_max_freq: %d\n", __func__, value);
+	pr_info("%s: qos_max_freq: %ld\n", __func__, value);
 
 	return NOTIFY_OK;
 }

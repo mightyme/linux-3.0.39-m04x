@@ -868,7 +868,7 @@ int exynos4x12_init(struct device *dev, struct busfreq_data *data)
 {
 	unsigned int i;
 	unsigned int tmp;
-	unsigned long maxfreq = 400200;
+	unsigned long maxfreq = 0;
 	unsigned long minfreq = 0;
 	unsigned long freq;
 	struct clk *sclk_dmc;
@@ -933,10 +933,10 @@ int exynos4x12_init(struct device *dev, struct busfreq_data *data)
 
 	/* Disable MIF 267 INT 200 Level */
 	if (samsung_rev() >= EXYNOS4412_REV_2_0) {
-		opp_disable(dev, 440293);
-		maxfreq = 440220;
+		maxfreq = 440293;
 	} else {
-		opp_disable(dev, 267200);
+		//opp_disable(dev, 267200);
+		maxfreq = 400200;
 	}
 	
 	data->table = exynos4_busfreq_table;

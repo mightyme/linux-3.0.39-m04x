@@ -385,7 +385,7 @@ void exynos_request_apply(unsigned long freq, struct device *dev)
 		blocking_notifier_call_chain(&exynos_busfreq_notifier_list,
 								 freq, dev);
 	} else {
-		pr_err("%s: bus not initialized!\n");
+		pr_err("%s: bus not initialized!\n", __func__);
 	}
 }
 

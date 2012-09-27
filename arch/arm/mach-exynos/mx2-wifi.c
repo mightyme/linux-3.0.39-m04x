@@ -286,7 +286,7 @@ static int brcm_wlan_get_mac_addr(unsigned char *buf)
 
 	fp = filp_open(mac_file, O_RDONLY, 0);
 	if (IS_ERR(fp)) {
-		pr_info("%s: open mac_info error(%d), get random mac address\n", __func__, IS_ERR(fp));
+		pr_info("%s: open mac_info error(%ld), get random mac address\n", __func__, IS_ERR(fp));
 		get_random_bytes(buf, 6);
 	} else {
 		/* Reading the MAC Address from .mac.info file( the existed file or just created file)*/
