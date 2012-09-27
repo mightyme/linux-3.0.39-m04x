@@ -971,6 +971,9 @@ static __devinit int max77686_pmic_probe(struct platform_device *pdev)
 		}
 	}
 
+	/* enable Low jitter mode to enhance gps clock */
+	max77686_update_reg(i2c, MAX77686_REG_32KHZ, 0x08, 0x08);
+
 	return 0;
 err:
 	for (i = 0; i < 3; i++) {
