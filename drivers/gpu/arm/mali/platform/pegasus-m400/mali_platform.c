@@ -440,11 +440,12 @@ static mali_bool init_mali_pegasus_clock(void)
 
 	mali_pegasus_clk_put(MALI_FALSE);
 
+#if MALI_DVFS_ENABLED
 	/*
 	 * added by lvcha to fix m032 gpio dvfs
 	 */
 	mali_pegasus_update_voltage();
-
+#endif
 	return MALI_TRUE;
 
 
