@@ -116,6 +116,10 @@ static int __devinit gps_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	/* config gpio pins as uart port */
+	s3c_gpio_setpull(M040_GPS_RTS, GPIO_PULL_NONE);
+	s3c_gpio_setpull(M040_GPS_CTS, GPIO_PULL_NONE);
+	s3c_gpio_setpull(M040_GPS_TXD, GPIO_PULL_NONE);
+	s3c_gpio_setpull(M040_GPS_RXD, GPIO_PULL_UP);
 	s3c_gpio_cfgpin(M040_GPS_RTS, S3C_GPIO_SFN(2));
 	s3c_gpio_cfgpin(M040_GPS_CTS, S3C_GPIO_SFN(2));
 	s3c_gpio_cfgpin(M040_GPS_RXD, S3C_GPIO_SFN(2));
@@ -137,6 +141,7 @@ static int __devinit gps_probe(struct platform_device *pdev)
 		goto sysfs_exit;
 	}
 
+	s3c_gpio_setpull(data->gps_reset, GPIO_PULL_NONE);
 	gpio_direction_output(data->gps_reset, 1);
 
 	ret = gpio_request(data->gps_power, "GPS_PWR");
@@ -145,6 +150,7 @@ static int __devinit gps_probe(struct platform_device *pdev)
 		goto gpio_req;
 	}
 
+	s3c_gpio_setpull(data->gps_power, GPIO_PULL_NONE);
 	gpio_direction_output(data->gps_power, 0);
 
 	if (mx_is_factory_test_mode(MX_FACTORY_TEST_BT)) {
