@@ -108,6 +108,14 @@ static ssize_t f11_rezero_store(struct device *dev,
 					 struct device_attribute *attr,
 					 const char *buf, size_t count);
 
+static ssize_t f11_reg_store(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count);
+
+static ssize_t f11_reg_show(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count);
+
 #if RESUME_REZERO
 static ssize_t f11_rezeroOnResume_show(struct device *dev,
 					struct device_attribute *attr,
@@ -154,7 +162,9 @@ static struct device_attribute attrs[] = {
 	__ATTR(rezeroWait, RMI_RW_ATTR, f11_rezeroWait_show,
 		f11_rezeroWait_store),
 #endif
-	__ATTR(rezero, RMI_WO_ATTR, rmi_show_error, f11_rezero_store)
+	__ATTR(rezero, RMI_WO_ATTR, rmi_show_error, f11_rezero_store),	
+	__ATTR(regw, RMI_WO_ATTR, rmi_show_error, f11_reg_store),
+	__ATTR(regr, RMI_WO_ATTR, rmi_show_error, f11_reg_show)
 };
 
 
@@ -2212,6 +2222,62 @@ static ssize_t f11_rezero_store(struct device *dev,
 
 	return count;
 }
+
+static ssize_t f11_reg_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct rmi_function_container *fc = NULL;
+	u16 reg;
+	u8 data;
+	int retval = 0;
+	/* Command register always reads as 0, so we can just use a local. */
+	union f11_2d_commands commands = {};
+
+	fc = to_rmi_function_container(dev);
+
+	if (sscanf(buf, "%X %X ", &reg,&data) != 2)
+		return -EINVAL;
+	if (reg < 0 || reg > 0x0FFF)
+		return -EINVAL;
+	
+	printk("R:0x%.4X D:0x%.2X\n",reg,data);
+
+	retval = rmi_write(fc->rmi_dev,reg,data);
+	if( retval < 0)		
+		printk("%s:write error %d\n",__func__,retval);
+
+	return count;
+}
+
+static ssize_t f11_reg_show(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct rmi_function_container *fc = NULL;
+	u16 reg;
+	u8 data;
+	int retval = 0;
+	/* Command register always reads as 0, so we can just use a local. */
+	union f11_2d_commands commands = {};
+
+	fc = to_rmi_function_container(dev);
+
+	if (sscanf(buf, "%X", &reg) != 1)
+		return -EINVAL;
+	if (reg < 0 || reg > 0x0FFF)
+		return -EINVAL;
+
+	retval = rmi_read(fc->rmi_dev,reg,&data);//0x0A
+	if( retval < 0)		
+		printk("%s:read error %d\n",__func__,data);
+	else
+		printk("R:0x%.4X D:0x%.2X\n",reg,data);
+
+	return count;
+}
+
+
 
 #if RESUME_REZERO
 static ssize_t f11_rezeroOnResume_store(struct device *dev,
