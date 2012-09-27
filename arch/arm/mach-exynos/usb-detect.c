@@ -222,24 +222,6 @@ static int __devinit usb_detect_probe(struct platform_device *pdev)
 
 	usb_detect_wake_lock_initial(g_ud_info);
 
-	error = request_irq(gpio_to_irq(g_ud_info->usb_vbus_gpio),
-			usb_detect_irq_handler,
-			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			"gpio_usb_vbus_insert_int", g_ud_info);
-	if (error) {
-		dev_err(dev, "Active Failed to allocate usb_vbus interrupt\n");
-		goto fail0;
-	}
-
-	error = request_irq(gpio_to_irq(g_ud_info->usb_host_gpio),
-			usb_detect_irq_handler,
-			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			"gpio_usb_host_insert_int", g_ud_info);
-	if (error) {
-		dev_err(dev, "Active Failed to allocate usb_host interrupt\n");
-		goto fail1;
-	}
-
 	if(machine_is_m030()) {
 		INIT_DELAYED_WORK(&g_ud_info->usb_work, m030_usb_detect_work);
 	} else {
@@ -248,9 +230,31 @@ static int __devinit usb_detect_probe(struct platform_device *pdev)
 		g_ud_info->reverse = regulator_get(NULL, "reverse");
 		if (IS_ERR(g_ud_info->reverse)) {
 			dev_err(dev, "Failed to get reverse regulator\n");
-			goto fail2;
+			goto fail0;
 		}
+	}
 
+	platform_set_drvdata(pdev, g_ud_info);
+
+	error = request_irq(gpio_to_irq(g_ud_info->usb_vbus_gpio),
+			usb_detect_irq_handler,
+			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+			"gpio_usb_vbus_insert_int", g_ud_info);
+	if (error) {
+		dev_err(dev, "Active Failed to allocate usb_vbus interrupt\n");
+		goto fail1;
+	}
+
+	error = request_irq(gpio_to_irq(g_ud_info->usb_host_gpio),
+			usb_detect_irq_handler,
+			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+			"gpio_usb_host_insert_int", g_ud_info);
+	if (error) {
+		dev_err(dev, "Active Failed to allocate usb_host interrupt\n");
+		goto fail2;
+	}
+
+	if(!machine_is_m030()) {
 		error = request_irq(gpio_to_irq(g_ud_info->usb_dock_gpio),
 				usb_detect_irq_handler,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
@@ -261,18 +265,16 @@ static int __devinit usb_detect_probe(struct platform_device *pdev)
 		}
 	}
 
-	platform_set_drvdata(pdev, g_ud_info);
-
 	schedule_delayed_work(&g_ud_info->usb_work, msecs_to_jiffies(500));
 
 	return 0;
 
 fail3:
-	regulator_put(g_ud_info->reverse);
-fail2:
 	free_irq(gpio_to_irq(g_ud_info->usb_host_gpio), g_ud_info);
-fail1:
+fail2:
 	free_irq(gpio_to_irq(g_ud_info->usb_vbus_gpio), g_ud_info);
+fail1:
+	regulator_put(g_ud_info->reverse);
 fail0:
 	usb_detect_wake_lock_destroy(g_ud_info);
 	kfree(g_ud_info);
