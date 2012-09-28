@@ -2228,8 +2228,8 @@ static ssize_t f11_reg_store(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct rmi_function_container *fc = NULL;
-	u16 reg;
-	u8 data;
+	int reg;
+	int data;
 	int retval = 0;
 	/* Command register always reads as 0, so we can just use a local. */
 	union f11_2d_commands commands = {};
@@ -2255,7 +2255,7 @@ static ssize_t f11_reg_show(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct rmi_function_container *fc = NULL;
-	u16 reg;
+	int reg;
 	u8 data;
 	int retval = 0;
 	/* Command register always reads as 0, so we can just use a local. */

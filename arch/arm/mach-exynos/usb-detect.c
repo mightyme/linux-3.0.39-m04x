@@ -202,7 +202,7 @@ static int __devinit usb_detect_probe(struct platform_device *pdev)
 {
 	struct usb_detect_platform_data *pdata;
 	struct device *dev = &pdev->dev;
-	int error;
+	int error = -EINVAL;
 
 	pdata = pdev->dev.platform_data;
 	if(pdata == NULL) {

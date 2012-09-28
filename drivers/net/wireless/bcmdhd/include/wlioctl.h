@@ -154,7 +154,7 @@ typedef struct wl_scan_params {
 	int32 passive_time;     
 	int32 home_time;        
 	int32 channel_num;      
-	uint16 channel_list[1];     
+	uint16 channel_list[0];     
 } wl_scan_params_t;
 
 
