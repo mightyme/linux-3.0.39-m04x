@@ -280,6 +280,17 @@ static int __devinit rmi_i2c_probe(struct i2c_client *client,
 		pdata->sensor_name ? pdata->sensor_name : "-no name-",
 		client->addr, pdata->attn_gpio);
 
+	if (pdata->gpio_config) {
+		dev_info(&client->dev, "Configuring GPIOs.\n");
+		error = pdata->gpio_config(pdata->gpio_data, true);
+		if (error < 0) {
+			dev_err(&client->dev, "Failed to configure GPIOs, code: %d.\n",
+				error);
+			return error;
+		}
+		dev_info(&client->dev, "Done with GPIO configuration.\n");
+	}
+
 	error = i2c_check_functionality(client->adapter, I2C_FUNC_I2C);
 	if (!error) {
 		dev_err(&client->dev, "i2c_check_functionality error %d.\n",
@@ -338,7 +349,7 @@ static int __devinit rmi_i2c_probe(struct i2c_client *client,
 		dev_err(&client->dev,
 			"failed to register physical driver at 0x%.2X.\n",
 			client->addr);
-		goto err_data;
+		goto err_gpio;
 	}
 	i2c_set_clientdata(client, rmi_phys);
 
@@ -379,6 +390,9 @@ static int __devinit rmi_i2c_probe(struct i2c_client *client,
 
 err_unregister:
 	rmi_unregister_phys_device(rmi_phys);
+err_gpio:
+	if (pdata->gpio_config)
+		pdata->gpio_config(pdata->gpio_data, false);
 err_data:
 	kfree(data);
 err_phys:
@@ -389,12 +403,15 @@ err_phys:
 static int __devexit rmi_i2c_remove(struct i2c_client *client)
 {
 	struct rmi_phys_device *phys = i2c_get_clientdata(client);
-//	struct rmi_device_platform_data *pd = client->dev.platform_data;
+	struct rmi_device_platform_data *pd = client->dev.platform_data;
 
 	disable_device(phys);
 	rmi_unregister_phys_device(phys);
 	kfree(phys->data);
 	kfree(phys);
+
+	if (pd->gpio_config)
+		pd->gpio_config(&pd->gpio_data, false);
 
 	return 0;
 }

@@ -77,7 +77,7 @@ struct mx_qm_touch {
 void qm_touch_report_pos(struct input_dev *dev, int pos,int bPress)
 {
 	pr_debug("%s:Pos = %d  \n",__func__,pos);
-	//input_report_key(dev, BTN_TOUCH, bPress);
+//	input_report_key(dev, BTN_TOUCH, bPress);
 	input_report_abs(dev, ABS_X, pos);
 	input_sync(dev);
 }
@@ -126,7 +126,7 @@ unsigned short qm_touch_cal_key2(struct mx_qm_touch	*touch)
 {
 	//struct mx_qm_data * mx = touch->data;
 	//struct i2c_client *client = mx->client;
-	struct input_dev *input = touch->input_key;
+	//struct input_dev *input = touch->input_key;
 
 	signed short i,j;
 	unsigned char len=0,dir0,dir1,mx_qt_key;
@@ -142,7 +142,7 @@ unsigned short qm_touch_cal_key2(struct mx_qm_touch	*touch)
 		if(j == 0)
 			break;    
 	}
-	pr_info("%s:j = %.2d  i = %d len = %d", __func__,j,i,len );	
+	pr_info("\n\n\n%s:j = %.2d  i = %d len = %d", __func__,j,i,len );	
 
 	mx_qt_key = (posBuf[0] >> 6) + QM_KEY_1;
 	//mx_qt_key = (posBuf[0] / 86 ) + QM_KEY_1;
@@ -150,7 +150,7 @@ unsigned short qm_touch_cal_key2(struct mx_qm_touch	*touch)
 	if( touch->precpos > 0x1F )
 		goto end90;
 
-#if 0//#ifndef  __LED_TCA6507__  
+#if 1//#ifndef  __LED_TCA6507__  
 	// clear the remain buffer
 	for(i = len;i< 16;i++) 
 	posBuf[i] = 0;  
@@ -219,6 +219,7 @@ end90:
 	printk("\nprecpos = %.d \n",touch->precpos);
 	for(i=0;i<MAX_REC_POS_SIZE;i++) 
 	printk("%.3d ",touch->rec_pos[i] );
+	memset(touch->rec_pos,0x00,MAX_REC_POS_SIZE);
 	touch->precpos = 0;  
 
 	return mx_qt_key;
@@ -280,8 +281,11 @@ unsigned short qm_touch_get_key(struct mx_qm_touch	*touch)
 	touch->last_key =  key;
 	
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	if( ( touch->early_suspend_flag ) &&(key == KEY_MENU ||key == KEY_BACK ))
-		return key;
+	if( ( touch->early_suspend_flag ) )
+	{
+		if(key == KEY_MENU ||key == KEY_BACK )
+			return key;
+	}
 #endif	
 
 	if(ret == 0)
@@ -323,24 +327,23 @@ static void get_slider_position_func(struct work_struct *work)
 	if( touch->precpos >= sizeof(touch->rec_pos) )
 		touch->precpos = 0;
 	
-	dev_dbg(&client->dev, "pos = %d\n", pos);
-	
-	if( touch->pos != pos )
-		qm_touch_report_pos(touch->input_pad,pos,state);
-	touch->pos = pos;	
+	dev_dbg(&client->dev, "pos = %d\n", pos);	
 
 	if( state ) 	
-	{		
+	{	
+		if( touch->pos != pos )
+			qm_touch_report_pos(touch->input_pad,pos,state);
+		touch->pos = pos;		
 #ifdef __TEST_TOCHPAP_DELTA__
 		{
-			u16 ref[4],sig[4],delta[4]; 
-			mx->i2c_readbuf(client, QM_REG_REF,8,ref);
-			dev_info(&client->dev, "ref = 0x%.4X  0x%.4X  0x%.4X  0x%.4X  \n", ref[0],ref[1],ref[2],ref[3]);
-			mx->i2c_readbuf(client, QM_REG_SIG,8,sig);
-			dev_info(&client->dev, "sig = 0x%.4X  0x%.4X  0x%.4X  0x%.4X  \n", sig[0],sig[1],sig[2],sig[3]);
-			mx->i2c_readbuf(client, QM_REG_DELTA,8,delta);
-			dev_info(&client->dev, "delta = 0x%.4X	0x%.4X	0x%.4X	0x%.4X	\n", delta[0],delta[1],delta[2],delta[3]);
-			dev_info(&client->dev, "pos = %d\n", pos);
+			u16 info[10]; 
+			memset(info,0,sizeof(info));
+			mx->i2c_readbuf(client, QM_REG_DBGINFO,sizeof(info),info);
+			dev_info(&client->dev, "ref = 0x%.4X  0x%.4X  0x%.4X  0x%.4X  \n", info[0],info[1],info[2],info[3]);
+			dev_info(&client->dev, "sig = 0x%.4X  0x%.4X  0x%.4X  0x%.4X  \n", info[4],info[5],info[6],info[7]);
+			dev_info(&client->dev, "delta = %.d\n", info[8]);
+			dev_info(&client->dev, "pos = %.d\n", info[9] & 0xFF);
+			dev_info(&client->dev, "dect = %.d\n", (info[9] >>8)& 0xFF);
 		}			
 #endif	
 		qm_touch_get_key(touch);
@@ -350,6 +353,7 @@ static void get_slider_position_func(struct work_struct *work)
 		pos = mx->i2c_readbyte(client, QM_REG_POSITION);
 		qm_touch_report_pos(touch->input_pad,pos,0);
 		key = qm_touch_get_key(touch);
+		//qm_touch_cal_key2(touch);
 	}
 
 end:	

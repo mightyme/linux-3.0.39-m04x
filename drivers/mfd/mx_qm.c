@@ -333,7 +333,7 @@ static bool __devinit mx_qm_identify(struct mx_qm_data *mx)
 		
 	if( ver != img_ver)
 	{
-		dev_info(&client->dev, "Old firmware version %X.%X , img ver %X.%X,need be update\n", ((ver>>4)&0x0F),(ver&0x0F), ((img_ver>>4)&0x0F),(img_ver&0x0F));
+		dev_info(&client->dev, "Old firmware version %d.%d , img ver %d.%d,need be update\n", ((ver>>4)&0x0F),(ver&0x0F), ((img_ver>>4)&0x0F),(img_ver&0x0F));
 		mx_qm_update(mx);
 		mx_qm_wakeup(mx,true);
 		
@@ -625,7 +625,18 @@ static ssize_t qm_show_property(struct device *dev,
 
 	switch(off){
 	case QM_POS:
-		i += scnprintf(buf+i, PAGE_SIZE-i, "%d\n",mx_qm_readbyte(qm->client,QM_REG_POSITION));
+		{
+			u16 info[10]; 
+			memset(info,0,sizeof(info));
+			mx_qm_readdata(qm->client, QM_REG_DBGINFO,sizeof(info),info);
+			pr_info("ref = %.3d  %.3d  %.3d  %.3d  \n", info[0],info[1],info[2],info[3]);
+			pr_info("sig = %.3d  %.3d  %.3d  %.3d  \n", info[4],info[5],info[6],info[7]);
+			pr_info("delta = %.d\n", info[8]);
+			pr_info("pos = %.d\n", info[9] & 0xFF);
+			pr_info("dect = %.d\n", (info[9] >>8)& 0xFF);
+			
+			i += scnprintf(buf+i, PAGE_SIZE-i, "%d\n",mx_qm_readbyte(qm->client,QM_REG_POSITION));
+		}
 		break;
 	case QM_STATUS:
 		i += scnprintf(buf+i, PAGE_SIZE-i, "%d\n",mx_qm_readbyte(qm->client,QM_REG_STATUS));

@@ -45,12 +45,54 @@
 
 #define RMI4_ADDR	(0x20)
 
+struct syna_gpio_data {
+	u16 gpio_number;
+	char* gpio_name;
+};
+
+
+static int synaptics_touchpad_gpio_setup(void *gpio_data, bool configure)
+{
+	int retval=0;
+	struct syna_gpio_data *data = gpio_data;
+
+	if (configure) {
+		retval = gpio_request(data->gpio_number, "rmi4_attn");
+		if (retval) {
+			pr_err("%s: Failed to get attn gpio %d. Code: %d.",
+			       __func__, data->gpio_number, retval);
+			return retval;
+		}
+
+		retval = gpio_direction_input(data->gpio_number);
+		if (retval) {
+			pr_err("%s: Failed to setup attn gpio %d. Code: %d.",
+			       __func__, data->gpio_number, retval);
+			gpio_free(data->gpio_number);
+		}
+	} else {
+		pr_warn("%s: No way to deconfigure gpio %d.",
+		       __func__, data->gpio_number);
+	}
+
+	return retval;
+}
+
+
+static struct syna_gpio_data rmi4_gpiodata = {
+	.gpio_number = M040_TOUCH_IRQ,
+	.gpio_name = "sdmmc2_clk.gpio_191",
+};
+
+
 static struct rmi_device_platform_data rmi4_platformdata = {
 	.driver_name     = "rmi_generic",       
 	.sensor_name     = "m040 touch",
 	.attn_gpio       = M040_TOUCH_IRQ,      
 	.attn_polarity   = RMI_ATTN_ACTIVE_LOW, 
-	.level_triggered = true,                
+	.level_triggered = true,         
+	.gpio_data = &rmi4_gpiodata,
+	.gpio_config = synaptics_touchpad_gpio_setup,
 };
 #endif
 

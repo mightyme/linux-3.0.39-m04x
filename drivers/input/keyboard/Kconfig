@@ -564,7 +564,7 @@ config KEYBOARD_W90P910
 	  module will be called w90p910_keypad.
 	  
 config KEYBOARD_MXQM
-	bool "MX QMatix Sensor touch key control Drivers"
+	bool "MX QMatrix Sensor touch key control Drivers"
 	depends on MFD_MXQM
 	default y
        help

@@ -505,7 +505,7 @@ config MAX8997_FLASH_LED
 
 
 config LEDS_MXQM
-	bool "MX QMatix Sensor leds control Drivers"
+	bool "MX QMatrix Sensor leds control Drivers"
 	depends on MFD_MXQM
 	default y
 	---help---

@@ -65,6 +65,8 @@
 #define DEFAULT_MAX_ABS_MT_TRACKING_ID 10
 #define MAX_NAME_LENGTH 256
 
+static int _turn_on_calibration(struct rmi_device *rmi_dev,int bOnOff);
+
 static ssize_t f11_flip_show(struct device *dev,
 				   struct device_attribute *attr, char *buf);
 
@@ -1544,17 +1546,23 @@ static int rmi_f11_initialize(struct rmi_function_container *fc)
 		if (rc < 0)
 			return rc;
 	}
+
+	_turn_on_calibration(rmi_dev,false);
+	
 	mutex_init(&f11->dev_controls_mutex);
 	return 0;
 }
 
 #define	REG_F54_G0	0x010D
 #define	REG_F54_G1	0x011D
+#define	REG_F54_G2	0x0172
 static int _turn_on_calibration(struct rmi_device *rmi_dev,int bOnOff)
 {
+	static u8 fast_relax_rate =  0xFF;
 	u8 val = 0x00;
 	int ret;
-	
+
+	// Enable/Disable Energy Ratio Relaxation
 	ret = rmi_read(rmi_dev,REG_F54_G0,&val);//0x20
 	if( ret < 0)		
 		printk("%s:read error %d\n",__func__,ret);
@@ -1567,18 +1575,36 @@ static int _turn_on_calibration(struct rmi_device *rmi_dev,int bOnOff)
 	if( ret < 0)		
 		printk("%s:write error %d\n",__func__,ret);
 
-	ret = rmi_read(rmi_dev,REG_F54_G1,&val);//0x0A
-	if( ret < 0)		
-		printk("%s:read error %d\n",__func__,ret);
+
+	// Fast Relaxation Rate
+	if( fast_relax_rate == 0xFF )
+	{
+		ret = rmi_read(rmi_dev,REG_F54_G1,&val);//0x0A
+		if( ret < 0)		
+			printk("%s:read error %d\n",__func__,ret);
+		else
+			fast_relax_rate = val;
+	}
 
 	if( bOnOff )		
-		val = 0x0A;
+		val = (fast_relax_rate == 0xFF) ? 0x0A :fast_relax_rate;
 	else
 		val = 0x00;		
 	ret = rmi_write(rmi_dev,REG_F54_G1,val);	
 	if( ret < 0)		
 		printk("%s:write error %d\n",__func__,ret);
 
+
+	// Force Update
+	ret = rmi_read(rmi_dev,REG_F54_G2,&val);
+	if( ret < 0)		
+		printk("%s:read error %d\n",__func__,ret);
+
+	val |= (1<<2);
+	ret = rmi_write(rmi_dev,REG_F54_G2,val);	
+	if( ret < 0)		
+		printk("%s:write error %d\n",__func__,ret);
+	
 	return ret;
 }
 
