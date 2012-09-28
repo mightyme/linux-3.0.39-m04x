@@ -62,16 +62,13 @@ static ssize_t disksize_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	down_write(&zram->init_lock);
 	if (zram->init_done) {
-		up_write(&zram->init_lock);
 		pr_info("Cannot change disksize for initialized device\n");
 		return -EBUSY;
 	}
 
 	zram->disksize = PAGE_ALIGN(disksize);
 	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
-	up_write(&zram->init_lock);
 
 	return len;
 }
@@ -110,10 +107,8 @@ static ssize_t reset_store(struct device *dev,
 	if (bdev)
 		fsync_bdev(bdev);
 
-	down_write(&zram->init_lock);
 	if (zram->init_done)
 		__zram_reset_device(zram);
-	up_write(&zram->init_lock);
 
 	return len;
 }

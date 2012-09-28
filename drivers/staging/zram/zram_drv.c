@@ -563,7 +563,6 @@ static int zram_make_request(struct request_queue *queue, struct bio *bio)
 	if (unlikely(!zram->init_done) && zram_init_device(zram))
 		goto error;
 
-	down_read(&zram->init_lock);
 	if (unlikely(!zram->init_done))
 		goto error_unlock;
 
@@ -573,12 +572,10 @@ static int zram_make_request(struct request_queue *queue, struct bio *bio)
 	}
 
 	__zram_make_request(zram, bio, bio_data_dir(bio));
-	up_read(&zram->init_lock);
 
 	return 0;
 
 error_unlock:
-	up_read(&zram->init_lock);
 error:
 	bio_io_error(bio);
 	return 0;
@@ -628,9 +625,7 @@ void __zram_reset_device(struct zram *zram)
 
 void zram_reset_device(struct zram *zram)
 {
-	down_write(&zram->init_lock);
 	__zram_reset_device(zram);
-	up_write(&zram->init_lock);
 }
 
 int zram_init_device(struct zram *zram)
@@ -638,10 +633,7 @@ int zram_init_device(struct zram *zram)
 	int ret;
 	size_t num_pages;
 
-	down_write(&zram->init_lock);
-
 	if (zram->init_done) {
-		up_write(&zram->init_lock);
 		return 0;
 	}
 
@@ -682,7 +674,6 @@ int zram_init_device(struct zram *zram)
 	}
 
 	zram->init_done = 1;
-	up_write(&zram->init_lock);
 
 	pr_debug("Initialization done!\n");
 	return 0;
@@ -692,7 +683,6 @@ fail_no_table:
 	zram->disksize = 0;
 fail:
 	__zram_reset_device(zram);
-	up_write(&zram->init_lock);
 	pr_err("Initialization failed: err=%d\n", ret);
 	return ret;
 }
@@ -717,7 +707,6 @@ static int create_device(struct zram *zram, int device_id)
 	int ret = 0;
 
 	init_rwsem(&zram->lock);
-	init_rwsem(&zram->init_lock);
 	spin_lock_init(&zram->stat64_lock);
 
 	zram->queue = blk_alloc_queue(GFP_KERNEL);
