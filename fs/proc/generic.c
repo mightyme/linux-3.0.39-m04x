@@ -191,13 +191,13 @@ proc_file_read(struct file *file, char __user *buf, size_t nbytes,
 	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
 	ssize_t rv = -EIO;
 
-	spin_lock(&pde->pde_unload_lock);
+	spin_lock_bh(&pde->pde_unload_lock);
 	if (!pde->proc_fops) {
-		spin_unlock(&pde->pde_unload_lock);
+		spin_unlock_bh(&pde->pde_unload_lock);
 		return rv;
 	}
 	pde->pde_users++;
-	spin_unlock(&pde->pde_unload_lock);
+	spin_unlock_bh(&pde->pde_unload_lock);
 
 	rv = __proc_file_read(file, buf, nbytes, ppos);
 
@@ -213,13 +213,13 @@ proc_file_write(struct file *file, const char __user *buffer,
 	ssize_t rv = -EIO;
 
 	if (pde->write_proc) {
-		spin_lock(&pde->pde_unload_lock);
+		spin_lock_bh(&pde->pde_unload_lock);
 		if (!pde->proc_fops) {
-			spin_unlock(&pde->pde_unload_lock);
+			spin_unlock_bh(&pde->pde_unload_lock);
 			return rv;
 		}
 		pde->pde_users++;
-		spin_unlock(&pde->pde_unload_lock);
+		spin_unlock_bh(&pde->pde_unload_lock);
 
 		/* FIXME: does this routine need ppos?  probably... */
 		rv = pde->write_proc(file, buffer, count, pde->data);
@@ -335,9 +335,9 @@ static int xlate_proc_name(const char *name, struct proc_dir_entry **ret,
 {
 	int rv;
 
-	spin_lock(&proc_subdir_lock);
+	spin_lock_bh(&proc_subdir_lock);
 	rv = __xlate_proc_name(name, ret, residual);
-	spin_unlock(&proc_subdir_lock);
+	spin_unlock_bh(&proc_subdir_lock);
 	return rv;
 }
 
@@ -359,18 +359,18 @@ retry:
 	if (ida_pre_get(&proc_inum_ida, GFP_KERNEL) == 0)
 		return 0;
 
-	spin_lock(&proc_inum_lock);
+	spin_lock_bh(&proc_inum_lock);
 	error = ida_get_new(&proc_inum_ida, &i);
-	spin_unlock(&proc_inum_lock);
+	spin_unlock_bh(&proc_inum_lock);
 	if (error == -EAGAIN)
 		goto retry;
 	else if (error)
 		return 0;
 
 	if (i > UINT_MAX - PROC_DYNAMIC_FIRST) {
-		spin_lock(&proc_inum_lock);
+		spin_lock_bh(&proc_inum_lock);
 		ida_remove(&proc_inum_ida, i);
-		spin_unlock(&proc_inum_lock);
+		spin_unlock_bh(&proc_inum_lock);
 		return 0;
 	}
 	return PROC_DYNAMIC_FIRST + i;
@@ -378,9 +378,9 @@ retry:
 
 static void release_inode_number(unsigned int inum)
 {
-	spin_lock(&proc_inum_lock);
+	spin_lock_bh(&proc_inum_lock);
 	ida_remove(&proc_inum_ida, inum - PROC_DYNAMIC_FIRST);
-	spin_unlock(&proc_inum_lock);
+	spin_unlock_bh(&proc_inum_lock);
 }
 
 static void *proc_follow_link(struct dentry *dentry, struct nameidata *nd)
@@ -420,19 +420,19 @@ struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
 	struct inode *inode = NULL;
 	int error = -ENOENT;
 
-	spin_lock(&proc_subdir_lock);
+	spin_lock_bh(&proc_subdir_lock);
 	for (de = de->subdir; de ; de = de->next) {
 		if (de->namelen != dentry->d_name.len)
 			continue;
 		if (!memcmp(dentry->d_name.name, de->name, de->namelen)) {
 			pde_get(de);
-			spin_unlock(&proc_subdir_lock);
+			spin_unlock_bh(&proc_subdir_lock);
 			error = -EINVAL;
 			inode = proc_get_inode(dir->i_sb, de);
 			goto out_unlock;
 		}
 	}
-	spin_unlock(&proc_subdir_lock);
+	spin_unlock_bh(&proc_subdir_lock);
 out_unlock:
 
 	if (inode) {
@@ -486,13 +486,13 @@ int proc_readdir_de(struct proc_dir_entry *de, struct file *filp, void *dirent,
 			filp->f_pos++;
 			/* fall through */
 		default:
-			spin_lock(&proc_subdir_lock);
+			spin_lock_bh(&proc_subdir_lock);
 			de = de->subdir;
 			i -= 2;
 			for (;;) {
 				if (!de) {
 					ret = 1;
-					spin_unlock(&proc_subdir_lock);
+					spin_unlock_bh(&proc_subdir_lock);
 					goto out;
 				}
 				if (!i)
@@ -506,19 +506,19 @@ int proc_readdir_de(struct proc_dir_entry *de, struct file *filp, void *dirent,
 
 				/* filldir passes info to user space */
 				pde_get(de);
-				spin_unlock(&proc_subdir_lock);
+				spin_unlock_bh(&proc_subdir_lock);
 				if (filldir(dirent, de->name, de->namelen, filp->f_pos,
 					    de->low_ino, de->mode >> 12) < 0) {
 					pde_put(de);
 					goto out;
 				}
-				spin_lock(&proc_subdir_lock);
+				spin_lock_bh(&proc_subdir_lock);
 				filp->f_pos++;
 				next = de->next;
 				pde_put(de);
 				de = next;
 			} while (de);
-			spin_unlock(&proc_subdir_lock);
+			spin_unlock_bh(&proc_subdir_lock);
 	}
 	ret = 1;
 out:
@@ -578,7 +578,7 @@ static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp
 			dp->proc_iops = &proc_file_inode_operations;
 	}
 
-	spin_lock(&proc_subdir_lock);
+	spin_lock_bh(&proc_subdir_lock);
 
 	for (tmp = dir->subdir; tmp; tmp = tmp->next)
 		if (strcmp(tmp->name, dp->name) == 0) {
@@ -590,7 +590,7 @@ static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp
 	dp->next = dir->subdir;
 	dp->parent = dir;
 	dir->subdir = dp;
-	spin_unlock(&proc_subdir_lock);
+	spin_unlock_bh(&proc_subdir_lock);
 
 	return 0;
 }
@@ -789,9 +789,9 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 	const char *fn = name;
 	unsigned int len;
 
-	spin_lock(&proc_subdir_lock);
+	spin_lock_bh(&proc_subdir_lock);
 	if (__xlate_proc_name(name, &parent, &fn) != 0) {
-		spin_unlock(&proc_subdir_lock);
+		spin_unlock_bh(&proc_subdir_lock);
 		return;
 	}
 	len = strlen(fn);
@@ -804,13 +804,13 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 			break;
 		}
 	}
-	spin_unlock(&proc_subdir_lock);
+	spin_unlock_bh(&proc_subdir_lock);
 	if (!de) {
 		WARN(1, "name '%s'\n", name);
 		return;
 	}
 
-	spin_lock(&de->pde_unload_lock);
+	spin_lock_bh(&de->pde_unload_lock);
 	/*
 	 * Stop accepting new callers into module. If you're
 	 * dynamically allocating ->proc_fops, save a pointer somewhere.
@@ -823,11 +823,11 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 		if (!de->pde_unload_completion)
 			de->pde_unload_completion = &c;
 
-		spin_unlock(&de->pde_unload_lock);
+		spin_unlock_bh(&de->pde_unload_lock);
 
 		wait_for_completion(de->pde_unload_completion);
 
-		spin_lock(&de->pde_unload_lock);
+		spin_lock_bh(&de->pde_unload_lock);
 	}
 
 	while (!list_empty(&de->pde_openers)) {
@@ -835,12 +835,12 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 
 		pdeo = list_first_entry(&de->pde_openers, struct pde_opener, lh);
 		list_del(&pdeo->lh);
-		spin_unlock(&de->pde_unload_lock);
+		spin_unlock_bh(&de->pde_unload_lock);
 		pdeo->release(pdeo->inode, pdeo->file);
 		kfree(pdeo);
-		spin_lock(&de->pde_unload_lock);
+		spin_lock_bh(&de->pde_unload_lock);
 	}
-	spin_unlock(&de->pde_unload_lock);
+	spin_unlock_bh(&de->pde_unload_lock);
 
 	if (S_ISDIR(de->mode))
 		parent->nlink--;
