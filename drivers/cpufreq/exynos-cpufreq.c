@@ -539,7 +539,7 @@ int exynos_find_cpufreq_by_volt(const unsigned int voltage, unsigned int *freq)
 		*freq = tmp_freq;
 		return 0;
 	} else {
-		pr_err("%s: Can not find suitable cpufreq\n");
+		pr_err("%s: Can not find suitable cpufreq\n", __func__);
 		return -EINVAL;
 	}
 }

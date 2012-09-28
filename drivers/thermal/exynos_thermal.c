@@ -300,7 +300,7 @@ static int exynos4_notify(struct thermal_zone_device *thermal,int val,
 		arm_volt = th_zone->sensor_conf->tc_data.arm_volt;
 		ret = exynos_find_cpufreq_by_volt(arm_volt, &cpufreq);
 		if (ret < 0) {
-			pr_err("%s: Find cpufreq erro\n");
+			pr_err("%s: Find cpufreq erro\n", __func__);
 			goto err_lock;
 		}
 		pm_qos_update_request(&thermal->qos_cpu_tmu_tc, cpufreq);
@@ -309,7 +309,7 @@ static int exynos4_notify(struct thermal_zone_device *thermal,int val,
 		bus_volt = th_zone->sensor_conf->tc_data.bus_volt;
 		ret = exynos4x12_find_busfreq_by_volt(bus_volt, &busfreq);
 		if (ret < 0) {
-			pr_err("%s: Find busfreq erro\n");
+			pr_err("%s: Find busfreq erro\n", __func__);
 			goto err_lock;
 		}
 

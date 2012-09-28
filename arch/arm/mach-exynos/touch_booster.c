@@ -38,6 +38,8 @@ static inline int tb_input_boost(struct tb_private_data *data)
 		} while(0);
 #endif
 	}
+	
+	return 0;
 }
 
 void start_touch_boost(void)
@@ -71,9 +73,9 @@ static ssize_t set_lock_cpufreq(struct sysdev_class *class,
 	struct tb_private_data *data = list_entry(class, struct tb_private_data, tb_class);
 	unsigned int cpurate = 0;
 
-	sscanf(buf, "%lu", &cpurate);
+	sscanf(buf, "%u", &cpurate);
 	data->lock_cpufreq = cpurate;
-out:
+
 	return count; 
 }
 
@@ -93,10 +95,9 @@ static ssize_t set_lock_busfreq(struct sysdev_class *class,
 	struct tb_private_data *data = list_entry(class, struct tb_private_data, tb_class);
 	unsigned int busrate = 0;
 
-	sscanf(buf, "%lu", &busrate);
+	sscanf(buf, "%u", &busrate);
 	data->lock_busfreq = busrate;
 
-out:
 	return count; 
 }
 static SYSDEV_CLASS_ATTR(lock_busfreq, 0666, get_lock_busfreq, set_lock_busfreq);
@@ -114,15 +115,14 @@ static ssize_t set_lock_time(struct sysdev_class *class,
 {
 	struct tb_private_data *data = list_entry(class, struct tb_private_data, tb_class);
 	unsigned int time = 0;
-	int err = -EINVAL;
 
-	sscanf(buf, "%lu", &time);
+	sscanf(buf, "%u", &time);
 
 	if(time<100)
 		time=100;
 	
 	data->down_time = time;
-out:
+
 	return count; 
 }
 

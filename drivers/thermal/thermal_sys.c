@@ -1105,22 +1105,24 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 					tz->ops->notify(tz, count, trip_type);
 			}
 			break;
-#if 0 //disable for test
 		case THERMAL_TRIP_START_MEM_TH:
+			/*
 			if (temp >= trip_temp && tz->mem_th == false) {
 				tz->mem_th = true;
 				if (tz->ops->notify)
 					tz->ops->notify(tz, count, trip_type);
 			}
+			*/
 			break;
 		case THERMAL_TRIP_STOP_MEM_TH:
+			/*
 			if (temp <= trip_temp && tz->mem_th == true) {
 				tz->mem_th = false;
 				if (tz->ops->notify)
 					tz->ops->notify(tz, count, trip_type);
 			}
+			*/
 			break;
-#endif
 #endif
 		case THERMAL_TRIP_ACTIVE:
 			list_for_each_entry(instance, &tz->cooling_devices,
