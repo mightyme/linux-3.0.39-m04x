@@ -241,7 +241,7 @@ static void lm3530_brightness_set(struct led_classdev *led_cdev,
 	struct lm3530_data *drvdata =
 	    container_of(led_cdev, struct lm3530_data, led_dev);
 
-	//pr_info("%s brt %d mode %d\n", __func__, brt_val, drvdata->mode);
+	pr_info("%s brt %d mode %d\n", __func__, brt_val, drvdata->mode);
 	mutex_lock(&drvdata->mutex_lock);
 	if (atomic_read(&drvdata->suspended)) {
 		drvdata->brightness = brt_val;
@@ -368,7 +368,9 @@ static void lm3530_late_resume(struct early_suspend *h)
 	struct lm3530_data *drvdata = container_of(h, struct lm3530_data, early_suspend);
 
 	atomic_set(&drvdata->suspended, 0);
-	lm3530_brightness_set(&drvdata->led_dev, 2);
+	if (drvdata->brightness == 0)
+		drvdata->brightness = 2;
+	lm3530_brightness_set(&drvdata->led_dev, drvdata->brightness);
 }
 #endif
 static int __devinit lm3530_probe(struct i2c_client *client,
