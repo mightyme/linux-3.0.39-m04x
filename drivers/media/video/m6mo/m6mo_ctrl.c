@@ -1001,7 +1001,8 @@ static int m6mo_transfer_capture_data(struct v4l2_subdev *sd, struct v4l2_contro
 	case 0:
 		break;
 	case 1:		
-		if (state->userset.wdr == M6MO_WDR_OFF)
+		if (state->cam_id == BACK_CAMERA &&
+			state->userset.wdr == M6MO_WDR_OFF)
 			return m6mo_w8(sd, CAP_TRANSFER_START_REG, CAP_TRANSFER_MAIN);
 		
 		m6mo_prepare_wait(sd);
@@ -1059,9 +1060,10 @@ static int m6mo_start_capture(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	struct m6mo_state *state = to_state(sd);
 
 	/* if wdr is off , that means we are in quick capture mode */
-	if (state->userset.wdr == M6MO_WDR_OFF)
-		return m6mo_start_quick_capture(sd);
-	else 
+	if (state->cam_id == BACK_CAMERA &&
+		state->userset.wdr == M6MO_WDR_OFF)
+		return m6mo_start_quick_capture(sd);	
+	else
 		return m6mo_set_mode(sd, CAPTURE_MODE);
 }
 
