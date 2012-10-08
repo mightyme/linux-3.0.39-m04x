@@ -691,7 +691,7 @@ static int m6mo_set_capture_mode(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int m6mo_set_mode(struct v4l2_subdev *sd, enum isp_mode mode)
+int m6mo_set_mode(struct v4l2_subdev *sd, enum isp_mode mode)
 {
 	int ret;
 
@@ -787,7 +787,7 @@ static int m6mo_set_preview_size(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int m6mo_set_capture_format(struct v4l2_subdev *sd,
+int m6mo_set_capture_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *fmt)
 {
 	struct m6mo_state *state = to_state(sd);
@@ -814,7 +814,7 @@ static int m6mo_set_capture_format(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int m6mo_set_capture_size(struct v4l2_subdev *sd,
+int m6mo_set_capture_size(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *fmt)
 {
 	struct m6mo_state *state = to_state(sd);
@@ -878,14 +878,7 @@ static int m6mo_s_fmt(struct v4l2_subdev *sd,
 		ret = m6mo_set_preview_size(sd, fmt);
 		if (ret) return ret;
 	} else {  /* CAPTURE_MODE_TYPE */
-		ret = m6mo_set_capture_format(sd, fmt);
-		if (ret) return ret;
-		ret = m6mo_set_capture_size(sd, fmt);
-		if (ret) return ret;
-		if (mode == V4L2_CAMERA_SINGLE_CAPTURE) {
-			ret = m6mo_set_mode(sd, CAPTURE_MODE);  /* start to capture */
-			if (ret) return ret;
-		}
+		/* do nothing */
 	}
 
 	state->camera_mode = mode;
@@ -925,6 +918,9 @@ static int m6mo_stream_on(struct v4l2_subdev *sd)
 	int ret = 0;
 
 	v4l_info(client, "%s: stream on\n", __func__);
+
+	/* reset this flag in case of wrong wake up */
+	fimc_reset_wakeup_flag();
 	
 	switch (state->camera_mode) {
 	case  V4L2_CAMERA_PREVIEW:

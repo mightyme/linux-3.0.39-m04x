@@ -987,8 +987,9 @@ static int m6mo_get_auto_focus_result(struct v4l2_subdev *sd, struct v4l2_contro
 	return m6mo_r8(sd, AF_RESULT_REG, &ctrl->value);
 }
 
-static int m6mo_start_capture(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+static int m6mo_transfer_capture_data(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
+	struct m6mo_state *state = to_state(sd);
 	int ret = 0;
 	struct m6mo_reg regs[] = {
 		{I2C_8BIT, CAP_SEL_FRAME_MAIN_REG, 0x01},
@@ -999,7 +1000,10 @@ static int m6mo_start_capture(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	switch (ctrl->value) {
 	case 0:
 		break;
-	case 1:
+	case 1:		
+		if (state->userset.wdr == M6MO_WDR_OFF)
+			return m6mo_w8(sd, CAP_TRANSFER_START_REG, CAP_TRANSFER_MAIN);
+		
 		m6mo_prepare_wait(sd);
 		
 		ret = m6mo_write_regs(sd, regs, ARRAY_SIZE(regs));
@@ -1013,6 +1017,60 @@ static int m6mo_start_capture(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	}
 	
 	return ret;
+}
+
+static int m6mo_start_quick_capture(struct v4l2_subdev *sd)
+{
+	int ret, i, retry = 5;
+	struct m6mo_state *state = to_state(sd);
+
+	m6mo_prepare_wait(sd);
+
+	ret = m6mo_w8(sd,  SYS_MODE_REG, SYS_CAPTURE_MODE);	
+	CHECK_ERR(ret);
+	
+	for (i = 0; i < retry; i++) {
+		ret = wait_for_completion_interruptible_timeout(&state->completion, 
+			msecs_to_jiffies(1000));
+		if (ret <= 0) {
+			pr_err("%s: timeout in %u ms\n", __func__, 1000);
+			return -ETIME;
+		}
+
+		mutex_lock(&state->mutex);
+
+		if (state->irq_status & INT_MASK_CAPTURE) {
+			mutex_unlock(&state->mutex);
+			break;
+		}
+		mutex_unlock(&state->mutex);	
+	}
+
+	if (i == retry) return -EINVAL;
+
+	state->mode = CAPTURE_MODE;
+
+	return 0;
+}
+
+static int m6mo_start_capture(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	int ret;
+	struct m6mo_state *state = to_state(sd);
+
+	/* if wdr is off , that means we are in quick capture mode */
+	if (state->userset.wdr == M6MO_WDR_OFF)
+		return m6mo_start_quick_capture(sd);
+	else 
+		return m6mo_set_mode(sd, CAPTURE_MODE);
+}
+
+static int m6mo_wakeup_preview(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	/* to let poll exit in hal layer preview thread */
+	fimc_wakeup_preview(); 
+
+	return 0;
 }
 
 static int m6mo_get_jpeg_main_size(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
@@ -1060,6 +1118,36 @@ static int m6mo_set_mirror(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 static int m6mo_set_colorbar(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	return m6mo_w8(sd, COLOR_BAR_REG, ENABLE_COLOR_BAR);
+}
+
+static int m6mo_s_cap_format(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	struct m6mo_state *state = to_state(sd);
+	struct v4l2_mbus_framefmt fmt;
+
+	switch (ctrl->value) {
+	case V4L2_PIX_FMT_YUYV:
+		fmt.code = V4L2_MBUS_FMT_VYUY8_2X8;
+		break;
+	case V4L2_PIX_FMT_JPEG:
+		fmt.code = V4L2_MBUS_FMT_JPEG_1X8;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return m6mo_set_capture_format(sd, &fmt);
+}
+
+static int m6mo_s_capture_size(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	struct m6mo_state *state = to_state(sd);
+	struct v4l2_mbus_framefmt fmt;
+	
+	fmt.width = (ctrl->value >> 16) & 0xffff;
+	fmt.height = ctrl->value & 0xffff;
+
+	return m6mo_set_capture_size(sd, &fmt);
 }
 
 /*************************************************/
@@ -1287,7 +1375,7 @@ int m6mo_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	
 	switch (ctrl->id) {
 	case V4L2_CID_CAMERA_CAPTURE:
-		ret = m6mo_start_capture(sd, ctrl);
+		ret = m6mo_transfer_capture_data(sd, ctrl);
 		break;
 	case V4L2_CID_CAMERA_WHITE_BALANCE:
 		ret = m6mo_set_wb_preset(sd, ctrl);
@@ -1330,6 +1418,19 @@ int m6mo_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		break;
 	case V4L2_CID_CAMERA_COLORBAR:
 		ret = m6mo_set_colorbar(sd, ctrl);
+		break;
+		
+	case V4L2_CID_CAMERA_CAPTURE_FORMAT:
+		ret = m6mo_s_cap_format(sd, ctrl);
+		break;
+	case V4L2_CID_CAMERA_CAPTURE_SIZE:
+		ret = m6mo_s_capture_size(sd, ctrl);
+		break;
+	case V4L2_CID_CAMERA_QUICK_CAPTURE:
+		ret = m6mo_start_capture(sd, ctrl);
+		break;
+	case V4L2_CID_CAMERA_WAKEUP_PREVIEW:
+		ret = m6mo_wakeup_preview(sd, ctrl);
 		break;
 
 	case V4L2_CID_CAMERA_PANO_CAPTURE:

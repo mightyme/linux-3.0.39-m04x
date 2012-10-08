@@ -48,7 +48,7 @@ enum mon_size {
 	MON_SVGA = 0x1f,		/* 800x600 */
 	MON_960X720 = 0x20, 	/* 960x720 */
 	MON_720P = 0x21,		/* 1280x720 */
-	MON_1216X912 = 0x24,	/* 1216x912, m040 default preview size */
+	MON_1216X912 = 0x36,	/* 1216x912, m040 default preview size */
 	MON_1080P = 0x28,		/* 1920x1080 */
 };
 

@@ -42,6 +42,8 @@
 char buf[32];
 struct fimc_global *fimc_dev;
 
+static int wakeup_preview_flag = 0;
+
 void s3c_fimc_irq_work(struct work_struct *work)
 {
 	struct fimc_control *ctrl = container_of(work, struct fimc_control,
@@ -598,6 +600,20 @@ static irqreturn_t fimc_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+void fimc_wakeup_preview(void)
+{
+	struct fimc_global *fimc = get_fimc_dev();
+	struct fimc_control *ctrl = &fimc->ctrl[0];
+
+	wakeup_preview_flag = 1;
+	wake_up(&ctrl->wq);
+}
+
+void fimc_reset_wakeup_flag(void)
+{
+	wakeup_preview_flag = 0;
+}
+
 static struct fimc_control *fimc_register_controller(struct platform_device *pdev)
 {
 	struct s3c_platform_fimc *pdata;
@@ -941,9 +957,11 @@ static u32 fimc_poll(struct file *filp, poll_table *wait)
 	if (!cap)
 		return 0;
 
-	if (!list_empty(&cap->outgoing_q))
+	if ((!list_empty(&cap->outgoing_q)) || wakeup_preview_flag) {
 		mask = POLLIN | POLLRDNORM;
-	else
+		if (wakeup_preview_flag)
+			wakeup_preview_flag = 0;
+	} else
 		poll_wait(filp, &ctrl->wq, wait);
 
 	return mask;

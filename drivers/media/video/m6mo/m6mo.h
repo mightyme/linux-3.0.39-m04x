@@ -38,11 +38,6 @@ struct m6mo_reg {
 	unsigned int val;
 };
 
-enum flash_current_type {
-	PRE_FLASH_TYPE,
-	FULL_FLASH_TYPE,
-};
-
 /* 
   * firmware status: indicate ISP firmware checking or updating status
   * FIRMWARE_NONE: ISP firmware has not been checked
@@ -277,6 +272,11 @@ int m6mo_enable_irq(struct v4l2_subdev *sd);
 int m6mo_wait_irq(struct v4l2_subdev *sd, const unsigned int timeout);
 int m6mo_wait_irq_and_check(struct v4l2_subdev *sd, u8 mask,
 	const unsigned int timeout);
+int m6mo_set_capture_format(struct v4l2_subdev *sd,
+	struct v4l2_mbus_framefmt *fmt);
+int m6mo_set_capture_size(struct v4l2_subdev *sd,
+	struct v4l2_mbus_framefmt *fmt);
+int m6mo_set_mode(struct v4l2_subdev *sd, enum isp_mode mode);
 
 /* m6mo ctrl functions */
 int m6mo_g_ext_ctrls(struct v4l2_subdev *sd, struct v4l2_ext_controls *ctrls);
@@ -298,5 +298,8 @@ static inline struct m6mo_state *to_state(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct m6mo_state, sd);
 }
+
+extern void fimc_wakeup_preview(void);
+extern void fimc_reset_wakeup_flag(void);
 
 #endif
