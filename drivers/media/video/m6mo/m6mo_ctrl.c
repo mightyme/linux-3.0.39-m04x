@@ -1000,11 +1000,7 @@ static int m6mo_transfer_capture_data(struct v4l2_subdev *sd, struct v4l2_contro
 	switch (ctrl->value) {
 	case 0:
 		break;
-	case 1:		
-		if (state->cam_id == BACK_CAMERA &&
-			state->userset.wdr == M6MO_WDR_OFF)
-			return m6mo_w8(sd, CAP_TRANSFER_START_REG, CAP_TRANSFER_MAIN);
-		
+	case 1:
 		m6mo_prepare_wait(sd);
 		
 		ret = m6mo_write_regs(sd, regs, ARRAY_SIZE(regs));
