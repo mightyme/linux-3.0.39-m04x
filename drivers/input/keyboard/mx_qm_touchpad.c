@@ -448,8 +448,9 @@ static int __devinit mx_qm_touch_probe(struct platform_device *pdev)
  
 	 for (i = 0; i < ARRAY_SIZE(mx_qm_keycode); i++) {
 		 touch->keycodes[i] = mx_qm_keycode[i];
-		 __set_bit(mx_qm_keycode[i], input_key->keybit);
+//		 __set_bit(mx_qm_keycode[i], input_key->keybit);
 	 }
+	 __set_bit(KEY_HOME, input_key->keybit);
 	input_set_drvdata(input_key, data);
 
 	input_pad->name = "mx-touch-pad";
