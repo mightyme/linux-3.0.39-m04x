@@ -867,18 +867,12 @@ static int m6mo_set_wdr(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	return 0;
 }
 
-int m6mo_set_flash_current(struct m6mo_state *state, enum flash_current_type type)
+int m6mo_set_flash_current(struct m6mo_state *state, int cur)
 {
-	if (state->userset.flash_mode == M6MO_FLASH_OFF) return -EINVAL;
-
-	if (type == PRE_FLASH_TYPE) 
-		regulator_set_current_limit(state->fled_regulator, PRE_FLASH_CURRENT, MAX_FLASH_CURRENT);
-	else if (type == FULL_FLASH_TYPE)
-		regulator_set_current_limit(state->fled_regulator, FULL_FLASH_CURRENT, MAX_FLASH_CURRENT);
-	else 
+	if ((!state->fled_regulator) || (cur > MAX_FLASH_CURRENT)) 
 		return -EINVAL;
-	
-	return 0;
+
+	return regulator_set_current_limit(state->fled_regulator, cur, MAX_FLASH_CURRENT);
 }
 
 static int m6mo_select_flash_led(struct m6mo_state *state)
@@ -894,35 +888,47 @@ static int m6mo_select_flash_led(struct m6mo_state *state)
 
 static int m6mo_enable_flash_led(struct m6mo_state *state, struct v4l2_control *ctrl) 
 {
-	if ((ctrl->value != M6MO_FLASH_OFF) && (!state->fled_regulator)) {
-		struct regulator *regulator;
-		int ret;
+	int ret = 0;
+	
+	if (ctrl->value != M6MO_FLASH_OFF) {
+		/* if the first time to open flash led */
+		if (!state->fled_regulator) {
+			pr_info("turn on flash led!\n");
 
-		pr_debug("turn on flash led!\n");
+			/* select flash led category */
+			ret = m6mo_select_flash_led(state);
+			if (ret) return ret;
 
-		/* select flash led category */
-		ret = m6mo_select_flash_led(state);
-		if (ret) return ret;
-
-		/* open the flash voltage */
-		regulator = regulator_get(NULL, FLASH_LED_NAME);
-		if (IS_ERR(regulator)) {
-			pr_err("%s()->%d:regulator get fail !!\n", __FUNCTION__, __LINE__);
-			return -ENODEV;
-		}
-		/* set prelash current */
-		m6mo_set_flash_current(state, PRE_FLASH_CURRENT);
-		regulator_enable(regulator);		
-		state->fled_regulator = regulator;
-	} else if ((ctrl->value == M6MO_FLASH_OFF) && state->fled_regulator) {
-		pr_debug("turn off flash led!\n");
+			/* open the flash voltage */
+			state->fled_regulator = regulator_get(NULL, FLASH_LED_NAME);
+			if (IS_ERR(state->fled_regulator)) {
+				pr_err("%s()->%d:regulator get fail !!\n", __FUNCTION__, __LINE__);
+				state->fled_regulator = NULL;
+				return -ENODEV;
+			}
 		
-		regulator_disable(state->fled_regulator);	
-		regulator_put(state->fled_regulator);
-		state->fled_regulator = NULL;
+			ret = m6mo_set_flash_current(state, PRE_FLASH_CURRENT);
+			if (ret) goto err_exit;
+			ret = regulator_enable(state->fled_regulator);
+			if (ret) goto err_exit;
+		}
+	} else {
+		if (state->fled_regulator) {
+			pr_info("turn off flash led!\n");
+			
+			ret = regulator_disable(state->fled_regulator);	
+			if (ret) goto err_exit;
+			regulator_put(state->fled_regulator);
+			state->fled_regulator = NULL;
+		}
 	}
 	
 	return 0;
+	
+err_exit:
+	regulator_put(state->fled_regulator);
+	state->fled_regulator = NULL;
+	return ret;
 }
 
 static int m6mo_set_flash_mode(struct v4l2_subdev *sd, struct v4l2_control *ctrl)

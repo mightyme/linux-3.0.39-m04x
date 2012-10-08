@@ -673,7 +673,8 @@ static int m6mo_set_capture_mode(struct v4l2_subdev *sd)
 	if (ret) return ret;
 
 	/* change flash to full current */
-	m6mo_set_flash_current(state, FULL_FLASH_CURRENT);
+	if (state->userset.flash_mode != M6MO_FLASH_OFF)
+		m6mo_set_flash_current(state, FULL_FLASH_CURRENT);
 
 	/* waiting for sound, but we do nothing */
 	ret = m6mo_wait_irq_and_check(sd, INT_MASK_SOUND, WAIT_TIMEOUT);
@@ -684,7 +685,8 @@ static int m6mo_set_capture_mode(struct v4l2_subdev *sd)
 	if (ret) return ret;
 
 	/* recovery flash to pre current */
-	m6mo_set_flash_current(state, PRE_FLASH_CURRENT);
+	if (state->userset.flash_mode != M6MO_FLASH_OFF)
+		m6mo_set_flash_current(state, PRE_FLASH_CURRENT);
 
 	return 0;
 }

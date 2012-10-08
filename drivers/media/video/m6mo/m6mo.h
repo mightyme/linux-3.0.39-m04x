@@ -283,7 +283,7 @@ int m6mo_g_ext_ctrls(struct v4l2_subdev *sd, struct v4l2_ext_controls *ctrls);
 int m6mo_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl);
 int m6mo_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl);
 int m6mo_set_flash_current(struct m6mo_state *state, 
-	enum flash_current_type type);
+	int cur);
 void m6mo_handle_multi_cap(struct m6mo_state *state, int irq_status);
 void m6mo_handle_panorama_cap(struct m6mo_state *state, int irq_status);
 void m6mo_handle_smile_cap(struct m6mo_state *state, int irq_status);
