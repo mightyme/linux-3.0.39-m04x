@@ -99,7 +99,6 @@ struct link_pm_data {
 	struct wake_lock rpm_wake;
 	struct wake_lock tx_async_wake;
 	struct notifier_block pm_notifier;
-	struct notifier_block usb_notifier;
 	bool dpm_suspending;
 	bool is_usb_host_inserted;
 	
