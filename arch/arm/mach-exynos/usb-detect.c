@@ -31,10 +31,12 @@
 #endif
 #include <linux/sched.h>
 #include <linux/regulator/machine.h>
+#include <linux/pm_runtime.h>
 #include <asm/mach-types.h>
 #include <mach/usb-detect.h>
 #include <mach/gpio-m032.h>
 #include <plat/gpio-cfg.h>
+#include <plat/devs.h>
 
 #define USB_VBUS_INSERT_LEVEL 1
 #define USB_HOST_INSERT_LEVEL 0
@@ -153,6 +155,7 @@ static void mx_usb_detect_work(struct work_struct *work)
 			s3c_gpio_cfgpin(ud_info->usb_host_gpio, S3C_GPIO_OUTPUT);
 			s3c_gpio_setpull(ud_info->usb_host_gpio, S3C_GPIO_PULL_NONE);
 			gpio_set_value(ud_info->usb_host_gpio, 0);
+			pm_runtime_get_sync(&s5p_device_ehci.dev);
 		} else {
 			int error;
 			s3c_gpio_setpull(ud_info->usb_host_gpio, S3C_GPIO_PULL_UP);
@@ -166,6 +169,7 @@ static void mx_usb_detect_work(struct work_struct *work)
 				schedule_delayed_work(&ud_info->usb_work, msecs_to_jiffies(500));
 			} else {
 				mx_usb_host_select(DEVICES_SELECT);
+				pm_runtime_put_sync(&s5p_device_ehci.dev);
 			}
 		}
 	}
@@ -181,11 +185,13 @@ static void mx_usb_detect_work(struct work_struct *work)
 				val = usbid ? USB_HOST_INSERT : USB_HOST_REMOVE;
 				blocking_notifier_call_chain(&usb_notifier_list, val, NULL);
 				if(usbid) {
+					pm_runtime_get_sync(&s5p_device_ehci.dev);
 					if(!regulator_is_enabled(ud_info->reverse))
 						regulator_enable(ud_info->reverse);
 				} else{
 					if(regulator_is_enabled(ud_info->reverse))
 						regulator_disable(ud_info->reverse);
+					pm_runtime_put_sync(&s5p_device_ehci.dev);
 				}
 			}
 		}
@@ -352,11 +358,15 @@ EXPORT_SYMBOL_GPL(mx_is_usb_dock_insert);
 #ifdef CONFIG_PM
 static int usb_detect_suspend(struct device *dev)
 {
+	disable_irq(gpio_to_irq(g_ud_info->usb_host_gpio));
+	disable_irq(gpio_to_irq(g_ud_info->usb_vbus_gpio));
 	return 0;
 }
 
 static int usb_detect_resume(struct device *dev)
 {
+	enable_irq(gpio_to_irq(g_ud_info->usb_vbus_gpio));
+	enable_irq(gpio_to_irq(g_ud_info->usb_host_gpio));
 	return 0;
 }
 
