@@ -58,11 +58,11 @@ struct mx_qm_reg_data {
 //led_bu26507
 const struct mx_qm_reg_data init_regs[] = {
 	{LED_REG_PWM, 0xFF},
-//	{LED_REG_CUR0, 0x00},
+	{LED_REG_CUR0, 0x02},
 //	{LED_REG_CUR1, 0x00},
 //	{LED_REG_CUR2, 0x00},
 //	{LED_REG_CUR3, 0x00},
-	{LED_REG_CUR4, 0x02},		
+//	{LED_REG_CUR4, 0x00},		
 	{},
 };
 
@@ -369,7 +369,10 @@ static void mx_qm_reset(struct mx_qm_data *mx,int m)
 	}
 	else
 	{
-
+		unsigned char msg[2];
+		msg[0] = QM_REG_SOFTRESET;
+		msg[1] = 1;			
+		mx_qm_write(mx->client,2,msg);
 	}
 	dev_info(&mx->client->dev, "%s reset. \n", m?"cold":"soft");
 }

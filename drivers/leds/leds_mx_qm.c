@@ -44,11 +44,11 @@ union LEDType                       // LED show byte
     unsigned char byte;
     struct
     {
-        unsigned char led0:1;      
         unsigned char led1:1;      
         unsigned char led2:1;      
         unsigned char led3:1;      
         unsigned char led4:1;      
+        unsigned char led0:1;      //Cycle LED
         unsigned char delay_cnt:3; 
     };
 }; 
@@ -87,7 +87,8 @@ static int gSlope = 0;
 	 
 	pr_debug("%s: id = %d   cur  = 0x%.2X\n", __func__,led->id,cur); 
 
-	ret = mx->i2c_writebyte(mx->client,(LED_REG_CUR0+led->id), cur);
+	//ret = mx->i2c_writebyte(mx->client,(LED_REG_CUR0+led->id), cur);
+	ret = mx->i2c_writebyte(mx->client,(LED_REG_CUR0), cur);
 
 	return ret;
 }
@@ -121,7 +122,7 @@ static int bu26507_set_led_slope(struct led_classdev *led_cdev, int enable)
 	pr_debug("%s: enable  = 0x%X\n", __func__,enable); 
 
 	if(enable)
-		ret = mx->i2c_writebyte(mx->client,LED_REG_CUR4,0xCF);	  
+		ret = mx->i2c_writebyte(mx->client,LED_REG_CUR0,0xCF);	  
 	ret = mx->i2c_writebyte(mx->client,LED_REG_SLOPE,enable);	  
 
 	return ret;
@@ -345,9 +346,9 @@ static void mx_qm_led_early_suspend(struct early_suspend *h)
 	 struct mx_qm_led *led =
 			 container_of(h, struct mx_qm_led, early_suspend);
 	 
-	 if( led->id == 4)
+	 if( led->id == 0)
 	 {
-		led->led_cdev.brightness_set(&led->led_cdev,((MODE_PWM<<8) | 0x20)); 	 	
+		//led->led_cdev.brightness_set(&led->led_cdev,((MODE_PWM<<8) | 0x20)); 	 	
 		led->led_cdev.brightness_set(&led->led_cdev,((MODE_SLOPE<<8) | gSlope)); 
 	 }
 }
@@ -357,7 +358,7 @@ static void mx_qm_led_late_resume(struct early_suspend *h)
 	 struct mx_qm_led *led =
 			 container_of(h, struct mx_qm_led, early_suspend);
  
-	 led->led_cdev.brightness_set(&led->led_cdev,LED_OFF);
+	 //led->led_cdev.brightness_set(&led->led_cdev,LED_OFF);
 }
 #endif
  
