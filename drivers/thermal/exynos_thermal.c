@@ -455,8 +455,8 @@ int exynos4_register_thermal(struct thermal_sensor_conf *sensor_conf)
 		goto err_unregister;
 	}
 
-	th_zone->active_interval = 2;
-	th_zone->idle_interval = 10;
+	th_zone->active_interval = 1;
+	th_zone->idle_interval = 5;
 
 	exynos4_set_mode(th_zone->therm_dev, THERMAL_DEVICE_DISABLED);
 	
