@@ -719,7 +719,7 @@ struct mx_qm_platform_data {
 static struct mx_qm_platform_data __initdata mxqm_pd = {
 	.gpio_wake 	= M040_TOUCHPAD_WAKE,
 	.gpio_reset 	= M040_TOUCHPAD_RESET,
-	.gpio_irq = M040_TOUCHPAD_INT,
+	.gpio_irq 	= M040_TOUCHPAD_INT,
 };
 #endif
 
@@ -779,34 +779,34 @@ static struct i2c_board_info __initdata i2c_devs17[] = {
 #if defined(CONFIG_KEYBOARD_GPIO)
 static struct gpio_keys_button m040_gpio_keys_tables[] = {
 	{
-		.code		= KEY_POWER,
+		.code			= KEY_POWER,
 		.gpio			= M040_POWER_KEY,
 		.desc			= "gpio-keys: KEY_POWER",
 		.type			= EV_KEY,
-		.active_low	= 1,
-		.wakeup		= 1,
+		.active_low		= 1,
+		.wakeup			= 1,
 		.debounce_interval	= 1,
 	}, {
-		.code		= KEY_HOME,
+		.code			= KEY_HOME,
 		.gpio			= M040_HOME_KEY,
 		.desc			= "gpio-keys: KEY_HOME",
 		.type			= EV_KEY,
-		.active_low	= 1,
-		.wakeup		= 1,
+		.active_low		= 1,
+		.wakeup			= 1,
 		.debounce_interval	= 1,
 	}, {
-		.code		= KEY_VOLUMEDOWN,
+		.code			= KEY_VOLUMEDOWN,
 		.gpio			= M040_VOLUMEDOWN_KEY,
 		.desc			= "gpio-keys: KEY_VOLUMEDOWN",
 		.type			= EV_KEY,
-		.active_low	= 1,
+		.active_low		= 1,
 		.debounce_interval	= 1,
 	}, {
-		.code		= KEY_VOLUMEUP,
+		.code			= KEY_VOLUMEUP,
 		.gpio			= M040_VOLUMEUP_KEY,
 		.desc			= "gpio-keys: KEY_VOLUMEDOWN",
 		.type			= EV_KEY,
-		.active_low	= 1,
+		.active_low		= 1,
 		.debounce_interval	= 1,
 	},
 };
@@ -925,6 +925,7 @@ static struct exynos_cpufreq_platdata __initdata m040_cpufreq_pd = {
 	.polling_ms = 50,	//50mS
 };
 #endif
+
 static struct platform_device __initdata *m040_devices[]  = {
 #ifdef CONFIG_WAKEUP_ASSIST
 	&wakeup_assist_device,
@@ -973,7 +974,6 @@ static struct platform_device __initdata *m040_devices[]  = {
 	&m040_mhl_fixed_voltage,
 	&m040_isp_fixed_voltage,
 	&m040_backlight_fixed_voltage,
-
 #endif
 
 #if defined(CONFIG_FB_S5P)
@@ -1214,7 +1214,14 @@ static void __init m040_machine_init(void)
 #endif
 
 #ifdef CONFIG_VIDEO_MFC5X
+#ifdef CONFIG_EXYNOS4412_MPLL_880MHZ
+	if (samsung_rev() >= EXYNOS4412_REV_2_0)
+		exynos4_mfc_setup_clock(&s5p_device_mfc.dev, 220 * MHZ);
+	else
+		exynos4_mfc_setup_clock(&s5p_device_mfc.dev, 200 * MHZ);
+#else
 	exynos4_mfc_setup_clock(&s5p_device_mfc.dev, 200 * MHZ);
+#endif
 #ifndef CONFIG_PM_GENERIC_DOMAINS
 	s5p_device_mfc.dev.parent = &exynos4_device_pd[PD_MFC].dev;
 #endif
@@ -1233,7 +1240,14 @@ static void __init m040_machine_init(void)
 #endif
 
 #if defined(CONFIG_VIDEO_JPEG_V2X) || defined(CONFIG_VIDEO_JPEG_MX)
+#ifdef CONFIG_EXYNOS4412_MPLL_880MHZ
+	if (samsung_rev() == EXYNOS4412_REV_2_0)
+		exynos4_jpeg_setup_clock(&s5p_device_jpeg.dev, 176000000);
+	else
+		exynos4_jpeg_setup_clock(&s5p_device_jpeg.dev, 160000000);
+#else
 	exynos4_jpeg_setup_clock(&s5p_device_jpeg.dev, 160000000);
+#endif
 #ifndef CONFIG_PM_GENERIC_DOMAINS
 	s5p_device_jpeg.dev.parent = &exynos4_device_pd[PD_CAM].dev;
 #endif
@@ -1265,7 +1279,7 @@ static void __init m040_machine_init(void)
 }
 
 MACHINE_START(M040, "MX2")
-
+//MACHINE_START(M040, "SMDK4X12")
 	/* Maintainer: WenbinWu <wenbinwu@meizu.com> */
 	.boot_params	= S5P_PA_SDRAM + 0x100,
 	.init_irq	= exynos4_init_irq,

@@ -835,6 +835,12 @@ config BRCM_GPS
 	help
          control uart2 to use for broadcom gps
 
+config EXYNOS4412_MPLL_880MHZ
+	bool "EXYNOS4412 REV2.0 MPLL 880MHZ support"
+	depends on !EXYNOS4_MSHC_DDR
+	help
+	 Say Y here if exynos4412 rev2.0 mpll works at 880MHZ.
+
 menu "MMC/SD slot setup"
 depends on PLAT_S5P
 

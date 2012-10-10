@@ -19,11 +19,12 @@
 #include <linux/mmc/card.h>
 #include <linux/delay.h>
 
-#include <mach/gpio.h>
-#include <mach/map.h>
 #include <plat/gpio-cfg.h>
 #include <plat/mshci.h>
 #include <plat/cpu.h>
+
+#include <mach/gpio.h>
+#include <mach/map.h>
 
 #define GPK0DRV	(S5P_VA_GPIO2 + 0x4C)
 #define GPK1DRV	(S5P_VA_GPIO2 + 0x6C)
@@ -82,17 +83,22 @@ void exynos4_setup_mshci_cfg_gpio(struct platform_device *dev, int width)
 
 void exynos4_setup_mshci_cfg_ddr(struct platform_device *dev, int ddr)
 {
-	if (ddr) {
-		if (soc_is_exynos4412() || soc_is_exynos4212())
-			__raw_writel(0x1, DIV_FSYS3);
-		else
-			__raw_writel(0x04, DIV_FSYS3);
-	} else {
-		if (soc_is_exynos4412() || soc_is_exynos4212())
-			__raw_writel(0x1, DIV_FSYS3);	// config emmc bus freq to 40MHZ if no DDR
-		else
-			__raw_writel(0x9, DIV_FSYS3);
+#ifdef CONFIG_EXYNOS4412_MPLL_880MHZ
+	if (soc_is_exynos4412() && samsung_rev() >= EXYNOS4412_REV_2_0) {
+		return;
 	}
+#endif
+	if (soc_is_exynos4212() || soc_is_exynos4412()) {
+		__raw_writel(0x1, DIV_FSYS3);
+		goto out;
+	}
+
+	if (ddr) {
+		__raw_writel(0x04, DIV_FSYS3);
+	} else {
+		__raw_writel(0x09, DIV_FSYS3);
+	}
+out:
 	while(__raw_readl(DIV_FSYS3_STAT))
 		cpu_relax();
 }
