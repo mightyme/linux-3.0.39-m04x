@@ -257,36 +257,21 @@ static int xmm6260_renum(struct modem_ctl *mc)
 
 static int xmm6260_reset(struct modem_ctl *mc)
 {
-
 	mif_info("xmm6260_reset()\n");
-
 	if (!mc->gpio_cp_reset || !mc->gpio_reset_req_n)
 		return -ENXIO;
-
-	if (mc->gpio_revers_bias_clear)
-		mc->gpio_revers_bias_clear();
-
+	gpio_set_value(mc->gpio_cp_on, 0);
 	gpio_set_value(mc->gpio_cp_reset, 0);
 	gpio_set_value(mc->gpio_reset_req_n, 0);
-
 	mc->phone_state = STATE_OFFLINE;
-
-	msleep(20);
-
+	msleep(500);
 	gpio_set_value(mc->gpio_cp_reset, 1);
-	udelay(160);
-
+	msleep(1);
 	gpio_set_value(mc->gpio_reset_req_n, 1);
-	udelay(100);
-
+	msleep(2);
 	gpio_set_value(mc->gpio_cp_on, 1);
-	udelay(60);
+	msleep(1);
 	gpio_set_value(mc->gpio_cp_on, 0);
-	msleep(20);
-
-	if (mc->gpio_revers_bias_restore)
-		mc->gpio_revers_bias_restore();
-
 	mc->phone_state = STATE_BOOTING;
 
 	return 0;
