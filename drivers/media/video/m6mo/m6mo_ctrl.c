@@ -813,13 +813,12 @@ static int m6mo_set_zoom_level(struct v4l2_subdev *sd, struct v4l2_control *ctrl
 
 	CHECK_USERSET(zoom_level);
 
-	if(ctrl->value < M6MO_ZL_0)
-		ctrl->value = M6MO_ZL_0;
-	else if(ctrl->value > M6MO_ZL_19)
-		ctrl->value = M6MO_ZL_19;	
-
-	zoom_pos = ctrl->value * MIN_ZOOM_STEP + MIN_ZOOM_POS;
-	ret = m6mo_w8(sd, ZOOM_POSITOIN_REG, zoom_pos);
+	if (ctrl->value < M6MO_ZL_1)
+		ctrl->value = M6MO_ZL_1;
+	if(ctrl->value > M6MO_ZL_70)
+		ctrl->value = M6MO_ZL_70;
+	
+	ret = m6mo_w8(sd, ZOOM_POSITOIN_REG, ctrl->value);
 	CHECK_ERR(ret);
 
 	SET_USERSET(zoom_level);

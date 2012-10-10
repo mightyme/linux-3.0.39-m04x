@@ -232,26 +232,8 @@ enum m6mo_wdr_mode {
   * zoom level
 */
 enum m6mo_zoom_level {
-	M6MO_ZL_0,
-	M6MO_ZL_1,
-	M6MO_ZL_2,
-	M6MO_ZL_3,
-	M6MO_ZL_4,
-	M6MO_ZL_5,
-	M6MO_ZL_6,
-	M6MO_ZL_7,
-	M6MO_ZL_8,
-	M6MO_ZL_9,
-	M6MO_ZL_10,
-	M6MO_ZL_11,
-	M6MO_ZL_12,
-	M6MO_ZL_13,
-	M6MO_ZL_14,
-	M6MO_ZL_15,	
-	M6MO_ZL_16,
-	M6MO_ZL_17,	
-	M6MO_ZL_18,	
-	M6MO_ZL_19,	
+	M6MO_ZL_1 = 0x01,
+	M6MO_ZL_70 = 0x46,
 	M6MO_ZL_MAX,
 };
 

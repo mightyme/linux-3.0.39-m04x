@@ -969,42 +969,10 @@ static int m6mo_fps_to_sensor_step(int fps)
 		return EVP_MODE_AUTO;
 }
 
-static int m6mo_set_framerate(struct v4l2_subdev *sd, int fps) 
-{
-	int ret, step = m6mo_fps_to_sensor_step(fps);
-
-	ret = m6mo_set_mode(sd, PARAMETER_MODE);
-	if (ret) return ret;
-
-	/* set isp fps */
-	ret = m6mo_w8(sd, MON_FPS_REG, MON_FPS_AUTO);
-	CHECK_ERR(ret);
-
-	/* set sensor fps */
-	return m6mo_w8(sd, EVP_MODE_MON_REG, step);
-}
-
 static int m6mo_s_parm(struct v4l2_subdev *sd, 
 	struct v4l2_streamparm *param)
 {
-	struct m6mo_state *state = to_state(sd);
-	int numerator = param->parm.capture.timeperframe.numerator;
-	int denominator = param->parm.capture.timeperframe.denominator;
-	int fps, ret;
-
-	/* incorrect parameters */
-	if (numerator < 0 || denominator <= 0) return -EINVAL;
-	
-	if (numerator == 0) fps = 0;  /* set to auto */
-	else fps = denominator / numerator;
-	
-	if(state->fps == fps)
-		return 0;
-
-	ret = m6mo_set_framerate(sd, fps);
-	if (ret) return ret; 
-
-	state->fps = fps;
+	/* do nothing, we don't set framerate registers any more */
 	
 	return 0;
 }
@@ -1118,7 +1086,7 @@ static int m6mo_init(struct v4l2_subdev *sd, u32 cam_id)
 	/* init default userset parameter, this is the reset value of ISP */
 	state->userset.manual_wb = M6MO_WB_AUTO;
 	state->userset.scene = M6MO_SCENE_AUTO;	
-	state->userset.zoom_level = M6MO_ZL_0;
+	state->userset.zoom_level = M6MO_ZL_1;
 	state->userset.wdr = M6MO_WDR_OFF;
 	state->userset.iso = M6MO_ISO_AUTO;
 	state->userset.flash_mode = M6MO_FLASH_OFF;
