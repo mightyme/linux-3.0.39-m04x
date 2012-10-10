@@ -1027,9 +1027,9 @@ static int m6mo_start_quick_capture(struct v4l2_subdev *sd)
 	
 	for (i = 0; i < retry; i++) {
 		ret = wait_for_completion_interruptible_timeout(&state->completion, 
-			msecs_to_jiffies(1000));
+			msecs_to_jiffies(2000));
 		if (ret <= 0) {
-			pr_err("%s: timeout in %u ms\n", __func__, 1000);
+			pr_err("%s: timeout in %u ms\n", __func__, 2000);
 			return -ETIME;
 		}
 
@@ -1051,15 +1051,7 @@ static int m6mo_start_quick_capture(struct v4l2_subdev *sd)
 
 static int m6mo_start_capture(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	int ret;
-	struct m6mo_state *state = to_state(sd);
-
-	/* if wdr is off , that means we are in quick capture mode */
-	if (state->cam_id == BACK_CAMERA &&
-		state->userset.wdr == M6MO_WDR_OFF)
-		return m6mo_start_quick_capture(sd);	
-	else
-		return m6mo_set_mode(sd, CAPTURE_MODE);
+	return m6mo_set_mode(sd, CAPTURE_MODE);
 }
 
 static int m6mo_wakeup_preview(struct v4l2_subdev *sd, struct v4l2_control *ctrl)

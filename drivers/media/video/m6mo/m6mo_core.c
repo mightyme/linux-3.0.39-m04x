@@ -23,6 +23,9 @@
 
 #define DEFAULT_DEBUG 0
 
+#define DEFAULT_CAPTURE_WIDTH 3264
+#define DEFAULT_CAPTURE_HEIGHT 2448
+
 /* default setting registers */
 static struct m6mo_reg m6mo_default_regs[] = {
 	{I2C_8BIT, OUT_SELECT_REG, MIPI_IF},
@@ -637,7 +640,33 @@ int m6mo_set_sys_mode(struct v4l2_subdev *sd, enum isp_mode mode)
 */
 static int m6mo_set_parameter_mode(struct v4l2_subdev *sd)
 {
-	return m6mo_set_sys_mode(sd, PARAMETER_MODE);
+	int ret, i, retry = 3;
+	struct m6mo_state *state = to_state(sd);
+
+	if (state->mode == PARAMETER_MODE) return 0;
+
+	m6mo_prepare_wait(sd);
+
+	ret = m6mo_w8(sd,  SYS_MODE_REG, SYS_PARAMETER_MODE);	
+	CHECK_ERR(ret);
+	
+	for (i = 0; i < retry; i++) {
+		ret = wait_for_completion_interruptible_timeout(&state->completion, 
+			msecs_to_jiffies(2000));
+		if (ret <= 0) {
+			pr_err("%s: timeout in %u ms\n", __func__, 2000);
+			return -ETIME;
+		}
+
+		if (state->irq_status & INT_MASK_MODE)
+			break;
+	}
+
+	if (i == retry) return -EINVAL;
+
+	state->mode = PARAMETER_MODE;
+
+	return 0;
 }
 
 /*
@@ -645,18 +674,31 @@ static int m6mo_set_parameter_mode(struct v4l2_subdev *sd)
 */
 static int m6mo_set_monitor_mode(struct v4l2_subdev *sd)
 {
-	int ret;
+	int ret, i, retry = 3;
+	struct m6mo_state *state = to_state(sd);
 
-	/* enter monitor mode */
-	ret = m6mo_set_sys_mode(sd, MONITOR_MODE);
-	if (ret) return ret;
+	if (state->mode == MONITOR_MODE) return 0;
 
-	/* ensure special panorama off */
-	ret = m6mo_w8(sd, SPECIAL_MON_REG, SPECIAL_OFF);
+	m6mo_prepare_wait(sd);
+
+	ret = m6mo_w8(sd,  SYS_MODE_REG, SYS_MONITOR_MODE);	
 	CHECK_ERR(ret);
-	/* set capture normal mode */
-	ret = m6mo_w8(sd, CAP_MODE_REG, CAP_MODE_NORMAL);
-	CHECK_ERR(ret);
+	
+	for (i = 0; i < retry; i++) {
+		ret = wait_for_completion_interruptible_timeout(&state->completion, 
+			msecs_to_jiffies(2000));
+		if (ret <= 0) {
+			pr_err("%s: timeout in %u ms\n", __func__, 2000);
+			return -ETIME;
+		}
+
+		if (state->irq_status & INT_MASK_MODE)
+			break;
+	}
+
+	if (i == retry) return -EINVAL;
+
+	state->mode = MONITOR_MODE;
 
 	return 0;
 }
@@ -666,27 +708,44 @@ static int m6mo_set_monitor_mode(struct v4l2_subdev *sd)
 */
 static int m6mo_set_capture_mode(struct v4l2_subdev *sd)
 {
-	int ret;
+	int ret, i, retry = 5;
 	struct m6mo_state *state = to_state(sd);
+
+	pr_info("%s:wdr = %d\n", __func__, state->userset.wdr);
+
+	m6mo_prepare_wait(sd);
+
+	ret = m6mo_w8(sd,  SYS_MODE_REG, SYS_CAPTURE_MODE);	
+	CHECK_ERR(ret);
 	
-	ret = m6mo_set_sys_mode(sd, SYS_CAPTURE_MODE);
-	if (ret) return ret;
+	for (i = 0; i < retry; i++) {
+		ret = wait_for_completion_interruptible_timeout(&state->completion, 
+			msecs_to_jiffies(2000));
+		if (ret <= 0) {
+			pr_err("%s: timeout in %u ms\n", __func__, 2000);
+			return -ETIME;
+		}
 
-	/* change flash to full current */
-	if (state->userset.flash_mode != M6MO_FLASH_OFF)
-		m6mo_set_flash_current(state, FULL_FLASH_CURRENT);
+		mutex_lock(&state->mutex);
 
-	/* waiting for sound, but we do nothing */
-	ret = m6mo_wait_irq_and_check(sd, INT_MASK_SOUND, WAIT_TIMEOUT);
-	if (ret) return ret;
+		/* change flash to full current */
+		if (state->irq_status & INT_MASK_MODE)
+			if (state->userset.flash_mode != M6MO_FLASH_OFF)
+				m6mo_set_flash_current(state, FULL_FLASH_CURRENT);
 
-	/* waiting for capture finish interrupt */
-	ret = m6mo_wait_irq_and_check(sd, INT_MASK_CAPTURE, WAIT_TIMEOUT);
-	if (ret) return ret;
+		if (state->irq_status & INT_MASK_CAPTURE) {
+			/* recovery flash to pre current */
+			if (state->userset.flash_mode != M6MO_FLASH_OFF)
+				m6mo_set_flash_current(state, PRE_FLASH_CURRENT);
+			mutex_unlock(&state->mutex);
+			break;
+		}
+		mutex_unlock(&state->mutex);	
+	}
 
-	/* recovery flash to pre current */
-	if (state->userset.flash_mode != M6MO_FLASH_OFF)
-		m6mo_set_flash_current(state, PRE_FLASH_CURRENT);
+	if (i == retry) return -EINVAL;
+
+	state->mode = CAPTURE_MODE;
 
 	return 0;
 }
@@ -748,13 +807,30 @@ static int m6mos_set_panorama_mode(struct v4l2_subdev *sd)
 	return ret;
 }
 
+static void m6mo_set_1216x912_val(unsigned int val)
+{
+	int i;
+	
+	for (i = 0; i < ARRAY_SIZE(m6mo_prev_sizes); i++) {
+		if ((m6mo_prev_sizes[i].width == 1216) &&
+			(m6mo_prev_sizes[i].height == 912))
+			m6mo_prev_sizes[i].regs->val = val;
+	}
+}
+
 static int m6mo_set_preview_size(struct v4l2_subdev *sd, 
-	struct v4l2_mbus_framefmt *fmt)
+	struct v4l2_mbus_framefmt *fmt, enum v4l2_camera_mode mode)
 {
 	struct m6mo_state *state = to_state(sd);
-	int i, ret; 
+	int i, ret;
 	struct m6mo_size_struct *sizes = m6mo_prev_sizes;
 	int len = ARRAY_SIZE(m6mo_prev_sizes);
+
+	/* normal preview and record */
+	if (mode != V4L2_CAMERA_PANORAMA)
+		m6mo_set_1216x912_val(0x36);
+	else  /* panorama preview mode */
+		m6mo_set_1216x912_val(0x24);
 		
 	/* look down to find the smaller preview size */
 	for (i = len - 1; i >= 0; i--) 
@@ -771,10 +847,24 @@ static int m6mo_set_preview_size(struct v4l2_subdev *sd,
 	fmt->width = sizes[i].width;
 	fmt->height = sizes[i].height;
 
+	/* normal preview or record mode */
+	if (mode != V4L2_CAMERA_PANORAMA) {
+		if (state->panorama_preview) {
+			state->panorama_preview = false;
+			goto set_size;
+		}
+	} else {  /* panorama preview mode */
+		if (!state->panorama_preview) {
+			state->panorama_preview = true;
+			goto set_size;
+		}
+	}
+
 	if (state->prev_size.width == fmt->width &&
 		state->prev_size.height == fmt->height)
 		return 0;
 
+set_size:
 	state->prev_size = sizes[i];
 
 	/* should be set parameter mode first */
@@ -875,7 +965,7 @@ static int m6mo_s_fmt(struct v4l2_subdev *sd,
 	if (type < 0) return -EINVAL;
 	
 	if (type == PREVIEW_MODE_TYPE) {
-		ret = m6mo_set_preview_size(sd, fmt);
+		ret = m6mo_set_preview_size(sd, fmt, mode);
 		if (ret) return ret;
 	} else {  /* CAPTURE_MODE_TYPE */
 		/* do nothing */
@@ -1080,8 +1170,11 @@ static int m6mo_init(struct v4l2_subdev *sd, u32 cam_id)
 	state->mode = PARAMETER_MODE;
 	state->stream_on = false;
 	memset(&state->prev_size, 0, sizeof(struct m6mo_size_struct));
-	memset(&state->cap_size, 0, sizeof(struct m6mo_size_struct));
-	memset(&state->cap_fmt, 0, sizeof(struct m6mo_format_struct));
+
+	state->cap_size.width = DEFAULT_CAPTURE_WIDTH;
+	state->cap_size.height = DEFAULT_CAPTURE_HEIGHT;
+	state->cap_fmt.mbus_code = V4L2_MBUS_FMT_JPEG_1X8;
+	state->panorama_preview = false;
 
 	/* init default userset parameter, this is the reset value of ISP */
 	state->userset.manual_wb = M6MO_WB_AUTO;

@@ -218,6 +218,7 @@ struct m6mo_state {
 	int fps;
 	enum isp_mode mode;   /* isp operating mode:parameter, monitor or capture */
 	enum v4l2_camera_mode camera_mode;   /* user modes: preview, capture or record */
+	bool panorama_preview;
 	bool stream_on;
 	struct m6mo_userset userset;   /* user setting */
 	bool isp_power;
