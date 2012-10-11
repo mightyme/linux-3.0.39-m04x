@@ -988,21 +988,15 @@ static int m6mo_get_auto_focus_result(struct v4l2_subdev *sd, struct v4l2_contro
 
 static int m6mo_transfer_capture_data(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct m6mo_state *state = to_state(sd);
 	int ret = 0;
-	struct m6mo_reg regs[] = {
-		{I2C_8BIT, CAP_SEL_FRAME_MAIN_REG, 0x01},
-		{I2C_8BIT, INT_ROOR_ENABLE_REG, 0x01},
-		{I2C_8BIT, CAP_TRANSFER_START_REG, CAP_TRANSFER_MAIN},
-	};
 
 	switch (ctrl->value) {
 	case 0:
 		break;
 	case 1:
 		m6mo_prepare_wait(sd);
-		
-		ret = m6mo_write_regs(sd, regs, ARRAY_SIZE(regs));
+
+		ret = m6mo_w8(sd, CAP_TRANSFER_START_REG, CAP_TRANSFER_MAIN);
 		CHECK_ERR(ret);
 		
 		ret = m6mo_wait_irq_and_check(sd, INT_MASK_CAPTURE, WAIT_TIMEOUT);  /* wait interrupt */
@@ -1013,40 +1007,6 @@ static int m6mo_transfer_capture_data(struct v4l2_subdev *sd, struct v4l2_contro
 	}
 	
 	return ret;
-}
-
-static int m6mo_start_quick_capture(struct v4l2_subdev *sd)
-{
-	int ret, i, retry = 5;
-	struct m6mo_state *state = to_state(sd);
-
-	m6mo_prepare_wait(sd);
-
-	ret = m6mo_w8(sd,  SYS_MODE_REG, SYS_CAPTURE_MODE);	
-	CHECK_ERR(ret);
-	
-	for (i = 0; i < retry; i++) {
-		ret = wait_for_completion_interruptible_timeout(&state->completion, 
-			msecs_to_jiffies(2000));
-		if (ret <= 0) {
-			pr_err("%s: timeout in %u ms\n", __func__, 2000);
-			return -ETIME;
-		}
-
-		mutex_lock(&state->mutex);
-
-		if (state->irq_status & INT_MASK_CAPTURE) {
-			mutex_unlock(&state->mutex);
-			break;
-		}
-		mutex_unlock(&state->mutex);	
-	}
-
-	if (i == retry) return -EINVAL;
-
-	state->mode = CAPTURE_MODE;
-
-	return 0;
 }
 
 static int m6mo_start_capture(struct v4l2_subdev *sd, struct v4l2_control *ctrl)

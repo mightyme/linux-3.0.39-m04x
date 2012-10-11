@@ -698,6 +698,13 @@ static int m6mo_set_monitor_mode(struct v4l2_subdev *sd)
 
 	if (i == retry) return -EINVAL;
 
+	/* ensure special panorama off */
+	ret = m6mo_w8(sd, SPECIAL_MON_REG, SPECIAL_OFF);
+	CHECK_ERR(ret);
+	/* set capture normal mode */
+	ret = m6mo_w8(sd, CAP_MODE_REG, CAP_MODE_NORMAL);
+	CHECK_ERR(ret);
+
 	state->mode = MONITOR_MODE;
 
 	return 0;
@@ -710,8 +717,6 @@ static int m6mo_set_capture_mode(struct v4l2_subdev *sd)
 {
 	int ret, i, retry = 5;
 	struct m6mo_state *state = to_state(sd);
-
-	pr_info("%s:wdr = %d\n", __func__, state->userset.wdr);
 
 	m6mo_prepare_wait(sd);
 
