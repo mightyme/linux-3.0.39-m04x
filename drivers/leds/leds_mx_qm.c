@@ -87,8 +87,7 @@ static int gSlope = 0;
 	 
 	pr_debug("%s: id = %d   cur  = 0x%.2X\n", __func__,led->id,cur); 
 
-	//ret = mx->i2c_writebyte(mx->client,(LED_REG_CUR0+led->id), cur);
-	ret = mx->i2c_writebyte(mx->client,(LED_REG_CUR0), cur);
+	ret = mx->i2c_writebyte(mx->client,(LED_REG_CUR0+led->id), cur);
 
 	return ret;
 }
