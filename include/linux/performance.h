@@ -33,7 +33,7 @@ struct pfm_info {
 	int pfm_id;
 };
 
-#define INIT_CPU_PFM CPU_PFM_HIGH
+#define INIT_CPU_PFM CPU_PFM_MED
 
 extern int unregister_pfm_notifier(struct notifier_block *);
 extern int register_pfm_notifier(struct notifier_block *);
