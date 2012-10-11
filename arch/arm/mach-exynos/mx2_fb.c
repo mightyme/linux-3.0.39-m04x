@@ -60,7 +60,7 @@ static struct s3cfb_lcd mx2_mipi_lcd = {
 	},
 
 	.polarity = {
-		.rise_vclk = 0,
+		.rise_vclk = 1,
 		.inv_hsync = 0,
 		.inv_vsync = 0,
 		.inv_vden = 0,
