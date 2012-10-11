@@ -35,7 +35,10 @@ int proc_dosuspend_test(struct ctl_table *table, int write,
 	if (ret || !write)
 		goto out;
 
-	setup_test_suspend(sysctl_suspend_time_secs);
+	if (sysctl_suspend_test)
+		setup_test_suspend(sysctl_suspend_time_secs);
+	else
+		setup_test_suspend(0);
 
 	wake_up_process(suspend_task);
 
@@ -101,7 +104,7 @@ static int suspend_thread(void *data)
 			pr_info("%s: Allow go to suspend, suspend time = %u s\n", __func__, suspend_time);
 			setup_test_suspend(suspend_time);
 
-			suspend_cycle = get_random_secs(1, sysctl_suspend_cycle_secs) + 1;
+			suspend_cycle = get_random_secs(1, sysctl_suspend_cycle_secs) + 3;
 			pr_info("%s: Sleep %d seconds for suspend\n", __func__, suspend_cycle);
 		} else {
 			suspend_cycle = 0;
@@ -117,6 +120,10 @@ static int suspend_thread(void *data)
 		/* Stop suspend if suspend count */
 		if (sysctl_suspend_count != 0 && suspend_count >= sysctl_suspend_count) {
 			pr_info("Suspend test reaches %ld times, stop it.\n", sysctl_suspend_count);
+			/* Wake it up immediatly for late operations */
+			setup_test_suspend(1);
+			msleep_interruptible(3);
+			setup_test_suspend(0);
 			sysctl_suspend_test = 0;
 		}
 	}
