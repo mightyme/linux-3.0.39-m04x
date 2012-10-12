@@ -324,13 +324,13 @@ static int es305b_soc_config(enum ES305B_MODE mode)
 	int size;
 
 	AUD_INFO("ES305B: set es305b into %s mode\n", (mode == ES305B_SUSPEND ? "Suspend"
-		: mode == ES305B_INCALL_RECEIVER_NB ? "Incall Receiver narrow band"
-		: mode == ES305B_INCALL_HEADPHONE_NB ? "Incall Headset narrow band"
-		: mode == ES305B_INCALL_SPEAKER_NB ? "Incall Speaker narrow band"
+		: mode == ES305B_INCALL_CT_NB ? "Incall Receiver narrow band"
+		: mode == ES305B_INCALL_WHS_NB ? "Incall Headset narrow band"
+		: mode == ES305B_INCALL_DV_NB ? "Incall Speaker narrow band"
 		: mode == ES305B_INCALL_BT ? "Incall Bluetooth"
-		: mode == ES305B_VOIP_RECEIVER_NB ? "Voip Receiver narrow band"
-		: mode == ES305B_VOIP_HEADPHONE_NB ? "Voip Headset narrow band"
-		: mode == ES305B_VOIP_SPEAKER_NB ? "Voip Speaker narrow band"
+		: mode == ES305B_VOIP_CT_NB ? "Voip Receiver narrow band"
+		: mode == ES305B_VOIP_WHS_NB ? "Voip Headset narrow band"
+		: mode == ES305B_VOIP_DV_NB ? "Voip Speaker narrow band"
 		: mode == ES305B_VOIP_BT ? "Voip Bluetooth"
 		: mode == ES305B_BT_RING ? "BT Ringtone" : "Unknown"));
 
@@ -339,17 +339,17 @@ static int es305b_soc_config(enum ES305B_MODE mode)
 		return es305b_sleep();
 		break;
 
-	case ES305B_INCALL_RECEIVER_NB:
-		es305b_param = incall_receiver_buf;
-		size = sizeof(incall_receiver_buf);
+	case ES305B_INCALL_CT_NB:
+		es305b_param = incall_ct_buf;
+		size = sizeof(incall_ct_buf);
 		break;
-	case ES305B_INCALL_HEADPHONE_NB:
-		es305b_param = incall_headphone_buf;
-		size = sizeof(incall_headphone_buf);
+	case ES305B_INCALL_DV_NB:
+		es305b_param = incall_dv_buf;
+		size = sizeof(incall_dv_buf);
 		break;
-	case ES305B_INCALL_SPEAKER_NB:
-		es305b_param = incall_speaker_buf;
-		size = sizeof(incall_speaker_buf);
+	case ES305B_INCALL_WHS_NB:
+		es305b_param = incall_whs_buf;
+		size = sizeof(incall_whs_buf);
 		break;
 	case ES305B_INCALL_BT:
 		if(es305b->nr_bt) {
@@ -362,17 +362,17 @@ static int es305b_soc_config(enum ES305B_MODE mode)
 		AUD_INFO("set nr for bt %s \n", es305b->nr_bt ? "On" : "off");
 		break;
 
-	case ES305B_VOIP_RECEIVER_NB:
-		es305b_param = voip_receiver_buf;
-		size = sizeof(voip_receiver_buf);
+	case ES305B_VOIP_CT_NB:
+		es305b_param = voip_ct_buf;
+		size = sizeof(voip_ct_buf);
 		break;
-	case ES305B_VOIP_HEADPHONE_NB:
-		es305b_param = voip_headphone_buf;
-		size = sizeof(voip_headphone_buf);
+	case ES305B_VOIP_WHS_NB:
+		es305b_param = voip_whs_buf;
+		size = sizeof(voip_whs_buf);
 		break;
-	case ES305B_VOIP_SPEAKER_NB:
-		es305b_param = voip_speaker_buf;
-		size = sizeof(voip_speaker_buf);
+	case ES305B_VOIP_DV_NB:
+		es305b_param = voip_dv_buf;
+		size = sizeof(voip_dv_buf);
 		break;
 	case ES305B_VOIP_BT:
 		if(es305b->nr_bt) {

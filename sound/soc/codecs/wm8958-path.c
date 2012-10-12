@@ -746,7 +746,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		OpenAIF2(codec);
 		audio_switch(SWTICH_TO_BB);	
 #ifdef CONFIG_AUDIENCE_ES305B
-		es305b_setmode(ES305B_INCALL_SPEAKER_NB);
+		es305b_setmode(ES305B_INCALL_CT_NB);
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_SPEAKER);
@@ -763,7 +763,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		OpenAIF2(codec);
 		audio_switch(SWTICH_TO_BB);		
 #ifdef CONFIG_AUDIENCE_ES305B
-		es305b_setmode(ES305B_INCALL_SPEAKER_NB);
+		es305b_setmode(ES305B_INCALL_CT_NB);
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_SPEAKER);
@@ -779,7 +779,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		OpenAIF2(codec);
 		audio_switch(SWTICH_TO_BB);
 #ifdef CONFIG_AUDIENCE_ES305B
-		es305b_setmode(ES305B_INCALL_HEADPHONE_NB);
+		es305b_setmode(ES305B_INCALL_WHS_NB);
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_HEADSET);
@@ -795,7 +795,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		OpenAIF2(codec);
 		audio_switch(SWTICH_TO_BB);
 #ifdef CONFIG_AUDIENCE_ES305B
-		es305b_setmode(ES305B_INCALL_HEADPHONE_NB);
+		es305b_setmode(ES305B_INCALL_WHS_NB);
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_HEADSET);
@@ -811,7 +811,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		OpenAIF2(codec);
 		audio_switch(SWTICH_TO_BB);	
 #ifdef CONFIG_AUDIENCE_ES305B
-		es305b_setmode(ES305B_INCALL_HEADPHONE_NB);
+		es305b_setmode(ES305B_INCALL_WHS_NB);
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_HEADSET);
@@ -828,7 +828,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		OpenAIF2(codec);
 		audio_switch(SWTICH_TO_BB);	
 #ifdef CONFIG_AUDIENCE_ES305B
-		es305b_setmode(ES305B_INCALL_RECEIVER_NB);
+		es305b_setmode(ES305B_INCALL_CT_NB);
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_RECEIVER);
@@ -859,7 +859,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 	case PLAYBACK_SPK_HP_VOIP:
 		audio_switch(SWTICH_TO_AP);		
 #ifdef CONFIG_AUDIENCE_ES305B
-		es305b_setmode(ES305B_VOIP_SPEAKER_NB);
+		es305b_setmode(ES305B_VOIP_DV_NB);
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_SPEAKER);
@@ -875,7 +875,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 	case PLAYBACK_SPK_VOIP:
 		audio_switch(SWTICH_TO_AP);		
 #ifdef CONFIG_AUDIENCE_ES305B
-		es305b_setmode(ES305B_VOIP_SPEAKER_NB);
+		es305b_setmode(ES305B_VOIP_DV_NB);
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_SPEAKER);
@@ -889,7 +889,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 	case PLAYBACK_HP_VOIP:
 		audio_switch(SWTICH_TO_AP);
 #ifdef CONFIG_AUDIENCE_ES305B
-		es305b_setmode(ES305B_VOIP_HEADPHONE_NB);
+		es305b_setmode(ES305B_VOIP_WHS_NB);
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_HEADSET);
@@ -904,7 +904,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 	case PLAYBACK_HS_VOIP:
 		audio_switch(SWTICH_TO_AP);
 #ifdef CONFIG_AUDIENCE_ES305B
-		es305b_setmode(ES305B_VOIP_HEADPHONE_NB);
+		es305b_setmode(ES305B_VOIP_WHS_NB);
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_HEADSET);
@@ -919,7 +919,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 	case PLAYBACK_SPK_HS_VOIP:	
 		audio_switch(SWTICH_TO_AP);		
 #ifdef CONFIG_AUDIENCE_ES305B
-		es305b_setmode(ES305B_VOIP_HEADPHONE_NB);
+		es305b_setmode(ES305B_VOIP_WHS_NB);
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_HEADSET);
@@ -936,7 +936,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 	case PLAYBACK_REC_VOIP:	
 		audio_switch(SWTICH_TO_AP);	
 #ifdef CONFIG_AUDIENCE_ES305B
-		es305b_setmode(ES305B_VOIP_RECEIVER_NB);
+		es305b_setmode(ES305B_VOIP_CT_NB);
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_RECEIVER);
@@ -967,7 +967,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 	/* Test */
 	case PLAYBACK_MIC_TEST:
 #ifdef CONFIG_AUDIENCE_ES305B
-		es305b_setmode(ES305B_VOIP_HEADPHONE_NB);
+		es305b_setmode(ES305B_VOIP_WHS_NB);
 #endif
 		SetVolume_VoIP(codec);
 		SetVolume_Mixerin_rec(codec);
@@ -975,7 +975,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		break;
 	case PLAYBACK_REC_TEST:
 #ifdef CONFIG_AUDIENCE_ES305B
-		es305b_setmode(ES305B_VOIP_HEADPHONE_NB);
+		es305b_setmode(ES305B_VOIP_WHS_NB);
 #endif
 		SetVolume_VoIP(codec);
 		SetVolume_Mixerin_rec(codec);
@@ -983,7 +983,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		break;
 	case PLAYBACK_SPK_TEST:
 #ifdef CONFIG_AUDIENCE_ES305B
-		es305b_setmode(ES305B_VOIP_HEADPHONE_NB);
+		es305b_setmode(ES305B_VOIP_WHS_NB);
 #endif
 		SetVolume_VoIP(codec);
 		SetVolume_Mixerin_rec(codec);
@@ -991,7 +991,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		break;
 	case PLAYBACK_REC_ECHO_TEST:
 #ifdef CONFIG_AUDIENCE_ES305B
-		es305b_setmode(ES305B_VOIP_HEADPHONE_NB);
+		es305b_setmode(ES305B_VOIP_WHS_NB);
 #endif
 		SetVolume_VoIP(codec);
 		SetVolume_Mixerin_rec(codec);
@@ -1000,7 +1000,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		break;
 	case PLAYBACK_SPK_ECHO_TEST:
 #ifdef CONFIG_AUDIENCE_ES305B
-		es305b_setmode(ES305B_VOIP_HEADPHONE_NB);
+		es305b_setmode(ES305B_VOIP_WHS_NB);
 #endif
 		SetVolume_VoIP(codec);
 		SetVolume_Mixerin_rec(codec);
