@@ -100,11 +100,11 @@ static int suspend_thread(void *data)
 	while (1) {
 		if (sysctl_suspend_test) {
 			/* The setup_test_suspend() function accept secs as unit */
-			suspend_time = get_random_secs(1, sysctl_suspend_time_secs) + 1;
+			suspend_time = get_random_secs(1, sysctl_suspend_time_secs) + 5;
 			pr_info("%s: Allow go to suspend, suspend time = %u s\n", __func__, suspend_time);
 			setup_test_suspend(suspend_time);
 
-			suspend_cycle = get_random_secs(1, sysctl_suspend_cycle_secs) + 3;
+			suspend_cycle = get_random_secs(1, sysctl_suspend_cycle_secs) + 1;
 			pr_info("%s: Sleep %d seconds for suspend\n", __func__, suspend_cycle);
 		} else {
 			suspend_cycle = 0;
