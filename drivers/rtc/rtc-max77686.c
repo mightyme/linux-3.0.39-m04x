@@ -503,7 +503,7 @@ static irqreturn_t max77686_rtc_boot_alarm_irq(int irq, void *data)
 {
 	struct max77686_rtc_info *info = data;
 
-	dev_dbg(info->dev, "%s:irq(%d)\n", __func__, irq);
+	dev_info(info->dev, "%s:irq(%d)\n", __func__, irq);
 
 #ifdef CONFIG_MX_RECOVERY_KERNEL
 	if(is_charging_mode()) {
