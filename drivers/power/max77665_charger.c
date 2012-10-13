@@ -46,8 +46,8 @@ struct max77665_charger
 	struct delayed_work dwork;
 	struct delayed_work poll_dwork;
 	struct regulator *ps;
+	struct regulator *reverse;
 	struct mutex mutex_t;
-	struct notifier_block usb_host_notifier;
 
 	enum cable_status_t {
 		CABLE_TYPE_NONE = 0,
@@ -70,7 +70,6 @@ struct max77665_charger
 	int (*usb_attach) (bool);
 
 	struct alarm		alarm;
-	bool usb_host_insert;
 #ifdef CONFIG_MACH_M040
 	struct s3c_adc_client *client;
 #endif
@@ -396,7 +395,8 @@ static irqreturn_t max77665_charger_isr(int irq, void *dev_id)
 		chgin = !!(reg_data & 0x40);
 
 	pr_info("-----%s %s\n", __func__, chgin ? "insert" : "remove");
-	if(charger->usb_host_insert) {
+
+	if(regulator_is_enabled(charger->reverse)){
 		pr_info("usb host insert, dismiss this isr\n");
 		wake_unlock(&charger->wake_lock);
 		return IRQ_HANDLED;
@@ -544,27 +544,6 @@ error:
 	return ret;
 }
 
-static int charger_usb_host_notifier_event(struct notifier_block *this,
-		unsigned long event, void *ptr)
-{
-	struct max77665_charger *chg =
-		container_of(this, struct max77665_charger, usb_host_notifier);
-	int rtn = NOTIFY_DONE;
-
-	pr_info("%s (%lu)\n", __func__, event);
-	switch (event) {
-	case USB_HOST_INSERT:
-		chg->usb_host_insert = true;
-		break;
-	case USB_HOST_REMOVE:
-		chg->usb_host_insert = false;
-		break;
-	default:
-		break;
-	}
-	return rtn;
-}
-
 static __devinit int max77665_charger_probe(struct platform_device *pdev)
 {
 	struct max77665_dev *iodev = dev_get_drvdata(pdev->dev.parent);
@@ -596,8 +575,14 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 
 	charger->ps = regulator_get(charger->dev, pdata->supply);
 	if (IS_ERR(charger->ps)) {
-		dev_err(&pdev->dev, "Failed to regulator_get: %ld\n", PTR_ERR(charger->ps));
+		dev_err(&pdev->dev, "Failed to regulator_get ps: %ld\n", PTR_ERR(charger->ps));
 		goto err_free;
+	}
+
+	charger->reverse = regulator_get(NULL, "reverse");
+	if (IS_ERR(charger->reverse)) {
+		dev_err(&pdev->dev, "Failed to regulator_get reverse: %ld\n", PTR_ERR(charger->reverse));
+		goto err_put0;
 	}
 
 #ifdef CONFIG_MACH_M040
@@ -605,7 +590,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	if (IS_ERR(charger->client)) {
 		dev_err(&pdev->dev, "cannot register adc\n");
 		ret = PTR_ERR(charger->client);
-		goto err_put;
+		goto err_put1;
 	}
 #endif
 
@@ -620,7 +605,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 #ifdef CONFIG_MACH_M040
 		goto err_adc;
 #else
-		goto err_put;
+		goto err_put1;
 #endif
 	}
 
@@ -679,10 +664,6 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 		goto err_unregister2;
 	}
 
-	charger->usb_host_insert = false;
-	charger->usb_host_notifier.notifier_call = charger_usb_host_notifier_event;
-	register_mx_usb_notifier(&charger->usb_host_notifier);
-
 	return 0;
 
 err_unregister2:
@@ -692,12 +673,14 @@ err_unregister1:
 	power_supply_unregister(&charger->psy_usb);
 err_unregister0:	
 	power_supply_unregister(&charger->psy_charger);
-err_put:
-	regulator_put(charger->ps);
 #ifdef CONFIG_MACH_M040
 err_adc:
 	s3c_adc_release(charger->client);
 #endif
+err_put1:
+	regulator_put(charger->reverse);
+err_put0:
+	regulator_put(charger->ps);
 err_free:
 #if defined(CONFIG_MX_RECOVERY_KERNEL)
 	wake_lock_destroy(&charger->charge_wake_lock);
