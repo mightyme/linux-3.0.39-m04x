@@ -554,6 +554,7 @@ static struct i2c_device_id mhl_idtable[] = {
 	{"mhl_page1", 0},
 	{"mhl_page2", 0},
 	{"mhl_cbus", 0},
+	{}
 };
 
 bool mhl_cable_status()

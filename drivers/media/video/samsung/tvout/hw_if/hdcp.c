@@ -252,6 +252,7 @@ static int s5p_ddc_resume(struct i2c_client *cl)
 
 static struct i2c_device_id ddc_idtable[] = {
 	{"s5p_ddc", 0},
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, ddc_idtable);
 
