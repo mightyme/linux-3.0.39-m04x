@@ -99,7 +99,7 @@ static int bu26507_set_led_pwm(struct led_classdev *led_cdev, int pwm)
 	struct mx_qm_data *mx = led->data;
 	int ret = 0;
 
-	  //pwm = pwm *63 /100;
+	//pwm = pwm *63 /100;
 
 	/*led pwm level, from 0~63*/
 	pwm = (pwm >> 2) & 0x3F;
@@ -120,8 +120,8 @@ static int bu26507_set_led_slope(struct led_classdev *led_cdev, int enable)
 
 	pr_debug("%s: enable  = 0x%X\n", __func__,enable); 
 
-	if(enable)
-		ret = mx->i2c_writebyte(mx->client,LED_REG_CUR0,0xCF);	  
+	//if(enable)
+	//	ret = mx->i2c_writebyte(mx->client,LED_REG_CUR0,0xCF);	  
 	ret = mx->i2c_writebyte(mx->client,LED_REG_SLOPE,enable);	  
 
 	return ret;
@@ -348,7 +348,7 @@ static void mx_qm_led_early_suspend(struct early_suspend *h)
 	 if( led->id == 0)
 	 {
 		//led->led_cdev.brightness_set(&led->led_cdev,((MODE_PWM<<8) | 0x20)); 	 	
-		led->led_cdev.brightness_set(&led->led_cdev,((MODE_SLOPE<<8) | gSlope)); 
+		//led->led_cdev.brightness_set(&led->led_cdev,((MODE_SLOPE<<8) | gSlope)); 
 	 }
 }
  
