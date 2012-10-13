@@ -49,9 +49,6 @@
 
 #define	APP_DEMO_RCP_SEND_KEY_CODE 0x41
 
-
-extern void max8997_set_buck6_pwm_mode(int mode);
-
 bool_t	vbuspowerstate = true;		// false: 0 = vbus output on; true: 1 = vbus output off;
 struct i2c_client *mhl_page0;
 struct i2c_client *mhl_page1;
@@ -569,9 +566,11 @@ bool mhl_cable_status()
 }
 EXPORT_SYMBOL(mhl_cable_status);
 
+#ifndef CONFIG_MACH_M040
 static struct notifier_block mhl_usb_notifier = {
 	.notifier_call = mhl_usb_notifier_event,
 };
+#endif
 
 static int real_mhl_probe(struct i2c_client *client)
 {
@@ -651,7 +650,10 @@ static int real_mhl_probe(struct i2c_client *client)
 	g_mhl_timer.expires = jiffies + 5 * HZ;
 	add_timer(&g_mhl_timer);
 
+#ifndef CONFIG_MACH_M040
 	register_mx_usb_notifier(&mhl_usb_notifier);
+#endif
+
 exit:
 	return ret;
 }
@@ -663,13 +665,6 @@ static int mhl_probe(struct i2c_client *client,
 	int ret = 0;
 
 	MHLPRINTK("probe start");
-
-//	if (NULL == client->dev.platform_data) {
-//		dev_err(&client->dev, "platform data is NULL. exiting.\n");
-//		ret = -ENODEV;
-//	}
-
-	// max8997_set_buck6_pwm_mode(0);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		printk(KERN_ERR "mhl sii9244 probe: check_functionality failed.\n");

@@ -298,8 +298,10 @@ void ReadModifyWriteCBUS(uint8_t Offset, uint8_t Mask, uint8_t Value)
 
 #define	APPLY_PLL_RECOVERY
 
+#ifndef CONFIG_MACH_M040
 static bool mhl_processed = false;
 static bool dock_inserted = false;
+#endif
 
 ////////////////////////////////////////////////////////////////////
 //
@@ -672,10 +674,12 @@ static void MhlTxDrvProcessConnection ( void )
 	if(0x02 != (sii_9224_i2c_readbyte(PAGE_0_0X72, 0x99) & 0x03) )
 	{
 		TX_DEBUG_PRINT (("[MHL]: MHL_EST interrupt but not MHL impedance\n"));
+#ifndef CONFIG_MACH_M040
 		if(dock_inserted) {
 			msleep(5);
 			TX_DEBUG_PRINT(("mhl wakeup now\n"));
 		}
+#endif
 		SwitchToD0();
 		SwitchToD3();
 		return;
@@ -931,7 +935,9 @@ static void	ProcessRgnd( void )
 		TX_DEBUG_PRINT(("[MHL]: USB impedance. Set for USB Established.\n"));
 
 		CLR_BIT(PAGE_0_0X72, 0x95, 5);
+#ifndef CONFIG_MACH_M040
 		mhl_processed = true;
+#endif
         }
 }
 
@@ -3155,6 +3161,7 @@ void MHLPowerStatusCheck (void)
 }
 #endif
 
+#ifndef CONFIG_MACH_M040
 int mhl_usb_notifier_event(struct notifier_block *this,
 		unsigned long event, void *ptr)
 {
@@ -3187,3 +3194,4 @@ int mhl_usb_notifier_event(struct notifier_block *this,
 	}
 	return rtn;
 }
+#endif
