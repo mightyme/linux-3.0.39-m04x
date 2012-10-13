@@ -21,8 +21,8 @@
 
 /* flash */
 #define FLASH_LED_NAME "flash_led"
-#define PRE_FLASH_CURRENT 300000   /* 300000 uA */
-#define FULL_FLASH_CURRENT 500000   /* 500000 uA */
+#define PRE_FLASH_CURRENT 150000   /* 150000 uA */
+#define FULL_FLASH_CURRENT 250000   /* 250000 uA */
 #define MAX_FLASH_CURRENT 1000000
 
 enum m6mo_i2c_size {
