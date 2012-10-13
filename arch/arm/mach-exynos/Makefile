@@ -58,7 +58,7 @@ obj-$(CONFIG_MACH_SMDK5210)		+= mach-smdk5210.o
 obj-$(CONFIG_MACH_SMDK5250)		+= mach-smdk5250.o
 
 obj-$(CONFIG_MX_SERIAL_TYPE)		+= gpio-common.o usb-detect.o gpio-mx.o mx_reboot.o
-obj-$(CONFIG_MX2_SERIAL_TYPE)		+= gpio-common.o usb-detect.o gpio-mx2.o mx2_reboot.o
+obj-$(CONFIG_MX2_SERIAL_TYPE)		+= gpio-common.o gpio-mx2.o mx2_reboot.o
 obj-$(CONFIG_MACH_M040)			+= mach-m040.o  i2c-m040.o
 obj-$(CONFIG_MACH_M032)			+= mach-m032.o i2c-m032.o
 obj-$(CONFIG_MACH_M030)			+= mach-m030.o i2c-m030.o
