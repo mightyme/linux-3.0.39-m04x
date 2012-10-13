@@ -100,7 +100,6 @@ struct link_pm_data {
 	struct wake_lock tx_async_wake;
 	struct notifier_block pm_notifier;
 	bool dpm_suspending;
-	bool is_usb_host_inserted;
 	
 	spinlock_t      pm_data_lock; 
 	wait_queue_head_t  waitqueue;

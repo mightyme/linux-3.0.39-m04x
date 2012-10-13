@@ -1263,8 +1263,6 @@ static int usb_link_pm_init(struct usb_link_device *usb_ld, void *data)
 	pm_data->pm_notifier.notifier_call = link_pm_notifier_event;
 	register_pm_notifier(&pm_data->pm_notifier);
 
-	pm_data->is_usb_host_inserted = mx_is_usb_host_insert();
-
 	init_completion(&pm_data->active_done);
 	INIT_DELAYED_WORK(&pm_data->link_pm_work, link_pm_runtime_work);
 	INIT_DELAYED_WORK(&pm_data->link_pm_start, link_pm_runtime_start);
