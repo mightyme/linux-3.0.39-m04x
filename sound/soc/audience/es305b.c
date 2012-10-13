@@ -304,7 +304,7 @@ static int es305b_get_cmd(void)
 			AUD_ERR("es305b_i2c_read error, ret = %d\n", ret);
 			return -EINVAL;
 		} else {
-			AUD_INFO("es305b_i2c_read (0x%.8x) OK\n", be32_to_cpu(msg));
+			AUD_INFO("es305b_i2c_read (0x%.8X) OK\n", be32_to_cpu(msg));
 			ret = be32_to_cpu(msg);
 		}
 	} else {
@@ -319,7 +319,7 @@ static int es305b_soc_config(enum ES305B_MODE mode)
 {
 	unsigned int sw_reset = 0;
 	const u8 *es305b_param;
-	u8 ack_buf[256] ={0,};
+	u8 ack_buf[1000] ={0,};
 	int ret = 0;
 	int size;
 
@@ -402,16 +402,31 @@ static int es305b_soc_config(enum ES305B_MODE mode)
 #ifdef _CMD_FIFO_USED_
 		int i = 0;
 
-		while(i < size) {
-			ret = es305b_i2c_write(es305b->client, (size-i) < ES305B_CMD_FIFO_DEPTH ? (size - i) : ES305B_CMD_FIFO_DEPTH, es305b_param + i);
+		memset(ack_buf, 0, sizeof(ack_buf));
+		while (i < size) {
+			ret = es305b_i2c_write(es305b->client, (size - i) < ES305B_CMD_FIFO_DEPTH ? (size - i) : ES305B_CMD_FIFO_DEPTH, es305b_param + i);
 			if (ret < 0) {
 				AUD_ERR("ES305B CMD block write error!\n");
 				goto err_config;
 			}
 
 			msleep(20);
+			ret = es305b_i2c_read(es305b->client, (size - i)< ES305B_CMD_FIFO_DEPTH ? (size - i) : ES305B_CMD_FIFO_DEPTH, ack_buf + i);
+			if (ret < 0) {
+				pr_err("%s: CMD ACK block read error\n", __func__);
+				goto err_config;
+			}
+
 			i += ES305B_CMD_FIFO_DEPTH;
+			msleep(20);
 		}
+#ifdef DEBUG
+	for (i = 0; i < size; i++) {
+		if ( !(i & 0x3)) printk("\n");
+		printk("%.2X ", ack_buf[i]);
+	}
+	printk("\n");
+#endif
 #else
 		memset(ack_buf, 0, sizeof(ack_buf));
 		ret = es305b_i2c_write(es305b->client, size, es305b_param);
@@ -501,7 +516,7 @@ int es305b_execute_cmdmsg(unsigned int msg)
 	msgbuf[2] = (msg >> 8) & 0xFF;
 	msgbuf[3] = msg & 0xFF;
 
-	retries = 3;//POLLING_RETRY_CNT;
+	retries = 3; //POLLING_RETRY_CNT;
 	while (retries--) {
 		ret = 0;
 
@@ -519,8 +534,7 @@ int es305b_execute_cmdmsg(unsigned int msg)
 			return ret;
 		}
 
-#if 0
-		memset(chkbuf, 0xaa, sizeof(chkbuf));
+		memset(chkbuf, 0, sizeof(chkbuf));
 		ret = es305b_i2c_read(es305b->client, 4, chkbuf);
 		if (ret < 0) {
 			AUD_ERR("ack-read error %d (%d retries)\n", ret, retries);
@@ -553,14 +567,11 @@ int es305b_execute_cmdmsg(unsigned int msg)
 			ret = -EBUSY;
 			continue;
 		}
-#endif
 	}
-#if 0
 	if (!pass) {
 		AUD_ERR("failed execute cmd %08x (%d)\n", msg, ret);
 		es305b_software_reset(sw_reset);
 	}
-#endif
 	return ret;
 }
 
@@ -845,6 +856,13 @@ static void es305b_soc_firmware_handler(const struct firmware *fw, void *context
 			break;
 		}
 
+#ifdef DEBUG
+	for (i = 0; i < size; i++) {
+		if ( !(i & 0x3)) printk("\n");
+		printk("%.2X ", ack_buf[i]);
+	}
+	printk("\n");
+#endif
 		AUD_ERR("firmware load error %d (%d retries left)\n", ret, cmds);
 	}
 

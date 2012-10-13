@@ -123,7 +123,7 @@
 #define POLLING_RETRY_CNT				10
 #define ES305B_ERROR_CODE				0xffff
 #define ES305B_ACTIVE					1
-#define ES305B_CMD_FIFO_DEPTH			32 /* 128 / 4 = 32 */
+#define ES305B_CMD_FIFO_DEPTH			128 /* 128 / 4 = 32 */
 #define ERROR							0xffffffff
 
 /* ---------------------Stucture -------------------*/

@@ -85,6 +85,4 @@
 #define	VOL_AIF1_ADC1_RIGHT				(0xE0<<WM8994_AIF1ADC1R_VOL_SHIFT)	// +12dB
 #define	VOL_AIF1_ADC1_LEFT				(0xE0<<WM8994_AIF1ADC1L_VOL_SHIFT)	// +12dB
 
-extern bool isOverseaVersion( void );
-
 #endif
