@@ -104,7 +104,7 @@ static int suspend_thread(void *data)
 			pr_info("%s: Allow go to suspend, suspend time = %u s\n", __func__, suspend_time);
 			setup_test_suspend(suspend_time);
 
-			suspend_cycle = get_random_secs(1, sysctl_suspend_cycle_secs) + 1;
+			suspend_cycle = get_random_secs(1, sysctl_suspend_cycle_secs) + 5;
 			pr_info("%s: Sleep %d seconds for suspend\n", __func__, suspend_cycle);
 		} else {
 			suspend_cycle = 0;
