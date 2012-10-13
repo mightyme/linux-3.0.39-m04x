@@ -10,7 +10,7 @@
 
 #include <mach/usb-detect.h>
 
-/* #define MHLDEBUG */
+//#define MHLDEBUG
 
 #ifdef MHLDEBUG
 #define MHLPRINTK(fmt, args...) \

@@ -736,6 +736,9 @@ static void MhlTxDrvProcessConnection ( void )
 	SiiMhlTxNotifyConnection(mhlConnected = true);
 }
 
+#ifdef CONFIG_MACH_M040
+extern void check_mhl_connect(void);
+#endif
 ///////////////////////////////////////////////////////////////////////////
 //
 // MhlTxDrvProcessDisconnection
@@ -771,6 +774,9 @@ static void MhlTxDrvProcessDisconnection ( void )
 
 	// Now put chip in sleep mode
 	SwitchToD3();
+#ifdef CONFIG_MACH_M040
+	check_mhl_connect();
+#endif
 }
 
 //#define CbusWakeUpPulse_GPIO

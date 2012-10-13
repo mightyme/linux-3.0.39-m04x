@@ -40,29 +40,29 @@
 #include <plat/tvout.h>
 
 #ifdef CONFIG_MHL_DRIVER
+static int mhl_state = 0;
+static DEFINE_MUTEX(mhl_lock);
 static int mx2_mhl_power_on(struct mhl_platform_data *pdata, int enable)
 {
 	struct regulator *vdd12mhl_regulator;
 	struct regulator *vdd12mhl_gpio_regulator;
-	int ret;
+	int ret = 0;
+
+	mutex_lock(&mhl_lock);
+	if(mhl_state == enable)
+		goto err0;
 
 	pdata->mhl_logic_regulator = regulator_get(NULL, "vdd_ldo26");
-	if (!pdata->mhl_logic_regulator) {
-		MHLPRINTK("regulator_get failed");
-		return -1;
+	if (IS_ERR_OR_NULL(pdata->mhl_logic_regulator)) {
+		goto err1;
 	}
 	vdd12mhl_regulator = regulator_get(NULL, "vdd_ldo20");
-	if (!vdd12mhl_regulator) {
-		MHLPRINTK("regulator_get failed");
-		regulator_put(pdata->mhl_logic_regulator);
-		return -1;
+	if (IS_ERR_OR_NULL(vdd12mhl_regulator)) {
+		goto err2;
 	}
 	vdd12mhl_gpio_regulator = regulator_get(NULL, "MHL_1.2V");
-	if (!vdd12mhl_gpio_regulator) {
-		regulator_put(pdata->mhl_logic_regulator);
-		regulator_put(vdd12mhl_regulator);
-		MHLPRINTK("regulator_get failed");
-		return -1;
+	if (IS_ERR_OR_NULL(vdd12mhl_gpio_regulator)) {
+		goto err3;
 	}
 
 	if (enable) {
@@ -74,16 +74,23 @@ static int mx2_mhl_power_on(struct mhl_platform_data *pdata, int enable)
 		ret = regulator_disable(vdd12mhl_regulator);
 		ret = regulator_disable(vdd12mhl_gpio_regulator);
 	}
-	regulator_put(pdata->mhl_logic_regulator);
-	regulator_put(vdd12mhl_regulator);
-	regulator_put(vdd12mhl_gpio_regulator);
 
 	if (ret < 0) {
-		MHLPRINTK("regulator_%sable failed\n", enable ? "en" : "dis");
-		return ret;
+		pr_info("regulator_%sable failed\n", enable ? "en" : "dis");
+		goto err3;
 	}
-	MHLPRINTK("regulator_%sable\n", enable ? "en" : "dis");
-	return 0;
+
+	mhl_state = enable;
+
+err3:
+	regulator_put(vdd12mhl_gpio_regulator);
+err2:
+	regulator_put(vdd12mhl_regulator);
+err1:
+	regulator_put(pdata->mhl_logic_regulator);
+err0:
+	mutex_unlock(&mhl_lock);
+	return ret;
 }
 
 static int mx2_mhl_reset(struct mhl_platform_data *pdata)

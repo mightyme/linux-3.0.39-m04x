@@ -158,6 +158,12 @@ void check_mhl_connect(void)
 	}
 }
 
+#ifdef CONFIG_MHL_DRIVER
+extern void mhl_connect(int on);
+#else
+inline static void mhl_connect(int on){}
+#endif
+
 static void muic_mhl_work(struct work_struct *work)
 {
 	struct max77665_muic_info *info =
@@ -166,9 +172,11 @@ static void muic_mhl_work(struct work_struct *work)
 		pr_info("mhl connect\n");
 
 		max77665a_set_usbid(info, true);
+		mhl_connect(true);
 	} else {
 		pr_info("mhl disconnect\n");
 
+		mhl_connect(false);
 		max77665a_set_usbid(info, false);
 	}
 }

@@ -55,6 +55,7 @@ struct i2c_client *mhl_page1;
 struct i2c_client *mhl_page2;
 struct i2c_client *mhl_cbus;
 
+static struct workqueue_struct *mhl_wq;
 static void work_queue(void);
 static DECLARE_WORK(mhl_work, (void *)work_queue);
 
@@ -130,29 +131,6 @@ static const bool match_id(const struct i2c_device_id *id,
 	return false;
 }
 
-static int mhl_read_id(void)
-{
-	u8 dev_idl = 0, dev_idh = 0;
-
-	dev_idl = sii_9224_i2c_readbyte(PAGE_0_0X72, 0x02);
-	dev_idh = sii_9224_i2c_readbyte(PAGE_0_0X72, 0x03);
-
-	printk("dev_id is: [0x%x : 0x%x]", dev_idh, dev_idl);
-	if (dev_idl == 0x34 && dev_idh == 0x92) {
-		dev_info(&mhl_page0->dev, "sii-9244 found"
-			": dev_id is: [0x%x : 0x%x]", dev_idh, dev_idl);
-		return 0;
-	} else {
-		dev_info(&mhl_page0->dev, "sii-9244 found"
-			": dev_id is: [0x%x : 0x%x]", dev_idh, dev_idl);
-		return 0;
-	}
-
-	dev_err(&mhl_page0->dev, "error device"
-		": dev_id is: [0x%x : 0x%x]", dev_idh, dev_idl);
-	return -EIO;
-}
-
 static void timertickhandler(unsigned long __data)
 {
 	uint8_t i;
@@ -177,7 +155,7 @@ static void timertickhandler(unsigned long __data)
 	count++;
 
 	if (!(count % 3))
-		schedule_work(&mhl_work);
+		queue_work(mhl_wq, &mhl_work);
 
 
 	g_mhl_timer.expires = jiffies + 4;
@@ -490,34 +468,8 @@ void appvbuscontrol(bool_t poweron)
 
 static void work_queue(void)
 {
-	bool_t interruptdriven;
-	uint8_t pollintervalms;
 	uint8_t event;
 	uint8_t eventparameter;
-
-	/*Initialize host microcontroller and the timer*/
-	/*halinitcpu();*/
-
-	if (!work_initial) {
-		haltimerinit();
-		haltimerset(TIMER_POLLING, MONITORING_PERIOD);
-
-		printk(KERN_INFO"\n============================================\n");
-		printk(KERN_INFO"Copyright 2010 Silicon Image\n");
-		printk(KERN_INFO"SiI-9244 Starter Kit Firmware Version 1.00.87\n");
-		printk(KERN_INFO"============================================\n");
-
-		/*
-		* Initialize the registers as required. Setup firmware vars.
-		*/
-		SiiMhlTxInitialize(interruptdriven = false,
-				pollintervalms = MONITORING_PERIOD);
-
-		work_initial = true;
-
-		g_mhl_timer.expires = jiffies + 1;
-		add_timer(&g_mhl_timer);
-	}
 
 	/* Event loop */
 	SiiMhlGetEvents(&event, &eventparameter);
@@ -566,6 +518,59 @@ bool mhl_cable_status()
 }
 EXPORT_SYMBOL(mhl_cable_status);
 
+void mhl_connect(int on)
+{
+	pr_info("mhl status %d\n", on);
+	if (on) {
+		atomic_set(&g_mhlcablestatus, 0);
+		work_initial = false;
+
+		/* mhl power on */
+		if (mhl_pdata->mhl_power_on) {
+			mhl_pdata->mhl_power_on(mhl_pdata, true);
+		}
+
+		/* mhl reset */
+		if ( mhl_pdata->reset) {
+			mhl_pdata->reset(mhl_pdata);
+		}
+
+		haltimerinit();
+		haltimerset(TIMER_POLLING, MONITORING_PERIOD);
+
+		printk(KERN_INFO"\n============================================\n");
+		printk(KERN_INFO"Copyright 2010 Silicon Image\n");
+		printk(KERN_INFO"SiI-9244 Starter Kit Firmware Version 1.00.87\n");
+		printk(KERN_INFO"============================================\n");
+
+		/*
+		* Initialize the registers as required. Setup firmware vars.
+		*/
+		SiiMhlTxInitialize(false, MONITORING_PERIOD);
+		work_initial = true;
+
+		mod_timer(&g_mhl_timer, jiffies + 1);
+
+	} else {
+		atomic_set(&g_mhlcablestatus, 0);
+
+		del_timer_sync(&g_mhl_timer);
+
+		flush_workqueue(mhl_wq);
+		cancel_work_sync(&mhl_work);
+
+		/* mhl reset */
+		if ( mhl_pdata->reset) {
+			mhl_pdata->reset(mhl_pdata);
+		}
+		/* mhl power on */
+		if (mhl_pdata->mhl_power_on) {
+			mhl_pdata->mhl_power_on(mhl_pdata, false);
+		}
+
+	}
+}
+
 #ifndef CONFIG_MACH_M040
 static struct notifier_block mhl_usb_notifier = {
 	.notifier_call = mhl_usb_notifier_event,
@@ -574,11 +579,15 @@ static struct notifier_block mhl_usb_notifier = {
 
 static int real_mhl_probe(struct i2c_client *client)
 {
-	bool_t interruptdriven;
-	uint8_t pollintervalms;
 	int ret;
+	
+	mhl_wq = create_freezable_workqueue("mhl_wq");
+	if (!mhl_wq) {
+		dev_err(&client->dev, "%s: fail to create workqueue\n", __func__);
+		ret = -ENOMEM;
+		goto exit;
+	}
 
-	work_initial = false;
 	/* get platform_data */
 	mhl_pdata = client->dev.platform_data;
 	if (mhl_pdata == NULL) {
@@ -587,57 +596,6 @@ static int real_mhl_probe(struct i2c_client *client)
 		goto exit;
 	}
 
-	/* mhl power on */
-	if (NULL != mhl_pdata->mhl_power_on) {
-		ret = mhl_pdata->mhl_power_on(mhl_pdata, true);
-		if (ret <0) {
-			MHLPRINTK("mhl_power_on failed");
-			goto exit;
-		}
-	}
-
-	/* mhl reset */
-	if (NULL != mhl_pdata->reset) {
-		ret = mhl_pdata->reset(mhl_pdata);
-		if (ret <0) {
-			MHLPRINTK("mhl_reset failed");
-			goto exit;
-		}
-	}
-
-	/* mhl read id */
-	if (mhl_read_id() != 0) {
-		MHLPRINTK("mhl_read_id failed");
-		ret = -ENXIO;
-		goto exit;
-	}
-
-	haltimerinit();
-	haltimerset(TIMER_POLLING, MONITORING_PERIOD);
-
-	printk(KERN_INFO"============================================\n");
-	printk(KERN_INFO"Copyright 2010 Silicon Image\n");
-	printk(KERN_INFO"SiI-9244 Linux Driver V1.22\n");
-	printk(KERN_INFO"============================================\n");
-
-	/*
-	 * Initialize the registers as required.
-	 * Setup firmware vars.
-	*/
-	SiiMhlTxInitialize(interruptdriven = false,
-			pollintervalms = MONITORING_PERIOD);
-
-	work_initial = true;
-	atomic_set(&g_mhlcablestatus, 0);
-
-	/* sii9244 interrupt initial&setup */
-	ret = gpio_request(mhl_pdata->mhl_irq_pin, NULL);
-	if (ret) {
-		MHLPRINTK("gpio_request failed");
-		goto exit;
-	}
-	s3c_gpio_cfgpin(mhl_pdata->mhl_irq_pin, S3C_GPIO_SFN(0xf));
-	s3c_gpio_setpull(mhl_pdata->mhl_irq_pin, S3C_GPIO_PULL_UP);
 	ret = request_irq(mhl_pdata->eint, s3c_mhl_interrupt, IRQF_TRIGGER_FALLING, "s3c MHL", NULL);
 	if(ret) {
 		MHLPRINTK("request_irq failed");
@@ -647,11 +605,15 @@ static int real_mhl_probe(struct i2c_client *client)
 	/* sii9244 timer & workqueue initial */
 	init_timer(&g_mhl_timer);
 	g_mhl_timer.function = timertickhandler;
-	g_mhl_timer.expires = jiffies + 5 * HZ;
-	add_timer(&g_mhl_timer);
 
 #ifndef CONFIG_MACH_M040
 	register_mx_usb_notifier(&mhl_usb_notifier);
+#endif
+
+	pr_info("%s succeed\n", __func__);
+
+#ifndef CONFIG_MACH_M040
+	mhl_connect(true);
 #endif
 
 exit:
@@ -700,6 +662,10 @@ static int mhl_remove(struct i2c_client *client)
 {
 	dev_info(&client->adapter->dev, "detached s5p_mhl "
 		"from i2c adapter successfully\n");
+
+	flush_workqueue(mhl_wq);
+	cancel_work_sync(&mhl_work);
+	destroy_workqueue(mhl_wq);
 
 	if (mhl_page0 == client)
 		mhl_page0 = NULL;
