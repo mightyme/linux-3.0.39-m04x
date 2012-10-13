@@ -22,7 +22,6 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
-#include <plat/gpio-cfg.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
@@ -32,73 +31,30 @@
 #include <linux/mfd/max77665.h>
 #include <linux/mfd/max77665-private.h>
 #include <linux/delay.h>
+#include <linux/pm_runtime.h>
+#include <linux/regulator/consumer.h>
+#include <plat/gpio-cfg.h>
+#include <plat/devs.h>
 
 #define DEV_NAME	"max77665-muic"
 
-
-/* MAX77665 MUIC CHG_TYP setting values */
-enum {
-	/* No Valid voltage at VB (Vvb < Vvbdet) */
-	CHGTYP_NO_VOLTAGE	= 0x00,
-	/* Unknown (D+/D- does not present a valid USB charger signature) */
-	CHGTYP_USB		= 0x01,
-	/* Charging Downstream Port */
-	CHGTYP_DOWNSTREAM_PORT	= 0x02,
-	/* Dedicated Charger (D+/D- shorted) */
-	CHGTYP_DEDICATED_CHGR	= 0x03,
-	/* Special 500mA charger, max current 500mA */
-	CHGTYP_500MA		= 0x04,
-	/* Special 1A charger, max current 1A */
-	CHGTYP_1A		= 0x05,
-	/* Reserved for Future Use */
-	CHGTYP_RFU		= 0x06,
-	/* Dead Battery Charging, max current 100mA */
-	CHGTYP_DB_100MA		= 0x07,
-	CHGTYP_MAX,
-
-	CHGTYP_INIT,
-	CHGTYP_MIN = CHGTYP_NO_VOLTAGE
-};
-
 enum {
 	ADC_GND			= 0x00,
-	ADC_MHL			= 0x01,
-	ADC_DOCK_PREV_KEY	= 0x04,
-	ADC_DOCK_NEXT_KEY	= 0x07,
-	ADC_DOCK_VOL_DN		= 0x0a, /* 0x01010 14.46K ohm */
-	ADC_DOCK_VOL_UP		= 0x0b, /* 0x01011 17.26K ohm */
-	ADC_DOCK_PLAY_PAUSE_KEY = 0x0d,
-	ADC_SMARTDOCK		= 0x10, /* 0x10000 40.2K ohm */
-	ADC_CEA936ATYPE1_CHG	= 0x17,	/* 0x10111 200K ohm */
-	ADC_JIG_USB_OFF		= 0x18, /* 0x11000 255K ohm */
-	ADC_JIG_USB_ON		= 0x19, /* 0x11001 301K ohm */
-	ADC_DESKDOCK		= 0x1a, /* 0x11010 365K ohm */
-	ADC_CEA936ATYPE2_CHG	= 0x1b, /* 0x11011 442K ohm */
-	ADC_JIG_UART_OFF	= 0x1c, /* 0x11100 523K ohm */
-	ADC_JIG_UART_ON		= 0x1d, /* 0x11101 619K ohm */
-	ADC_CARDOCK		= 0x1d, /* 0x11101 619K ohm */
+	ADC_REMOVE		= 0x10,
 	ADC_OPEN		= 0x1f
-};
-
-enum {
-	DOCK_KEY_NONE			= 0,
-	DOCK_KEY_VOL_UP_PRESSED,
-	DOCK_KEY_VOL_UP_RELEASED,
-	DOCK_KEY_VOL_DOWN_PRESSED,
-	DOCK_KEY_VOL_DOWN_RELEASED,
-	DOCK_KEY_PREV_PRESSED,
-	DOCK_KEY_PREV_RELEASED,
-	DOCK_KEY_PLAY_PAUSE_PRESSED,
-	DOCK_KEY_PLAY_PAUSE_RELEASED,
-	DOCK_KEY_NEXT_PRESSED,
-	DOCK_KEY_NEXT_RELEASED,
 };
 
 struct max77665_muic_info {
 	struct device		*dev;
 	struct max77665_dev	*max77665;
 	struct i2c_client	*muic;
+	int mhl_insert;
+	int host_insert;
+	struct regulator *reverse;
+	struct delayed_work dwork;
 };
+
+static struct max77665_muic_info *g_info;
 
 static int init_max77665_muic(struct max77665_muic_info *info)
 {
@@ -107,7 +63,7 @@ static int init_max77665_muic(struct max77665_muic_info *info)
 	u8 val, msk;
 
 	val = (0x1 << COMN1SW_SHIFT) | (0x1 << COMP2SW_SHIFT) |
-		(0 << MICEN_SHIFT) | (1 << IDBEN_SHIFT);
+		(0 << MICEN_SHIFT) | (0 << IDBEN_SHIFT);
 
 	msk = COMN1SW_MASK | COMP2SW_MASK | MICEN_MASK | IDBEN_MASK;
 
@@ -116,11 +72,113 @@ static int init_max77665_muic(struct max77665_muic_info *info)
 	return 0;
 }
 
+inline static void echi_pm_runtime(int onoff)
+{
+#ifndef CONFIG_MX_RECOVERY_KERNEL
+	pr_info("@@@ %s %d\n", __func__, onoff);
+	if(onoff)
+		pm_runtime_put_sync(&s5p_device_ehci.dev);
+	else
+		pm_runtime_get_sync(&s5p_device_ehci.dev);
+#endif
+}
+
+inline static int max77665a_set_usbid(struct max77665_muic_info *info, int value)
+{
+	int ret;
+	struct i2c_client *client = info->muic;
+	u8 val, msk;
+
+	val = (0x1 << COMN1SW_SHIFT) | (0x1 << COMP2SW_SHIFT) |
+		(0 << MICEN_SHIFT) | (!!value << IDBEN_SHIFT);
+
+	msk = COMN1SW_MASK | COMP2SW_MASK | MICEN_MASK | IDBEN_MASK;
+
+	ret = max77665_update_reg(client, MAX77665_MUIC_REG_CTRL1, val, msk);
+
+	return 0;
+}
+
+static irqreturn_t max77665_muic_isr(int irq, void *dev_id)
+{
+	struct max77665_muic_info *info = dev_id;
+	u8 adc, adclow ,adcerr, adc1k;
+	u8 status1;
+	int insert = true;
+
+	max77665_read_reg(info->muic, MAX77665_MUIC_REG_STATUS1, &status1);
+	adc = status1 & STATUS1_ADC_MASK;
+	adclow = !!(status1 & STATUS1_ADCLOW_MASK);
+	adcerr = !!(status1 & STATUS1_ADCERR_MASK);
+	adc1k = !!(status1 & STATUS1_ADC1K_MASK);
+
+	pr_info("adc 0x%02x, adclow %d, adcerr %d, adc1k %d\n",
+			adc, adclow, adcerr, adc1k);
+
+	if(adc1k) {
+		info->mhl_insert = true;
+		schedule_delayed_work(&info->dwork, 0);
+	} else if (adc == ADC_GND) {
+		if(!info->host_insert) {
+			pr_info("otg connect\n");
+
+			echi_pm_runtime(false);
+			if(!regulator_is_enabled(info->reverse))
+				regulator_enable(info->reverse);
+			info->host_insert = true;
+		}
+	} else if (adc == ADC_REMOVE || adc == ADC_OPEN) {
+		if (info->host_insert) {
+			pr_info("otg disconnect\n");
+
+			echi_pm_runtime(true);
+			if(regulator_is_enabled(info->reverse))
+				regulator_disable(info->reverse);
+
+			info->host_insert = false;
+		}
+
+	}
+	return IRQ_HANDLED;
+}
+
+void check_mhl_connect(void)
+{
+	struct max77665_muic_info *info = g_info;
+	u8  adc1k;
+	u8 status1;
+
+	max77665_read_reg(info->muic, MAX77665_MUIC_REG_STATUS1, &status1);
+	adc1k = !!(status1 & STATUS1_ADC1K_MASK);
+
+	if(!adc1k) {
+		pr_info("adc1k not set\n");
+		info->mhl_insert = false;
+		schedule_delayed_work(&info->dwork, 0);
+	}
+}
+
+static void muic_mhl_work(struct work_struct *work)
+{
+	struct max77665_muic_info *info =
+		container_of(work, struct max77665_muic_info, dwork.work);
+	if (info->mhl_insert) {
+		pr_info("mhl connect\n");
+
+		max77665a_set_usbid(info, true);
+	} else {
+		pr_info("mhl disconnect\n");
+
+		max77665a_set_usbid(info, false);
+	}
+}
+
 static int __devinit max77665_muic_probe(struct platform_device *pdev)
 {
 	struct max77665_dev *max77665 = dev_get_drvdata(pdev->dev.parent);
 	struct max77665_muic_info *info;
 	int ret = 0;
+	int irq;
 
 	pr_info("func:%s\n", __func__);
 
@@ -131,24 +189,44 @@ static int __devinit max77665_muic_probe(struct platform_device *pdev)
 		goto err_return;
 	}
 
+	g_info = info;
+
 	info->dev = &pdev->dev;
 	info->max77665 = max77665;
 	info->muic = max77665->muic;
+
+	info->reverse = regulator_get(NULL, "reverse");
+	if (IS_ERR(info->reverse)) {
+		dev_err(&pdev->dev, "Failed to get reverse regulator\n");
+		goto fail0;
+	}
 
 	platform_set_drvdata(pdev, info);
 
 	ret = init_max77665_muic(info);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to initialize MUIC:%d\n", ret);
-		goto fail;
+		goto fail1;
 	}
+
+	INIT_DELAYED_WORK(&info->dwork, muic_mhl_work);
+
+	irq = max77665->irq_base + MAX77665_MUIC_IRQ_INT1_ADC1K;
+	ret = request_threaded_irq(irq, 0, max77665_muic_isr,
+			0, "max77665_adc1k", info);
+
+	irq = max77665->irq_base + MAX77665_MUIC_IRQ_INT1_ADCLOW;
+	ret = request_threaded_irq(irq, 0, max77665_muic_isr,
+			0, "max77665_adclow", info);
 
 	return 0;
 
- fail:
+fail1:
+	regulator_put(info->reverse);
+fail0:
 	platform_set_drvdata(pdev, NULL);
 	kfree(info);
- err_return:
+err_return:
 	return ret;
 }
 

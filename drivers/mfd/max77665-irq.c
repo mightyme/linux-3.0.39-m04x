@@ -34,6 +34,7 @@ static const u8 max77665_mask_reg[] = {
 	[CHG_INT] = MAX77665_CHG_REG_CHG_INT_MASK,
 	[TOPSYS_INT] = MAX77665_PMIC_REG_TOPSYS_INT_MASK,
 	[LED_INT] = MAX77665_LED_REG_FLASH_INT_MASK,
+	[MUIC_INT1] = MAX77665_MUIC_REG_INTMASK1,
 };
 
 static struct i2c_client *get_i2c(struct max77665_dev *max77665,
@@ -42,6 +43,8 @@ static struct i2c_client *get_i2c(struct max77665_dev *max77665,
 	switch (src) {
 	case CHG_INT ... LED_INT:
 		return max77665->i2c;
+	case MUIC_INT1:
+		return max77665->muic;
 	default:
 		return ERR_PTR(-EINVAL);
 	}
@@ -70,6 +73,11 @@ static const struct max77665_irq_data max77665_irqs[] = {
 	DECLARE_IRQ(MAX77665_LED_IRQ_FLED1_OPEN,	LED_INT, 1 << 2),
 	DECLARE_IRQ(MAX77665_LED_IRQ_FLED1_SHORT,	LED_INT, 1 << 3),
 	DECLARE_IRQ(MAX77665_LED_IRQ_MAX_FLASH,		LED_INT, 1 << 4),
+
+	DECLARE_IRQ(MAX77665_MUIC_IRQ_INT1_ADC,	MUIC_INT1, 1 << 0),
+	DECLARE_IRQ(MAX77665_MUIC_IRQ_INT1_ADCLOW,	MUIC_INT1, 1 << 1),
+	DECLARE_IRQ(MAX77665_MUIC_IRQ_INT1_ADCERR,	MUIC_INT1, 1 << 2),
+	DECLARE_IRQ(MAX77665_MUIC_IRQ_INT1_ADC1K,	MUIC_INT1, 1 << 3),
 };
 
 static void max77665_irq_lock(struct irq_data *data)
@@ -144,10 +152,6 @@ static struct irq_chip max77665_irq_chip = {
 	.irq_unmask		= max77665_irq_unmask,
 };
 
-#define MAX77665_IRQSRC_CHG		(1 << 0)
-#define MAX77665_IRQSRC_TOP		(1 << 1)
-#define MAX77665_IRQSRC_FLASH		(1 << 2)
-
 static irqreturn_t max77665_irq_thread(int irq, void *data)
 {
 	struct max77665_dev *max77665 = data;
@@ -179,6 +183,12 @@ static irqreturn_t max77665_irq_thread(int irq, void *data)
 		ret = max77665_read_reg(max77665->i2c,
 			MAX77665_LED_REG_FLASH_INT, &irq_reg[LED_INT]);
 
+	if (irq_src & MAX77665_IRQSRC_MUIC) {
+		/* MUIC INT1 */
+		ret = max77665_read_reg(max77665->muic, 
+			MAX77665_MUIC_REG_INT1, &irq_reg[MUIC_INT1]);
+	}
+
 	/* Apply masking */
 	for (i = 0; i < MAX77665_IRQ_GROUP_NR; i++) {
 		irq_reg[i] &= ~max77665->irq_masks_cur[i];
@@ -207,6 +217,7 @@ int max77665_irq_init(struct max77665_dev *max77665)
 	int i;
 	int cur_irq;
 	int ret;
+	u8 i2c_data;
 
 	if (!max77665->irq) {
 		dev_warn(max77665->dev, "No interrupt specified.\n");
@@ -250,6 +261,19 @@ int max77665_irq_init(struct max77665_dev *max77665)
 		irq_set_noprobe(cur_irq);
 #endif
 	}
+
+	/* Unmask max77665 interrupt */
+	ret = max77665_read_reg(max77665->i2c, MAX77665_PMIC_REG_INTSRC_MASK,
+			  &i2c_data);
+	if (ret) {
+		dev_err(max77665->dev, "%s: fail to read muic reg\n", __func__);
+		return ret;
+	}
+
+	i2c_data &= ~(MAX77665_IRQSRC_CHG);	/* Unmask charger interrupt */
+	i2c_data &= ~(MAX77665_IRQSRC_MUIC);	/* Unmask muic interrupt */
+	max77665_write_reg(max77665->i2c, MAX77665_PMIC_REG_INTSRC_MASK,
+			   i2c_data);
 
 	ret = request_threaded_irq(max77665->irq, NULL, max77665_irq_thread,
 				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
