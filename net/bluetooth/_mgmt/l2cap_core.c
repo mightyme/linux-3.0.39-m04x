@@ -341,9 +341,10 @@ static void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 	}
 
 	if (av_conn != NULL && (hid_conn != NULL || rfc_conn != NULL)) {
-		hci_conn_set_encrypt(av_conn->hcon, 0x00);
+		//try to resolve l2cap connection manger error 
+		//hci_conn_set_encrypt(av_conn->hcon, 0x00);
 		hci_conn_switch_role(av_conn->hcon, 0x00);
-		hci_conn_set_encrypt(av_conn->hcon, 0x01);
+		//hci_conn_set_encrypt(av_conn->hcon, 0x01);
 		hci_conn_change_policy(av_conn->hcon, 0x04);
 		av_conn = NULL;
 	}
