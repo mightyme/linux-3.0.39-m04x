@@ -75,7 +75,7 @@ void SetEQBase(struct snd_soc_codec *codec,int mMode)
 			snd_soc_update_bits(codec,WM8994_AIF1_DAC1_EQ_GAINS_1, WM8994_AIF1DAC1_EQ_ENA_MASK,0);
 			snd_soc_update_bits(codec,WM8994_AIF1_DRC1_1, WM8994_AIF1DAC1_DRC_ENA_MASK,0);
 
-			// 100 
+			// 100
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_1_A, 0x0FD2);
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_1_B, 0x0409);
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_1_PG, 0x00B8);
@@ -92,7 +92,7 @@ void SetEQBase(struct snd_soc_codec *codec,int mMode)
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_3_C, 0x0409);
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_3_PG, 0x0180);
 
-			// 4000 - 2 
+			// 4000 - 2
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_4_A, 0x168E);
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_4_B, 0xF829);
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_4_C, 0x07AD);
@@ -103,7 +103,7 @@ void SetEQBase(struct snd_soc_codec *codec,int mMode)
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_5_B, 0x0559);
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_5_PG, 0x4000);
 			break;
-			
+
 		case EQ_SPK_NORMAL:
 			if(mode == EQ_HP_NORMAL)
 			{
@@ -122,7 +122,7 @@ void SetEQBase(struct snd_soc_codec *codec,int mMode)
 			snd_soc_update_bits(codec,WM8994_AIF1_DAC1_EQ_GAINS_2, WM8994_AIF1DAC1_EQ_B4_GAIN_MASK,13<<WM8994_AIF1DAC1_EQ_B4_GAIN_SHIFT);// 1dB
 			snd_soc_update_bits(codec,WM8994_AIF1_DAC1_EQ_GAINS_2, WM8994_AIF1DAC1_EQ_B5_GAIN_MASK,6<<WM8994_AIF1DAC1_EQ_B5_GAIN_SHIFT);// -6dB
 
-			// 105 
+			// 105
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_1_A, 0x0FD2);
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_1_B, 0x0400);
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_1_PG, 0x00D8);
@@ -149,7 +149,7 @@ void SetEQBase(struct snd_soc_codec *codec,int mMode)
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_5_A, 0x08C0);
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_5_B, 0x0630);
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_5_PG, 0x4000);
-			
+
 #else
 			snd_soc_update_bits(codec,WM8994_AIF1_DAC1_EQ_GAINS_1, WM8994_AIF1DAC1_EQ_B1_GAIN_MASK,0<<WM8994_AIF1DAC1_EQ_B1_GAIN_SHIFT);// -12db
 			snd_soc_update_bits(codec,WM8994_AIF1_DAC1_EQ_GAINS_1, WM8994_AIF1DAC1_EQ_B2_GAIN_MASK,3<<WM8994_AIF1DAC1_EQ_B2_GAIN_SHIFT);// -9dB
@@ -157,7 +157,7 @@ void SetEQBase(struct snd_soc_codec *codec,int mMode)
 			snd_soc_update_bits(codec,WM8994_AIF1_DAC1_EQ_GAINS_2, WM8994_AIF1DAC1_EQ_B4_GAIN_MASK,13<<WM8994_AIF1DAC1_EQ_B4_GAIN_SHIFT);// 1dB
 			snd_soc_update_bits(codec,WM8994_AIF1_DAC1_EQ_GAINS_2, WM8994_AIF1DAC1_EQ_B5_GAIN_MASK,12<<WM8994_AIF1DAC1_EQ_B5_GAIN_SHIFT);// 0dB
 
-			// 200 
+			// 200
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_1_A, 0x0FD2);
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_1_B, 0x0400);
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_1_PG, 0x00D8);
@@ -185,16 +185,16 @@ void SetEQBase(struct snd_soc_codec *codec,int mMode)
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_5_B, 0x0630);
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_5_PG, 0x4000);
 #endif
-			// DRC	
+			// DRC
 			snd_soc_write(codec,WM8994_AIF1_DRC1_2, 0x0845);
 			snd_soc_write(codec,WM8994_AIF1_DRC1_3, 0x0011);
 			snd_soc_write(codec,WM8994_AIF1_DRC1_4, 0x00E0);
 			snd_soc_write(codec,WM8994_AIF1_DRC1_5, 0x0000);
-			
+
 			snd_soc_update_bits(codec,WM8994_AIF1_DAC1_EQ_GAINS_1, WM8994_AIF1DAC1_EQ_ENA_MASK,WM8994_AIF1DAC1_EQ_ENA);
 			snd_soc_update_bits(codec,WM8994_AIF1_DRC1_1, WM8994_AIF1DAC1_DRC_ENA_MASK,WM8994_AIF1DAC1_DRC_ENA);
 			break;
-			
+
 		case EQ_REC_INCALL:
 			if(mode == EQ_HP_NORMAL)
 			{
@@ -203,11 +203,11 @@ void SetEQBase(struct snd_soc_codec *codec,int mMode)
 			}
 			mode = EQ_REC_INCALL;
 			break;
-			
+
 		default:
 			break;
-			
-	}	
+
+	}
 }
 
 #if 1
@@ -216,10 +216,10 @@ void SetSpkMute(struct snd_soc_codec *codec,bool bmute)
 {
 	dprintk ("%s(%d) \n", __func__,bmute);
 	if(bmute)
-	{		
-		snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_RIGHT,WM8994_SPKOUTR_MUTE_N_MASK,0x00);	
+	{
+		snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_RIGHT,WM8994_SPKOUTR_MUTE_N_MASK,0x00);
 		snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_LEFT,WM8994_SPKOUTL_MUTE_N_MASK,0x00);
-		
+
 		snd_soc_update_bits(codec,WM8994_POWER_MANAGEMENT_3,WM8994_SPKLVOL_ENA_MASK|WM8994_SPKRVOL_ENA_MASK,0x00);
 		snd_soc_update_bits(codec,WM8994_POWER_MANAGEMENT_1,WM8994_SPKOUTL_ENA_MASK|WM8994_SPKOUTR_ENA_MASK,0x00);
 	}
@@ -227,7 +227,7 @@ void SetSpkMute(struct snd_soc_codec *codec,bool bmute)
 	{
 		snd_soc_update_bits(codec,WM8994_POWER_MANAGEMENT_3,WM8994_SPKLVOL_ENA_MASK|WM8994_SPKRVOL_ENA_MASK,WM8994_SPKLVOL_ENA|WM8994_SPKRVOL_ENA);
 		snd_soc_update_bits(codec,WM8994_POWER_MANAGEMENT_1,WM8994_SPKOUTL_ENA_MASK|WM8994_SPKOUTR_ENA_MASK,WM8994_SPKOUTL_ENA);
-		
+
 		snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_RIGHT,WM8994_SPKOUTR_MUTE_N_MASK,WM8994_SPKOUTR_MUTE_N);
 		snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_LEFT,WM8994_SPKOUTL_MUTE_N_MASK,WM8994_SPKOUTL_MUTE_N);
 	}
@@ -237,19 +237,19 @@ void SetRecMute(struct snd_soc_codec *codec,bool bmute)
 {
 	dprintk ("%s(%d) \n", __func__,bmute);
 	if(bmute)
-	{		
+	{
 		snd_soc_update_bits(codec, WM8994_HPOUT2_VOLUME,WM8994_HPOUT2_MUTE_MASK,WM8994_HPOUT2_MUTE);
-		
+
 		snd_soc_update_bits(codec, WM8994_ANTIPOP_1, WM8994_HPOUT2_IN_ENA_MASK,0);
-		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,WM8994_HPOUT2_ENA_MASK,0x00);	
+		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,WM8994_HPOUT2_ENA_MASK,0x00);
 	}
 	else
 	{
 		snd_soc_update_bits(codec, WM8994_ANTIPOP_1, WM8994_HPOUT2_IN_ENA_MASK,WM8994_HPOUT2_IN_ENA);
 		udelay(50);
-		
-		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,WM8994_HPOUT2_ENA_MASK,WM8994_HPOUT2_ENA);	
-		snd_soc_update_bits(codec, WM8994_HPOUT2_VOLUME,WM8994_HPOUT2_MUTE_MASK,0x00);	
+
+		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,WM8994_HPOUT2_ENA_MASK,WM8994_HPOUT2_ENA);
+		snd_soc_update_bits(codec, WM8994_HPOUT2_VOLUME,WM8994_HPOUT2_MUTE_MASK,0x00);
 	}
 }
 
@@ -257,21 +257,21 @@ void SetRecMute(struct snd_soc_codec *codec,bool bmute)
 void SetHpMute(struct snd_soc_codec *codec,bool bmute)
 {
 	dprintk ("%s(%d) \n", __func__,bmute);
-	
+
 	if(bmute)
 	{
-		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME,WM8994_HPOUT1R_MUTE_N_MASK,0x00);	
+		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME,WM8994_HPOUT1R_MUTE_N_MASK,0x00);
 		snd_soc_update_bits(codec, WM8994_LEFT_OUTPUT_VOLUME,WM8994_HPOUT1L_MUTE_N_MASK,0x00);
-				
+
 		snd_soc_write(codec,WM8994_CHARGE_PUMP_1 ,DEFAULT_VAL_CHARGE_PUMP_1);
-		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,(WM8994_HPOUT1L_ENA_MASK |WM8994_HPOUT1R_ENA_MASK ),0x00);	
+		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,(WM8994_HPOUT1L_ENA_MASK |WM8994_HPOUT1R_ENA_MASK ),0x00);
 	}
 	else
-	{						
+	{
 		snd_soc_write(codec, WM8994_CHARGE_PUMP_1, WM8994_CP_ENA | DEFAULT_VAL_CHARGE_PUMP_1);
-		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,(WM8994_HPOUT1L_ENA_MASK |WM8994_HPOUT1R_ENA_MASK ),WM8994_HPOUT1R_ENA	 |WM8994_HPOUT1L_ENA);	
-		
-		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME,WM8994_HPOUT1R_MUTE_N_MASK,WM8994_HPOUT1R_MUTE_N);	
+		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,(WM8994_HPOUT1L_ENA_MASK |WM8994_HPOUT1R_ENA_MASK ),WM8994_HPOUT1R_ENA	 |WM8994_HPOUT1L_ENA);
+
+		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME,WM8994_HPOUT1R_MUTE_N_MASK,WM8994_HPOUT1R_MUTE_N);
 		snd_soc_update_bits(codec, WM8994_LEFT_OUTPUT_VOLUME,WM8994_HPOUT1L_MUTE_N_MASK,WM8994_HPOUT1L_MUTE_N);
 	}
 }
@@ -283,7 +283,7 @@ void SetSpkMute(struct snd_soc_codec *codec,bool bmute)
 	dprintk ("%s() \n", __func__);
 	if(bmute)
 	{
-		snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_RIGHT,WM8994_SPKOUTR_MUTE_N_MASK,0x00);	
+		snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_RIGHT,WM8994_SPKOUTR_MUTE_N_MASK,0x00);
 		snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_LEFT,WM8994_SPKOUTL_MUTE_N_MASK,0x00);
 	}
 	else
@@ -302,7 +302,7 @@ void SetRecMute(struct snd_soc_codec *codec,bool bmute)
 	}
 	else
 	{
-		snd_soc_update_bits(codec, WM8994_HPOUT2_VOLUME,WM8994_HPOUT2_MUTE_MASK,0x00);	
+		snd_soc_update_bits(codec, WM8994_HPOUT2_VOLUME,WM8994_HPOUT2_MUTE_MASK,0x00);
 	}
 }
 
@@ -311,12 +311,12 @@ void SetHpMute(struct snd_soc_codec *codec,bool bmute)
 	dprintk ("%s() \n", __func__);
 	if(bmute)
 	{
-		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME,WM8994_HPOUT1R_MUTE_N_MASK,0x00);	
+		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME,WM8994_HPOUT1R_MUTE_N_MASK,0x00);
 		snd_soc_update_bits(codec, WM8994_LEFT_OUTPUT_VOLUME,WM8994_HPOUT1L_MUTE_N_MASK,0x00);
 	}
 	else
 	{
-		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME,WM8994_HPOUT1R_MUTE_N_MASK,WM8994_HPOUT1R_MUTE_N);	
+		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME,WM8994_HPOUT1R_MUTE_N_MASK,WM8994_HPOUT1R_MUTE_N);
 		snd_soc_update_bits(codec, WM8994_LEFT_OUTPUT_VOLUME,WM8994_HPOUT1L_MUTE_N_MASK,WM8994_HPOUT1L_MUTE_N);
 	}
 }
@@ -329,7 +329,7 @@ void SetVolume_Normal(struct snd_soc_codec *codec)
 	dprintk ("%s() nrec_switch = %d\n", __func__,wm8958->music_headset_nrec_switch);
 	// Speaker Boost
 	snd_soc_update_bits(codec, WM8994_CLASSD,WM8994_SPKOUTL_BOOST_MASK,VOL_NORMAL_SPK_BOOST);
-	
+
 	// Speaker
 	snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_LEFT,WM8994_SPKOUTL_VOL_MASK|WM8994_SPKOUT_VU_MASK,VOL_NORMAL_SPK);
 	snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_RIGHT,WM8994_SPKOUTR_VOL_MASK|WM8994_SPKOUT_VU_MASK,VOL_NORMAL_SPK);
@@ -367,7 +367,7 @@ void SetVolume_Ring(struct snd_soc_codec *codec)
 	dprintk ("%s() \n", __func__);
 	// Speaker Boost
 	snd_soc_update_bits(codec, WM8994_CLASSD,WM8994_SPKOUTL_BOOST_MASK,VOL_RING_SPK_BOOST);
-	
+
 	// Speaker
 	snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_LEFT,WM8994_SPKOUTL_VOL_MASK|WM8994_SPKOUT_VU_MASK,VOL_RING_SPK);
 	snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_RIGHT,WM8994_SPKOUTR_VOL_MASK|WM8994_SPKOUT_VU_MASK,VOL_RING_SPK);
@@ -394,7 +394,7 @@ void SetVolume_Incall(struct snd_soc_codec *codec)
 	dprintk ("%s() \n", __func__);
 	// Speaker Boost
 	snd_soc_update_bits(codec, WM8994_CLASSD,WM8994_SPKOUTL_BOOST_MASK,VOL_INCALL_SPK_BOOST);
-	
+
 	// Speaker
 	snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_LEFT,WM8994_SPKOUTL_VOL_MASK|WM8994_SPKOUT_VU_MASK,VOL_INCALL_SPK);
 	snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_RIGHT,WM8994_SPKOUTR_VOL_MASK|WM8994_SPKOUT_VU_MASK,VOL_INCALL_SPK);
@@ -421,7 +421,7 @@ void SetVolume_VoIP(struct snd_soc_codec *codec)
 	dprintk ("%s() \n", __func__);
 	// Speaker Boost
 	snd_soc_update_bits(codec, WM8994_CLASSD,WM8994_SPKOUTL_BOOST_MASK,VOL_VOIP_SPK_BOOST);
-	
+
 	// Speaker
 	snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_LEFT,WM8994_SPKOUTL_VOL_MASK|WM8994_SPKOUT_VU_MASK,VOL_VOIP_SPK);
 	snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_RIGHT,WM8994_SPKOUTR_VOL_MASK|WM8994_SPKOUT_VU_MASK,VOL_VOIP_SPK);
@@ -445,13 +445,13 @@ void SetVolume_VoIP(struct snd_soc_codec *codec)
 
 
 void SetVolume_Mixerin_spk(struct snd_soc_codec *codec)
-{	
+{
 	dprintk ("%s() \n", __func__);
 	// Mixer in
 	snd_soc_update_bits(codec, WM8994_INPUT_MIXER_3,WM8994_IN1L_MIXINL_VOL_MASK, VOL_IN1L_BOOST_SPK);
 	snd_soc_update_bits(codec, WM8994_INPUT_MIXER_3,WM8994_IN2L_MIXINL_VOL_MASK, VOL_IN2L_BOOST_SPK);
 	snd_soc_update_bits(codec, WM8994_INPUT_MIXER_4,WM8994_IN1R_MIXINR_VOL_MASK, VOL_IN1R_BOOST_SPK);
-	
+
 	// 0x19 = +21dB  0x1F = +30dB 0x07 = -6dB
 	snd_soc_update_bits(codec, WM8994_LEFT_LINE_INPUT_1_2_VOLUME,WM8994_IN1L_VOL_MASK, VOL_IN1L_SPK);
 	snd_soc_update_bits(codec, WM8994_LEFT_LINE_INPUT_3_4_VOLUME,WM8994_IN2L_VOL_MASK, VOL_IN2L_SPK);
@@ -459,13 +459,13 @@ void SetVolume_Mixerin_spk(struct snd_soc_codec *codec)
 }
 
 void SetVolume_Mixerin_rec(struct snd_soc_codec *codec)
-{	
+{
 	dprintk ("%s() \n", __func__);
 	// Mixer in
 	snd_soc_update_bits(codec, WM8994_INPUT_MIXER_3,WM8994_IN1L_MIXINL_VOL_MASK, VOL_IN1L_BOOST_REC);
 	snd_soc_update_bits(codec, WM8994_INPUT_MIXER_3,WM8994_IN2L_MIXINL_VOL_MASK, VOL_IN2L_BOOST_REC);
 	snd_soc_update_bits(codec, WM8994_INPUT_MIXER_4,WM8994_IN1R_MIXINR_VOL_MASK, VOL_IN1R_BOOST_REC);
-	
+
 	// 0x19 = +21dB  0x1F = +30dB 0x07 = -6dB
 	snd_soc_update_bits(codec, WM8994_LEFT_LINE_INPUT_1_2_VOLUME,WM8994_IN1L_VOL_MASK, VOL_IN1L_REC);
 	snd_soc_update_bits(codec, WM8994_LEFT_LINE_INPUT_3_4_VOLUME,WM8994_IN2L_VOL_MASK, VOL_IN2L_REC);
@@ -473,9 +473,9 @@ void SetVolume_Mixerin_rec(struct snd_soc_codec *codec)
 }
 
 void SetVolume_ADC1(struct snd_soc_codec *codec)
-{	
+{
 	dprintk ("%s() \n", __func__);
-	
+
 	// AIF1ADC1
 	snd_soc_update_bits(codec, WM8994_AIF1_ADC1_RIGHT_VOLUME,WM8994_AIF1ADC1R_VOL_MASK, VOL_AIF1_ADC1_RIGHT);
 	snd_soc_update_bits(codec, WM8994_AIF1_ADC1_LEFT_VOLUME,WM8994_AIF1ADC1L_VOL_MASK, VOL_AIF1_ADC1_LEFT);
@@ -483,20 +483,20 @@ void SetVolume_ADC1(struct snd_soc_codec *codec)
 
 
 void OpenAIF2(struct snd_soc_codec *codec)
-{		
+{
 	dprintk ("%s \n", __func__);
-	
-	//snd_soc_write(codec,WM8994_POWER_MANAGEMENT_4, 0x00 );	
+
+	//snd_soc_write(codec,WM8994_POWER_MANAGEMENT_4, 0x00 );
 	snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_4,WM8994_AIF2ADCL_ENA_MASK|WM8994_AIF2ADCR_ENA_MASK, 0x00);
-	
+
 	// Audio Interface Input/Output (I/O) Configuration
 	snd_soc_write(codec,WM8994_GPIO_2, 0x8101);  // MCLK2 - Pull-up and pull-down resistors disabled 0xA101
 	snd_soc_write(codec,WM8994_GPIO_3, 0x8101);  // BCLK2 - Pull-up and pull-down resistors disabled
 	snd_soc_write(codec,WM8994_GPIO_4, 0x8101);  // LRCLK2 - Pull-up and pull-down resistors disabled
-	snd_soc_write(codec,WM8994_GPIO_5, 0x8101);  // DACDAT2 - Pull-up and pull-down resistors disabled	
- 
+	snd_soc_write(codec,WM8994_GPIO_5, 0x8101);  // DACDAT2 - Pull-up and pull-down resistors disabled
+
  	// Clocking	&  AIF2 Interface
-	snd_soc_write(codec, WM8994_OVERSAMPLING, WM8994_ADC_OSR128 );	// Select High Power ADC/DMIC Oversample Rate, Select Low Power DAC Oversample Rate (Default)	
+	snd_soc_write(codec, WM8994_OVERSAMPLING, WM8994_ADC_OSR128 );	// Select High Power ADC/DMIC Oversample Rate, Select Low Power DAC Oversample Rate (Default)
 	snd_soc_write(codec, WM8994_AIF2_CONTROL_1, 0x411B );	// AIF2 Word Length = 16-bits, AIF2 Format = DSP,BCLK2 inverted
 	snd_soc_write(codec, WM8994_AIF2_CONTROL_2, 0x4000 );	// Disable AIF2 DSP Mono Mode
 #ifdef CONFIG_MACH_M040
@@ -517,71 +517,71 @@ void OpenAIF2(struct snd_soc_codec *codec)
 	snd_soc_write(codec,WM8994_FLL2_CONTROL_1, WM8994_FLL2_ENA);
 #else
 	snd_soc_write(codec, WM8994_AIF2_MASTER_SLAVE, 0x0000 );	// AIF2 Slave Mode (Default Register Value)
-	snd_soc_write(codec, WM8994_AIF2_BCLK, 0x00A0 );	// 
-	snd_soc_write(codec, WM8994_AIF2ADC_LRCLK, 0x0040 );	// 
-	snd_soc_write(codec, WM8994_AIF2DAC_LRCLK, 0x0003 );	// 
+	snd_soc_write(codec, WM8994_AIF2_BCLK, 0x00A0 );	//
+	snd_soc_write(codec, WM8994_AIF2ADC_LRCLK, 0x0040 );	//
+	snd_soc_write(codec, WM8994_AIF2DAC_LRCLK, 0x0003 );	//
 
 	snd_soc_update_bits(codec, WM8994_CLOCKING_1,WM8994_AIF2DSPCLK_ENA_MASK|WM8994_SYSDSPCLK_ENA_MASK, WM8994_AIF2DSPCLK_ENA|WM8994_SYSDSPCLK_ENA);
 	snd_soc_update_bits(codec, WM8994_CLOCKING_1,WM8994_SYSCLK_SRC_MASK, 0x00);// Set the core clock source to AIF1CLK
-	
+
 	// FLL2 Setting
 #ifdef CONFIG_MACH_M030
 	if(machine_is_m030()){
 		snd_soc_write(codec, WM8994_AIF2_RATE, 0x0005 );		// AIF2 Sample Rate = 8 kHz, AIF2CLK/Fs ratio = 512
-		snd_soc_write(codec,WM8994_FLL2_CONTROL_1, 0);			// Disable the FLL while reconfiguring 
-		snd_soc_write(codec,WM8994_FLL2_CONTROL_2, 0x1500 );	
-		snd_soc_write(codec,WM8994_FLL2_CONTROL_3, 0x8264 );	
+		snd_soc_write(codec,WM8994_FLL2_CONTROL_1, 0);			// Disable the FLL while reconfiguring
+		snd_soc_write(codec,WM8994_FLL2_CONTROL_2, 0x1500 );
+		snd_soc_write(codec,WM8994_FLL2_CONTROL_3, 0x8264 );
 		snd_soc_write(codec,WM8994_FLL2_CONTROL_4, 0x00E0 );
-		snd_soc_write(codec,WM8994_FLL2_CONTROL_5, 0x0C80 );	
-		snd_soc_write(codec,WM8994_FLL2_CONTROL_1, WM8994_FLL2_ENA);	
+		snd_soc_write(codec,WM8994_FLL2_CONTROL_5, 0x0C80 );
+		snd_soc_write(codec,WM8994_FLL2_CONTROL_1, WM8994_FLL2_ENA);
 	}else{
 #endif
 		snd_soc_write(codec, WM8994_AIF2_RATE, 0x0001 );		// AIF2 Sample Rate = 8 kHz, AIF2CLK/Fs ratio = 128
-		snd_soc_write(codec,WM8994_FLL2_CONTROL_1, 0);			// Disable the FLL while reconfiguring 
+		snd_soc_write(codec,WM8994_FLL2_CONTROL_1, 0);			// Disable the FLL while reconfiguring
 		snd_soc_write(codec,WM8994_FLL2_CONTROL_2, 0x2F01 );		// FLL2 Control (2)(241H):  2F01  FLL2_OUTDIV=48, FLL2_FRATIO=2
 		snd_soc_write(codec,WM8994_FLL2_CONTROL_3, 0x2E8C );		// FLL2 Control (3)(242H):  2E8C  FLL2_K=0.18182
 		snd_soc_write(codec,WM8994_FLL2_CONTROL_4, 0x1740 );		// FLL2 Control (4)(243H):  1740  FLL2_N=186
 		snd_soc_write(codec,WM8994_FLL2_CONTROL_5, 0x0C83 );		// FLL2 Control (5)(244H):  0C83  FLL2_BYP=FLL2, FLL2_FRC_NCO_VAL=01_1001, FLL2_FRC_NCO=0, FLL2_REFCLK_DIV=MCLK / 1, FLL2_REFCLK_SRC=BCLK2
-		snd_soc_write(codec,WM8994_FLL2_CONTROL_1, WM8994_FLL2_ENA);	
+		snd_soc_write(codec,WM8994_FLL2_CONTROL_1, WM8994_FLL2_ENA);
 #ifdef CONFIG_MACH_M030
 	}
 #endif
 #endif
 	snd_soc_write(codec,WM8994_AIF2_CLOCKING_1, 0x0019 );	// Enable AIF2 Clock, AIF2 Clock Source = FLL2/BCLK2
-	
+
 	// Unmutes
 	snd_soc_write(codec, WM8994_AIF2_DAC_FILTERS_1, WM8994_AIF2DAC_MONO);// Unmute the AIF2 DAC path,AIF2DAC input path Mono Mixer control
 
-	// Digital Path Enables and Unmutes 	
+	// Digital Path Enables and Unmutes
 	snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_5 , WM8994_AIF2DACL_ENA_MASK| WM8994_AIF2DACR_ENA_MASK,WM8994_AIF2DACL_ENA | WM8994_AIF2DACR_ENA );
 
 	// Analogue Input Configuration
-	snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_2,WM8994_IN1L_ENA_MASK|WM8994_IN1R_ENA_MASK|WM8994_IN2L_ENA_MASK|WM8994_MIXINL_ENA_MASK|WM8994_MIXINR_ENA_MASK, 
+	snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_2,WM8994_IN1L_ENA_MASK|WM8994_IN1R_ENA_MASK|WM8994_IN2L_ENA_MASK|WM8994_MIXINL_ENA_MASK|WM8994_MIXINR_ENA_MASK,
 			WM8994_IN1L_ENA|WM8994_IN1R_ENA|WM8994_IN2L_ENA|WM8994_MIXINL_ENA|WM8994_MIXINR_ENA);
 	msleep(20);
-	
-	snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_4,WM8994_AIF2ADCL_ENA_MASK|WM8994_AIF2ADCR_ENA_MASK|WM8994_ADCL_ENA_MASK|WM8994_ADCR_ENA_MASK, 
+
+	snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_4,WM8994_AIF2ADCL_ENA_MASK|WM8994_AIF2ADCR_ENA_MASK|WM8994_ADCL_ENA_MASK|WM8994_ADCR_ENA_MASK,
 			WM8994_AIF2ADCL_ENA|WM8994_AIF2ADCR_ENA|WM8994_ADCL_ENA|WM8994_ADCR_ENA);
-		
+
 }
 
 
 void CloseAIF2(struct snd_soc_codec *codec)
-{		
+{
 	dprintk ("%s \n", __func__);
-	
+
 	// Unmutes
 	snd_soc_write(codec, WM8994_AIF2_DAC_FILTERS_1, WM8994_AIF2DAC_MUTE);// Mute the AIF2 DAC path
-	//snd_soc_update_bits(codec, WM8994_AIF2_CONTROL_1,0x3,0x00); 
+	//snd_soc_update_bits(codec, WM8994_AIF2_CONTROL_1,0x3,0x00);
 
-	//snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_4,WM8994_AIF2ADCL_ENA_MASK|WM8994_AIF2ADCR_ENA_MASK,0x00); 
+	//snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_4,WM8994_AIF2ADCL_ENA_MASK|WM8994_AIF2ADCR_ENA_MASK,0x00);
 	snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_5 , WM8994_AIF2DACL_ENA_MASK| WM8994_AIF2DACR_ENA_MASK,0x00 );
 
 	snd_soc_update_bits(codec, WM8994_CLOCKING_1,WM8994_AIF2DSPCLK_ENA_MASK, 0x00); // Disable AIF2DSPCLK
-	
+
 	// FLL2 Setting
 	snd_soc_update_bits(codec, WM8994_FLL2_CONTROL_1,WM8994_FLL2_ENA_MASK, 0x00); // Disable FLL2
-	
+
 	snd_soc_update_bits(codec, WM8994_AIF2_CLOCKING_1,WM8994_AIF2CLK_ENA_MASK, 0x00); // Disable AIF2 Clock
 
 #ifdef CONFIG_AUDIENCE_ES305B
@@ -595,9 +595,9 @@ void CloseAIF2(struct snd_soc_codec *codec)
 void SetAIF3_2_AIF2(struct snd_soc_codec *codec,bool enable)
 {
 	dprintk ("%s(%d) \n", __func__,enable);
-	
+
 	if( enable )
-	{		
+	{
 		// AIF3 input/Output (I/O) Configuration
 		snd_soc_write(codec, WM8994_GPIO_8, 0xA100 ); // DACDAT3
 		snd_soc_write(codec, WM8994_GPIO_9, 0xA100 ); // ADCDAT3
@@ -607,9 +607,9 @@ void SetAIF3_2_AIF2(struct snd_soc_codec *codec,bool enable)
 		// AIF2 ADCDAT SRC select GPIO8/DACDAT3
 		// AIF3 ADCDAT SRC select GPIO5/DACDAT2
 		//snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_6,
-			//WM8994_AIF3_ADCDAT_SRC_MASK|WM8994_AIF2_ADCDAT_SRC_MASK, 
+			//WM8994_AIF3_ADCDAT_SRC_MASK|WM8994_AIF2_ADCDAT_SRC_MASK,
 			//(2<<WM8994_AIF3_ADCDAT_SRC_SHIFT)|(1<<WM8994_AIF2_ADCDAT_SRC_SHIFT));
-			
+
 		snd_soc_write(codec, WM8994_POWER_MANAGEMENT_6,
 			(2<<WM8994_AIF3_ADCDAT_SRC_SHIFT)|(1<<WM8994_AIF2_ADCDAT_SRC_SHIFT));
 
@@ -670,9 +670,9 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 	int ret = 0;
 	//struct wm8994_priv *wm8958 = snd_soc_codec_get_drvdata(codec);
 	//u8 capture_path = wm8958->capture_path;
-	
+
 	dprintk ("%s() :playbackpath = %d\n", __func__,playback_path);
-	
+
 	SetSpkMute(codec,1);
 	SetRecMute(codec,1);
 	SetHpMute(codec,1);
@@ -704,8 +704,8 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetVolume_Normal(codec);
 		SetHpMute(codec,0);
 		break;
-		
-		
+
+
 	case PLAYBACK_REC_RING:
 		CloseAIF2(codec);
 		SetEQBase(codec,EQ_SPK_NORMAL);
@@ -734,36 +734,38 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 	case PLAYBACK_BT_RING:
 		OpenBTRing(codec);
 #if defined(CONFIG_MACH_M040)
+#ifdef CONFIG_AUDIENCE_ES305B
 		es305b_setmode(ES305B_BT_RING);
+#endif
 #endif
 		SetVolume_Ring(codec);
 		SetSpkMute(codec,0);
 		SetHpMute(codec,0);
 		break;
-		
+
 	case PLAYBACK_SPK_HP_INCALL:
 		SetAIF3_2_AIF2(codec,false);
 		OpenAIF2(codec);
-		audio_switch(SWTICH_TO_BB);	
+		audio_switch(SWTICH_TO_BB);
 #ifdef CONFIG_AUDIENCE_ES305B
-		es305b_setmode(ES305B_INCALL_CT_NB);
+		es305b_setmode(ES305B_INCALL_DV_NB);
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_SPEAKER);
-#endif	
+#endif
 		SetVolume_Incall(codec);
 		SetVolume_Mixerin_spk(codec);
 		SetSpkMute(codec,0);
 		SetHpMute(codec,0);
 
 		break;
-		
+
 	case PLAYBACK_SPK_INCALL:
 		SetAIF3_2_AIF2(codec,false);
 		OpenAIF2(codec);
-		audio_switch(SWTICH_TO_BB);		
+		audio_switch(SWTICH_TO_BB);
 #ifdef CONFIG_AUDIENCE_ES305B
-		es305b_setmode(ES305B_INCALL_CT_NB);
+		es305b_setmode(ES305B_INCALL_DV_NB);
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_SPEAKER);
@@ -773,7 +775,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetSpkMute(codec,0);
 
 		break;
-		
+
 	case PLAYBACK_HP_INCALL:
 		SetAIF3_2_AIF2(codec,false);
 		OpenAIF2(codec);
@@ -787,9 +789,9 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetVolume_Incall(codec);
 		SetVolume_Mixerin_spk(codec);
 		SetHpMute(codec,0);
-		
+
 		break;
-			
+
 	case PLAYBACK_HS_INCALL:
 		SetAIF3_2_AIF2(codec,false);
 		OpenAIF2(codec);
@@ -803,30 +805,30 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetVolume_Incall(codec);
 		SetVolume_Mixerin_spk(codec);
 		SetHpMute(codec,0);
-		
+
 		break;
 
-	case PLAYBACK_SPK_HS_INCALL:	
+	case PLAYBACK_SPK_HS_INCALL:
 		SetAIF3_2_AIF2(codec,false);
 		OpenAIF2(codec);
-		audio_switch(SWTICH_TO_BB);	
+		audio_switch(SWTICH_TO_BB);
 #ifdef CONFIG_AUDIENCE_ES305B
 		es305b_setmode(ES305B_INCALL_WHS_NB);
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_HEADSET);
-#endif	
+#endif
 		SetVolume_Incall(codec);
 		SetVolume_Mixerin_spk(codec);
 		SetSpkMute(codec,0);
 		SetHpMute(codec,0);
-		
+
 		break;
 
-	case PLAYBACK_REC_INCALL:	
+	case PLAYBACK_REC_INCALL:
 		SetAIF3_2_AIF2(codec,false);
 		OpenAIF2(codec);
-		audio_switch(SWTICH_TO_BB);	
+		audio_switch(SWTICH_TO_BB);
 #ifdef CONFIG_AUDIENCE_ES305B
 		es305b_setmode(ES305B_INCALL_CT_NB);
 #endif
@@ -836,28 +838,28 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetVolume_Incall(codec);
 		SetVolume_Mixerin_rec(codec);
 		SetRecMute(codec,0);
-		
-		break;	
 
-	case PLAYBACK_BT_INCALL:	
+		break;
+
+	case PLAYBACK_BT_INCALL:
 #ifdef CONFIG_MACH_M040
 		SetAIF3_2_AIF2(codec,false);
 #else
 		SetAIF3_2_AIF2(codec,true);
 #endif
 		OpenAIF2(codec);
-		audio_switch(SWTICH_TO_BB);	
+		audio_switch(SWTICH_TO_BB);
 #ifdef CONFIG_AUDIENCE_ES305B
 		es305b_setmode(ES305B_INCALL_BT);
 #endif
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_BT);
 #endif
-		
-		break;	
-				
+
+		break;
+
 	case PLAYBACK_SPK_HP_VOIP:
-		audio_switch(SWTICH_TO_AP);		
+		audio_switch(SWTICH_TO_AP);
 #ifdef CONFIG_AUDIENCE_ES305B
 		es305b_setmode(ES305B_VOIP_DV_NB);
 #endif
@@ -871,9 +873,9 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetHpMute(codec,0);
 
 		break;
-		
+
 	case PLAYBACK_SPK_VOIP:
-		audio_switch(SWTICH_TO_AP);		
+		audio_switch(SWTICH_TO_AP);
 #ifdef CONFIG_AUDIENCE_ES305B
 		es305b_setmode(ES305B_VOIP_DV_NB);
 #endif
@@ -898,9 +900,9 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetVolume_VoIP(codec);
 		SetVolume_Mixerin_spk(codec);
 		SetHpMute(codec,0);
-		
+
 		break;
-			
+
 	case PLAYBACK_HS_VOIP:
 		audio_switch(SWTICH_TO_AP);
 #ifdef CONFIG_AUDIENCE_ES305B
@@ -913,11 +915,11 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetVolume_VoIP(codec);
 		SetVolume_Mixerin_spk(codec);
 		SetHpMute(codec,0);
-		
+
 		break;
 
-	case PLAYBACK_SPK_HS_VOIP:	
-		audio_switch(SWTICH_TO_AP);		
+	case PLAYBACK_SPK_HS_VOIP:
+		audio_switch(SWTICH_TO_AP);
 #ifdef CONFIG_AUDIENCE_ES305B
 		es305b_setmode(ES305B_VOIP_WHS_NB);
 #endif
@@ -929,12 +931,12 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetVolume_Mixerin_spk(codec);
 		SetSpkMute(codec,0);
 		SetHpMute(codec,0);
-		
+
 		break;
 
 
-	case PLAYBACK_REC_VOIP:	
-		audio_switch(SWTICH_TO_AP);	
+	case PLAYBACK_REC_VOIP:
+		audio_switch(SWTICH_TO_AP);
 #ifdef CONFIG_AUDIENCE_ES305B
 		es305b_setmode(ES305B_VOIP_CT_NB);
 #endif
@@ -945,11 +947,11 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetVolume_VoIP(codec);
 		SetVolume_Mixerin_rec(codec);
 		SetRecMute(codec,0);
-		
-		break;	
 
-	case PLAYBACK_BT_VOIP:	
-		audio_switch(SWTICH_TO_AP);	
+		break;
+
+	case PLAYBACK_BT_VOIP:
+		audio_switch(SWTICH_TO_AP);
 #ifdef CONFIG_MACH_M040
 		SetAIF3_2_AIF2(codec,false);
 #else
@@ -961,8 +963,8 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_BT);
 #endif
-		
-		break;	
+
+		break;
 
 	/* Test */
 	case PLAYBACK_MIC_TEST:
@@ -1010,59 +1012,59 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 
 	case PLAYBACK_NONE:
 		break;
-		
-	default:			
+
+	default:
 		printk ("%s() :invalid path = %d\n", __func__,playback_path);
 		ret = -1;
-		break;			
+		break;
 	}
-	return ret;	
+	return ret;
 }
 
 int set_capture_path(struct snd_soc_codec *codec,u8 capture_path)
 {
 	int ret = 0;
-	
+
 	dprintk ("%s() :capture_path %d\n", __func__,capture_path);
 	SetVolume_ADC1(codec);
 	switch(capture_path)
 	{
 		case CAPTURE_MAIN_MIC_NORMAL:
 			SetVolume_Mixerin_spk(codec);
-			break;			
-			
+			break;
+
 		case CAPTURE_SECOND_MIC_NORMAL:
 			SetVolume_Mixerin_rec(codec);
-			break;		
-			
+			break;
+
 		case CAPTURE_HAND_MIC_NORMAL:
 			SetVolume_Mixerin_spk(codec);
-			break;		
-			
+			break;
+
 		case CAPTURE_MAIN_MIC_INCALL:
 			audio_switch(SWTICH_TO_BB);
 			break;
-			
+
 		case CAPTURE_SECOND_MIC_INCALL:
 			audio_switch(SWTICH_TO_BB);
 			break;
 
-		case CAPTURE_HAND_MIC_INCALL:	
+		case CAPTURE_HAND_MIC_INCALL:
 			audio_switch(SWTICH_TO_BB);
 			break;
-			
+
 		case CAPTURE_MAIN_MIC_VOIP:
 			audio_switch(SWTICH_TO_AP);
 			break;
-			
+
 		case CAPTURE_SECOND_MIC_VOIP:
 			audio_switch(SWTICH_TO_AP);
 			break;
 
-		case CAPTURE_HAND_MIC_VOIP:	
+		case CAPTURE_HAND_MIC_VOIP:
 			audio_switch(SWTICH_TO_AP);
 			break;
-			
+
 		case CAPTURE_NONE:
 			printk ("%s() :invalid path = %d\n", __func__,capture_path);
 			ret = -1;
@@ -1071,11 +1073,11 @@ int set_capture_path(struct snd_soc_codec *codec,u8 capture_path)
 		case CAPTURE_TEST:
 			audio_switch(SWTICH_TO_AP);
 			break;
-			
-		default:			
-			break;			
+
+		default:
+			break;
 	}
-	return ret;	
+	return ret;
 }
 
 #endif	//CONFIG_SND_SOC_MX_WM8958

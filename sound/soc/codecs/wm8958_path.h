@@ -47,8 +47,9 @@
 #define	VOL_RING_HP					(0x39-24)							// -24dB
 
 #define	VOL_INCALL_SPK_BOOST		(4<<WM8994_SPKOUTL_BOOST_SHIFT)		// 6dB
+
 #if defined(CONFIG_MACH_M040)
-#define	VOL_INCALL_SPK				(0x39+2)							// 2dB 0dB = 0x39
+#define	VOL_INCALL_SPK				(0x39+0)							// 2dB 0dB = 0x39
 #define	VOL_INCALL_REC				(0x39+2)							// 2dB 0dB = 0x39
 #define	VOL_INCALL_AIF2DAC_BOOST	(2<<WM8994_AIF2DAC_BOOST_SHIFT)		// 12dB
 #else
