@@ -21,6 +21,7 @@
 #include <linux/clk.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/semaphore.h>
 
 #include <plat/regs-adc.h>
 #include <plat/adc.h>
@@ -50,8 +51,9 @@ enum s3c_cpu_type {
 struct s3c_adc_client {
 	struct platform_device	*pdev;
 	struct list_head	pend;
-	wait_queue_head_t	*wait;
-
+	wait_queue_head_t	wait;
+	struct semaphore adc_sem;
+	
 	unsigned int		nr_samples;
 	int			result;
 	unsigned char		is_ts;
@@ -222,23 +224,22 @@ static void s3c_convert_done(struct s3c_adc_client *client,
 			     unsigned v, unsigned u, unsigned *left)
 {
 	client->result = v;
-	wake_up(client->wait);
+	wake_up(&client->wait);
 }
 
 int s3c_adc_read(struct s3c_adc_client *client, unsigned int ch)
 {
-	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wake);
 	int ret;
 
+	down(&client->adc_sem);
 	client->convert_cb = s3c_convert_done;
-	client->wait = &wake;
 	client->result = -1;
 
 	ret = s3c_adc_start(client, ch, 1);
 	if (ret < 0)
 		goto err;
 
-	ret = wait_event_timeout(wake, client->result >= 0, HZ);
+	ret = wait_event_timeout(client->wait, client->result >= 0, HZ);
 	client->convert_cb = NULL;
 
 	if (client->result < 0) {
@@ -248,10 +249,12 @@ int s3c_adc_read(struct s3c_adc_client *client, unsigned int ch)
 		ret = -ETIMEDOUT;
 		goto err;
 	}
-
-	return client->result;
+	ret = client->result;
+	up(&client->adc_sem);
+	return ret;
 
 err:
+	up(&client->adc_sem);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(s3c_adc_read);
@@ -289,7 +292,8 @@ struct s3c_adc_client *s3c_adc_register(struct platform_device *pdev,
 	client->is_ts = is_ts;
 	client->select_cb = select;
 	client->convert_cb = conv;
-
+	init_waitqueue_head(&client->wait);
+	sema_init(&client->adc_sem, 1);
 	return client;
 }
 EXPORT_SYMBOL_GPL(s3c_adc_register);
