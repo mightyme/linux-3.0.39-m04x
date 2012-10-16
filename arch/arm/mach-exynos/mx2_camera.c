@@ -44,6 +44,8 @@
 #include <media/m6mo.h>
 #endif
 
+#define ISP_NAME "m6mo"
+
 #ifdef CONFIG_VIDEO_FIMC
 #ifdef CONFIG_VIDEO_M6MO
 
@@ -52,9 +54,6 @@
   * to one ISP, so we set their both i2c info to m6mo
   * actually it's useless
 */
-static struct i2c_board_info ov9724_i2c_info = {
-	I2C_BOARD_INFO("m6mo", 0x1f),
-};
 
 /* front camera sensor */
 static struct s3c_platform_camera ov9724 = {
@@ -64,9 +63,7 @@ static struct s3c_platform_camera ov9724 = {
 	.order422	= CAM_ORDER422_8BIT_CBYCRY,
 	.pixelformat = V4L2_PIX_FMT_UYVY,
 
-	.i2c_busnum = 5,
-	.info	= &ov9724_i2c_info,
-
+	.i2c_client_name = ISP_NAME,
 	.clk_name = "sclk_cam0",
 	.srclk_name = "xusbxti",
 	.clk_rate = 24000000,
@@ -93,10 +90,6 @@ static struct s3c_platform_camera ov9724 = {
 	.initialized = 0,
 };
 
-static struct i2c_board_info imx175_i2c_info = {
-	I2C_BOARD_INFO("m6mo", 0x1f),
-};
-
 /* back camera sensor */
 static struct s3c_platform_camera imx175 = {
 	.id = CAMERA_CSI_C,
@@ -105,9 +98,7 @@ static struct s3c_platform_camera imx175 = {
 	.order422	= CAM_ORDER422_8BIT_CBYCRY,
 	.pixelformat = V4L2_PIX_FMT_UYVY,
 
-	.i2c_busnum = 5,
-	.info	= &imx175_i2c_info,
-
+	.i2c_client_name = ISP_NAME,
 	.clk_name = "sclk_cam0",
 	.srclk_name = "xusbxti",
 	.clk_rate = 24000000,
@@ -346,7 +337,7 @@ static struct m6mo_platform_data m6mo_plat = {
 
 static struct i2c_board_info __initdata i2c_devs5[] = {
 	{
-		I2C_BOARD_INFO("m6mo", 0x1f),
+		I2C_BOARD_INFO(ISP_NAME, 0x1f),
 		.platform_data = &m6mo_plat,
 		.irq = M040_CAMERA_ISP_IRQ,
 	},

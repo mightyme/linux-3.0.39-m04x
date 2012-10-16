@@ -822,7 +822,7 @@ static int m6mo_set_zoom_level(struct v4l2_subdev *sd, struct v4l2_control *ctrl
 	CHECK_ERR(ret);
 
 	SET_USERSET(zoom_level);
-
+    pr_info("%s(), zoom_level is set to %d\n", __func__, ctrl->value);
 	return 0;
 }
 
@@ -906,7 +906,7 @@ static int m6mo_enable_flash_led(struct m6mo_state *state, struct v4l2_control *
 				return -ENODEV;
 			}
 		
-			ret = m6mo_set_flash_current(state, PRE_FLASH_CURRENT);
+			ret = m6mo_set_flash_current(state, state->pre_flash_current);
 			if (ret) goto err_exit;
 			ret = regulator_enable(state->fled_regulator);
 			if (ret) goto err_exit;

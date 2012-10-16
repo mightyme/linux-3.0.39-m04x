@@ -503,12 +503,78 @@ static ssize_t store_download_firmware(struct device *d,
 		return count;
 }
 
+static ssize_t show_pre_flash_current(struct device *d,
+		struct device_attribute *attr, char *buf)
+{
+	struct v4l2_subdev *sd = dev_get_drvdata(d);
+	struct m6mo_state *state = to_state(sd);	
+
+	return sprintf(buf, "%d\n", state->pre_flash_current / 1000);
+}
+
+static ssize_t store_pre_flash_current(struct device *d,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int val;
+	struct v4l2_subdev *sd = dev_get_drvdata(d);
+	struct m6mo_state *state = to_state(sd);
+
+	if (sscanf(buf, "%d", &val) == 1) {
+		val = val * 1000;
+		if (val > MAX_FLASH_CURRENT) {
+			pr_err("%s:flash current is too large!!\n", __func__);
+			return -EINVAL;
+		}
+		state->pre_flash_current = val;
+	} else 
+		return -EINVAL;
+
+	pr_info("%s:pre flash current = %d uA\n", __func__, state->pre_flash_current);
+	
+	return count;
+}
+
+static ssize_t show_full_flash_current(struct device *d,
+		struct device_attribute *attr, char *buf)
+{
+	struct v4l2_subdev *sd = dev_get_drvdata(d);
+	struct m6mo_state *state = to_state(sd);	
+
+	return sprintf(buf, "%d\n", state->full_flash_current / 1000);
+}
+
+static ssize_t store_full_flash_current(struct device *d,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int val;
+	struct v4l2_subdev *sd = dev_get_drvdata(d);
+	struct m6mo_state *state = to_state(sd);
+
+	if (sscanf(buf, "%d", &val) == 1) {
+		val = val * 1000;
+		if (val > MAX_FLASH_CURRENT) {
+			pr_err("%s:flash current is too large!!\n", __func__);
+			return -EINVAL;
+		}
+		state->full_flash_current = val;
+	} else 
+		return -EINVAL;
+
+	pr_info("%s:full flash current = %d uA\n", __func__, state->full_flash_current);
+	
+	return count;
+}
+
 static DEVICE_ATTR(firmware_status, 0444, show_firmware_status, NULL);
 static DEVICE_ATTR(register, 0220, NULL, store_register);
 static DEVICE_ATTR(erase, 0220, NULL, store_erase);
 static DEVICE_ATTR(debug, 0220, NULL, store_debug);
 static DEVICE_ATTR(download_firmware, 0660, 
 	show_download_firmware, store_download_firmware);
+static DEVICE_ATTR(pre_flash_current, 0666, 
+	show_pre_flash_current, store_pre_flash_current);
+static DEVICE_ATTR(full_flash_current, 0666, 
+	show_full_flash_current, store_full_flash_current);
 
 static struct attribute *m6mo_attributes[] = {
 	&dev_attr_firmware_status.attr,
@@ -516,6 +582,8 @@ static struct attribute *m6mo_attributes[] = {
 	&dev_attr_erase.attr,
 	&dev_attr_debug.attr,
 	&dev_attr_download_firmware.attr,
+	&dev_attr_pre_flash_current.attr,
+	&dev_attr_full_flash_current.attr,
 	NULL
 };
 
@@ -718,6 +786,8 @@ static int m6mo_set_capture_mode(struct v4l2_subdev *sd)
 	int ret, i, retry = 5;
 	struct m6mo_state *state = to_state(sd);
 
+	pr_info("%s:wdr = %d\n", __func__, state->userset.wdr);
+
 	m6mo_prepare_wait(sd);
 
 	ret = m6mo_w8(sd,  SYS_MODE_REG, SYS_CAPTURE_MODE);	
@@ -736,12 +806,12 @@ static int m6mo_set_capture_mode(struct v4l2_subdev *sd)
 		/* change flash to full current */
 		if (state->irq_status & INT_MASK_MODE)
 			if (state->userset.flash_mode != M6MO_FLASH_OFF)
-				m6mo_set_flash_current(state, FULL_FLASH_CURRENT);
+				m6mo_set_flash_current(state, state->full_flash_current);
 
 		if (state->irq_status & INT_MASK_CAPTURE) {
 			/* recovery flash to pre current */
 			if (state->userset.flash_mode != M6MO_FLASH_OFF)
-				m6mo_set_flash_current(state, PRE_FLASH_CURRENT);
+				m6mo_set_flash_current(state, state->pre_flash_current);
 			mutex_unlock(&state->mutex);
 			break;
 		}
@@ -1322,6 +1392,8 @@ static int m6mo_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	state->debug = DEFAULT_DEBUG;
 	state->fled_regulator = NULL;
 	state->cap_mode = CAP_NORMAL_MODE;
+	state->pre_flash_current = PRE_FLASH_CURRENT;
+	state->full_flash_current = FULL_FLASH_CURRENT;
 	mutex_init(&state->mutex);
 	init_completion(&state->completion);
 	wake_lock_init(&state->wake_lock, WAKE_LOCK_SUSPEND, "m6mo");

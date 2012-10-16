@@ -76,6 +76,7 @@ struct s3c_platform_camera {
 
 	int				i2c_busnum;
 	struct i2c_board_info		*info;
+	const char i2c_client_name[20]; /*for subdev that is not dynamically loaded*/
 	struct v4l2_subdev		*sd;
 
 	const char			srclk_name[16];	/* source of mclk name */

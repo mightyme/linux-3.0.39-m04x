@@ -686,6 +686,8 @@ int fimc_enum_input(struct file *file, void *fh, struct v4l2_input *inp)
 
 	if (fimc->camera[inp->index]->use_isp)
 		strcpy(inp->name, "ISP Camera");
+	else if (fimc->camera[inp->index]->i2c_client_name[0])
+		strcpy(inp->name, fimc->camera[inp->index]->i2c_client_name);
 	else
 		strcpy(inp->name, fimc->camera[inp->index]->info->type);
 
@@ -831,21 +833,23 @@ int fimc_release_subdev(struct fimc_control *ctrl)
 }
 
 #if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
-static int fimc_cam_register_callback(struct device *dev, void *p)
+static int fimc_get_cam_subdev_callback(struct device *dev, void *data)
 {
-	struct v4l2_subdev **sd = p;
+	int ret;
+	struct i2c_client *client = list_entry(dev, struct i2c_client, dev);
 
-	*sd = dev_get_drvdata(dev);
+	if (!strncmp(client->name, (const char *)data, sizeof(client->name)))
+		ret = 1;
+	else
+		ret = 0;
 
-	if (!*sd)
-		return -EINVAL;
-
-	return 0; /* non-zero value stops iteration */
+	return ret;	
 }
 
 static struct v4l2_subdev *fimc_get_cam_subdev(const char *module_name)
 {
 	struct device_driver *drv;
+	struct device *dev = NULL;
 	struct v4l2_subdev *sd = NULL;
 	int ret;
 
@@ -857,10 +861,16 @@ static struct v4l2_subdev *fimc_get_cam_subdev(const char *module_name)
 	if (!drv)
 		return ERR_PTR(-ENODEV);
 
-	ret = driver_for_each_device(drv, NULL, &sd,
-				     fimc_cam_register_callback);
+	dev = driver_find_device(drv, NULL, (void *)module_name, 
+			fimc_get_cam_subdev_callback);
+	if (dev) 
+		sd = dev_get_drvdata(dev);
+	else 
+		sd = NULL;
+
 	put_driver(drv);
-	return ret ? NULL : sd;
+
+	return sd;	
 }
 
 static int fimc_find_cam_id(struct fimc_control *ctrl)
@@ -930,7 +940,7 @@ static int fimc_configure_mx_subdev(struct fimc_control *ctrl)
 {
 	int ret = 0;
 	
-	ctrl->cam->sd = fimc_get_cam_subdev(ctrl->cam->info->type);
+	ctrl->cam->sd = fimc_get_cam_subdev(ctrl->cam->i2c_client_name);
 	if (ctrl->cam->sd == NULL)
 		return -ENODEV;
 
