@@ -27,6 +27,7 @@
 #include <linux/sched.h>
 
 #include <mach/gpio.h>
+#include <mach/modem.h>
 #include "modem_prj.h"
 
 static char modem_event_str[8][25] = {

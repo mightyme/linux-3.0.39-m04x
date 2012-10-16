@@ -12,19 +12,21 @@
  *
  */
 
+#include <linux/async.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/async.h>
 
 #include <plat/cpu.h>
 #include <plat/ehci.h>
 #include <plat/usb-phy.h>
 
+#include <mach/board_rev.h>
 #include <mach/regs-pmu.h>
 #include <mach/regs-usb-host.h>
-#include <mach/board_rev.h>
+#ifdef CONFIG_UMTS_MODEM_XMM6260
 #include <mach/modem.h>
+#endif
 #ifdef CONFIG_HAS_WAKELOCK
 #include <linux/wakelock.h>
 #endif
@@ -41,9 +43,6 @@ struct s5p_ehci_hcd {
 };
 struct device *s5p_dev;
 static int init_resume = 0;
-#ifdef CONFIG_XMM6260_MODEM
-/*extern void modem_set_active_state(int state);*/
-#endif
 
 #ifdef CONFIG_HAS_WAKELOCK
 struct wake_lock 	s5p_pm_lock;
@@ -382,10 +381,15 @@ static int s5p_wait_for_cp_resume(struct usb_hcd *hcd)
 		msleep(10);
 		val32 = ehci_readl(ehci, portsc);
 	} while (++retry_cnt < RETRY_CNT_LIMIT && !(val32 & PORT_CONNECT));
-	printk("%s: retry_cnt = %d\n", __func__, retry_cnt);
-	if(retry_cnt<RETRY_CNT_LIMIT)
+	pr_info("%s: retry_cnt = %d\n", __func__, retry_cnt);
+	if(retry_cnt < RETRY_CNT_LIMIT)
 		return 0;
-	return -ETIMEDOUT;
+	else {
+#ifdef CONFIG_UMTS_MODEM_XMM6260
+		modem_notify_event(MODEM_EVENT_DISCONN);
+#endif
+		return -ETIMEDOUT;
+	}
 }
 
 static const struct hc_driver s5p_ehci_hc_driver = {

@@ -14,28 +14,28 @@
  *
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
+#include <linux/cdev.h>
 #include <linux/device.h>
-#include <linux/sched.h>
-#include <linux/irq.h>
-#include <linux/poll.h>
 #include <linux/gpio.h>
 #include <linux/if_arp.h>
-#include <linux/usb.h>
-#include <linux/usb/cdc.h>
-#include <linux/pm_runtime.h>
-#include <linux/cdev.h>
-#include <linux/platform_device.h>
-#include <linux/wakelock.h>
-#include <linux/suspend.h>
-#include <linux/version.h>
-
+#include <linux/init.h>
+#include <linux/irq.h>
+#include <linux/module.h>
 #include <linux/platform_data/modem.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/poll.h>
+#include <linux/sched.h>
+#include <linux/suspend.h>
+#include <linux/usb/cdc.h>
+#include <linux/usb.h>
+#include <linux/version.h>
+#include <linux/wakelock.h>
+#include <mach/modem.h>
 #include <mach/usb-detect.h>
 #include "modem_prj.h"
-#include "meizu_modem_hsic.h"
 #include "modem_utils.h"
+#include "meizu_modem_hsic.h"
 
 #define HSIC_MAX_PIPE_ORDER_NR 3
 
