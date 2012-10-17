@@ -30,6 +30,7 @@
 #include <linux/slab.h>
 #include <linux/suspend.h>
 #include <linux/reboot.h>
+#include <linux/kthread.h>
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
@@ -1322,13 +1323,26 @@ static void cpufreq_pegasusq_late_resume(struct early_suspend *h)
 }
 #endif
 
+extern void unlock_policy_rwsem_write(int cpu);
+extern int lock_policy_rwsem_write(int cpu);
+
+struct completion dbs_timer_cancel_done;
+
+static int dbs_timer_cancel_thread(void *data)
+{
+	struct cpu_dbs_info_s *this_dbs_info = data;
+
+	dbs_timer_exit(this_dbs_info);
+	complete_and_exit(&dbs_timer_cancel_done, 0);
+}
+
 static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 				unsigned int event)
 {
 	unsigned int cpu = policy->cpu;
 	struct cpu_dbs_info_s *this_dbs_info;
 	unsigned int j;
-	int rc;
+	int rc, err;
 
 	this_dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
 
@@ -1398,7 +1412,16 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		unregister_pm_notifier(&pm_notifier);
 #endif
 
-		dbs_timer_exit(this_dbs_info);
+		/* Schedule a thread to release the dbs timers */
+		init_completion(&dbs_timer_cancel_done);
+		kthread_run(dbs_timer_cancel_thread, this_dbs_info, "dbstimer/cancel");
+		err = wait_for_completion_interruptible_timeout(&dbs_timer_cancel_done, msecs_to_jiffies(2000));
+		if (err == 0) {
+			pr_err("%s: dbs_timer_exit() timeout\n", __func__);
+			unlock_policy_rwsem_write(cpu);
+			wait_for_completion_interruptible(&dbs_timer_cancel_done);
+			lock_policy_rwsem_write(cpu);
+		}
 
 		mutex_lock(&dbs_mutex);
 		mutex_destroy(&this_dbs_info->timer_mutex);
