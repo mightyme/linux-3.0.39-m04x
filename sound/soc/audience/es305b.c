@@ -227,10 +227,6 @@ static int es305b_sleep(void)
 	es305b->status = ES305B_SLEEP;
 
 	msleep(20);
-	/* Disable ES305B clock */
-	// gpio_set_value(es305b->gpio_es305_clk, 0);
-	// poweroff es305b
-	// pr_device_power_off();
 
 	t2 = ktime_to_ms(ktime_get()) - t1;
 
@@ -581,8 +577,6 @@ static int es305b_suspend(struct i2c_client *client, pm_message_t mesg)
 	AUD_DBG();
 
 	/* vp suspend function will be dominated by in-call mode, not system state */
-	/* es305b_sleep(); */
-
 	return 0;
 }
 
@@ -591,8 +585,6 @@ static int es305b_resume(struct i2c_client *client)
 	AUD_DBG();
 
 	/* vp resume function will be dominated by in-call mode, not system state */
-	/* es305b_wakeup(es305b); */
-
 	return 0;
 }
 
