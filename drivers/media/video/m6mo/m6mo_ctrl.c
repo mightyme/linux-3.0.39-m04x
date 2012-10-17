@@ -503,7 +503,7 @@ static int m6mo_get_multi_capture_picture(struct v4l2_subdev *sd, struct v4l2_co
 	int ret;
 	struct m6mo_state *state = to_state(sd);
 
-	pr_info("%s\n", __func__);
+	pr_info("%s(), get %d picture of multi-cap\n", __func__, ctrl->value);
 
 	/* check ctrl value */
 	if (ctrl->value < 1 || ctrl->value > state->multi_cap.numbers) {
@@ -822,7 +822,7 @@ static int m6mo_set_zoom_level(struct v4l2_subdev *sd, struct v4l2_control *ctrl
 	CHECK_ERR(ret);
 
 	SET_USERSET(zoom_level);
-    pr_info("%s(), zoom_level is set to %d\n", __func__, ctrl->value);
+	
 	return 0;
 }
 
@@ -989,6 +989,7 @@ static int m6mo_get_auto_focus_result(struct v4l2_subdev *sd, struct v4l2_contro
 static int m6mo_transfer_capture_data(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	int ret = 0;
+	pr_info("%s(), ctr->value is %d\n", __func__, ctrl->value);
 
 	switch (ctrl->value) {
 	case 0:
@@ -1029,7 +1030,8 @@ static int m6mo_get_jpeg_main_size(struct v4l2_subdev *sd, struct v4l2_control *
 	ret = m6mo_r32(sd, JPEG_IMAGE_SIZE_REG,  &ctrl->value);
 	CHECK_ERR(ret);
 	
-	pr_debug("%s():jpeg size is %d.\n", __func__, ctrl->value);
+	pr_info("%s():jpeg size is %d.\n", __func__, ctrl->value);
+	WARN(0 == ctrl->value, "JPEG Image size is 0!\n");
 	
 	return 0;
 }

@@ -630,7 +630,8 @@ int m6mo_wait_irq_and_check(struct v4l2_subdev *sd, u8 mask,
 	ret = wait_for_completion_interruptible_timeout(&state->completion, 
 		msecs_to_jiffies(timeout));
 	if (ret <= 0) {
-		pr_info("%s: timeout in %u ms\n", __func__, timeout);
+		pr_info("%s: timeout in %u ms when wating for %d\n", 
+			__func__, timeout, mask);
 		return -ETIME;
 	}
 
@@ -672,6 +673,8 @@ int m6mo_set_sys_mode(struct v4l2_subdev *sd, enum isp_mode mode)
 	struct m6mo_state *state = to_state(sd);
 
 	if (state->mode == mode) return 0;
+
+	pr_info("%s(), ISP mode will be set to %d\n", __func__, mode);
 
 	switch (mode) {
 	case PARAMETER_MODE:
@@ -829,6 +832,8 @@ int m6mo_set_mode(struct v4l2_subdev *sd, enum isp_mode mode)
 {
 	int ret;
 
+	pr_info("%s(), set ISP mode to %d\n", __func__, mode);
+
 	switch (mode) {	
 	case PARAMETER_MODE:
 		ret = m6mo_set_parameter_mode(sd);
@@ -936,8 +941,11 @@ static int m6mo_set_preview_size(struct v4l2_subdev *sd,
 	}
 
 	if (state->prev_size.width == fmt->width &&
-		state->prev_size.height == fmt->height)
+		state->prev_size.height == fmt->height) {
+		pr_info("%s(), Set to the same preview%d(1: panorama) size\n",
+			__func__, state->panorama_preview);
 		return 0;
+	}
 
 set_size:
 	state->prev_size = sizes[i];
@@ -1082,7 +1090,8 @@ static int m6mo_stream_on(struct v4l2_subdev *sd)
 	struct m6mo_state *state = to_state(sd);	
 	int ret = 0;
 
-	v4l_info(client, "%s: stream on\n", __func__);
+	v4l_info(client, "%s: stream on, camera_mode is %d\n", 
+		__func__, state->camera_mode);
 
 	/* reset this flag in case of wrong wake up */
 	fimc_reset_wakeup_flag();
@@ -1090,6 +1099,7 @@ static int m6mo_stream_on(struct v4l2_subdev *sd)
 	switch (state->camera_mode) {
 	case  V4L2_CAMERA_PREVIEW:
 	case  V4L2_CAMERA_RECORD:
+		pr_info("%s(), will change to non-panorama preview mode\n", __func__);
 		ret = m6mo_set_mode(sd, MONITOR_MODE);
 		break;
 	case V4L2_CAMERA_PANORAMA:
@@ -1171,8 +1181,10 @@ int m6mo_set_power_clock(struct m6mo_state *state, bool enable)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 	
-	if (state->isp_power == enable) 
+	if (state->isp_power == enable) {
+		pr_err("%s(), ISP has already been powered on!\n", __func__);
 		return -EBUSY;
+	}
 	
 	if (enable) {
 		ret = pdata->clock_enable(&client->dev, true);
@@ -1190,6 +1202,7 @@ int m6mo_set_power_clock(struct m6mo_state *state, bool enable)
 		pdata->clock_enable(&client->dev, false);
 	}
 
+	pr_info("%s(), set power to %d successed!\n", __func__, enable);
 	state->isp_power = enable;
 
 	return ret;
@@ -1221,7 +1234,10 @@ static int m6mo_init(struct v4l2_subdev *sd, u32 cam_id)
 
 	/* set sensor power */
 	ret = m6mo_set_sensor_power(state, true);
-	if (ret) return ret;
+	if (ret) {
+		pr_err("%s(), set sensor powr failed!\n", __func__);
+		return ret;
+	}
 
 	/* run firmware first */
 	ret = m6mo_run_firmware(sd);	
