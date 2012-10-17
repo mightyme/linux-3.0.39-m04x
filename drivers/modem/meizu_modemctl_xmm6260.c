@@ -314,12 +314,14 @@ static irqreturn_t sim_detect_irq_handler(int irq, void *_mc)
 static irqreturn_t modem_cpreset_irq(int irq, void *dev_id)
 {
 	struct modem_ctl *mc = (struct modem_ctl *)dev_id;
-	int val = gpio_get_value(mc->gpio_cp_reset);
+	int val;
 
-	pr_info("%s CP_RESET_INT:%d\n",  __func__, val);
-	modem_wake_lock_timeout(mc, HZ*30);
-	if(global_mc->enum_done)
+	if(global_mc->enum_done) {
+		val = gpio_get_value(mc->gpio_cp_reset);
+		modem_wake_lock_timeout(mc, HZ * 30);
+		pr_info("%s CP_RESET_INT:%d\n",  __func__, val);
 		modem_notify_event(MODEM_EVENT_RESET);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -528,7 +530,7 @@ int xmm6260_init_modemctl_device(struct modem_ctl *mc,
 	if (mc->gpio_cp_reset_int) {
 		mc->irq_modem_reset = gpio_to_irq(mc->gpio_cp_reset_int);
 		ret = request_threaded_irq(mc->irq_modem_reset, NULL,
-				modem_cpreset_irq, IRQF_TRIGGER_FALLING,
+				modem_cpreset_irq, IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				"CP_RESET_INT", mc);
 		if (ret) {
 			pr_err("Failed register gpio_cp_reset_int irq(%d)!\n",
