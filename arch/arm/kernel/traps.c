@@ -37,7 +37,6 @@
 #include "mx_recovery_key.h"
 #endif
 #include "signal.h"
-#include <linux/mmc/card.h>
 
 
 static const char *handler[]= { "prefetch abort", "data abort", "address exception", "interrupt" };
@@ -588,12 +587,13 @@ static int machine_verify( struct verify_ctx __user *ctx_info)
 	}
 	return  -EFAULT;
 }
+
 struct machine_info {
 	char mfg[32];
 	char prod[32];
 	char sn[32];
-};
-struct machine_info g_info;
+} g_info;
+
 extern int android_usb_set_machine_info(char *mfg, char *prod, char *sn);
 
 static int set_machine_info( struct machine_info __user *info)
@@ -612,7 +612,6 @@ static int set_machine_info( struct machine_info __user *info)
 	return  -EFAULT;
 }
 
-
 static int get_recovery_key(__user char *key)
 {
 #ifdef CONFIG_MX_RECOVERY_KERNEL
@@ -623,11 +622,51 @@ static int get_recovery_key(__user char *key)
 	return 0;
 }
 
-extern unsigned int mmc_blk_bootinfo_readonly;
-static int set_bootinfo_partition_ro(unsigned int ro)
+enum {
+	CMD_READ,
+	CMD_PREPARE,
+	CMD_BURN
+};
+
+static DEFINE_MUTEX(private_entry_mutex);
+
+extern int private_entry_read(int slot, __user char *out_buf);
+extern int private_entry_write_prepare(int slot, __user char *random_buf);
+extern int private_entry_write(int slot, __user char *in_buf);
+
+static int do_private_entry(int solt, int cmd , __user char *in_buf, __user char *out_buf)
 {
-	mmc_blk_bootinfo_readonly = ro;
-	return 0;
+	int err = 0;
+	pr_info("solt %d cmd %d 0x%08x 0x%08x\n", solt, cmd, in_buf, out_buf);
+	mutex_lock(&private_entry_mutex);
+
+	switch(cmd) {
+		case CMD_READ:
+			if (private_entry_read(solt, out_buf)) {
+				err =   -EFAULT;
+				goto out;
+			}
+			break;
+		case CMD_PREPARE:
+			if (private_entry_write_prepare(solt, out_buf)) {
+				err =   -EFAULT;
+				goto out;
+			}
+			break;
+		case CMD_BURN:
+			if (private_entry_write(solt, in_buf)) {
+				err =   -EFAULT;
+				goto out;
+			}
+			break;
+		default:
+			err = -EINVAL;
+			goto out;
+	}
+
+out:
+	mutex_unlock(&private_entry_mutex);
+	return err;
 }
 
 #endif//CONFIG_MX_SERIAL_TYPE
@@ -768,8 +807,11 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 	case NR(get_recovery_key):
 		return get_recovery_key((__user char *)regs->ARM_r0);
 		break;
-	case NR(set_bootinfo_partition_ro):
-		return set_bootinfo_partition_ro((unsigned int)regs->ARM_r0);
+	case NR(do_private_entry):
+		return do_private_entry((__user int)regs->ARM_r0,
+					(__user int)regs->ARM_r1, 
+					(__user char *)regs->ARM_r2, 
+					(__user char *)regs->ARM_r3);
 		break;
 #endif
 	default:

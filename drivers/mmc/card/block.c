@@ -34,6 +34,10 @@
 #include <linux/delay.h>
 #include <linux/capability.h>
 #include <linux/compat.h>
+#include <linux/buffer_head.h>
+#include <linux/random.h>
+#include <linux/rsa.h>
+#include <linux/rsa_pubkey.h>
 
 #include <linux/mmc/ioctl.h>
 #include <linux/mmc/card.h>
@@ -41,7 +45,6 @@
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/mach-types.h>
 
@@ -70,97 +73,6 @@ MODULE_ALIAS("mmc:block");
 #define PACKED_CMD_WR		0x02
 
 static DEFINE_MUTEX(block_mutex);
-
-//PartitionName                        FsType          Size            Rage(from-to)
-//(1)fstable                        None            512KB           0x0~(0x80000 - 1)
-//(2)kernel(4210)              None            5MB                     0x200000~(0x700000 - 1)
-//(2)kernel(4212)              None            5MB                     0x700000~(0xC00000 - 1)
-//(3)ramdisk                   None            5MB                     0xC00000~(0x1100000 - 1)
-//(4)param                             None            10MB            0x1100000~(0x1B00000 - 1)
-//(5)misc                              None            256KB           0x1B00000~(0x1D00000 - 1)
-//(6)tinykernel(4210)  None            10MB            0x1D00000~(0x2700000 - 1)
-//(6)tinykernel(4212)  None            10MB            0x2700000~(0x3100000 - 1)
-//(6)modem                             None            10MB            0x3100000~(0x4000000 - 1)
-//(7)system                            ext4            515792KB        0x4000000~(0x33800000 - 1)
-//(8)userdata                  ext4            1024MB          0x33800000~(0xB3800000 - 1)
-//(9)cache                             ext4            100MB           0xB3800000~(0xC0000000 - 1)
-//(10)fat                              fat                                             0xC0000000~
-
-
-#ifndef SZ_1M
-#define SZ_1M          0x00100000
-#endif
-#ifndef SZ_1K
-#define SZ_1K          0x00000400
-#endif
-
-#define PART_BLOCK_SIZE                                   512
-
-#define PART_FSTABLE_SIZE                              (512 * SZ_1K)
-#define PART_KERNEL_SIZE                                  (10 * SZ_1M)
-#define PART_RAMDISK_SIZE                                 (5 * SZ_1M)
-#define PART_PARAM_SIZE                                   (10 * SZ_1M)
-#define PART_MISC_SIZE                                            (2 * SZ_1M)
-#define PART_TINYKERNEL_SIZE                              (20 * SZ_1M)
-#define PART_MODEM_SIZE                                   (15 * SZ_1M)
-
-#define PART_FSTABLE_START_SEC         (0x0 / PART_BLOCK_SIZE)
-#define PART_KERNEL_START_SEC                     (0x200000 / PART_BLOCK_SIZE)
-#define PART_RAMDISK_START_SEC                    (0xC00000 / PART_BLOCK_SIZE)
-#define PART_PARAM_START_SEC                      (0x1100000 / PART_BLOCK_SIZE)
-#define PART_MISC_START_SEC                       (0x1B00000 / PART_BLOCK_SIZE)
-#define PART_TINYKERNEL_START_SEC         (0x1D00000 / PART_BLOCK_SIZE)
-#define PART_MODEM_START_SEC                      (0x3100000 / PART_BLOCK_SIZE)
-
-#define PART_FSTABLE_BLK_NUM   (PART_FSTABLE_SIZE / PART_BLOCK_SIZE)
-#define PART_KERNEL_BLK_NUM               (PART_KERNEL_SIZE / PART_BLOCK_SIZE)
-#define PART_RAMDISK_BLK_NUM              (PART_RAMDISK_SIZE / PART_BLOCK_SIZE)
-#define PART_PARAM_BLK_NUM                        (PART_PARAM_SIZE / PART_BLOCK_SIZE)
-#define PART_MISC_BLK_NUM                 (PART_MISC_SIZE / PART_BLOCK_SIZE)
-#define PART_TINYKERNEL_BLK_NUM   (PART_TINYKERNEL_SIZE / PART_BLOCK_SIZE)
-#define PART_MODEM_BLK_NUM                        (PART_MODEM_SIZE / PART_BLOCK_SIZE)
-
-#define PART_EXTRA_PARTITION	7
-
-typedef struct {
-       int32_t start_sec;
-       int32_t sec_num;
-} extra_part_info_t;
-
-static extra_part_info_t extra_partition[PART_EXTRA_PARTITION];
-
-static int init_extra_partitioin(void)
-{
-	// param
-	extra_partition[0].start_sec = PART_PARAM_START_SEC;
-	extra_partition[0].sec_num = PART_PARAM_BLK_NUM;
-
-	// kernel
-	extra_partition[1].start_sec = PART_KERNEL_START_SEC;
-	extra_partition[1].sec_num = PART_KERNEL_BLK_NUM;
-
-	// ramdisk
-	extra_partition[2].start_sec = PART_RAMDISK_START_SEC;
-	extra_partition[2].sec_num = PART_RAMDISK_BLK_NUM;
-
-	// fstable
-	extra_partition[3].start_sec = PART_FSTABLE_START_SEC;
-	extra_partition[3].sec_num = PART_FSTABLE_BLK_NUM;
-
-	// misc
-	extra_partition[4].start_sec = PART_MISC_START_SEC;
-	extra_partition[4].sec_num = PART_MISC_BLK_NUM;
-
-	// tinykernel
-	extra_partition[5].start_sec = PART_TINYKERNEL_START_SEC;
-	extra_partition[5].sec_num = PART_TINYKERNEL_BLK_NUM;
-
-	// modem
-	extra_partition[6].start_sec = PART_MODEM_START_SEC;
-	extra_partition[6].sec_num = PART_MODEM_BLK_NUM;
-
-	return 0;
-}
 
 /*
  * The defaults come from config options but can be overriden by module
@@ -232,6 +144,306 @@ enum {
 
 module_param(perdev_minors, int, 0444);
 MODULE_PARM_DESC(perdev_minors, "Minors numbers to allocate per device");
+
+enum {
+	dumy_id = 0, //dumy
+	param_id = 0, //abandon
+	ker_id ,
+	rd_id ,
+	fstab_id ,//abandon
+	misc_id ,//abandon
+	tiny_id,
+	modem_id,//abandon
+	max_partition = 16
+};
+
+struct extra_part_info {
+	sector_t start_sec;
+	uint32_t sec_num;
+	u8 *volname;
+};
+
+static struct extra_part_info extra_partition[max_partition];
+static struct extra_part_info private_info_partition;
+
+static inline int is_system_area(struct request *rqc)
+{
+#define FS_EXT4_RESERVED_SEC	0x8
+	return (blk_rq_pos(rqc) >= (sector_t)system_part_start + FS_EXT4_RESERVED_SEC
+			&& blk_rq_pos(rqc) < (sector_t)system_part_start + system_part_size);
+}
+
+static inline int is_private_info_area(struct request *rqc)
+{
+	return (blk_rq_pos(rqc) >= private_info_partition.start_sec
+			&& blk_rq_pos(rqc) < private_info_partition.start_sec +
+								private_info_partition.sec_num);
+}
+
+static int init_extra_partitioin(struct mmc_blk_data *md)
+{
+#ifdef CONFIG_MX_RECOVERY_KERNEL
+	int i;
+	int index;
+#ifndef CONFIG_MACH_M040
+	if (machine_is_m030()) {
+		const uint32_t SZ_BLOCK = 512;
+
+		const sector_t kernel_part_start_sec = 0x200000 / SZ_BLOCK;
+		const uint32_t kernel_part_sec_num = 10 * SZ_1M / 512;
+
+		const sector_t rd_part_start_sec = 0xC00000 / SZ_BLOCK;
+		const uint32_t rd_part_sec_num = 5 * SZ_1M / 512;
+
+		const sector_t tiny_part_start_sec = 0x1D00000 / SZ_BLOCK;
+		const uint32_t tiny_part_sec_num = 20 * SZ_1M / 512;
+
+		//same as param part
+		const sector_t dumy_part_start_sec = 0x1100000 / SZ_BLOCK;
+		const uint32_t dumy_part_sec_num = 10 * SZ_1M / 512;
+
+		// kernel
+		extra_partition[ker_id].start_sec = kernel_part_start_sec;
+		extra_partition[ker_id].sec_num = kernel_part_sec_num;
+		extra_partition[ker_id].volname = "KERNEL";
+
+		// ramdisk
+		extra_partition[rd_id].start_sec = rd_part_start_sec;
+		extra_partition[rd_id].sec_num = rd_part_sec_num;
+		extra_partition[rd_id].volname = "RAMDISK";
+
+		// tinykernel
+		extra_partition[tiny_id].start_sec = tiny_part_start_sec;
+		extra_partition[tiny_id].sec_num = tiny_part_sec_num;
+		extra_partition[tiny_id].volname = "TINY";
+
+		//dumy
+		extra_partition[param_id].start_sec = dumy_part_start_sec;
+		extra_partition[param_id].sec_num = dumy_part_sec_num;
+		extra_partition[param_id].volname = "DUMY0";
+
+		extra_partition[fstab_id].start_sec = dumy_part_start_sec;
+		extra_partition[fstab_id].sec_num = dumy_part_sec_num;
+		extra_partition[fstab_id].volname = "DUMY1";
+
+		extra_partition[misc_id].start_sec = dumy_part_start_sec;
+		extra_partition[misc_id].sec_num = dumy_part_sec_num;
+		extra_partition[misc_id].volname = "DUMY2";
+	} else
+#endif
+	{
+		// kernel
+		extra_partition[ker_id].start_sec = bootinfo.partinfo[ker_id].start_sec;
+		extra_partition[ker_id].sec_num = bootinfo.partinfo[ker_id].sec_num;
+		extra_partition[ker_id].volname = "KERNEL";
+
+		// ramdisk
+		extra_partition[rd_id].start_sec = bootinfo.partinfo[rd_id].start_sec;
+		extra_partition[rd_id].sec_num = bootinfo.partinfo[rd_id].sec_num;
+		extra_partition[rd_id].volname = "RAMDISK";
+
+		// tinykernel
+		extra_partition[tiny_id].start_sec = bootinfo.partinfo[tiny_id].start_sec;
+		extra_partition[tiny_id].sec_num = bootinfo.partinfo[tiny_id].sec_num;
+		extra_partition[tiny_id].volname = "TINY";
+
+		//dumy
+		extra_partition[param_id].start_sec = bootinfo.partinfo[dumy_id].start_sec;
+		extra_partition[param_id].sec_num = bootinfo.partinfo[dumy_id].sec_num;
+		extra_partition[param_id].volname = "DUMY0";
+
+		extra_partition[fstab_id].start_sec = bootinfo.partinfo[dumy_id].start_sec;
+		extra_partition[fstab_id].sec_num = bootinfo.partinfo[dumy_id].sec_num;
+		extra_partition[fstab_id].volname = "DUMY1";
+
+		extra_partition[misc_id].start_sec = bootinfo.partinfo[dumy_id].start_sec;
+		extra_partition[misc_id].sec_num = bootinfo.partinfo[dumy_id].sec_num;
+		extra_partition[misc_id].volname = "DUMY2";
+	}
+
+	index = 5;
+
+	for (i = 0; i < max_partition; i++) {
+		if (extra_partition[i].sec_num != 0) {
+			struct partition_meta_info info;
+			struct hd_struct *part;
+			strncpy(info.volname, extra_partition[i].volname, sizeof(info.volname));
+
+			part = add_partition(md->disk, index, extra_partition[i].start_sec,
+					extra_partition[i].sec_num, ADDPART_FLAG_NONE, &info);
+			if (IS_ERR(part)) {
+				pr_err("error add partition %s\n", extra_partition[i].volname);
+			} else {
+				index++;
+				pr_info("add extra partion at mmcblk0p%d(%s), start_sec = %u, sec_num = %u\n",
+						i + 5, extra_partition[i].volname,
+						extra_partition[i].start_sec, extra_partition[i].sec_num);
+			}
+		}
+	}
+#endif
+
+	private_info_partition.start_sec = bootinfo.partinfo[modem_id].start_sec;
+	private_info_partition.sec_num = bootinfo.partinfo[modem_id].sec_num;
+	private_info_partition.volname = "PRIVATE";
+
+	return 0;
+}
+
+static struct buffer_head *protect_block_bh;
+static DEFINE_MUTEX(protect_block_lock);
+
+#define PRIVATE_ENTRY_BLOCK_SIZE (1024)
+#define PRIVATE_ENTRY_SIG_SIZE (256)
+#define PRIVATE_ENTRY_RANDOM_SIZE (20)
+
+static char private_entry_buf[PRIVATE_ENTRY_BLOCK_SIZE];
+static char private_entry_random[PRIVATE_ENTRY_RANDOM_SIZE];
+
+static int deal_private_block(int write, unsigned offset ,void *buffer)
+{
+	struct block_device *bdev;
+	struct buffer_head *bh = NULL;
+	sector_t start_blk;
+	fmode_t mode = FMODE_READ;
+	const unsigned blksize = PRIVATE_ENTRY_BLOCK_SIZE;
+	int err = -EIO;
+	unsigned blk_offset = offset / blksize;
+	sector_t part_start;
+
+	BUG_ON(blksize > PAGE_SIZE);
+
+	mutex_lock(&protect_block_lock);
+
+	if (buffer == NULL) {
+		return -EINVAL;
+	}
+
+	part_start = private_info_partition.start_sec / PRIVATE_ENTRY_BLOCK_SIZE;
+	if(private_info_partition.start_sec % PRIVATE_ENTRY_BLOCK_SIZE)
+		part_start += 1;
+
+	start_blk = part_start  + blk_offset;
+
+	if((blk_offset + 2) * (PRIVATE_ENTRY_BLOCK_SIZE / 512)
+			>= private_info_partition.sec_num) {
+		pr_info("out of range!!\n");
+		return -EINVAL;
+	}
+
+	bdev = bdget(MKDEV(179,0));
+	if (!bdev)
+		return -EIO;
+
+	mode = write ? FMODE_WRITE : FMODE_READ;
+	if (blkdev_get(bdev, mode, NULL)) {
+		bdput(bdev);
+		goto out;
+	}
+
+	set_blocksize(bdev, PRIVATE_ENTRY_BLOCK_SIZE);
+
+	bh = __getblk(bdev, start_blk, PRIVATE_ENTRY_BLOCK_SIZE);
+	protect_block_bh = bh;
+
+	if (bh) {
+		clear_buffer_uptodate(bh);
+		get_bh(bh);
+		lock_buffer(bh);
+		bh->b_end_io = end_buffer_read_sync;
+		submit_bh(READ_SYNC, bh);
+		wait_on_buffer(bh);
+		if (unlikely(!buffer_uptodate(bh))) {
+			pr_info("private info read error !!\n");
+			goto out;
+		}
+		if (write) {
+			lock_buffer(bh);
+			memcpy(bh->b_data, buffer, PRIVATE_ENTRY_BLOCK_SIZE);
+			bh->b_end_io = end_buffer_write_sync;
+			get_bh(bh);
+			submit_bh(WRITE_SYNC, bh);
+			wait_on_buffer(bh);
+			if (unlikely(!buffer_uptodate(bh))) {
+				pr_info("private info write error\n");
+				goto out;
+			}
+		} else {
+			memcpy(buffer, bh->b_data, PRIVATE_ENTRY_BLOCK_SIZE);
+		}
+		err = 0;
+	} else {
+		pr_info("%s error\n", __func__);
+	}
+
+out:
+	protect_block_bh = NULL;
+	mutex_unlock(&protect_block_lock);
+	brelse(bh);
+	blkdev_put(bdev, mode);
+
+	return err;
+}
+
+int private_entry_read(int slot, __user char *out_buf)
+{
+	int offset = slot * PRIVATE_ENTRY_BLOCK_SIZE;
+	int err = 0;
+
+	err = deal_private_block(0, offset, private_entry_buf);
+	if (err)
+		goto out;
+
+	err = copy_to_user(out_buf, private_entry_buf, PRIVATE_ENTRY_BLOCK_SIZE);
+	if (err)
+		goto out;
+
+out:
+	pr_info("%s rtn code %d\n", __func__, err);
+	return err;
+}
+
+int private_entry_write_prepare(int slot, __user char *random_buf)
+{
+	int offset = slot * PRIVATE_ENTRY_BLOCK_SIZE;
+	int err = 0;
+
+	get_random_bytes(private_entry_random, PRIVATE_ENTRY_RANDOM_SIZE);
+
+	err = copy_to_user(random_buf, private_entry_random, PRIVATE_ENTRY_RANDOM_SIZE);
+
+	return err;
+}
+
+int private_entry_write(int slot, __user char *in_buf)
+{
+	int offset = slot * PRIVATE_ENTRY_BLOCK_SIZE;
+	int err = 0;
+
+	err = copy_from_user(private_entry_buf, in_buf, PRIVATE_ENTRY_BLOCK_SIZE);
+	if (err)
+		goto out;
+
+	err = RSA_verify(&writeable_rsa, private_entry_buf, RSANUMBYTES, private_entry_random);
+	if (err) {
+		pr_info("RSA verify failed\n");
+		goto out;
+	}
+
+	memmove(private_entry_buf, private_entry_buf + PRIVATE_ENTRY_SIG_SIZE, 
+			PRIVATE_ENTRY_BLOCK_SIZE - PRIVATE_ENTRY_SIG_SIZE);
+
+	memset(private_entry_buf + PRIVATE_ENTRY_BLOCK_SIZE - PRIVATE_ENTRY_SIG_SIZE, 
+			0, PRIVATE_ENTRY_SIG_SIZE);
+
+	err = deal_private_block(1, offset, private_entry_buf);
+	if (err)
+		goto out;
+
+out:
+	pr_info("%s rtn code %d\n", __func__, err);
+	return err;
+}
 
 static struct mmc_blk_data *mmc_blk_get(struct gendisk *disk)
 {
@@ -1373,6 +1585,18 @@ static u8 mmc_blk_prep_packed_list(struct mmc_queue *mq, struct request *req)
 		if (!next)
 			break;
 
+#ifdef CONFIG_SYSTEM_PARTITION_WRITE_PROTECTION
+		if (rq_data_dir(next) == WRITE && is_system_area(next)) {
+			put_back = 1;
+			break;
+		}
+#endif
+
+		if (rq_data_dir(next) == WRITE && is_private_info_area(next)) {
+			put_back = 1;
+			break;
+		}
+
 		if (next->cmd_flags & REQ_DISCARD ||
 				next->cmd_flags & REQ_FLUSH) {
 			put_back = 1;
@@ -1848,35 +2072,15 @@ snd_packed_rd:
 static int
 mmc_blk_set_blksize(struct mmc_blk_data *md, struct mmc_card *card);
 
-unsigned int mmc_blk_bootinfo_readonly = 1; // readonly default
-
 static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 {
 	int ret;
 	struct mmc_blk_data *md = mq->data;
 	struct mmc_card *card = md->queue.card;
 
-	if (req != NULL) {
-#ifdef CONFIG_SYSTEM_PARTITION_WRITE_PROTECTION
-#define FS_EXT4_RESERVED_SEC	0x8
-		if (rq_data_dir(req) == WRITE && (blk_rq_pos(req) >= \
-					(u64)(system_part_start + FS_EXT4_RESERVED_SEC) \
-					&& blk_rq_pos(req) < (u64)system_part_start + system_part_size)) {
-			return -1;
-		}
-#endif
-		if (md->part_type == EXT_CSD_PART_CONFIG_ACC_BOOT1 && rq_data_dir(req) == WRITE
-				&& mmc_blk_bootinfo_readonly) {
-			printk("bootloader 1 is readonly");
-			return -1;
-		}
-	}
-
 #ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
 	if (mmc_bus_needs_resume(card->host)) {
-		ret = mmc_resume_bus(card->host);
-		if (WARN_ON(ret))
-			return ret;
+		mmc_resume_bus(card->host);
 		mmc_blk_set_blksize(md, card);
 	}
 #endif
@@ -1887,8 +2091,34 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 
 	ret = mmc_blk_part_switch(card, md);
 	if (ret) {
+		if (req) {
+			blk_end_request_all(req, -EIO);
+		}
 		ret = 0;
 		goto out;
+	}
+
+#ifdef CONFIG_SYSTEM_PARTITION_WRITE_PROTECTION
+	if (req) {
+		if (rq_data_dir(req) == WRITE && is_system_area(req)) {
+			blk_end_request_all(req, -EIO);
+			ret = 0;
+			goto out;
+		}
+	}
+#endif
+
+	if (req) {
+		if (is_private_info_area(req))
+			pr_info("=== %s start %llu, len %u\n", rq_data_dir(req) == WRITE ? "write" : "read",
+					blk_rq_pos(req), blk_rq_sectors(req));
+		if (rq_data_dir(req) == WRITE && is_private_info_area(req)) {
+			if (req->bio->bi_private != protect_block_bh) {
+				blk_end_request_all(req, -EIO);
+				ret = 0;
+				goto out;
+			}
+		}
 	}
 
 	if (req && req->cmd_flags & REQ_DISCARD) {
@@ -2089,17 +2319,13 @@ static int mmc_blk_alloc_parts(struct mmc_card *card, struct mmc_blk_data *md)
 	if (card->ext_csd.boot_size) {
 		ret = mmc_blk_alloc_part(card, md, EXT_CSD_PART_CONFIG_ACC_BOOT0,
 					 card->ext_csd.boot_size >> 9,
-#ifdef CONFIG_MX_RECOVERY_KERNEL
-					 false,
-#else
 					 true,
-#endif
 					 "boot0");
 		if (ret)
 			return ret;
 		ret = mmc_blk_alloc_part(card, md, EXT_CSD_PART_CONFIG_ACC_BOOT1,
 					 card->ext_csd.boot_size >> 9,
-					 false,
+					 true,
 					 "boot1");
 		if (ret)
 			return ret;
@@ -2199,28 +2425,11 @@ static const struct mmc_fixup blk_fixups[] =
 	END_FIXUP
 };
 
-#undef EXPORT_PARTITION_DEVICES
-
-#ifdef CONFIG_MX_RECOVERY_KERNEL
-#define EXPORT_PARTITION_DEVICES
-#endif
-
-#ifdef CONFIG_EXPORT_KIMAGE_PARTITION
-#define EXPORT_PARTITION_DEVICES
-#undef PART_EXTRA_PARTITION
-/* Except the param partition, export the kernel partition to user-space */
-#define PART_EXTRA_PARTITION 2
-#endif
-
 static int mmc_blk_probe(struct mmc_card *card)
 {
 	struct mmc_blk_data *md, *part_md;
 	int err;
 	char cap_str[10];
-	struct hd_struct *hd;
-#ifdef EXPORT_PARTITION_DEVICES
-	int i;
-#endif
 
 	/*
 	 * Check that the card supports the command class(es) we need.
@@ -2242,11 +2451,6 @@ static int mmc_blk_probe(struct mmc_card *card)
 		md->disk->disk_name, mmc_card_id(card), mmc_card_name(card),
 		cap_str, md->read_only ? "(ro)" : "");
 
-#if !defined(CONFIG_MX_SERIAL_TYPE) && !defined(CONFIG_MX2_SERIAL_TYPE)
-	if (mmc_blk_alloc_parts(card, md))
-		goto out;
-#endif
-
 	mmc_set_drvdata(card, md);
 	mmc_fixup_device(card, blk_fixups);
 
@@ -2261,37 +2465,7 @@ static int mmc_blk_probe(struct mmc_card *card)
 			goto out;
 	}
 
-#ifdef EXPORT_PARTITION_DEVICES
-	/* add partition device node according to the partition information above */
-	if (machine_is_m030()) {
-		if (0 == init_extra_partitioin()) {
-			for (i = 0; i < PART_EXTRA_PARTITION; i++)
-			hd = add_partition(md->disk, i + 5, extra_partition[i].start_sec,
-			extra_partition[i].sec_num, ADDPART_FLAG_NONE, NULL);
-		}
-	} else if (machine_is_m031() || machine_is_m032() || machine_is_m040()) {
-		for (i = 0; i < PART_EXTRA_PARTITION; i++) {
-			hd = add_partition(md->disk, i + 5, bootinfo.partinfo[i].start_sec,
-					bootinfo.partinfo[i].sec_num, ADDPART_FLAG_NONE, NULL);
-			printk("add extra partion at mmcblk0p%d, \
-					start_sec = %u, sec_num = %u\n", \
-					i + 5, bootinfo.partinfo[i].start_sec, bootinfo.partinfo[i].sec_num);
-		}
-	}
-#else
-	/* Add param partition for android data persistence */
-	if (machine_is_m030()) {
-		if (0 == init_extra_partitioin())
-			hd = add_partition(md->disk, 5, extra_partition[0].start_sec,
-							extra_partition[0].sec_num, ADDPART_FLAG_NONE, NULL);
-	} else if (machine_is_m031() || machine_is_m032() || machine_is_m040()) {
-		hd = add_partition(md->disk, 5, bootinfo.partinfo[0].start_sec,
-				bootinfo.partinfo[0].sec_num, ADDPART_FLAG_NONE, NULL);
-		printk("add extra partion at mmcblk0p%d, \
-				start_sec = %u, sec_num = %u\n", \
-				5, bootinfo.partinfo[0].start_sec, bootinfo.partinfo[0].sec_num);
-	}
-#endif
+	init_extra_partitioin(md);
 
 	return 0;
 

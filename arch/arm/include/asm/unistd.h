@@ -417,7 +417,7 @@
 #define __ARM_NR_machine_verify		(__ARM_NR_BASE+105)
 #define __ARM_NR_set_machine_info	(__ARM_NR_BASE+101)
 #define __ARM_NR_get_recovery_key	(__ARM_NR_BASE+102)
-#define __ARM_NR_set_bootinfo_partition_ro (__ARM_NR_BASE+103)
+#define __ARM_NR_do_private_entry (__ARM_NR_BASE+103)
 #endif
 /*
  * *NOTE*: This is a ghost syscall private to the kernel.  Only the
