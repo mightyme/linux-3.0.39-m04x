@@ -217,6 +217,7 @@ struct fsa8108_info {
 	struct mutex		mutex;
 	struct input_dev *input;
 	struct work_struct  det_work;
+	struct work_struct  reset_work;
 	unsigned int cur_jack_type;
 };
 
@@ -470,17 +471,19 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				pr_err("%s 3pole connect",__func__);
 				info->cur_jack_type = FSA_HEADSET_3POLE;
 				fsa8108_mask_int(1);/*mask key interrupts for 3 pole headset*/
+				fsa8108_LDO_output(0);
 				switch_set_state(&switch_jack_detection, FSA_HEADSET_3POLE);
 				break;
 			case FSA8108_4POLE_CONNECT:
 				pr_err("%s 4pole connect",__func__);
-				info->cur_jack_type = FSA_HEADSET_4POLE;
+				info->cur_jack_type = FSA_HEADSET_4POLE;				
 				switch_set_state(&switch_jack_detection, FSA_HEADSET_4POLE);				
 				break;
 			case FSA8108_PLUG_DISCONNECT:
 				pr_err("%s plug disconnect",__func__);
 				info->cur_jack_type = FSA_JACK_NO_DEVICE;
 				fsa8108_mask_int(0);/*recover key interrupts when plug disconnect*/
+				fsa8108_LDO_output(1);
 				switch_set_state(&switch_jack_detection, FSA_JACK_NO_DEVICE);				
 				break;
 			case FSA8108_SEND_END_PRESS:
@@ -614,7 +617,12 @@ static void fsa8081_jack_det_work_func(struct work_struct *work)
 	process_int(intr_type,info);
 	mutex_unlock(&info->mutex);
 }
-
+static void fsa8108_reset_work(struct work_struct *work)
+{
+	fsa8108_WriteReg(FSA8108_REG_RESET,0x01);
+	msleep(100);
+	fsa8108_WriteReg(FSA8108_REG_RESET,0x00);
+}
 //extern void set_ext_mic_bias(bool bOnOff);
 //extern bool get_ext_mic_bias(void);
 static void fsa8108_initialization(struct fsa8108_info *info)
@@ -646,7 +654,7 @@ static void fsa8108_initialization(struct fsa8108_info *info)
 	//set_ext_mic_bias(1); internal micbiasd provided,this sentence unnecessary
 	//clear interrupts
 	
-	fsa8108_mask_int(0);
+	//fsa8108_mask_int(0);
 
 	int_type = i2c_smbus_read_word_data(client, FSA8108_REG_INT_1);
 	process_int(int_type,info); 
@@ -700,12 +708,7 @@ static int fsa8108_probe(
 		ret = -ENODEV;
 		goto check_device_failed;
 	}	
-
-	// Reset
-	fsa8108_WriteReg(FSA8108_REG_RESET,0x01);
-	msleep(100);
-	fsa8108_WriteReg(FSA8108_REG_RESET,0x00);
-
+	
 	info->input = input_allocate_device();
 	if (info->input == NULL) {
 		ret = -ENOMEM;
@@ -737,6 +740,9 @@ static int fsa8108_probe(
 	}
 
 	INIT_WORK(&info->det_work, fsa8081_jack_det_work_func);
+	INIT_WORK(&info->reset_work, fsa8108_reset_work);
+	// Reset
+	//schedule_work(&info->reset_work);
 
 	client->irq = gpio_to_irq(client->irq);
 	if (client->irq < 0) return -EINVAL;
