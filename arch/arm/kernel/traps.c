@@ -637,7 +637,7 @@ extern int private_entry_write(int slot, __user char *in_buf);
 static int do_private_entry(int solt, int cmd , __user char *in_buf, __user char *out_buf)
 {
 	int err = 0;
-	pr_info("solt %d cmd %d 0x%08x 0x%08x\n", solt, cmd, in_buf, out_buf);
+	pr_info("solt %d cmd %d %p %p\n", solt, cmd, in_buf, out_buf);
 	mutex_lock(&private_entry_mutex);
 
 	switch(cmd) {
