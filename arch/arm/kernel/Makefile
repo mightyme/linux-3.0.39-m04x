@@ -73,5 +73,6 @@ obj-$(CONFIG_DEBUG_LL)	+= debug.o
 obj-$(CONFIG_SAMSUNG_PM_DEBUG)	+= debug.o
 obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 obj-$(CONFIG_MX2_SERIAL_TYPE) += rsa.o
+obj-$(CONFIG_MX_SERIAL_TYPE) += rsa.o
 
 extra-y := $(head-y) init_task.o vmlinux.lds
