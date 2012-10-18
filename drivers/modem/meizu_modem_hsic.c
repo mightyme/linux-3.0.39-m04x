@@ -39,7 +39,7 @@
 
 #define HSIC_MAX_PIPE_ORDER_NR 3
 
-static struct modem_ctl *if_usb_get_modemctl(struct link_pm_data *pm_data);
+static struct modem_ctl *modem_hsic_get_modemctl(struct link_pm_data *pm_data);
 static int link_pm_runtime_get_active(struct link_pm_data *pm_data);
 static int usb_tx_urb_with_skb(struct usb_device *usbdev, struct sk_buff *skb,
 					struct if_usb_devdata *pipe_data);
@@ -811,7 +811,7 @@ static int link_pm_notifier_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct modem_ctl *if_usb_get_modemctl(struct link_pm_data *pm_data)
+static struct modem_ctl *modem_hsic_get_modemctl(struct link_pm_data *pm_data)
 {
 	struct platform_device *pdev_modem = pm_data->pdev_modem;
 	struct modem_ctl *mc = platform_get_drvdata(pdev_modem);
@@ -819,7 +819,7 @@ static struct modem_ctl *if_usb_get_modemctl(struct link_pm_data *pm_data)
 	return mc;
 }
 
-static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
+static int modem_hsic_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct if_usb_devdata *devdata = usb_get_intfdata(intf);
 	struct link_pm_data *pm_data = devdata->usb_ld->link_pm_data;
@@ -840,7 +840,7 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 	devdata->usb_ld->suspended++;
 
 	if (devdata->usb_ld->suspended == IF_USB_DEVNUM_MAX*2) {
-		mif_debug("[if_usb_suspended]\n");
+		mif_debug("[modem_hsic_suspended]\n");
 		wake_lock_timeout(&pm_data->l2_wake, msecs_to_jiffies(500));
 		if (!pm_data->rx_cnt && !pm_data->tx_cnt) {
 			if (pm_data->ipc_debug_cnt++ > 10) {
@@ -857,7 +857,7 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 	return 0;
 }
 
-static int if_usb_resume(struct usb_interface *intf)
+static int modem_hsic_resume(struct usb_interface *intf)
 {
 	int ret;
 	struct if_usb_devdata *devdata = usb_get_intfdata(intf);
@@ -884,7 +884,7 @@ static int if_usb_resume(struct usb_interface *intf)
 	wake_lock(&pm_data->l2_wake);
 
 	if (!devdata->usb_ld->suspended) {
-		mif_debug("[if_usb_resumed]\n");
+		mif_debug("[modem_hsic_resumed]\n");
 		wake_lock(&pm_data->l2_wake);
 		queue_delayed_work(pm_data->wq, &pm_data->link_pm_start, 0);
 	}
@@ -892,13 +892,13 @@ static int if_usb_resume(struct usb_interface *intf)
 	return 0;
 }
 
-static int if_usb_reset_resume(struct usb_interface *intf)
+static int modem_hsic_reset_resume(struct usb_interface *intf)
 {
 	int ret;
 	struct if_usb_devdata *devdata = usb_get_intfdata(intf);
 	struct link_pm_data *pm_data = devdata->usb_ld->link_pm_data;
 
-	ret = if_usb_resume(intf);
+	ret = modem_hsic_resume(intf);
 	pm_data->ipc_debug_cnt = 0;
 	/*
 	 * for runtime suspend, kick runtime pm at L3 -> L0 reset resume
@@ -909,7 +909,7 @@ static int if_usb_reset_resume(struct usb_interface *intf)
 	return ret;
 }
 
-static void if_usb_disconnect(struct usb_interface *intf)
+static void modem_hsic_disconnect(struct usb_interface *intf)
 {
 	struct if_usb_devdata *devdata = usb_get_intfdata(intf);
 	struct link_pm_data *pm_data = devdata->usb_ld->link_pm_data;
@@ -951,7 +951,7 @@ static void if_usb_disconnect(struct usb_interface *intf)
 	return;
 }
 
-static int if_usb_set_pipe(struct usb_link_device *usb_ld,
+static int modem_hsic_set_pipe(struct usb_link_device *usb_ld,
 			const struct usb_host_interface *desc, int pipe)
 {
 	if (pipe < 0 || pipe >= IF_USB_DEVNUM_MAX) {
@@ -984,7 +984,7 @@ static int if_usb_set_pipe(struct usb_link_device *usb_ld,
 
 static struct usb_id_info hsic_channel_info;
 
-static int __devinit if_usb_probe(struct usb_interface *intf,
+static int __devinit modem_hsic_probe(struct usb_interface *intf,
 					const struct usb_device_id *id)
 {
 	int err;
@@ -1001,7 +1001,7 @@ static int __devinit if_usb_probe(struct usb_interface *intf,
 	struct usb_interface *control_interface;
 	struct usb_device *root_usbdev= to_usb_device(intf->dev.parent->parent);
 
-	mif_debug("usbdev = 0x%p\n", usbdev);
+	pr_info("modem hsic usbdev = 0x%p\n", usbdev);
 
 	usb_ld->usbdev = usbdev;
 	pm_runtime_forbid(&usbdev->dev);
@@ -1060,7 +1060,7 @@ static int __devinit if_usb_probe(struct usb_interface *intf,
 	}
 
 	pipe = intf->altsetting->desc.bInterfaceNumber / 2;
-	if (if_usb_set_pipe(usb_ld, data_desc, pipe) < 0)
+	if (modem_hsic_set_pipe(usb_ld, data_desc, pipe) < 0)
 		return -EINVAL;
 
 	usb_ld->devdata[pipe].usbdev                = usb_get_dev(usbdev);
@@ -1113,7 +1113,7 @@ static int __devinit if_usb_probe(struct usb_interface *intf,
 	return 0;
 }
 
-static void if_usb_free_pipe_data(struct usb_link_device *usb_ld)
+static void modem_hsic_free_pipe_data(struct usb_link_device *usb_ld)
 {
 	int i;
 
@@ -1129,27 +1129,27 @@ static struct usb_id_info hsic_channel_info = {
 	.intf_id = IPC_CHANNEL,
 };
 
-static struct usb_device_id if_usb_ids[] = {
+static struct usb_device_id modem_hsic_usb_ids[] = {
 	{
           USB_DEVICE(IMC_MAIN_VID, IMC_MAIN_PID),
 	  .driver_info = (unsigned long)&hsic_channel_info,
 	},
 	{}
 };
-MODULE_DEVICE_TABLE(usb, if_usb_ids);
+MODULE_DEVICE_TABLE(usb, modem_hsic_usb_ids);
 
 static struct usb_driver if_usb_driver = {
 	.name                 = "cdc_modem",
-	.probe                = if_usb_probe,
-	.disconnect           = if_usb_disconnect,
-	.id_table             = if_usb_ids,
-	.suspend              = if_usb_suspend,
-	.resume               = if_usb_resume,
-	.reset_resume         = if_usb_reset_resume,
+	.probe                = modem_hsic_probe,
+	.disconnect           = modem_hsic_disconnect,
+	.id_table             = modem_hsic_usb_ids,
+	.suspend              = modem_hsic_suspend,
+	.resume               = modem_hsic_resume,
+	.reset_resume         = modem_hsic_reset_resume,
 	.supports_autosuspend = 1,
 };
 
-static int if_usb_init(struct link_device *ld)
+static int modem_hsic_init(struct link_device *ld)
 {
 	int ret;
 	int i;
@@ -1158,8 +1158,8 @@ static int if_usb_init(struct link_device *ld)
 	struct usb_id_info *id_info;
 
 	/* to connect usb link device with usb interface driver */
-	for (i = 0; i < ARRAY_SIZE(if_usb_ids); i++) {
-		id_info = (struct usb_id_info *)if_usb_ids[i].driver_info;
+	for (i = 0; i < ARRAY_SIZE(modem_hsic_usb_ids); i++) {
+		id_info = (struct usb_id_info *)modem_hsic_usb_ids[i].driver_info;
 		if (id_info)
 			id_info->usb_ld = usb_ld;
 	}
@@ -1173,7 +1173,7 @@ static int if_usb_init(struct link_device *ld)
 		pipe_data->rx_buf = kmalloc(pipe_data->rx_buf_size,
 						GFP_DMA | GFP_KERNEL);
 		if (!pipe_data->rx_buf) {
-			if_usb_free_pipe_data(usb_ld);
+			modem_hsic_free_pipe_data(usb_ld);
 			ret = -ENOMEM;
 			break;
 		}
@@ -1181,7 +1181,7 @@ static int if_usb_init(struct link_device *ld)
 		pipe_data->urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!pipe_data->urb) {
 			mif_err("alloc urb fail\n");
-			if_usb_free_pipe_data(usb_ld);
+			modem_hsic_free_pipe_data(usb_ld);
 			return -ENOMEM;
 		}
 	}
@@ -1192,7 +1192,7 @@ static int if_usb_init(struct link_device *ld)
 		return ret;
 	}
 
-	mif_info("if_usb_init() done : %d, usb_ld (0x%p)\n", ret, usb_ld);
+	mif_info("modem_hsic_init() done : %d, usb_ld (0x%p)\n", ret, usb_ld);
 
 	return ret;
 }
@@ -1221,7 +1221,7 @@ static int usb_link_pm_init(struct usb_link_device *usb_ld, void *data)
 
 	pm_data->irq_link_hostwake = gpio_to_irq(pm_data->gpio_link_hostwake);
 
-	if_usb_get_modemctl(pm_data)->irq_link_hostwake =
+	modem_hsic_get_modemctl(pm_data)->irq_link_hostwake =
 						pm_data->irq_link_hostwake;
 
 	pm_data->usb_ld = usb_ld;
@@ -1322,7 +1322,7 @@ struct link_device *hsic_create_link_device(void *data)
 	if (ret)
 		goto err;
 
-	ret = if_usb_init(ld);
+	ret = modem_hsic_init(ld);
 	if (ret)
 		goto err;
 
@@ -1336,7 +1336,7 @@ err:
 	return NULL;
 }
 
-static void __exit if_usb_exit(void)
+static void __exit modem_hsic_exit(void)
 {
 	usb_deregister(&if_usb_driver);
 }

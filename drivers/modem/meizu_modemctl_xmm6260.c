@@ -173,8 +173,8 @@ static int xmm6260_on(struct modem_ctl *mc)
 	}
 
 	gpio_set_value(mc->gpio_cp_on, 0);
+	gpio_set_value(mc->gpio_reset_req_n, 0);
 	gpio_set_value(mc->gpio_cp_reset, 0);
-	udelay(160);
 	gpio_set_value(mc->gpio_host_active, 0);
 	/* must be >500ms for CP can boot up under -20 degrees */
 	msleep(500);
@@ -184,11 +184,9 @@ static int xmm6260_on(struct modem_ctl *mc)
 	mdelay(2);
 	gpio_set_value(mc->gpio_cp_on, 1);
 	mdelay(1);
-	
+	gpio_set_value(mc->gpio_cp_on, 0);
 	if (mc->gpio_revers_bias_restore)
 		mc->gpio_revers_bias_restore();
-	
-	gpio_set_value(mc->gpio_cp_on, 0);
 
 	return 0;
 }
@@ -199,7 +197,8 @@ static int xmm6260_off(struct modem_ctl *mc)
 
 	gpio_set_value(mc->gpio_cp_on, 0);
 	gpio_set_value(mc->gpio_cp_reset, 0);
-
+	gpio_set_value(mc->gpio_reset_req_n, 0);
+	modem_wake_lock_timeout(mc, 10 * HZ);
 	mc->cp_flag = MODEM_OFF;
 
 	return 0;
@@ -319,8 +318,8 @@ static irqreturn_t modem_cpreset_irq(int irq, void *dev_id)
 	if(global_mc->enum_done) {
 		val = gpio_get_value(mc->gpio_cp_reset);
 		modem_wake_lock_timeout(mc, HZ * 30);
-		pr_info("%s CP_RESET_INT:%d\n",  __func__, val);
 		modem_notify_event(MODEM_EVENT_RESET);
+		pr_info("%s CP_RESET_INT:%d\n",  __func__, val);
 	}
 
 	return IRQ_HANDLED;
