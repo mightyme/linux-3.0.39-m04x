@@ -5198,7 +5198,7 @@ done:
 }
 #endif /* DHD_DEBUG */
 
-#if defined(DHD_DEBUG)
+#if (defined DHD_DEBUG)
 static void
 dhd_dump_cis(uint fn, uint8 *cis)
 {
