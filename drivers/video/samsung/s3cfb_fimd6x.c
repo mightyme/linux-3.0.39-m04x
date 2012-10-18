@@ -39,6 +39,23 @@ void s3cfb_check_line_count(struct s3cfb_global *ctrl)
 	}
 }
 
+int s3cfb_check_vsync_status(struct s3cfb_global *ctrl)
+{
+	u32 cfg;
+
+	if (unlikely(!ctrl->regs)) {
+		dev_err(ctrl->dev, "reg is zero\n");
+		return 0;
+	}
+
+	cfg = (readl(ctrl->regs + S3C_VIDCON1) & S3C_VIDCON1_VSTATUS_MASK);
+
+	if (cfg != S3C_VIDCON1_VSTATUS_ACTIVE && cfg != S3C_VIDCON1_VSTATUS_BACK)
+		return 1;
+	else
+		return 0;
+}
+
 int s3cfb_set_output(struct s3cfb_global *ctrl)
 {
 	u32 cfg;

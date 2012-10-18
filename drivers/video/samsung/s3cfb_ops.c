@@ -962,6 +962,7 @@ int s3cfb_cursor(struct fb_info *fb, struct fb_cursor *cursor)
 	return 0;
 }
 
+#if !defined(CONFIG_FB_S5P_VSYNC_THREAD)
 int s3cfb_wait_for_vsync(struct s3cfb_global *fbdev)
 {
 	dev_dbg(fbdev->dev, "waiting for VSYNC interrupt\n");
@@ -971,6 +972,7 @@ int s3cfb_wait_for_vsync(struct s3cfb_global *fbdev)
 	dev_dbg(fbdev->dev, "got a VSYNC interrupt\n");
 	return 0;
 }
+#endif
 
 int s3cfb_ioctl(struct fb_info *fb, unsigned int cmd, unsigned long arg)
 {
@@ -1004,14 +1006,16 @@ int s3cfb_ioctl(struct fb_info *fb, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case FBIO_WAITFORVSYNC:
 #if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+#if !defined(CONFIG_FB_S5P_VSYNC_THREAD)
 		/* Enable Vsync */
 		s3cfb_set_vsync_interrupt(fbdev, 1);
-#endif
+
 		/* Wait for Vsync */
 		s3cfb_wait_for_vsync(fbdev);
-#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+
 		/* Disable Vsync */
 		s3cfb_set_vsync_interrupt(fbdev, 0);
+#endif
 #endif
 		break;
 
@@ -1076,10 +1080,12 @@ int s3cfb_ioctl(struct fb_info *fb, unsigned int cmd, unsigned long arg)
 		if (get_user(p.vsync, (int __user *)arg))
 			ret = -EFAULT;
 		else {
-			if (p.vsync) {
-				s3cfb_set_global_interrupt(fbdev, p.vsync);
-				s3cfb_set_vsync_interrupt(fbdev, p.vsync);
-			}
+#if defined(CONFIG_FB_S5P_VSYNC_THREAD)
+			ret = s3cfb_set_vsync_int(fb, p.vsync);
+#else
+			s3cfb_set_global_interrupt(fbdev, p.vsync);
+			s3cfb_set_vsync_interrupt(fbdev, p.vsync);
+#endif
 		}
 		break;
 

@@ -22,6 +22,7 @@
 #endif
 #include <plat/fb-s5p.h>
 #endif
+#include <linux/kthread.h>
 
 #define S3CFB_NAME		"s3cfb"
 #define S3CFB_AVALUE(r, g, b)	(((r & 0xf) << 8) | \
@@ -40,6 +41,7 @@
 
 #define POWER_ON		1
 #define POWER_OFF		0
+#define VSYNC_TIMEOUT_MSEC 50
 
 enum s3cfb_data_path_t {
 	DATA_PATH_FIFO = 0,
@@ -133,6 +135,23 @@ struct s3cfb_fimd_desc {
 	struct s3cfb_global	*fbdev[FIMD_MAX];
 };
 
+/** 
+* struct s3cfb_vsync - vsync information+ 
+* @wait:              a queue for processes waiting for vsync 
+* @timestamp:         the time of the last vsync interrupt 
+* @active:            whether userspace is requesting vsync uevents 
+* @irq_refcount:      reference count for the underlying irq 
+* @irq_lock:          mutex protecting the irq refcount and register 
+* @thread:            uevent-generating thread 
+*/
+struct s3cfb_vsync {
+	wait_queue_head_t       wait;
+	ktime_t                 timestamp;
+	bool                    active;
+	int                     irq_refcount;
+	struct mutex            irq_lock;
+	struct task_struct      *thread;
+};
 struct s3cfb_global {
 	void __iomem		*regs;
 	struct mutex		lock;
@@ -142,12 +161,17 @@ struct s3cfb_global {
 	wait_queue_head_t	wq;
 	unsigned int		wq_count;
 	struct fb_info		**fb;
+	spinlock_t		vsync_slock;
 
 	atomic_t		enabled_win;
 	enum s3cfb_output_t	output;
 	enum s3cfb_rgb_mode_t	rgb_mode;
 	struct s3cfb_lcd	*lcd;
 	int 			system_state;
+#if defined(CONFIG_FB_S5P_VSYNC_THREAD)
+	struct s3cfb_vsync	vsync_info;
+	int vsync_debug;
+#endif
 #ifdef CONFIG_HAS_WAKELOCK
 	struct early_suspend	early_suspend;
 	struct wake_lock	idle_lock;
@@ -268,7 +292,7 @@ extern int s3cfb_cursor(struct fb_info *fb, struct fb_cursor *cursor);
 extern int s3cfb_ioctl(struct fb_info *fb, unsigned int cmd, unsigned long arg);
 extern int s3cfb_enable_localpath(struct s3cfb_global *fbdev, int id);
 extern int s3cfb_disable_localpath(struct s3cfb_global *fbdev, int id);
-
+extern int s3cfb_wait_for_vsync(struct s3cfb_global *fbdev);
 /* FIMD */
 extern int s3cfb_clear_interrupt(struct s3cfb_global *ctrl);
 extern int s3cfb_display_on(struct s3cfb_global *ctrl);
@@ -298,7 +322,11 @@ extern int s3cfb_set_buffer_size(struct s3cfb_global *ctrl, int id);
 extern int s3cfb_set_chroma_key(struct s3cfb_global *ctrl, int id);
 extern int s3cfb_channel_localpath_on(struct s3cfb_global *ctrl, int id);
 extern int s3cfb_channel_localpath_off(struct s3cfb_global *ctrl, int id);
-
+extern int s3cfb_set_vsync_int(struct fb_info *info, bool active);
+extern int s3cfb_check_vsync_status(struct s3cfb_global *ctrl);
+#ifdef CONFIG_FB_S5P_MIPI_DSIM
+extern int s3cfb_vsync_status_check(void);
+#endif
 #ifdef CONFIG_HAS_WAKELOCK
 #ifdef CONFIG_HAS_EARLYSUSPEND
 extern void s3cfb_early_suspend(struct early_suspend *h);
