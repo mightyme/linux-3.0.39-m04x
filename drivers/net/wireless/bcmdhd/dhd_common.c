@@ -2404,7 +2404,9 @@ wl_iw_parse_ssid_list(char** list_str, wlc_ssid_t* ssid, int idx, int max)
 			ssid[idx].SSID_len = 0;
 
 		if (idx < max) {
-			bcm_strcpy_s((char*)ssid[idx].SSID, sizeof(ssid[idx].SSID), str);
+			bzero(ssid[idx].SSID, sizeof(ssid[idx].SSID));
+			bcm_strncpy_s((char*)ssid[idx].SSID, sizeof(ssid[idx].SSID), 
+							str, sizeof(ssid[idx].SSID) - 1);
 			ssid[idx].SSID_len = strlen(str);
 		}
 		idx++;

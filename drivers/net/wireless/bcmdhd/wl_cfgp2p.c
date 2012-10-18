@@ -1866,7 +1866,7 @@ wl_cfgp2p_register_ndev(struct wl_priv *wl)
 	/* Allocate etherdev, including space for private structure */
 	if (!(net = alloc_etherdev(sizeof(wl)))) {
 		CFGP2P_ERR(("%s: OOM - alloc_etherdev\n", __FUNCTION__));
-		goto fail;
+		return -ENOMEM;
 	}
 
 	strcpy(net->name, "p2p%d");
@@ -1892,7 +1892,8 @@ wl_cfgp2p_register_ndev(struct wl_priv *wl)
 	wdev = kzalloc(sizeof(*wdev), GFP_KERNEL);
 	if (unlikely(!wdev)) {
 		WL_ERR(("Could not allocate wireless device\n"));
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto fail0;
 	}
 
 	wdev->wiphy = wl->wdev->wiphy;
@@ -1911,7 +1912,8 @@ wl_cfgp2p_register_ndev(struct wl_priv *wl)
 	 */
 	if (wl->p2p_net) {
 		CFGP2P_ERR(("p2p_net defined already.\n"));
-		return -EINVAL;
+		ret = -EINVAL;
+		goto fail1;
 	} else {
 		wl->p2p_wdev = wdev;
 		wl->p2p_net = net;
@@ -1920,25 +1922,24 @@ wl_cfgp2p_register_ndev(struct wl_priv *wl)
 	ret = register_netdev(net);
 	if (ret) {
 		CFGP2P_ERR((" register_netdevice failed (%d)\n", ret));
-		goto fail;
+		goto fail2;
 	}
 
 	printk("%s: P2P Interface Registered\n", net->name);
 
 	return ret;
-fail:
 
+fail2:
+	unregister_netdev(net);
+fail1:
+	kfree(wdev);
+fail0:
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 31)
 	net->open = NULL;
 #else
 	net->netdev_ops = NULL;
 #endif
-
-	if (net) {
-		unregister_netdev(net);
-		free_netdev(net);
-	}
-
+	free_netdev(net);
 	return -ENODEV;
 }
 
