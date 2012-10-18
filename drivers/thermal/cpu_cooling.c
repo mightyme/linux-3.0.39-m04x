@@ -177,7 +177,7 @@ static int cpufreq_apply_cooling(struct cpufreq_cooling_device *cpufreq_device,
 				unsigned long cooling_state)
 {
 	struct cpufreq_policy *policy=NULL;
-	int this_cpu = smp_processor_id();
+	int this_cpu = raw_smp_processor_id();
 
 	if (!is_cpufreq_valid(this_cpu))
 		return 0;
