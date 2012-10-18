@@ -922,6 +922,9 @@ static const struct file_operations proc_boot_stat_operations = {
 
 static int last_kmsg_show(struct seq_file *m, void *v)
 {
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+	extern unsigned int exynos_result_of_asv;
+#endif
 	char *p;
 	char dump_time[20];
 
@@ -931,8 +934,13 @@ static int last_kmsg_show(struct seq_file *m, void *v)
 		last_time_info.update_time,
 		dump_time);
 	seq_printf(m, BOOT_INFO_LABEL "%s", RAM_CONSOLE_BOOT_INFO);
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+	seq_printf(m, BOOT_MACH_LABEL "%s, %04x, %08x%08x\n", machine_name, system_rev,
+		   exynos_result_of_asv, system_serial_low);
+#else
 	seq_printf(m, BOOT_MACH_LABEL "%s, %04x, %08x%08x\n", machine_name, system_rev,
 		   system_serial_high, system_serial_low);
+#endif
 	seq_printf(m, BOOT_PARM_LABEL "%s\n", saved_command_line);
 	boot_stat_show(m, v);
 	seq_printf(m, BOOT_KMSG_LABEL);
