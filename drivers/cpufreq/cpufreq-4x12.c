@@ -317,7 +317,8 @@ static unsigned int clkdiv_cpu1_4412[CPUFREQ_LEVEL_END][3] = {
 
 static unsigned int exynos4x12_apll_pms_table[CPUFREQ_LEVEL_END] = {
 	/* APLL FOUT L0: 1600MHz */
-	((200<<16)|(3<<8)|(0x0)),
+	//((200<<16)|(3<<8)|(0x0)),
+	((425<<16)|(6<<8)|(0x0)),
 
 	/* APLL FOUT L1: 1500MHz */
 	((250<<16)|(4<<8)|(0x0)),
