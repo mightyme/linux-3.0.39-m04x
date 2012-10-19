@@ -76,6 +76,7 @@ static void s3cfb_activate_vsync(struct s3cfb_global *fbdev)
 	mutex_lock(&fbdev->vsync_info.irq_lock);
 	prev_refcount = fbdev->vsync_info.irq_refcount++;
 	if (!prev_refcount) {
+		fbdev->vsync_info.active = true;
 		s3cfb_set_global_interrupt(fbdev, 1);
 		s3cfb_set_vsync_interrupt(fbdev, 1);
 		if(fbdev->vsync_debug)
@@ -94,6 +95,7 @@ static void s3cfb_deactivate_vsync(struct s3cfb_global *fbdev)
 	new_refcount = --fbdev->vsync_info.irq_refcount;
 	WARN_ON(new_refcount < 0);
 	if (!new_refcount) {
+		fbdev->vsync_info.active = false;
 		s3cfb_set_global_interrupt(fbdev, 0);
 		s3cfb_set_vsync_interrupt(fbdev, 0);
 		if(fbdev->vsync_debug)
@@ -106,13 +108,10 @@ static void s3cfb_deactivate_vsync(struct s3cfb_global *fbdev)
 int s3cfb_set_vsync_int(struct fb_info *info, bool active)
 {
 	struct s3cfb_global *fbdev = fbfimd->fbdev[0];
-	bool prev_active = fbdev->vsync_info.active;
 
-	fbdev->vsync_info.active = active;
-
-	if (active && !prev_active)
+	if (active)
 		s3cfb_activate_vsync(fbdev);
-	else if (!active && prev_active)
+	else
 		s3cfb_deactivate_vsync(fbdev);
 
 	return 0;
