@@ -32,7 +32,7 @@
 #include <asm/mach-types.h>
 #include <linux/earlysuspend.h>
 
-#if 1
+#if 0
 #undef DEBUG_S3C_UDC_SETUP
 #undef DEBUG_S3C_UDC_EP0
 #undef DEBUG_S3C_UDC_ISR
@@ -68,38 +68,40 @@ static char *state_names[] = {
 	};
 #endif
 
+static bool debug = 0;
+
 #ifdef DEBUG_S3C_UDC_SETUP
-#define DEBUG_SETUP(fmt, args...) printk(fmt, ##args)
+#define DEBUG_SETUP(fmt, args...) do {if (debug) printk("[USB] "fmt, ##args);} while(0)
 #else
 #define DEBUG_SETUP(fmt, args...) do {} while (0)
 #endif
 
 #ifdef DEBUG_S3C_UDC_EP0
-#define DEBUG_EP0(fmt, args...) printk(fmt, ##args)
+#define DEBUG_EP0(fmt, args...) do {if (debug) printk("[USB] "fmt, ##args);} while(0)
 #else
 #define DEBUG_EP0(fmt, args...) do {} while (0)
 #endif
 
 #ifdef DEBUG_S3C_UDC
-#define DEBUG(fmt, args...) printk(fmt, ##args)
+#define DEBUG(fmt, args...) do {if (debug) printk("[USB] "fmt, ##args);}  while(0)
 #else
 #define DEBUG(fmt, args...) do {} while (0)
 #endif
 
 #ifdef DEBUG_S3C_UDC_ISR
-#define DEBUG_ISR(fmt, args...) printk(fmt, ##args)
+#define DEBUG_ISR(fmt, args...) do {if (debug) printk("[USB] "fmt, ##args);} while(0)
 #else
 #define DEBUG_ISR(fmt, args...) do {} while (0)
 #endif
 
 #ifdef DEBUG_S3C_UDC_OUT_EP
-#define DEBUG_OUT_EP(fmt, args...) printk(fmt, ##args)
+#define DEBUG_OUT_EP(fmt, args...) do {if (debug) printk("[USB] "fmt, ##args);} while(0)
 #else
 #define DEBUG_OUT_EP(fmt, args...) do {} while (0)
 #endif
 
 #ifdef DEBUG_S3C_UDC_IN_EP
-#define DEBUG_IN_EP(fmt, args...) printk(fmt, ##args)
+#define DEBUG_IN_EP(fmt, args...) do {if (debug) printk("[USB] "fmt, ##args);} while(0)
 #else
 #define DEBUG_IN_EP(fmt, args...) do {} while (0)
 #endif
@@ -916,7 +918,7 @@ static const struct usb_gadget_ops s3c_udc_ops = {
 
 static void nop_release(struct device *dev)
 {
-	DEBUG("%s %s\n", __func__, dev->bus_id);
+	DEBUG("%s %s\n", __func__, dev->bus->name);
 }
 
 static struct s3c_udc memory = {
@@ -1172,6 +1174,24 @@ static void usb_resume_func(struct early_suspend *h)
 	}
 }
 
+static ssize_t debug_show(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{	
+	return sprintf(buf, "%d\n",  debug);
+}
+
+static ssize_t debug_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	unsigned long value = simple_strtoul(buf, NULL, 0);
+	debug = !!value;
+	return count;
+}
+ 
+DEVICE_ATTR( debug, S_IRUGO | S_IWUSR, debug_show, debug_store);
+
 /*
  *	probe - binds to the platform device
  */
@@ -1262,6 +1282,8 @@ static int s3c_udc_probe(struct platform_device *pdev)
 	usb_resume.resume = usb_resume_func;
 	usb_resume.level = EARLY_SUSPEND_LEVEL_DISABLE_FB+2;
 	register_early_suspend(&usb_resume);
+
+	retval = device_create_file(&pdev->dev, &dev_attr_debug);
 
 	return retval;
 err_irq:
