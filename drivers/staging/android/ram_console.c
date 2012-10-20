@@ -207,7 +207,7 @@ static inline void init_reboot_test(void)
 		pr_info("%s: Reboot tested %ld times\n", __func__, ram_console_buffer->bs.reboot_count);
 
 		if (sysctl_reboot_count <= ram_console_buffer->bs.reboot_count) {
-			pr_info("Reboot test reaches %ld times, stop it.\n", sysctl_suspend_count);
+			pr_info("Reboot test reaches %ld times, stop it.\n", sysctl_reboot_count);
 			ram_console_buffer->bs.reboot_pass++;
 			sysctl_reboot_test = 0;
 		}
