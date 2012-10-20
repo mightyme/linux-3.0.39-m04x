@@ -2158,30 +2158,8 @@ void __init_or_cpufreq exynos4_setup_clocks(void)
 	if (soc_is_exynos4412() && samsung_rev() >= EXYNOS4412_REV_2_0 && 
 		880*1000*1000 == mpll) {
 		__raw_writel((0x8 << 8) | (0x8 << 24), EXYNOS4_CLKDIV_FSYS1);
-		if (clk_set_parent(&exynos4_clk_dout_mmc0.clk, &exynos4_clk_mout_mpll.clk))
-			printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
-					 exynos4_clk_mout_mpll.clk.name,
-					 exynos4_clk_dout_mmc0.clk.name);
-		if (clk_set_parent(&exynos4_clk_dout_mmc1.clk, &exynos4_clk_mout_mpll.clk))
-			printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
-					 exynos4_clk_mout_mpll.clk.name,
-					 exynos4_clk_dout_mmc1.clk.name);
-
 		__raw_writel((0x8 << 8) | (0x8 << 24), EXYNOS4_CLKDIV_FSYS2);
-		if (clk_set_parent(&exynos4_clk_dout_mmc2.clk, &exynos4_clk_mout_mpll.clk))
-			printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
-					 exynos4_clk_mout_mpll.clk.name,
-					 exynos4_clk_dout_mmc2.clk.name);
-		if (clk_set_parent(&exynos4_clk_dout_mmc3.clk, &exynos4_clk_mout_mpll.clk))
-			printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
-					 exynos4_clk_mout_mpll.clk.name,
-					 exynos4_clk_dout_mmc3.clk.name);
-
 		__raw_writel((0x4 << 8), EXYNOS4_CLKDIV_FSYS3);
-		if (clk_set_parent(&exynos4_clk_dout_mmc4.clk, &exynos4_clk_mout_mpll.clk))
-			printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
-					 exynos4_clk_mout_mpll.clk.name,
-					 exynos4_clk_dout_mmc4.clk.name);
 	}
 #endif
 
