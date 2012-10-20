@@ -1250,19 +1250,10 @@ static int rmi_f01_suspend(struct rmi_function_container *fc)
 	struct rmi_device *rmi_dev = fc->rmi_dev;
 	struct rmi_driver_data *driver_data = rmi_get_driverdata(rmi_dev);
 	struct f01_data *data = driver_data->f01_container->data;
-	unsigned char buf[16];
 	int retval = 0;
 
 	if (data->suspended)
 		return 0;
-
-	memset(buf,0,16);
-	retval = rmi_write_block(rmi_dev, data->interrupt_enable_addr,
-		buf,
-		sizeof(u8)*(data->num_of_irq_regs));
-	if (retval < 0) {
-		dev_err(&fc->dev, "Failed to write interrupt disable.\n");
-	}
 
 	data->old_nosleep = data->device_control.ctrl0.nosleep;
 	data->device_control.ctrl0.nosleep = 0;
@@ -1309,13 +1300,6 @@ static int rmi_f01_resume(struct rmi_function_container *fc)
 	else {
 		data->suspended = false;
 		retval = 0;
-	}
-
-	retval = rmi_write_block(fc->rmi_dev, data->interrupt_enable_addr,
-		data->device_control.interrupt_enable,
-		sizeof(u8)*(data->num_of_irq_regs));
-	if (retval < 0) {
-		dev_err(&fc->dev, "Failed to write interrupt disable.\n");
 	}
 
 	return retval;

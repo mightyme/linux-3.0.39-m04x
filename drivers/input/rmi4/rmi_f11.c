@@ -118,6 +118,10 @@ static ssize_t f11_reg_show(struct device *dev,
 					 struct device_attribute *attr,
 					 const char *buf, size_t count);
 
+static ssize_t f11_reg_show_all(struct device *dev,
+					struct device_attribute *attr,
+					char *buf);
+
 #if RESUME_REZERO
 static ssize_t f11_rezeroOnResume_show(struct device *dev,
 					struct device_attribute *attr,
@@ -166,7 +170,7 @@ static struct device_attribute attrs[] = {
 #endif
 	__ATTR(rezero, RMI_WO_ATTR, rmi_show_error, f11_rezero_store),	
 	__ATTR(regw, RMI_WO_ATTR, rmi_show_error, f11_reg_store),
-	__ATTR(regr, RMI_WO_ATTR, rmi_show_error, f11_reg_show)
+	__ATTR(regr, RMI_RW_ATTR, f11_reg_show_all, f11_reg_show)
 };
 
 
@@ -2303,6 +2307,32 @@ static ssize_t f11_reg_show(struct device *dev,
 	return count;
 }
 
+#define READ_BUFF_SIZE	(0x300)
+static ssize_t f11_reg_show_all(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct rmi_function_container *fc;
+	struct f11_data *instance_data;
+	int i;
+	int ret = 0;
+	u8 buffer[READ_BUFF_SIZE];
+
+	fc = to_rmi_function_container(dev);
+	
+	ret = rmi_read_block(fc->rmi_dev,0x0000,buffer,READ_BUFF_SIZE);
+
+	if( ret < 0 )	{
+		printk("%s:Read error : %d !\n",__func__,ret);
+	}
+	else 	{
+		printk("RMI:Reg List\n");
+		for(i = 0;i< READ_BUFF_SIZE;i++)
+			printk("R:0x%.4X D:0x%.2X\n",i,buffer[i]);
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%d \n",ret);
+}
 
 
 #if RESUME_REZERO
