@@ -420,6 +420,7 @@ struct io_device {
 	long waketime;
 	int atdebug;
 	int (*atdebugfunc)(struct io_device *iod, const char* buf, int len);
+	int send_delay;
 
 	/* DO NOT use __current_link directly
 	 * you MUST use skbpriv(skb)->ld in mc, link, etc..

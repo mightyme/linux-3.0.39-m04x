@@ -296,6 +296,8 @@ static int usb_send(struct link_device *ld, struct io_device *iod,
 
 	if (usb_ld->ld.com_state != COM_ONLINE)
 		return 0;
+	if (iod->send_delay)
+		udelay(iod->send_delay);
 
 	txq = &ld->sk_raw_tx_q;
 	tx_size = skb->len;

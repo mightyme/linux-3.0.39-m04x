@@ -110,6 +110,38 @@ static ssize_t store_atdebug(struct device *dev,
 static struct device_attribute attr_atdebug =
 	__ATTR(atdebug, S_IRUGO | S_IWUSR, show_atdebug, store_atdebug);
 
+static ssize_t show_send_delay(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct io_device *iod = dev_get_drvdata(dev);
+	char *p = buf;
+	int send_delay;
+
+	send_delay = iod->send_delay;
+	p += sprintf(buf, "iod id:%d, send_delay:%d\n", iod->id, send_delay);
+
+	return p - buf;
+}
+
+static ssize_t store_send_delay(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long send_delay;
+	struct io_device *iod = dev_get_drvdata(dev);
+
+	ret = strict_strtoul(buf, 10, &send_delay);
+	if (ret)
+		return count;
+
+	iod->send_delay = send_delay;
+
+	return count;
+}
+
+static struct device_attribute attr_send_delay =
+	__ATTR(send_delay, S_IRUGO | S_IWUSR, show_send_delay, store_send_delay);
+
 static inline int is_tty_operating(struct io_device *iod)
 {
 	return (atomic_read(&iod->is_tty_op));
@@ -638,6 +670,7 @@ int meizu_ipc_init_io_device(struct io_device *iod)
 				iod->atdebug = 255;
 		else
 			iod->atdebug = 0;
+		iod->send_delay = 0;
 		iod->ttydev = tty_register_device
 			(iod->mc->tty_driver, iod->id, NULL);
 
@@ -645,6 +678,10 @@ int meizu_ipc_init_io_device(struct io_device *iod)
 		ret = device_create_file(iod->ttydev, &attr_atdebug);
 		if (ret)
 			mif_err("failed to create sysfs file : %s\n",
+					iod->name);
+		ret = device_create_file(iod->ttydev, &attr_send_delay);
+		if (ret)
+			mif_err("failed to create send_delay sysfs file : %s\n",
 					iod->name);
 		break;
 	case IODEV_NET:
@@ -659,6 +696,7 @@ int meizu_ipc_init_io_device(struct io_device *iod)
 				iod->atdebug = 255;
 		else
 			iod->atdebug = 0;
+		iod->send_delay = 100;
 		iod->ndev = alloc_netdev(sizeof(struct vnet), iod->name,
 			vnet_setup);
 		if (!iod->ndev) {
@@ -673,6 +711,10 @@ int meizu_ipc_init_io_device(struct io_device *iod)
 		ret = device_create_file(&iod->ndev->dev, &attr_atdebug);
 		if (ret)
 			mif_err("failed to create sysfs file : %s\n",
+					iod->name);
+		ret = device_create_file(&iod->ndev->dev, &attr_send_delay);
+		if (ret)
+			mif_err("failed to create send_delay sysfs file : %s\n",
 					iod->name);
 		vnet = netdev_priv(iod->ndev);
 		mif_debug("(vnet:0x%p)\n", vnet);
