@@ -186,7 +186,7 @@ int RSA_verify(const RSAPublicKey *key,
 	/* Check pkcs1.5 padding bytes. */
 	for (i = 0; i < (int) sizeof(padding); ++i) {
 		if (buf[i] != padding[i]) {
-			pr_info("%s %d buf[i]=%d padding[i]=%d\n", __func__, i, buf[i], padding[i]);
+			//pr_info("%s %d buf[i]=%d padding[i]=%d\n", __func__, i, buf[i], padding[i]);
 			return -EINVAL;
 		}
 	}
@@ -194,7 +194,7 @@ int RSA_verify(const RSAPublicKey *key,
 	/* Check sha digest matches. */
 	for (; i < len; ++i) {
 		if (buf[i] != *sha++) {
-			pr_info("%s %d buf[i]=%d padding[i]=%d\n", __func__, i, buf[i], sha[i]);
+			//pr_info("%s %d buf[i]=%d padding[i]=%d\n", __func__, i, buf[i], sha[i]);
 			return -EINVAL;
 		}
 	}

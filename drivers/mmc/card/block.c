@@ -36,8 +36,6 @@
 #include <linux/compat.h>
 #include <linux/buffer_head.h>
 #include <linux/random.h>
-#include <linux/rsa.h>
-#include <linux/rsa_pubkey.h>
 
 #include <linux/mmc/ioctl.h>
 #include <linux/mmc/card.h>
@@ -293,43 +291,23 @@ static int init_extra_partitioin(struct mmc_blk_data *md)
 static struct buffer_head *protect_block_bh;
 static DEFINE_MUTEX(protect_block_lock);
 
-#define PRIVATE_ENTRY_BLOCK_SIZE (1024)
-#define PRIVATE_ENTRY_SIG_SIZE (256)
-#define PRIVATE_ENTRY_RANDOM_SIZE (20)
+#define MMC_BLOCK_SIZE (512)
 
-static char private_entry_buf[PRIVATE_ENTRY_BLOCK_SIZE];
-static char private_entry_random[PRIVATE_ENTRY_RANDOM_SIZE];
-
-static int deal_private_block(int write, unsigned offset ,void *buffer)
+static int deal_private_block_internal(int write, sector_t index, int len, void *buffer)
 {
 	struct block_device *bdev;
 	struct buffer_head *bh = NULL;
-	sector_t start_blk;
 	fmode_t mode = FMODE_READ;
-	const unsigned blksize = PRIVATE_ENTRY_BLOCK_SIZE;
 	int err = -EIO;
-	unsigned blk_offset = offset / blksize;
-	sector_t part_start;
 
-	BUG_ON(blksize > PAGE_SIZE);
-
-	mutex_lock(&protect_block_lock);
-
-	if (buffer == NULL) {
+	if (len > MMC_BLOCK_SIZE)
 		return -EINVAL;
-	}
 
-	part_start = private_info_partition.start_sec / PRIVATE_ENTRY_BLOCK_SIZE;
-	if(private_info_partition.start_sec % PRIVATE_ENTRY_BLOCK_SIZE)
-		part_start += 1;
-
-	start_blk = part_start  + blk_offset;
-
-	if((blk_offset + 2) * (PRIVATE_ENTRY_BLOCK_SIZE / 512)
-			>= private_info_partition.sec_num) {
-		pr_info("out of range!!\n");
+	if (buffer == NULL)
 		return -EINVAL;
-	}
+
+	if(index >= private_info_partition.sec_num)
+		return -EINVAL;
 
 	bdev = bdget(MKDEV(179,0));
 	if (!bdev)
@@ -341,9 +319,9 @@ static int deal_private_block(int write, unsigned offset ,void *buffer)
 		goto out;
 	}
 
-	set_blocksize(bdev, PRIVATE_ENTRY_BLOCK_SIZE);
+	set_blocksize(bdev, MMC_BLOCK_SIZE);
 
-	bh = __getblk(bdev, start_blk, PRIVATE_ENTRY_BLOCK_SIZE);
+	bh = __getblk(bdev, private_info_partition.start_sec + index, MMC_BLOCK_SIZE);
 	protect_block_bh = bh;
 
 	if (bh) {
@@ -359,7 +337,7 @@ static int deal_private_block(int write, unsigned offset ,void *buffer)
 		}
 		if (write) {
 			lock_buffer(bh);
-			memcpy(bh->b_data, buffer, PRIVATE_ENTRY_BLOCK_SIZE);
+			memcpy(bh->b_data, buffer, len);
 			bh->b_end_io = end_buffer_write_sync;
 			get_bh(bh);
 			submit_bh(WRITE_SYNC, bh);
@@ -369,7 +347,7 @@ static int deal_private_block(int write, unsigned offset ,void *buffer)
 				goto out;
 			}
 		} else {
-			memcpy(buffer, bh->b_data, PRIVATE_ENTRY_BLOCK_SIZE);
+			memcpy(buffer, bh->b_data, len);
 		}
 		err = 0;
 	} else {
@@ -378,71 +356,44 @@ static int deal_private_block(int write, unsigned offset ,void *buffer)
 
 out:
 	protect_block_bh = NULL;
-	mutex_unlock(&protect_block_lock);
 	brelse(bh);
 	blkdev_put(bdev, mode);
 
 	return err;
 }
 
-int private_entry_read(int slot, __user char *out_buf)
+int deal_private_block(int write, unsigned offset , long len, void *buffer)
 {
-	int offset = slot * PRIVATE_ENTRY_BLOCK_SIZE;
-	int err = 0;
+	int ret = 0;
+	sector_t index;
+	void *p = buffer;
 
-	err = deal_private_block(0, offset, private_entry_buf);
-	if (err)
-		goto out;
+	pr_info("%s offset %u\n", __func__, offset);
+	if(offset % MMC_BLOCK_SIZE)
+		return -EINVAL;
 
-	err = copy_to_user(out_buf, private_entry_buf, PRIVATE_ENTRY_BLOCK_SIZE);
-	if (err)
-		goto out;
+	index = offset / MMC_BLOCK_SIZE;
 
-out:
-	pr_info("%s rtn code %d\n", __func__, err);
-	return err;
-}
+	mutex_lock(&protect_block_lock);
+	while(len > 0) {
+		long size = len;
 
-int private_entry_write_prepare(int slot, __user char *random_buf)
-{
-	int offset = slot * PRIVATE_ENTRY_BLOCK_SIZE;
-	int err = 0;
+		if(len > MMC_BLOCK_SIZE)
+			size = MMC_BLOCK_SIZE;
+		
+		ret = deal_private_block_internal(write, index, size, p);
+		if(ret) {
+			pr_info("%s (%d) error %d\n", __func__, len, ret);
+			break;
+		}
+		pr_info("%s index %llu remain %d pointer %p\n", __func__, index, len, p);
 
-	get_random_bytes(private_entry_random, PRIVATE_ENTRY_RANDOM_SIZE);
-
-	err = copy_to_user(random_buf, private_entry_random, PRIVATE_ENTRY_RANDOM_SIZE);
-
-	return err;
-}
-
-int private_entry_write(int slot, __user char *in_buf)
-{
-	int offset = slot * PRIVATE_ENTRY_BLOCK_SIZE;
-	int err = 0;
-
-	err = copy_from_user(private_entry_buf, in_buf, PRIVATE_ENTRY_BLOCK_SIZE);
-	if (err)
-		goto out;
-
-	err = RSA_verify(&writeable_rsa, private_entry_buf, RSANUMBYTES, private_entry_random);
-	if (err) {
-		pr_info("RSA verify failed\n");
-		goto out;
+		len -= MMC_BLOCK_SIZE;
+		index++;
+		p += MMC_BLOCK_SIZE;
 	}
-
-	memmove(private_entry_buf, private_entry_buf + PRIVATE_ENTRY_SIG_SIZE, 
-			PRIVATE_ENTRY_BLOCK_SIZE - PRIVATE_ENTRY_SIG_SIZE);
-
-	memset(private_entry_buf + PRIVATE_ENTRY_BLOCK_SIZE - PRIVATE_ENTRY_SIG_SIZE, 
-			0, PRIVATE_ENTRY_SIG_SIZE);
-
-	err = deal_private_block(1, offset, private_entry_buf);
-	if (err)
-		goto out;
-
-out:
-	pr_info("%s rtn code %d\n", __func__, err);
-	return err;
+	mutex_unlock(&protect_block_lock);
+	return ret;
 }
 
 static struct mmc_blk_data *mmc_blk_get(struct gendisk *disk)
