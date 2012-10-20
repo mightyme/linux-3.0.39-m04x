@@ -25,6 +25,7 @@
 #include <linux/tty.h>
 #include <linux/wait.h>
 #include <linux/wakelock.h>
+#include <linux/regulator/consumer.h>
 
 #define MAX_CPINFO_SIZE		512
 
@@ -588,6 +589,7 @@ struct modem_ctl {
 	wait_queue_head_t  conn_wq;
 	struct wake_lock   modem_wakelock;
 	int cp_flag;
+	struct regulator *modem_usb_regulator;
 };
 
 #define to_modem_ctl(mif_common) \

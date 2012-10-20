@@ -87,6 +87,40 @@ static ssize_t store_modem_debug(struct device *dev,
 static struct device_attribute attr_modem_debug = __ATTR(modem_debug,
 		S_IRUGO | S_IWUSR, show_modem_debug, store_modem_debug);
 
+#ifdef CONFIG_MACH_M040
+static ssize_t show_modem_usb_power(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	char *p = buf;
+
+	if(global_mc->modem_usb_regulator)
+		p += scnprintf(p, PAGE_SIZE, "%d\n", regulator_is_enabled(global_mc->modem_usb_regulator));
+	else
+		p += scnprintf(p, PAGE_SIZE, "No support\n");
+
+	return p - buf;
+}
+static ssize_t store_modem_usb_power(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int error;
+	unsigned long val;
+
+	error = strict_strtoul(buf, 10, &val);
+	if (!error){
+		if (global_mc->modem_usb_regulator) {
+			if(val && !regulator_is_enabled(global_mc->modem_usb_regulator))
+				regulator_enable(global_mc->modem_usb_regulator);
+			else if(regulator_is_enabled(global_mc->modem_usb_regulator))
+				regulator_disable(global_mc->modem_usb_regulator);
+		}
+	}
+
+	return count;
+}
+static struct device_attribute attr_modem_usb_power = __ATTR(modem_usb_power,
+		S_IRUGO | S_IWUSR, show_modem_usb_power, store_modem_usb_power);
+#endif
 static void modem_wake_lock_initial(struct modem_ctl *mc)
 {
 	wake_lock_init(&mc->modem_wakelock, WAKE_LOCK_SUSPEND, "modemctl");
@@ -494,7 +528,9 @@ int xmm6260_init_modemctl_device(struct modem_ctl *mc,
 	mc->gpio_cp_reset_int        = pdata->gpio_cp_reset_int;
 	mc->gpio_revers_bias_clear   = pdata->gpio_revers_bias_clear;
 	mc->gpio_revers_bias_restore = pdata->gpio_revers_bias_restore;
-
+#ifdef CONFIG_MACH_M040
+	mc->modem_usb_regulator = regulator_get(NULL, "safeout2");
+#endif
 	init_waitqueue_head(&mc->read_wq);
 	init_waitqueue_head(&mc->conn_wq);
 	modem_wake_lock_initial(mc);
@@ -556,7 +592,13 @@ int xmm6260_init_modemctl_device(struct modem_ctl *mc,
 		pr_err("failed to create sysfs file:attr_modem_debug!\n");
 		goto err_device_create_file;
 	}
-
+#ifdef CONFIG_MACH_M040
+	ret = device_create_file(modem_miscdev.this_device, &attr_modem_usb_power);
+	if (ret) {
+		pr_err("failed to create sysfs file:attr_modem_usb_power!\n");
+		goto err_device_create_file;
+	}
+#endif
 	return ret;
 
 err_device_create_file:

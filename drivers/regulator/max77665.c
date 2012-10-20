@@ -666,8 +666,6 @@ static __devinit int max77665_pmic_probe(struct platform_device *pdev)
 #if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	/* No active discharge safeout1 and safeout2 */
 	max77665_update_reg(i2c, MAX77665_CHG_REG_SAFEOUT_CTRL, 0x0, 0x3<<4);
-	/* Disable safeout2 */
-	max77665_update_reg(i2c, MAX77665_CHG_REG_SAFEOUT_CTRL, 0x0, 0x1<<7);
 #endif
 
 	return 0;

@@ -864,9 +864,8 @@ static struct regulator_init_data safeout2_init_data = {
 	.constraints	= {
 		.name		= "safeout2 range",
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
-		.boot_on	= true,
 		.state_mem	= {
-			.enabled 	= true,
+			.disabled 	= true,
 		},
 	},
 	.num_consumer_supplies	= ARRAY_SIZE(safeout2_supply),
