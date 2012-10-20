@@ -1009,10 +1009,12 @@ int s3cfb_ioctl(struct fb_info *fb, unsigned int cmd, unsigned long arg)
 #if !defined(CONFIG_FB_S5P_VSYNC_THREAD)
 		/* Enable Vsync */
 		s3cfb_set_vsync_interrupt(fbdev, 1);
-
+#endif
+#endif
 		/* Wait for Vsync */
 		s3cfb_wait_for_vsync(fbdev);
-
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+#if !defined(CONFIG_FB_S5P_VSYNC_THREAD)
 		/* Disable Vsync */
 		s3cfb_set_vsync_interrupt(fbdev, 0);
 #endif
