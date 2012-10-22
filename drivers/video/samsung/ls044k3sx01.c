@@ -59,7 +59,19 @@ static int write_to_lcd(struct ls044k3sx01_info *lcd,
 
 static int lcd_panel_init_code(struct ls044k3sx01_info *lcd)
 {
-	return write_to_lcd(lcd, ls044k3sx01_init_seq);
+	pr_info("LCD ID Code %d\n", lcd->id_code);
+	switch (lcd->id_code) {
+		case 0:
+			return 0;
+		break;
+		case 1:
+			return write_to_lcd(lcd, ls044k3sx01_init_seq);
+		break;
+		default:
+			pr_debug("ID Code Error! use default gamma settings.\n", lcd->id_code);
+			return 0;
+		break;
+	}
 }
 
 static int lcd_panel_sleep_in(struct ls044k3sx01_info *lcd)
@@ -160,6 +172,17 @@ static int lcd_panel_set_ce_mode(struct ls044k3sx01_info *lcd)
 	break;
 	}
 }
+
+static int lcd_read_id(struct mipi_dsim_lcd_device *mipi_dev)
+{
+	struct ls044k3sx01_info *lcd = dev_get_drvdata(&mipi_dev->dev);
+
+	write_to_lcd(lcd, ls044k3sx01_unlock); /*set password for ROnly*/
+	set_packet_size(lcd, 1); /* set return data size*/
+	lcd->id_code = read_data(lcd, 0xda); /*read ID Code reg 0xda*/
+	return 0;
+}
+
 static int lcd_init(struct mipi_dsim_lcd_device *mipi_dev)
 {
 	struct ls044k3sx01_info *lcd = dev_get_drvdata(&mipi_dev->dev);
@@ -378,6 +401,7 @@ static struct mipi_dsim_lcd_driver ls044k3sx01_mipi_driver = {
 	.resume	= lcd_resume,
 	.shutdown = lcd_shutdown,
 	.remove	= lcd_remove,
+	.read_id = lcd_read_id,
 };
 
 static int __init ls044k3sx01_init(void)

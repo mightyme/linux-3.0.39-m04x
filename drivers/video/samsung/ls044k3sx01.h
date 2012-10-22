@@ -35,14 +35,24 @@
 	lcd_to_master_ops(lcd)->cmd_write(lcd_to_master(lcd), \
 					MIPI_DSI_DCS_SHORT_WRITE_PARAM, \
 					cmd0, cmd1, bta)
+
 #define write_gen_data(lcd, array, size, bta)	\
 	lcd_to_master_ops(lcd)->cmd_write(lcd_to_master(lcd),\
 					MIPI_DSI_GENERIC_LONG_WRITE, \
 					(unsigned int)array, size, bta)
+
 #define write_data(lcd, array, size, bta)	\
 	lcd_to_master_ops(lcd)->cmd_write(lcd_to_master(lcd),\
 					MIPI_DSI_DCS_LONG_WRITE, \
 					(unsigned int)array, size, bta)
+
+#define set_packet_size(lcd, cmd0) \
+	lcd_to_master_ops(lcd)->cmd_write(lcd_to_master(lcd), \
+					0x37, cmd0, 0, 500)
+
+#define read_data(lcd, cmd) \
+	lcd_to_master_ops(lcd)->cmd_read(lcd_to_master(lcd), \
+			MIPI_DSI_DCS_READ, cmd, 0)
 
 #define PP_NARG(...) \
     PP_NARG_(__VA_ARGS__,PP_RSEQ_N())
@@ -91,6 +101,7 @@ struct ls044k3sx01_info {
 	struct lcd_platform_data	*ddi_pd;
 	enum lcd_state state;
 	int ce_mode;
+	int id_code;
 };
 
 static const struct ls044k3sx01_param ls044k3sx01_slpout_seq[] = {
@@ -242,6 +253,13 @@ static const struct ls044k3sx01_param ls044k3sx01_sat_high[] = {
 
 static const struct ls044k3sx01_param ls044k3sx01_ce_off[] = {
 	LCD_PARAM_DCS_CMD(0, 0x88, 0x02),
+	LCD_PARAM_DEF_END,
+};
+
+static const struct ls044k3sx01_param ls044k3sx01_unlock[] = {
+	LCD_PARAM_DEF(0xDF,0x55,0xAA,0x52,0x08),
+	LCD_PARAM_DEF(0xD0,0x66),
+	//LCD_PARAM_DCS_CMD(0, 0xD0, 0x66),
 	LCD_PARAM_DEF_END,
 };
 

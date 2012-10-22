@@ -240,6 +240,7 @@ static struct mipi_dsim_ddi
 /* define MIPI-DSI Master operations. */
 static struct mipi_dsim_master_ops master_ops = {
 	.cmd_write			= s5p_mipi_dsi_wr_data,
+	.cmd_read			= s5p_mipi_dsi_rd_data,
 	.get_dsim_frame_done	= s5p_mipi_dsi_get_frame_done_status,
 	.clear_dsim_frame_done	= s5p_mipi_dsi_clear_frame_done,
 };
@@ -263,6 +264,7 @@ static int s5p_mipi_init_lcd(struct mipi_dsim_device *dsim)
 	struct mipi_dsim_lcd_driver *dsim_lcd_drv = master_to_driver(dsim);
 	struct mipi_dsim_lcd_device *dsim_lcd_dev= master_to_device(dsim);
 	int i, ret = -1;
+	static bool lcd_read = false;
 
 	for (i=0; i<RETRY_CNT; i++) {/*try 10 times*/
 #if defined(CONFIG_PM_RUNTIME)		
@@ -273,13 +275,19 @@ static int s5p_mipi_init_lcd(struct mipi_dsim_device *dsim)
 
 		s5p_mipi_update_cfg(dsim);
 
+		if (!lcd_read && dsim_lcd_drv && dsim_lcd_drv->read_id) {
+			s5p_mipi_dsi_set_lpdt_mode(dsim, 1);
+			dsim_lcd_drv->read_id(dsim_lcd_dev);
+			s5p_mipi_dsi_set_lpdt_mode(dsim, 0);
+			lcd_read = true;
+		}
 		/* initialize mipi-dsi client(lcd panel). */
 		if (dsim_lcd_drv && dsim_lcd_drv->init_lcd)
 			ret = dsim_lcd_drv->init_lcd(dsim_lcd_dev);
 
 		if(!ret)
 			break;
-		
+
 		if (dsim_lcd_drv->shutdown)
 			dsim_lcd_drv->shutdown(dsim_lcd_dev);
 		s5p_mipi_dsi_disable_link(dsim);
