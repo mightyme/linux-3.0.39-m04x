@@ -555,6 +555,12 @@ void s5p_mipi_dsi_wr_tx_data(struct mipi_dsim_device *dsim,
 	writel(tx_data, dsim->reg_base + S5P_DSIM_PAYLOAD);
 }
 
+unsigned int s5p_mipi_dsi_rd_rx_data(struct mipi_dsim_device *dsim,
+		unsigned int *rx_data)
+{
+	return readl(dsim->reg_base + S5P_DSIM_RXFIFO);
+}
+
 void s5p_mipi_dsi_force_bta(struct mipi_dsim_device *dsim)
 {
 	unsigned int reg = readl(dsim->reg_base + S5P_DSIM_ESCMODE);

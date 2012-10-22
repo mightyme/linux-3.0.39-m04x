@@ -102,5 +102,6 @@ int s5p_mipi_dsi_wait_state(struct mipi_dsim_device *dsim,
 	/*enum dsim_int_src*/int intsrc, unsigned int);
 
 void s5p_mipi_dsi_standby(struct mipi_dsim_device *dsim, bool en);
+unsigned int s5p_mipi_dsi_rd_rx_data(struct mipi_dsim_device *dsim);
 
 #endif /* _S5P_MIPI_LOWLEVEL_H */

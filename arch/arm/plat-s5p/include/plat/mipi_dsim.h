@@ -327,11 +327,11 @@ struct mipi_dsim_lcd_driver {
 	int	(*probe)(struct mipi_dsim_lcd_device *dsim_dev);
 	int	(*init_lcd)(struct mipi_dsim_lcd_device *mipi_dev);
 	int	(*reset_lcd)(struct mipi_dsim_lcd_device *mipi_dev);
+	int	(*read_id)(struct mipi_dsim_lcd_device *dsim_dev);
 	int	(*remove)(struct mipi_dsim_lcd_device *dsim_dev);
 	void	(*shutdown)(struct mipi_dsim_lcd_device *dsim_dev);
 	int	(*suspend)(struct mipi_dsim_lcd_device *dsim_dev);
 	int	(*resume)(struct mipi_dsim_lcd_device *dsim_dev);
-	
 };
 
 /**

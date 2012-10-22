@@ -137,6 +137,9 @@ register1 */
 
 /* S5P_DSIM_FIFOCTRL */
 #define SFR_HEADER_EMPTY		(1 << 22)
+#define SFR_HEADER_FULL 		(1 << 23)
+#define SFR_RXDATA_EMPTY		(1 << 24)
+#define SFR_RXDATA_FULL	    	(1 << 25)
 
 /* S5P_DSIM_PHYACCHR */
 #define DSIM_AFC_CTL(x)			(((x) & 0x7) << 5)

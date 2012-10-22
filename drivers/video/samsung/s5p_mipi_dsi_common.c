@@ -125,7 +125,6 @@ static void s5p_mipi_dsi_long_data_wr(struct mipi_dsim_device *dsim,
 		}
 	}
 }
-
 int s5p_mipi_dsi_wr_data(struct mipi_dsim_device *dsim, unsigned int data_id,
 	unsigned int data0, unsigned int data1, unsigned int bta_timeout)
 {
@@ -246,6 +245,84 @@ int s5p_mipi_dsi_wr_data(struct mipi_dsim_device *dsim, unsigned int data_id,
 	if (ret)
 		pr_warn("\n%s failed: data_id = 0x%x, data0 = 0x%x, data1 = 0x%x\n",
 				__func__, data_id, data0, data1);
+	return ret;
+}
+
+struct dsim_short_pkthdr {
+	unsigned char id;
+	union {
+		unsigned short word_count;
+		unsigned short err_flag;
+		struct {
+			unsigned char data0;
+			unsigned char data1;
+		} data;
+	} inter;
+	unsigned char ecc;
+};
+int s5p_mipi_dsi_rd_data(struct mipi_dsim_device *dsim, unsigned int data_id,
+	unsigned int data0, unsigned int data1)
+{
+	unsigned int timeout = TRY_GET_FIFO_TIMEOUT;
+	unsigned int header;
+	int ret = 0;
+
+	if (dsim->state == DSIM_STATE_ULPS) {
+		dev_err(dsim->dev, "state is ULPS.\n");
+		return -EINVAL;
+	}
+
+	/* only if transfer mode is LPDT, wait SFR becomes empty. */
+	if (dsim->state == DSIM_STATE_STOP) {
+		while (!(s5p_mipi_dsi_get_fifo_state(dsim) &
+				SFR_HEADER_EMPTY)) {
+			if ((timeout--) > 0)
+				mdelay(1);
+			else {
+				dev_err(dsim->dev,
+					"SRF header fifo is not empty.\n");
+				return -EINVAL;
+			}
+		}
+	}
+
+	switch (data_id) {
+	/* short and response packet types for command */
+	case MIPI_DSI_GENERIC_READ_REQUEST_0_PARAM:
+	case MIPI_DSI_GENERIC_READ_REQUEST_1_PARAM:
+	case MIPI_DSI_GENERIC_READ_REQUEST_2_PARAM:
+	case MIPI_DSI_DCS_READ:
+		s5p_mipi_dsi_clear_all_interrupt(dsim);
+		s5p_mipi_dsi_wr_tx_header(dsim, data_id, data0, data1);
+		/* process response func should be implemented. */
+		ret = s5p_mipi_dsi_wait_state(dsim, (1 << 18)/*rxdata done*/, 500);
+		if (ret) {
+			pr_info("dsi wait state is not in rxdata done!\n");
+			return -EINVAL;
+		}
+
+		if (!(s5p_mipi_dsi_get_fifo_state(dsim) &
+					SFR_RXDATA_EMPTY)) { 
+			header = s5p_mipi_dsi_rd_rx_data(dsim);
+			/*if received 1 or 2 bytes data packet
+			 * MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_1BYTE
+			 * MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_2BYTE*/
+			if (((header & 0xff) == 0x21) || ((header & 0xff) == 0x22)) {
+				return (header >> 8) & 0xff;
+			}
+		}
+
+		pr_err("err when read header 0x%x\n",*((unsigned int*)&header));
+		ret = -EINVAL;
+		break;
+
+	default:
+		dev_warn(dsim->dev,
+			"data id %x is not supported current DSI spec.\n",
+			data_id);
+
+		ret = -EINVAL;
+	}
 	return ret;
 }
 
@@ -642,6 +719,26 @@ int s5p_mipi_dsi_set_data_transfer_mode(struct mipi_dsim_device *dsim,
 	return 0;
 }
 
+int s5p_mipi_dsi_set_lpdt_mode(struct mipi_dsim_device *dsim,
+		unsigned int mode)
+{
+	if (mode) {
+		if (dsim->state != DSIM_STATE_HSCLKEN) {
+			dev_err(dsim->dev, "HS Clock lane is not enabled.\n");
+			return -EINVAL;
+		}
+	} else {
+		if (dsim->state == DSIM_STATE_INIT || dsim->state ==
+			DSIM_STATE_ULPS) {
+			dev_err(dsim->dev,
+				"DSI Master is not STOP or HSDT state.\n");
+			return -EINVAL;
+		}
+	}
+	s5p_mipi_dsi_set_lcdc_transfer_mode(dsim, mode);
+	return 0;
+}
+
 int s5p_mipi_dsi_get_frame_done_status(struct mipi_dsim_device *dsim)
 {
 	return _s5p_mipi_dsi_get_frame_done_status(dsim);
@@ -652,6 +749,11 @@ int s5p_mipi_dsi_clear_frame_done(struct mipi_dsim_device *dsim)
 	_s5p_mipi_dsi_clear_frame_done(dsim);
 
 	return 0;
+}
+
+int s5p_mipi_dsi_process_response(struct mipi_dsim_device *dsim, unsigned int data_id)
+{
+	
 }
 
 MODULE_AUTHOR("InKi Dae <inki.dae@samsung.com>");

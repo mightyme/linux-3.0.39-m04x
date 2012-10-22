@@ -22,6 +22,8 @@ int s5p_mipi_dsi_disable_link(struct mipi_dsim_device *dsim);
 int s5p_mipi_dsi_set_hs_enable(struct mipi_dsim_device *dsim);
 int s5p_mipi_dsi_set_data_transfer_mode(struct mipi_dsim_device *dsim,
 		unsigned int mode);
+int s5p_mipi_dsi_set_lpdt_mode(struct mipi_dsim_device *dsim,
+		unsigned int mode);
 int s5p_mipi_dsi_enable_frame_done_int(struct mipi_dsim_device *dsim,
 				unsigned int enable);
 int s5p_mipi_dsi_get_frame_done_status(struct mipi_dsim_device *dsim);
@@ -29,5 +31,8 @@ int s5p_mipi_dsi_clear_frame_done(struct mipi_dsim_device *dsim);
 int s5p_mipi_dsi_force_stop_state(struct mipi_dsim_device *dsim);
 
 extern struct fb_info *registered_fb[FB_MAX] __read_mostly;
+
+int s5p_mipi_dsi_rd_data(struct mipi_dsim_device *dsim, unsigned int data_id,
+	unsigned int data0, unsigned int data1);
 
 #endif /* _S5P_MIPI_DSI_COMMON_H */
