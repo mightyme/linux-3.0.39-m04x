@@ -239,7 +239,6 @@ static void hsic_tty_data_handler(struct io_device *iod)
 
 	if(!(tty && tty->driver_data)) {
 		skb_queue_purge(&iod->rx_q);
-		atomic_dec(&iod->is_iod_op);
 		return;
 	}
 	skb = skb_dequeue(&iod->rx_q);
@@ -276,7 +275,6 @@ static void hsic_tty_data_handler(struct io_device *iod)
 			break;
 		skb = skb_dequeue(&iod->rx_q);
 	}
-	atomic_dec(&iod->is_iod_op);
 	return;
 }
 
@@ -294,7 +292,6 @@ static void hsic_net_data_handler(struct io_device *iod)
 		skb = vnet->skb;
 		vnet->skb == NULL;
 		dev_kfree_skb_any(skb);
-		atomic_dec(&iod->is_iod_op);
 		return;
 	}
 
@@ -352,8 +349,6 @@ static void hsic_net_data_handler(struct io_device *iod)
 		skb = skb_dequeue(&iod->rx_q);
 	}
 
-	atomic_dec(&iod->is_iod_op);
-
 	return;
 }
 
@@ -396,12 +391,14 @@ static int recv_data_handler(struct io_device *iod,
 		skb_queue_tail(&iod->rx_q, skb);
 		atomic_inc(&iod->is_iod_op);
 		queue_delayed_work(iod->mc->rx_wq, &iod->rx_work, 0);
+		atomic_dec(&iod->is_iod_op);
 		break;
 	case IODEV_NET:
 		memcpy(skb_put(skb, len), data, len);
 		skb_queue_tail(&iod->rx_q, skb);
 		atomic_inc(&iod->is_iod_op);
 		queue_delayed_work(iod->mc->rx_wq, &iod->rx_work, 0);
+		atomic_dec(&iod->is_iod_op);
 		break;
 	default:
 		mif_err("wrong io_type : %d\n", iod->io_typ);
@@ -416,9 +413,13 @@ static int recv_data_handler(struct io_device *iod,
 static int vnet_open(struct net_device *ndev)
 {
 	struct vnet *vnet = netdev_priv(ndev);
+	struct io_device *iod = vnet->iod;
 
 	netif_start_queue(ndev);
-	atomic_inc(&vnet->iod->opened);
+	mutex_lock(&iod->op_mutex);
+	atomic_inc(&iod->opened);
+	mutex_unlock(&iod->op_mutex);
+
 	return 0;
 }
 
@@ -429,6 +430,7 @@ static int vnet_stop(struct net_device *ndev)
 	struct mif_common *commons = &iod->mc->commons;
 	struct link_device *ld;
 
+	mutex_lock(&iod->op_mutex);
 	atomic_dec(&iod->opened);
 	if (atomic_read(&iod->opened) == 0) {
 		while (is_iod_handle_data(iod)) {
@@ -445,6 +447,7 @@ static int vnet_stop(struct net_device *ndev)
 		}
 	}
 
+	mutex_unlock(&iod->op_mutex);
 	return 0;
 }
 
@@ -527,8 +530,8 @@ static int modem_tty_open(struct tty_struct *tty, struct file *f)
 
 	mutex_lock(&iod->op_mutex);
 	atomic_inc(&iod->opened);
-	tty->low_latency = 1;
 	mutex_unlock(&iod->op_mutex);
+	tty->low_latency = 1;
 
 	list_for_each_entry(ld, &commons->link_dev_list, list) {
 		if (IS_CONNECTED(iod, ld) && ld->init_comm) {
