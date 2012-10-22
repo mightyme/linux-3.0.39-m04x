@@ -173,9 +173,14 @@ static inline int is_system_area(struct request *rqc)
 
 static inline int is_private_info_area(struct request *rqc)
 {
-	return (blk_rq_pos(rqc) >= private_info_partition.start_sec
+	if(blk_rq_pos(rqc) >= private_info_partition.start_sec
 			&& blk_rq_pos(rqc) < private_info_partition.start_sec +
-								private_info_partition.sec_num);
+								private_info_partition.sec_num) {
+		pr_info("=== %s start %llu, len %u\n", rq_data_dir(rqc) == WRITE ? "write" : "read",
+				blk_rq_pos(rqc), blk_rq_sectors(rqc));
+		return 1;
+	}
+	return 0;
 }
 
 static int init_extra_partitioin(struct mmc_blk_data *md)
@@ -281,8 +286,9 @@ static int init_extra_partitioin(struct mmc_blk_data *md)
 	}
 #endif
 
-	private_info_partition.start_sec = bootinfo.partinfo[modem_id].start_sec;
-	private_info_partition.sec_num = bootinfo.partinfo[modem_id].sec_num;
+	private_info_partition.start_sec = bootinfo.partinfo[misc_id].start_sec;
+	private_info_partition.sec_num = bootinfo.partinfo[misc_id].sec_num 
+									+ bootinfo.partinfo[modem_id].sec_num;
 	private_info_partition.volname = "PRIVATE";
 
 	return 0;
@@ -2060,10 +2066,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 #endif
 
 	if (req) {
-		if (is_private_info_area(req))
-			pr_info("=== %s start %llu, len %u\n", rq_data_dir(req) == WRITE ? "write" : "read",
-					blk_rq_pos(req), blk_rq_sectors(req));
-		if (rq_data_dir(req) == WRITE && is_private_info_area(req)) {
+		if (is_private_info_area(req) && rq_data_dir(req) == WRITE) {
 			if (req->bio->bi_private != protect_block_bh) {
 				blk_end_request_all(req, -EIO);
 				ret = 0;

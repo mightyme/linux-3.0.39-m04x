@@ -23,8 +23,11 @@
 
 extern int deal_private_block(int write, unsigned offset , long len, void *buffer);
 
+// 2M MISC AND 15M MODEM PARTITION IS PRIVATE AREA
+// MISC PARTITION USE FOR UBOOT BOARD INFOMATION
+// FIRST 1M MODEM DO NOT USE FOR PRIVATE ENTRY
+#define BASE_PRIVATE_ENTRY_OFFSET ( 2 * 1024 * 1024 + 1024 * 1024)
 #define MAX_PRIVATE_ENTRY (1024)
-#define BASE_PRIVATE_ENTRY_OFFSET (1024 * 1024)
 
 #define PRIVATE_ENTRY_BLOCK_SIZE (1024)
 #define PRIVATE_ENTRY_SIG_SIZE (256)
@@ -90,7 +93,7 @@ int private_entry_write(int slot, __user char *in_buf)
 	err = RSA_verify(&writeable_rsa, private_entry_buf, RSANUMBYTES, private_entry_random);
 	if (err) {
 		pr_info("RSA verify failed\n");
-		//goto out;
+		goto out;
 	}
 
 	memmove(private_entry_buf, private_entry_buf + PRIVATE_ENTRY_SIG_SIZE, data_len);
