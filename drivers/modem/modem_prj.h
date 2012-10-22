@@ -376,7 +376,7 @@ struct io_device {
 	char *name;
 
 	atomic_t opened;
-	atomic_t is_tty_op;
+	atomic_t is_iod_op;
 
 	/* Misc and net device structures for the IO device */
 	//struct miscdevice  miscdev;

@@ -142,9 +142,9 @@ static ssize_t store_send_delay(struct device *dev,
 static struct device_attribute attr_send_delay =
 	__ATTR(send_delay, S_IRUGO | S_IWUSR, show_send_delay, store_send_delay);
 
-static inline int is_tty_operating(struct io_device *iod)
+static inline int is_iod_handle_data(struct io_device *iod)
 {
-	return (atomic_read(&iod->is_tty_op));
+	return (atomic_read(&iod->is_iod_op));
 }
 
 static int vnet_is_opened(struct net_device *ndev)
@@ -180,18 +180,19 @@ retry:
 			return -EINVAL;
 		} else {
 			tmp_skb = dev_alloc_skb(skb->len + skb2->len);
+			tmp_skb->len = 0;
 			if (tmp_skb) {
 				memcpy(skb_put(tmp_skb, skb->len),
-							skb->data,skb->len);
+							skb->data, skb->len);
 				memcpy(skb_put(tmp_skb, skb2->len),
-							skb->data, skb2->len);
+							skb2->data, skb2->len);
 				dev_kfree_skb_any(skb);
 				dev_kfree_skb_any(skb2);
 				skb_queue_head(&iod->rx_q, tmp_skb);
 				goto retry;
 			} else {
-				skb_queue_head(&iod->rx_q, skb2);
 				skb_queue_head(&iod->rx_q, skb);
+				skb_queue_head(&iod->rx_q, skb2);
 				return -EINVAL;
 			}
 		}
@@ -238,6 +239,7 @@ static void hsic_tty_data_handler(struct io_device *iod)
 
 	if(!(tty && tty->driver_data)) {
 		skb_queue_purge(&iod->rx_q);
+		atomic_dec(&iod->is_iod_op);
 		return;
 	}
 	skb = skb_dequeue(&iod->rx_q);
@@ -274,6 +276,8 @@ static void hsic_tty_data_handler(struct io_device *iod)
 			break;
 		skb = skb_dequeue(&iod->rx_q);
 	}
+	atomic_dec(&iod->is_iod_op);
+	return;
 }
 
 static void hsic_net_data_handler(struct io_device *iod)
@@ -285,12 +289,12 @@ static void hsic_net_data_handler(struct io_device *iod)
 	unsigned char *buf;
 
 	if (!vnet_is_opened(ndev)) {
-		skb = skb_dequeue(&iod->rx_q);
-		if (skb) {
-			if (iod->atdebug)
-				iod->atdebugfunc(iod, skb->data, skb->len);
-			dev_kfree_skb_any(skb);
-		}
+		skb_queue_purge(&iod->rx_q);
+		vnet->pkt_sz = 0;
+		skb = vnet->skb;
+		vnet->skb == NULL;
+		dev_kfree_skb_any(skb);
+		atomic_dec(&iod->is_iod_op);
 		return;
 	}
 
@@ -345,9 +349,11 @@ static void hsic_net_data_handler(struct io_device *iod)
 			if (vnet->pkt_sz <= 0)
 				break;
 		}
-
 		skb = skb_dequeue(&iod->rx_q);
 	}
+
+	atomic_dec(&iod->is_iod_op);
+
 	return;
 }
 
@@ -388,13 +394,13 @@ static int recv_data_handler(struct io_device *iod,
 	case IODEV_TTY:
 		memcpy(skb_put(skb, len), data, len);
 		skb_queue_tail(&iod->rx_q, skb);
-		atomic_inc(&iod->is_tty_op);
+		atomic_inc(&iod->is_iod_op);
 		queue_delayed_work(iod->mc->rx_wq, &iod->rx_work, 0);
-		atomic_dec(&iod->is_tty_op);
 		break;
 	case IODEV_NET:
 		memcpy(skb_put(skb, len), data, len);
 		skb_queue_tail(&iod->rx_q, skb);
+		atomic_inc(&iod->is_iod_op);
 		queue_delayed_work(iod->mc->rx_wq, &iod->rx_work, 0);
 		break;
 	default:
@@ -419,9 +425,26 @@ static int vnet_open(struct net_device *ndev)
 static int vnet_stop(struct net_device *ndev)
 {
 	struct vnet *vnet = netdev_priv(ndev);
+	struct io_device *iod = vnet->iod;
+	struct mif_common *commons = &iod->mc->commons;
+	struct link_device *ld;
 
-	atomic_dec(&vnet->iod->opened);
-	netif_stop_queue(ndev);
+	atomic_dec(&iod->opened);
+	if (atomic_read(&iod->opened) == 0) {
+		while (is_iod_handle_data(iod)) {
+			mutex_unlock(&iod->op_mutex);
+			msleep(2);
+			mutex_lock(&iod->op_mutex);
+		}
+		skb_queue_purge(&iod->rx_q);
+		mif_info("close iod = %s\n", iod->name);
+		netif_stop_queue(ndev);
+		list_for_each_entry(ld, &commons->link_dev_list, list) {
+			if (IS_CONNECTED(iod, ld) && ld->terminate_comm)
+				ld->terminate_comm(ld, iod);
+		}
+	}
+
 	return 0;
 }
 
@@ -531,12 +554,12 @@ static void modem_tty_close(struct tty_struct *tty, struct file *f)
 	mutex_lock(&iod->op_mutex);
 	atomic_dec(&iod->opened);
 	if (atomic_read(&iod->opened) == 0) {
-		while (is_tty_operating(iod)) {
+		while (is_iod_handle_data(iod)) {
 			mutex_unlock(&iod->op_mutex);
 			msleep(2);
 			mutex_lock(&iod->op_mutex);
 		}
-		mif_debug("iod = %s\n", iod->name);
+		mif_info("close iod = %s\n", iod->name);
 		skb_queue_purge(&iod->rx_q);
 		tty->driver_data = NULL;
 		list_for_each_entry(ld, &commons->link_dev_list, list) {
