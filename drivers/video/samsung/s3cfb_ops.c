@@ -538,10 +538,6 @@ int s3cfb_set_par(struct fb_info *fb)
 #ifdef CONFIG_EXYNOS_DEV_PD
 	struct platform_device *pdev = to_platform_device(fbdev->dev);
 
-	if (unlikely(fbdev->system_state == POWER_OFF)) {
-		dev_err(fbdev->dev, "%s::system_state is POWER_OFF, fb%d\n", __func__, win->id);
-		return -EFAULT;
-	}
 	pm_runtime_get_sync(&pdev->dev);
 #endif
 	ret = s3cfb_set_par_window(fbdev, fb);
@@ -784,14 +780,6 @@ int s3cfb_blank(int blank_mode, struct fb_info *fb)
 
 	dev_dbg(fbdev->dev, "change blank mode\n");
 #ifdef CONFIG_EXYNOS_DEV_PD
-	if (fbdev->system_state == POWER_OFF) {
-		dev_err(fbdev->dev, "system_state is POWER_OFF\n");
-		win->power_state = blank_mode;
-		if (win->id != pdata->default_win)
-			return NOT_DEFAULT_WINDOW;
-		else
-			return 0;
-	}
 	pm_runtime_get_sync(&pdev->dev);
 #endif
 	switch (blank_mode) {
@@ -945,8 +933,6 @@ int s3cfb_pan_display(struct fb_var_screeninfo *var, struct fb_info *fb)
 	dev_dbg(fbdev->dev, "[fb%d] yoffset for pan display: %d\n", win->id,
 		var->yoffset);
 #ifdef CONFIG_EXYNOS_DEV_PD
-	if (fbdev->system_state == POWER_OFF)
-		return 0;
 	pm_runtime_get_sync(&pdev->dev);
 #endif
 	s3cfb_set_buffer_address(fbdev, win->id);
@@ -995,11 +981,6 @@ int s3cfb_ioctl(struct fb_info *fb, unsigned int cmd, unsigned long arg)
 	} p;
 	
 #ifdef CONFIG_EXYNOS_DEV_PD
-	if (unlikely(fbdev->system_state == POWER_OFF)) {
-		dev_err(fbdev->dev, "%s::system_state is POWER_OFF cmd is 0x%08x, fb%d\n",
-			__func__, cmd, win->id);
-		return -EFAULT;
-	}
 	pm_runtime_get_sync(&pdev->dev);
 #endif
 
