@@ -241,7 +241,7 @@ static void lm3530_brightness_set(struct led_classdev *led_cdev,
 	struct lm3530_data *drvdata =
 	    container_of(led_cdev, struct lm3530_data, led_dev);
 
-	pr_info("%s brt %d mode %d\n", __func__, brt_val, drvdata->mode);
+	//pr_info("%s brt %d mode %d\n", __func__, brt_val, drvdata->mode);
 	mutex_lock(&drvdata->mutex_lock);
 	if (atomic_read(&drvdata->suspended)) {
 		drvdata->brightness = brt_val;
