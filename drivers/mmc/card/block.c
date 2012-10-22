@@ -389,10 +389,10 @@ int deal_private_block(int write, unsigned offset , long len, void *buffer)
 		
 		ret = deal_private_block_internal(write, index, size, p);
 		if(ret) {
-			pr_info("%s (%d) error %d\n", __func__, len, ret);
+			pr_info("%s (%ld) error %d\n", __func__, len, ret);
 			break;
 		}
-		pr_info("%s index %llu remain %d pointer %p\n", __func__, index, len, p);
+		pr_info("%s index %llu remain %ld pointer %p\n", __func__, index, len, p);
 
 		len -= MMC_BLOCK_SIZE;
 		index++;

@@ -252,7 +252,7 @@ int s5p_mipi_dsi_rd_data(struct mipi_dsim_device *dsim, unsigned int data_id,
 	unsigned int data0, unsigned int data1)
 {
 	unsigned int timeout = TRY_GET_FIFO_TIMEOUT;
-	unsigned int header;
+	unsigned int header = 0;
 	int ret = 0;
 
 	if (dsim->state == DSIM_STATE_ULPS) {
