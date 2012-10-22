@@ -248,18 +248,6 @@ int s5p_mipi_dsi_wr_data(struct mipi_dsim_device *dsim, unsigned int data_id,
 	return ret;
 }
 
-struct dsim_short_pkthdr {
-	unsigned char id;
-	union {
-		unsigned short word_count;
-		unsigned short err_flag;
-		struct {
-			unsigned char data0;
-			unsigned char data1;
-		} data;
-	} inter;
-	unsigned char ecc;
-};
 int s5p_mipi_dsi_rd_data(struct mipi_dsim_device *dsim, unsigned int data_id,
 	unsigned int data0, unsigned int data1)
 {
@@ -749,11 +737,6 @@ int s5p_mipi_dsi_clear_frame_done(struct mipi_dsim_device *dsim)
 	_s5p_mipi_dsi_clear_frame_done(dsim);
 
 	return 0;
-}
-
-int s5p_mipi_dsi_process_response(struct mipi_dsim_device *dsim, unsigned int data_id)
-{
-	
 }
 
 MODULE_AUTHOR("InKi Dae <inki.dae@samsung.com>");
