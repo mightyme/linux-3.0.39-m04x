@@ -72,14 +72,14 @@ static int exynos4_set_mode(struct thermal_zone_device *thermal,
 	}
 	if (mode == THERMAL_DEVICE_ENABLED)
 		th_zone->therm_dev->polling_delay =
-				th_zone->active_interval*1000;
+				th_zone->active_interval;
 	else
 		th_zone->therm_dev->polling_delay =
-				th_zone->idle_interval*1000;
+				th_zone->idle_interval;
 
 	thermal_zone_device_update(th_zone->therm_dev);
-	pr_info("thermal polling set for duration=%d sec\n",
-				th_zone->therm_dev->polling_delay/1000);
+	pr_info("thermal polling set for duration=%d ms\n",
+				th_zone->therm_dev->polling_delay);
 	return 0;
 }
 
@@ -98,10 +98,10 @@ void exynos4_report_trigger(void)
 	mutex_lock(&th_zone->therm_dev->lock);
 	if (th_zone->therm_dev->last_temperature > monitor_temp)
 		th_zone->therm_dev->polling_delay =
-					th_zone->active_interval*1000;
+					th_zone->active_interval;
 	else
 		th_zone->therm_dev->polling_delay =
-					th_zone->idle_interval*1000;
+					th_zone->idle_interval;
 	kobject_uevent(&th_zone->therm_dev->device.kobj, KOBJ_CHANGE);
 	mutex_unlock(&th_zone->therm_dev->lock);
 }
@@ -455,8 +455,8 @@ int exynos4_register_thermal(struct thermal_sensor_conf *sensor_conf)
 		goto err_unregister;
 	}
 
-	th_zone->active_interval = 1;
-	th_zone->idle_interval = 5;
+	th_zone->active_interval = 200; //200ms
+	th_zone->idle_interval = 2*1000;  //2s
 
 	exynos4_set_mode(th_zone->therm_dev, THERMAL_DEVICE_DISABLED);
 	
