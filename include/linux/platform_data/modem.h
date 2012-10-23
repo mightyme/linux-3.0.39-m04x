@@ -22,6 +22,17 @@ enum modem_t {
 	DUMMY,
 };
 
+enum MODEM_EVENT_TYPE {
+	MODEM_EVENT_POWEROFF,
+	MODEM_EVENT_RESET,
+	MODEM_EVENT_CRASH,
+	MODEM_EVENT_DUMP,
+	MODEM_EVENT_CONN,
+	MODEM_EVENT_DISCONN,
+	MODEM_EVENT_SIM,
+	MODEM_EVENT_BOOT_INIT,
+};
+
 enum dev_format {
 	IPC_FMT,
 	IPC_RAW,
@@ -130,6 +141,8 @@ struct modem_data {
 	unsigned gpio_cp_dump_int;
 	unsigned gpio_ap_dump_int;
 	unsigned gpio_sim_detect;
+	unsigned gpio_link_hostwake;
+	unsigned gpio_link_slavewake;
 
 	/* Switch with 2 links in a modem */
 	unsigned gpio_dynamic_switching;
@@ -173,6 +186,8 @@ struct modem_data {
 #define  MC_HOST_HIGH     1
 #define  MC_HOST_TIMEOUT  2
 #define  MC_HOST_HALT     3
+
+#define HOSTWAKE_TRIGLEVEL	0
 
 void modem_notify_event(int type);
 

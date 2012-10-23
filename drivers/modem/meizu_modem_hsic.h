@@ -57,7 +57,6 @@ enum ch_state {
 	STATE_RESUMED,
 };
 
-#define HOSTWAKE_TRIGLEVEL	0
 /******************/
 
 struct link_pm_info {

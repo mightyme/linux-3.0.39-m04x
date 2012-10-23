@@ -27,7 +27,6 @@
 #include <linux/sched.h>
 
 #include <mach/gpio.h>
-#include <mach/modem.h>
 #include "modem_prj.h"
 
 static char modem_event_str[8][25] = {
@@ -196,6 +195,47 @@ void modem_notify_event(int type)
 	pr_info("%s:%s, cp_flag:0x%x\n", __func__, modem_event_str[type],
 							global_mc->cp_flag);
 }
+
+int modem_is_on(void)                                                                                                         
+{                                                                                                                             
+        struct modem_ctl *mc = global_mc;                                                                                      
+                                                                                                                              
+        if (!mc)
+		return 0;
+	else
+		return gpio_get_value(mc->gpio_cp_reset);                                                                      
+}                                                                                                                             
+EXPORT_SYMBOL_GPL(modem_is_on);
+
+int modem_is_host_wakeup(void)
+{
+	struct modem_ctl *mc = global_mc;
+
+	if (!mc)
+		return 0;
+	else
+		return (gpio_get_value(mc->gpio_link_hostwake)
+					== HOSTWAKE_TRIGLEVEL) ? 1 : 0;
+}
+EXPORT_SYMBOL_GPL(modem_is_host_wakeup);
+
+void modem_set_slave_wakeup(void)
+{
+	struct modem_ctl *mc = global_mc;
+
+	if (!mc)
+		return;
+
+	if (gpio_get_value(mc->gpio_link_hostwake)) {
+		pr_info("[MODEM_IF] Slave Wake\n");
+		if (gpio_get_value(mc->gpio_link_slavewake)) {
+			gpio_direction_output(mc->gpio_link_slavewake, 0);
+			mdelay(10);
+		}
+		gpio_direction_output(mc->gpio_link_slavewake, 1);
+	}
+}
+EXPORT_SYMBOL_GPL(modem_set_slave_wakeup);
 
 static int xmm6260_on(struct modem_ctl *mc)
 {
@@ -515,6 +555,9 @@ int xmm6260_init_modemctl_device(struct modem_ctl *mc,
 	mc->gpio_host_active         = pdata->gpio_host_active;
 	mc->gpio_reset_req_n         = pdata->gpio_reset_req_n;
 	mc->gpio_cp_reset_int        = pdata->gpio_cp_reset_int;
+	mc->gpio_link_hostwake       = pdata->gpio_link_hostwake;
+	mc->gpio_link_slavewake      = pdata->gpio_link_slavewake;
+
 	mc->gpio_revers_bias_clear   = pdata->gpio_revers_bias_clear;
 	mc->gpio_revers_bias_restore = pdata->gpio_revers_bias_restore;
 #ifdef CONFIG_MACH_M040

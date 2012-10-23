@@ -14,18 +14,10 @@
 #ifndef __MODEM_H__
 #define __MODEM_H__
 
-enum MODEM_EVENT_TYPE {
-	MODEM_EVENT_POWEROFF,
-	MODEM_EVENT_RESET,
-	MODEM_EVENT_CRASH,
-	MODEM_EVENT_DUMP,
-	MODEM_EVENT_CONN,
-	MODEM_EVENT_DISCONN,
-	MODEM_EVENT_SIM,
-	MODEM_EVENT_BOOT_INIT,
-};
-
-extern void modem_set_active_state(int state);
+extern int modem_is_on(void);
+extern int modem_is_host_wakeup(void);
+extern int modem_set_slave_wakeup(int val);
 extern void modem_notify_event(int type);
+extern void modem_set_active_state(int state);
 
 #endif

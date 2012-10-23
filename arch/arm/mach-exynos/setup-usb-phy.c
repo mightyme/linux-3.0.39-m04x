@@ -1133,7 +1133,7 @@ int s5p_usb_phy_init(struct platform_device *pdev, int type)
 			set_bit(HOST_PHY_EHCI, &usb_phy_control.flags);
 		else if (!strcmp(pdev->name, "s5p-ohci"))
 			set_bit(HOST_PHY_OHCI, &usb_phy_control.flags);
-#ifdef CONFIG_XMM6260_MODEM
+#ifdef CONFIG_UMTS_MODEM_XMM6260
 		if (modem_is_on() && !modem_is_host_wakeup()) {
 			modem_set_slave_wakeup(1);
 		}

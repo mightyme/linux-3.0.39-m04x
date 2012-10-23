@@ -87,6 +87,8 @@ static struct modem_data umts_modem_data_m040 = {
 	.gpio_cp_reset_int        = M040_GPIO_MODEM_RESET_INT,
 	.gpio_cp_dump_int         = M040_GPIO_MODEM_DUMP_INT,
 	.gpio_sim_detect          = 0,
+	.gpio_link_hostwake       = M040_GPIO_HOST_WAKEUP,
+	.gpio_link_slavewake      = M040_GPIO_SLAVE_WAKEUP,
 	.modem_type               = IMC_XMM6260,
 	.link_types               = LINKTYPE(LINKDEV_HSIC),
 	.modem_net                = UMTS_NETWORK,
@@ -117,20 +119,6 @@ static void xmm_gpio_revers_bias_restore(void)
 		irq_set_irq_type(gpio_to_irq(gpio_sim_detect),
 				IRQ_TYPE_EDGE_BOTH);
 		enable_irq_wake(gpio_to_irq(gpio_sim_detect));
-	}
-}
-
-/* HSIC specific function */
-void set_slave_wake(void)
-{
-	if (gpio_get_value(modem_link_pm_data.gpio_link_hostwake)) {
-		pr_info("[MODEM_IF]Slave Wake\n");
-		if (gpio_get_value(modem_link_pm_data.gpio_link_slavewake)) {
-			gpio_direction_output(
-			modem_link_pm_data.gpio_link_slavewake, 0);
-			mdelay(10);
-		}
-		gpio_direction_output(modem_link_pm_data.gpio_link_slavewake, 1);
 	}
 }
 
