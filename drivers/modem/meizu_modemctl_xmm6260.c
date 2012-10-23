@@ -264,23 +264,12 @@ static int xmm6260_main_enum(struct modem_ctl *mc)
 
 static int xmm6260_renum(struct modem_ctl *mc)
 {
-	struct completion done;
-
 	wake_up_interruptible(&mc->read_wq);
 	modem_wake_lock(mc);
-	mc->cp_flag =0;
 	mc->enum_done = 0;
-	xmm6260_off(mc);
+	mc->cp_flag =0;
 	s5p_ehci_power(0);
-	modem_set_active_state(0);
-	xmm6260_on(mc);
-	pr_info("%s hostwake:%d\n", __func__, gpio_get_value
-		(mc->mdm_data->link_pm_data->gpio_link_hostwake));
-	init_completion(&done);
-	mc->l2_done = &done;
-	wait_for_completion_timeout(&done, 20*HZ);
-	mc->l2_done = NULL;
-
+	msleep(1);
 	s5p_ehci_power(1);
 	mc->enum_done = 1;
 	modem_wake_lock_timeout(mc, 5*HZ);
