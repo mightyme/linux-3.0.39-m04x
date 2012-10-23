@@ -30,10 +30,10 @@
 #include <asm/unaligned.h>
 
 #define _DBG(d, fmt, args...) \
-	dev_info(&(d)->gadget->dev , fmt , ## args)
+	printk(KERN_DEBUG "[composite] "fmt , ## args)
 
 #define _VDBG(d, fmt, args...) \
-	dev_info(&(d)->gadget->dev , fmt , ## args)
+	printk(KERN_DEBUG "[composite] "fmt , ## args)
 
 /*
  * The code in this file is utility code, used to build a gadget driver
