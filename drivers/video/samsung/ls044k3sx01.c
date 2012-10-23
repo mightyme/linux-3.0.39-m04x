@@ -62,7 +62,7 @@ static int lcd_panel_init_code(struct ls044k3sx01_info *lcd)
 	pr_info("LCD ID Code %d\n", lcd->id_code);
 	switch (lcd->id_code) {
 		case 0:
-			return 0;
+			return write_to_lcd(lcd, ls044k3sx01_init_seq);
 		break;
 		case 1:
 			return write_to_lcd(lcd, ls044k3sx01_init_seq_1);
