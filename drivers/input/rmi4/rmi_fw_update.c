@@ -112,7 +112,7 @@ static void extract_header(const u8 *data, int pos, struct image_header *header)
 	       RMI_PRODUCT_ID_LENGTH);
 	header->product_id[PRODUCT_ID_SIZE] = 0;
 	memcpy(header->product_info, &data[pos + PRODUCT_INFO_OFFSET],
-	       RMI_PRODUCT_ID_LENGTH);
+	       PRODUCT_INFO_SIZE);
 	memcpy(header->customer_cfg_id, &data[pos + CUSTOMER_CFG_ID_OFFSET],
 	       CUSTOMER_CFG_ID_SIZE);
 }
