@@ -107,8 +107,8 @@ struct modemlink_pm_data {
 	/* link power contol 2 types : pin & regulator control */
 	unsigned gpio_link_enable;
 	/*unsigned gpio_link_active;*/
-	unsigned gpio_link_hostwake;
-	unsigned gpio_link_slavewake;
+	unsigned gpio_hostwake;
+	unsigned gpio_slavewake;
 	int (*port_enable)(int, int);
 	int *p_hub_status;
 	bool has_usbhub;
@@ -141,8 +141,8 @@ struct modem_data {
 	unsigned gpio_cp_dump_int;
 	unsigned gpio_ap_dump_int;
 	unsigned gpio_sim_detect;
-	unsigned gpio_link_hostwake;
-	unsigned gpio_link_slavewake;
+	unsigned gpio_hostwake;
+	unsigned gpio_slavewake;
 
 	/* Switch with 2 links in a modem */
 	unsigned gpio_dynamic_switching;

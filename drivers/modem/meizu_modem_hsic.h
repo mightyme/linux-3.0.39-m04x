@@ -84,8 +84,8 @@ struct link_pm_data {
 	unsigned irq_link_hostwake;
 	unsigned gpio_link_enable;
 	unsigned gpio_link_active;
-	unsigned gpio_link_hostwake;
-	unsigned gpio_link_slavewake;
+	unsigned gpio_hostwake;
+	unsigned gpio_slavewake;
 
 	struct workqueue_struct *wq;
 	struct completion active_done;

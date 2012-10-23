@@ -72,8 +72,8 @@ static void xmm_gpio_revers_bias_restore(void);
 static struct modemlink_pm_data modem_link_pm_data = {
 	.name = "link_pm",
 	.gpio_link_enable    = 0,
-	.gpio_link_hostwake  = M040_GPIO_HOST_WAKEUP,
-	.gpio_link_slavewake = M040_GPIO_SLAVE_WAKEUP,
+	.gpio_hostwake  = M040_GPIO_HOST_WAKEUP,
+	.gpio_slavewake = M040_GPIO_SLAVE_WAKEUP,
 };
 
 static struct modem_data umts_modem_data;
@@ -87,8 +87,8 @@ static struct modem_data umts_modem_data_m040 = {
 	.gpio_cp_reset_int        = M040_GPIO_MODEM_RESET_INT,
 	.gpio_cp_dump_int         = M040_GPIO_MODEM_DUMP_INT,
 	.gpio_sim_detect          = 0,
-	.gpio_link_hostwake       = M040_GPIO_HOST_WAKEUP,
-	.gpio_link_slavewake      = M040_GPIO_SLAVE_WAKEUP,
+	.gpio_hostwake       = M040_GPIO_HOST_WAKEUP,
+	.gpio_slavewake      = M040_GPIO_SLAVE_WAKEUP,
 	.modem_type               = IMC_XMM6260,
 	.link_types               = LINKTYPE(LINKDEV_HSIC),
 	.modem_net                = UMTS_NETWORK,
@@ -102,15 +102,15 @@ static struct modem_data umts_modem_data_m040 = {
 
 static void xmm_gpio_revers_bias_restore(void)
 {
-	unsigned gpio_link_hostwake = modem_link_pm_data.gpio_link_hostwake;
+	unsigned gpio_hostwake = modem_link_pm_data.gpio_hostwake;
 	unsigned gpio_sim_detect = umts_modem_data.gpio_sim_detect;
 
-	gpio_direction_output(gpio_link_hostwake, 0);
-	s3c_gpio_cfgpin(gpio_link_hostwake, S3C_GPIO_SFN(0xF));
-	s3c_gpio_setpull(gpio_link_hostwake, S3C_GPIO_PULL_NONE);
-	irq_set_irq_type(gpio_to_irq(gpio_link_hostwake),
+	gpio_direction_output(gpio_hostwake, 0);
+	s3c_gpio_cfgpin(gpio_hostwake, S3C_GPIO_SFN(0xF));
+	s3c_gpio_setpull(gpio_hostwake, S3C_GPIO_PULL_NONE);
+	irq_set_irq_type(gpio_to_irq(gpio_hostwake),
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING);
-	enable_irq_wake(gpio_to_irq(gpio_link_hostwake));
+	enable_irq_wake(gpio_to_irq(gpio_hostwake));
 
 	if (umts_modem_data.gpio_sim_detect) {
 		gpio_direction_output(gpio_sim_detect, 0);
@@ -212,8 +212,8 @@ static void modem_link_pm_config_gpio(void)
 {
 	int err = 0;
 	unsigned gpio_link_enable    = modem_link_pm_data.gpio_link_enable;
-	unsigned gpio_link_hostwake  = modem_link_pm_data.gpio_link_hostwake;
-	unsigned gpio_link_slavewake = modem_link_pm_data.gpio_link_slavewake;
+	unsigned gpio_hostwake  = modem_link_pm_data.gpio_hostwake;
+	unsigned gpio_slavewake = modem_link_pm_data.gpio_slavewake;
 
 	if (gpio_link_enable) {
 		err = gpio_request(gpio_link_enable, "LINK_EN");
@@ -225,29 +225,29 @@ static void modem_link_pm_config_gpio(void)
 		gpio_free(gpio_link_enable);
 	}
 
-	if (gpio_link_hostwake) {
-		err = gpio_request(gpio_link_hostwake, "HOSTWAKE");
+	if (gpio_hostwake) {
+		err = gpio_request(gpio_hostwake, "HOSTWAKE");
 		if (err) {
 			printk(KERN_ERR "fail to request gpio %s : %d\n",
 			       "HOSTWAKE", err);
 		}
-		gpio_direction_input(gpio_link_hostwake);
-		s3c_gpio_cfgpin(gpio_link_hostwake, S3C_GPIO_SFN(0xF));
-		s3c_gpio_setpull(gpio_link_hostwake, S3C_GPIO_PULL_NONE);
+		gpio_direction_input(gpio_hostwake);
+		s3c_gpio_cfgpin(gpio_hostwake, S3C_GPIO_SFN(0xF));
+		s3c_gpio_setpull(gpio_hostwake, S3C_GPIO_PULL_NONE);
 	}
 
-	if (gpio_link_slavewake) {
-		err = gpio_request(gpio_link_slavewake, "SLAVEWAKE");
+	if (gpio_slavewake) {
+		err = gpio_request(gpio_slavewake, "SLAVEWAKE");
 		if (err) {
 			printk(KERN_ERR "fail to request gpio %s : %d\n",
 			       "SLAVEWAKE", err);
 		}
-		gpio_direction_output(gpio_link_slavewake, 0);
-		s3c_gpio_setpull(gpio_link_slavewake, S3C_GPIO_PULL_NONE);
+		gpio_direction_output(gpio_slavewake, 0);
+		s3c_gpio_setpull(gpio_slavewake, S3C_GPIO_PULL_NONE);
 	}
 
-	if (gpio_link_hostwake)
-		irq_set_irq_type(gpio_to_irq(gpio_link_hostwake),
+	if (gpio_hostwake)
+		irq_set_irq_type(gpio_to_irq(gpio_hostwake),
 				IRQ_TYPE_EDGE_BOTH);
 
 	printk(KERN_INFO "modem_link_pm_config_gpio done\n");

@@ -561,19 +561,19 @@ static inline int link_pm_slave_wake(struct link_pm_data *pm_data)
 	int val;
 
 	/* when slave device is in sleep, wake up slave cpu first */
-	val = gpio_get_value(pm_data->gpio_link_hostwake);
+	val = gpio_get_value(pm_data->gpio_hostwake);
 	if (val != HOSTWAKE_TRIGLEVEL) {
-		if (gpio_get_value(pm_data->gpio_link_slavewake)) {
-			link_pm_set_slave_wakeup(pm_data->gpio_link_slavewake, 0);
+		if (gpio_get_value(pm_data->gpio_slavewake)) {
+			link_pm_set_slave_wakeup(pm_data->gpio_slavewake, 0);
 			mif_debug("[SWK][1]=>[0]:[%d]\n",
-				gpio_get_value(pm_data->gpio_link_slavewake));
+				gpio_get_value(pm_data->gpio_slavewake));
 			mdelay(5);
 		}
-		link_pm_set_slave_wakeup(pm_data->gpio_link_slavewake, 1);
+		link_pm_set_slave_wakeup(pm_data->gpio_slavewake, 1);
 		mif_debug("[SWK][0]=>[1]:[%d]\n",
-				gpio_get_value(pm_data->gpio_link_slavewake));
+				gpio_get_value(pm_data->gpio_slavewake));
 		/* wait host wake signal*/
-		while (spin-- && gpio_get_value(pm_data->gpio_link_hostwake) !=
+		while (spin-- && gpio_get_value(pm_data->gpio_hostwake) !=
 							HOSTWAKE_TRIGLEVEL)
 			mdelay(5);
 		if (spin == 0)
@@ -730,7 +730,7 @@ static irqreturn_t host_wakeup_irq_handler(int irq, void *data)
 	struct platform_device *pdev_modem = pm_data->pdev_modem;
 	struct modem_ctl *mc = platform_get_drvdata(pdev_modem);
 
-	value = gpio_get_value(pm_data->gpio_link_hostwake);
+	value = gpio_get_value(pm_data->gpio_hostwake);
 	mif_debug("\n[HWK]<=[%d]\n", value);
 
 	/*igonore host wakeup interrupt at suspending kernel*/
@@ -746,7 +746,7 @@ static irqreturn_t host_wakeup_irq_handler(int irq, void *data)
 			if (mc->l2_done) {
 				complete(mc->l2_done);
 				mc->l2_done = NULL;
-				link_pm_set_slave_wakeup(pm_data->gpio_link_slavewake, 0);
+				link_pm_set_slave_wakeup(pm_data->gpio_slavewake, 0);
 			}
 		}
 	} else {
@@ -755,7 +755,7 @@ static irqreturn_t host_wakeup_irq_handler(int irq, void *data)
 				complete(mc->l2_done);
 				mc->l2_done = NULL;
 			}
-			link_pm_set_slave_wakeup(pm_data->gpio_link_slavewake, 0);
+			link_pm_set_slave_wakeup(pm_data->gpio_slavewake, 0);
 		} else {
 			queue_delayed_work(pm_data->wq, &pm_data->link_pm_work, 0);
 		}
@@ -800,7 +800,7 @@ static int link_pm_notifier_event(struct notifier_block *this,
 	case PM_POST_SUSPEND:
 		pm_data_release_device(pm_data);
 		pm_data->dpm_suspending = false;
-		if (gpio_get_value(pm_data->gpio_link_hostwake)
+		if (gpio_get_value(pm_data->gpio_hostwake)
 			== HOSTWAKE_TRIGLEVEL) {
 			queue_delayed_work(pm_data->wq, &pm_data->link_pm_work,
 				0);
@@ -1218,10 +1218,10 @@ static int usb_link_pm_init(struct usb_link_device *usb_ld, void *data)
 	pm_data->gpio_link_active = pdata->gpio_host_active;
 
 	pm_data->gpio_link_enable = pm_pdata->gpio_link_enable;
-	pm_data->gpio_link_hostwake = pm_pdata->gpio_link_hostwake;
-	pm_data->gpio_link_slavewake = pm_pdata->gpio_link_slavewake;
+	pm_data->gpio_hostwake = pm_pdata->gpio_hostwake;
+	pm_data->gpio_slavewake = pm_pdata->gpio_slavewake;
 
-	pm_data->irq_link_hostwake = gpio_to_irq(pm_data->gpio_link_hostwake);
+	pm_data->irq_link_hostwake = gpio_to_irq(pm_data->gpio_hostwake);
 
 	modem_hsic_get_modemctl(pm_data)->irq_link_hostwake =
 						pm_data->irq_link_hostwake;

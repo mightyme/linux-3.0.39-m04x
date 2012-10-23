@@ -549,8 +549,8 @@ struct modem_ctl {
 	unsigned gpio_cp_off;
 	unsigned gpio_sim_detect;
 	unsigned gpio_dynamic_switching;
-	unsigned gpio_link_hostwake;
-	unsigned gpio_link_slavewake;
+	unsigned gpio_hostwake;
+	unsigned gpio_slavewake;
 
 	int irq_phone_active;
 	int irq_modem_reset;

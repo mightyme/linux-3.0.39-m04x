@@ -214,7 +214,7 @@ int modem_is_host_wakeup(void)
 	if (!mc)
 		return 0;
 	else
-		return (gpio_get_value(mc->gpio_link_hostwake)
+		return (gpio_get_value(mc->gpio_hostwake)
 					== HOSTWAKE_TRIGLEVEL) ? 1 : 0;
 }
 EXPORT_SYMBOL_GPL(modem_is_host_wakeup);
@@ -226,13 +226,13 @@ void modem_set_slave_wakeup(void)
 	if (!mc)
 		return;
 
-	if (gpio_get_value(mc->gpio_link_hostwake)) {
+	if (gpio_get_value(mc->gpio_hostwake)) {
 		pr_info("[MODEM_IF] Slave Wake\n");
-		if (gpio_get_value(mc->gpio_link_slavewake)) {
-			gpio_direction_output(mc->gpio_link_slavewake, 0);
+		if (gpio_get_value(mc->gpio_slavewake)) {
+			gpio_direction_output(mc->gpio_slavewake, 0);
 			mdelay(10);
 		}
-		gpio_direction_output(mc->gpio_link_slavewake, 1);
+		gpio_direction_output(mc->gpio_slavewake, 1);
 	}
 }
 EXPORT_SYMBOL_GPL(modem_set_slave_wakeup);
@@ -555,8 +555,8 @@ int xmm6260_init_modemctl_device(struct modem_ctl *mc,
 	mc->gpio_host_active         = pdata->gpio_host_active;
 	mc->gpio_reset_req_n         = pdata->gpio_reset_req_n;
 	mc->gpio_cp_reset_int        = pdata->gpio_cp_reset_int;
-	mc->gpio_link_hostwake       = pdata->gpio_link_hostwake;
-	mc->gpio_link_slavewake      = pdata->gpio_link_slavewake;
+	mc->gpio_hostwake       = pdata->gpio_hostwake;
+	mc->gpio_slavewake      = pdata->gpio_slavewake;
 
 	mc->gpio_revers_bias_clear   = pdata->gpio_revers_bias_clear;
 	mc->gpio_revers_bias_restore = pdata->gpio_revers_bias_restore;
