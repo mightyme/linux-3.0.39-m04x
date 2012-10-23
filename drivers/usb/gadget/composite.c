@@ -29,6 +29,12 @@
 #include <linux/usb/composite.h>
 #include <asm/unaligned.h>
 
+#define _DBG(d, fmt, args...) \
+	dev_info(&(d)->gadget->dev , fmt , ## args)
+
+#define _VDBG(d, fmt, args...) \
+	dev_info(&(d)->gadget->dev , fmt , ## args)
+
 /*
  * The code in this file is utility code, used to build a gadget driver
  * from one or more "function" drivers, one or more "configuration"
@@ -93,7 +99,7 @@ int usb_add_function(struct usb_configuration *config,
 {
 	int	value = -EINVAL;
 
-	DBG(config->cdev, "adding '%s'/%p to config '%s'/%p\n",
+	_DBG(config->cdev, "adding '%s'/%p to config '%s'/%p\n",
 			function->name, function,
 			config->label, config);
 
@@ -127,7 +133,7 @@ int usb_add_function(struct usb_configuration *config,
 
 done:
 	if (value)
-		DBG(config->cdev, "adding '%s'/%p --> %d\n",
+		_DBG(config->cdev, "adding '%s'/%p --> %d\n",
 				function->name, function, value);
 	return value;
 }
@@ -468,7 +474,7 @@ static void reset_config(struct usb_composite_dev *cdev)
 {
 	struct usb_function		*f;
 
-	DBG(cdev, "reset config\n");
+	_DBG(cdev, "reset config\n");
 
 	list_for_each_entry(f, &cdev->config->functions, list) {
 		if (f->disable)
@@ -565,7 +571,7 @@ static int set_config(struct usb_composite_dev *cdev,
 
 		result = f->set_alt(f, tmp, 0);
 		if (result < 0) {
-			DBG(cdev, "interface %d (%s/%p) alt 0 --> %d\n",
+			_DBG(cdev, "interface %d (%s/%p) alt 0 --> %d\n",
 					tmp, f->name, f, result);
 
 			reset_config(cdev);
@@ -573,11 +579,11 @@ static int set_config(struct usb_composite_dev *cdev,
 		}
 
 		if (result == USB_GADGET_DELAYED_STATUS) {
-			DBG(cdev,
+			_DBG(cdev,
 			 "%s: interface %d (%s) requested delayed status\n",
 					__func__, tmp, f->name);
 			cdev->delayed_status++;
-			DBG(cdev, "delayed_status count %d\n",
+			_DBG(cdev, "delayed_status count %d\n",
 					cdev->delayed_status);
 		}
 	}
@@ -614,7 +620,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 	int				status = -EINVAL;
 	struct usb_configuration	*c;
 
-	DBG(cdev, "adding config #%u '%s'/%p\n",
+	_DBG(cdev, "adding config #%u '%s'/%p\n",
 			config->bConfigurationValue,
 			config->label, config);
 
@@ -643,7 +649,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 	} else {
 		unsigned	i;
 
-		DBG(cdev, "cfg %d/%p speeds:%s%s%s\n",
+		_DBG(cdev, "cfg %d/%p speeds:%s%s%s\n",
 			config->bConfigurationValue, config,
 			config->superspeed ? " super" : "",
 			config->highspeed ? " high" : "",
@@ -658,7 +664,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 
 			if (!f)
 				continue;
-			DBG(cdev, "  interface %d = %s/%p\n",
+			_DBG(cdev, "  interface %d = %s/%p\n",
 				i, f->name, f);
 		}
 	}
@@ -670,7 +676,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 
 done:
 	if (status)
-		DBG(cdev, "added config '%s'/%u --> %d\n", config->label,
+		_DBG(cdev, "added config '%s'/%u --> %d\n", config->label,
 				config->bConfigurationValue, status);
 	return status;
 }
@@ -685,14 +691,14 @@ static int remove_config(struct usb_composite_dev *cdev,
 				struct usb_function, list);
 		list_del(&f->list);
 		if (f->unbind) {
-			DBG(cdev, "unbind function '%s'/%p\n", f->name, f);
+			_DBG(cdev, "unbind function '%s'/%p\n", f->name, f);
 			f->unbind(config, f);
 			/* may free memory for "f" */
 		}
 	}
 	list_del(&config->list);
 	if (config->unbind) {
-		DBG(cdev, "unbind config '%s'/%p\n", config->label, config);
+		_DBG(cdev, "unbind config '%s'/%p\n", config->label, config);
 		config->unbind(config);
 			/* may free memory for "c" */
 	}
@@ -945,7 +951,7 @@ int usb_string_ids_n(struct usb_composite_dev *c, unsigned n)
 static void composite_setup_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	if (req->status || req->actual != req->length)
-		DBG((struct usb_composite_dev *) ep->driver_data,
+		_DBG((struct usb_composite_dev *) ep->driver_data,
 				"setup complete --> %d, %d/%d\n",
 				req->status, req->actual, req->length);
 }
@@ -1044,11 +1050,11 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 			goto unknown;
 		if (gadget_is_otg(gadget)) {
 			if (gadget->a_hnp_support)
-				DBG(cdev, "HNP available\n");
+				_DBG(cdev, "HNP available\n");
 			else if (gadget->a_alt_hnp_support)
-				DBG(cdev, "HNP on another port\n");
+				_DBG(cdev, "HNP on another port\n");
 			else
-				VDBG(cdev, "HNP inactive\n");
+				_VDBG(cdev, "HNP inactive\n");
 		}
 		spin_lock(&cdev->lock);
 		value = set_config(cdev, ctrl, w_value);
@@ -1079,11 +1085,11 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 			break;
 		value = f->set_alt(f, w_index, w_value);
 		if (value == USB_GADGET_DELAYED_STATUS) {
-			DBG(cdev,
+			_DBG(cdev,
 			 "%s: interface %d (%s) requested delayed status\n",
 					__func__, intf, f->name);
 			cdev->delayed_status++;
-			DBG(cdev, "delayed_status count %d\n",
+			_DBG(cdev, "delayed_status count %d\n",
 					cdev->delayed_status);
 		}
 		break;
@@ -1159,7 +1165,7 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 		break;
 	default:
 unknown:
-		VDBG(cdev,
+		_VDBG(cdev,
 			"non-core control req%02x.%02x v%04x i%04x l%d\n",
 			ctrl->bRequestType, ctrl->bRequest,
 			w_value, w_index, w_length);
@@ -1209,7 +1215,7 @@ unknown:
 		req->zero = value < w_length;
 		value = usb_ep_queue(gadget->ep0, req, GFP_ATOMIC);
 		if (value < 0) {
-			DBG(cdev, "ep_queue --> %d\n", value);
+			_DBG(cdev, "ep_queue --> %d\n", value);
 			req->status = 0;
 			composite_setup_complete(gadget->ep0, req);
 		}
@@ -1408,7 +1414,7 @@ composite_suspend(struct usb_gadget *gadget)
 	/* REVISIT:  should we have config level
 	 * suspend/resume callbacks?
 	 */
-	DBG(cdev, "suspend\n");
+	_DBG(cdev, "suspend\n");
 	if (cdev->config) {
 		list_for_each_entry(f, &cdev->config->functions, list) {
 			if (f->suspend)
@@ -1433,7 +1439,7 @@ composite_resume(struct usb_gadget *gadget)
 	/* REVISIT:  should we have config level
 	 * suspend/resume callbacks?
 	 */
-	DBG(cdev, "resume\n");
+	_DBG(cdev, "resume\n");
 	if (composite->resume)
 		composite->resume(cdev);
 	if (cdev->config) {
@@ -1540,18 +1546,18 @@ void usb_composite_setup_continue(struct usb_composite_dev *cdev)
 	struct usb_request	*req = cdev->req;
 	unsigned long		flags;
 
-	DBG(cdev, "%s\n", __func__);
+	_DBG(cdev, "%s\n", __func__);
 	spin_lock_irqsave(&cdev->lock, flags);
 
 	if (cdev->delayed_status == 0) {
 		WARN(cdev, "%s: Unexpected call\n", __func__);
 
 	} else if (--cdev->delayed_status == 0) {
-		DBG(cdev, "%s: Completing delayed status\n", __func__);
+		_DBG(cdev, "%s: Completing delayed status\n", __func__);
 		req->length = 0;
 		value = usb_ep_queue(cdev->gadget->ep0, req, GFP_ATOMIC);
 		if (value < 0) {
-			DBG(cdev, "ep_queue --> %d\n", value);
+			_DBG(cdev, "ep_queue --> %d\n", value);
 			req->status = 0;
 			composite_setup_complete(cdev->gadget->ep0, req);
 		}
