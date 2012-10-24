@@ -109,8 +109,51 @@ out:
 	return err;
 }
 
+static char device_sn[256];
+static char device_mac[6];
+
+extern int meizu_set_sn(char *sn, int size);
+
+static void init_device_sn(void)
+{
+	int offset = slot_to_offset(0);//sn slot 0
+	int16_t len;
+
+	deal_private_block(0, offset, PRIVATE_ENTRY_BLOCK_SIZE, private_entry_buf);
+
+	len = *(int16_t *)(private_entry_buf + PRIVATE_ENTRY_SIG_SIZE);
+
+	memcpy(device_sn, private_entry_buf + PRIVATE_ENTRY_SIG_SIZE + sizeof(len), len);
+
+	meizu_set_sn(device_sn, sizeof(device_sn));
+	pr_info("@@@@ SN %s\n", device_sn);
+}
+
+static void init_device_mac(void)
+{
+	int offset = slot_to_offset(1);//mac slot 1
+
+	deal_private_block(0, offset, PRIVATE_ENTRY_BLOCK_SIZE, private_entry_buf);
+
+	memcpy(device_sn, private_entry_buf + PRIVATE_ENTRY_SIG_SIZE + sizeof(int16_t), 6);
+
+	pr_info("@@@@ MAC %02X:%02X:%02X:%02X:%02X:%02X",
+			device_mac[0], device_mac[1], device_mac[2],
+			device_mac[3], device_mac[4], device_mac[5]);
+}
+
+void get_mac_form_device(unsigned char *buf)
+{
+	memcpy(buf, device_mac, sizeof(device_mac));
+	buf[0] = 0x38;
+	buf[1] = 0xBC;
+	buf[2] = 0x1A;
+}
+
 static int __init security_init(void)
 {
+	init_device_sn();
+	init_device_mac();
 	return 0;
 }
 

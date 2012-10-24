@@ -156,6 +156,18 @@ static struct usb_configuration android_config_driver = {
 	.bmAttributes	= USB_CONFIG_ATT_ONE | USB_CONFIG_ATT_SELFPOWER,
 	.bMaxPower	= 0xFA, /* 500ma */
 };
+
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+int meizu_set_sn(char *sn, int size)
+{
+	int n = sizeof(serial_string);
+	if(n > size)
+		n = size;
+	strncpy(serial_string, sn, n - 1);
+	return 0;
+}
+#endif
+
 #if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 int android_usb_set_machine_info(char *mfg, char *prod, char *sn)
 {

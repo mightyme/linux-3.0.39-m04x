@@ -277,6 +277,49 @@ static void *brcm_wlan_get_country_code(char *ccode)
 	return &brcm_wlan_translate_custom_table[0];
 }
 
+#if 0
+extern void get_mac_form_device(unsigned char *buf);
+
+static int brcm_wlan_get_mac_addr(unsigned char *buf)
+{
+	struct file *fp      = NULL;
+	char macbuffer[18]   = {0};
+	mm_segment_t oldfs    = {0};
+	char *mac_file       = "/data/calibration/mac_addr";
+	int ret = 0;
+
+	get_mac_form_device(buf);
+	fp = filp_open(mac_file, O_RDONLY, 0);
+	if (IS_ERR(fp)) {
+		pr_info("%s: write file %s\n", __func__, mac_file);
+
+		snprintf(macbuffer, sizeof(macbuffer),"%02X:%02X:%02X:%02X:%02X:%02X\n",
+				buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
+
+		fp = filp_open(mac_file, O_RDWR | O_CREAT, 0644);
+		if (IS_ERR(fp)) {
+			pr_err("%s:create file %s error(%ld)\n", __func__, mac_file, IS_ERR(fp));
+		} else {
+			oldfs = get_fs();
+			set_fs(get_ds());
+
+			if (fp->f_mode & FMODE_WRITE) {
+				ret = fp->f_op->write(fp, (const char *)macbuffer,
+						sizeof(macbuffer), &fp->f_pos);
+				if (ret < 0)
+					pr_err("%s:write file %s error(%d)\n", __func__, mac_file, ret);
+			}
+			set_fs(oldfs);
+			filp_close(fp, NULL);
+		}
+
+	}
+
+	pr_info("mac address mac=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
+
+	return 0;
+}
+#else
 static int brcm_wlan_get_mac_addr(unsigned char *buf)
 {
 	struct file *fp      = NULL;
@@ -312,6 +355,7 @@ static int brcm_wlan_get_mac_addr(unsigned char *buf)
 
 	return 0;
 }
+#endif
 
 static struct wifi_platform_data wifi_pdata = {
 	.set_power = wlan_power_en,
