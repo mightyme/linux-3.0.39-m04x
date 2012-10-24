@@ -479,6 +479,8 @@ static int __devinit exynos4_tmu_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to initialize TMU\n");
 		goto err_clk;
 	}
+	
+	exynos4_tmu_control(pdev, true);
 
 #ifdef CONFIG_SAMSUNG_THERMAL_INTERFACE
 	exynos4_sensor_conf.private_data = data;
@@ -502,8 +504,6 @@ static int __devinit exynos4_tmu_probe(struct platform_device *pdev)
 	}
 #endif
 
-	exynos4_tmu_control(pdev, true);
-	
 	return 0;
 
 err_clk:
