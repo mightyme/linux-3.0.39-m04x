@@ -563,6 +563,10 @@ void OpenAIF2(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_4,WM8994_AIF2ADCL_ENA_MASK|WM8994_AIF2ADCR_ENA_MASK|WM8994_ADCL_ENA_MASK|WM8994_ADCR_ENA_MASK,
 			WM8994_AIF2ADCL_ENA|WM8994_AIF2ADCR_ENA|WM8994_ADCL_ENA|WM8994_ADCR_ENA);
 
+	snd_soc_update_bits(codec, WM8994_AIF2_DRC_1, WM8994_AIF2DAC_DRC_ENA_MASK, WM8994_AIF2DAC_DRC_ENA);
+	snd_soc_update_bits(codec, WM8994_AIF2_DRC_2, WM8994_AIF2DRC_MINGAIN_MASK | WM8994_AIF2DRC_MAXGAIN_MASK, 2 << WM8994_AIF2DRC_MINGAIN_SHIFT | 0 << WM8994_AIF2DRC_MAXGAIN_SHIFT);
+	snd_soc_update_bits(codec, WM8994_AIF2_DRC_3, WM8994_AIF2DRC_LO_COMP_MASK | WM8994_AIF2DRC_HI_COMP_MASK, 0 << WM8994_AIF2DRC_LO_COMP_SHIFT | 3 << WM8994_AIF2DRC_HI_COMP_SHIFT);
+	snd_soc_write(codec, WM8994_AIF2_DRC_4, 0x1ef); // input == output = -11.25 db
 }
 
 
@@ -1030,11 +1034,11 @@ int set_capture_path(struct snd_soc_codec *codec,u8 capture_path)
 	switch(capture_path)
 	{
 		case CAPTURE_MAIN_MIC_NORMAL:
-			SetVolume_Mixerin_spk(codec);
+			SetVolume_Mixerin_rec(codec);
 			break;
 
 		case CAPTURE_SECOND_MIC_NORMAL:
-			SetVolume_Mixerin_rec(codec);
+			SetVolume_Mixerin_spk(codec);
 			break;
 
 		case CAPTURE_HAND_MIC_NORMAL:

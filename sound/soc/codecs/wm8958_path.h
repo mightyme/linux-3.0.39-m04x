@@ -48,34 +48,34 @@
 
 #define	VOL_INCALL_SPK_BOOST		(4<<WM8994_SPKOUTL_BOOST_SHIFT)		// 6dB
 
-#define	VOL_INCALL_SPK				(0x39+6)							// 2dB 0dB = 0x39
-#define	VOL_INCALL_REC				(0x39+4)							// 2dB 0dB = 0x39
-#define	VOL_INCALL_AIF2DAC_BOOST	(1<<WM8994_AIF2DAC_BOOST_SHIFT)		// 6dB
-#define	VOL_INCALL_HP				(0x39-6)							// -6dB
+#define	VOL_INCALL_SPK				(0x39+6)							// 6dB 0dB = 0x39
+#define	VOL_INCALL_REC				(0x39+6)							// 3dB 0dB = 0x39
+#define	VOL_INCALL_AIF2DAC_BOOST	(0<<WM8994_AIF2DAC_BOOST_SHIFT)		// 0dB
+#define	VOL_INCALL_HP				(0x39+0)							// 0dB
 #define	VOL_INCALL_HP2				(0<<WM8994_HPOUT2_VOL_SHIFT)		// 0:0dB  1: -6dB
 
 #define	VOL_VOIP_SPK				(0x39+4)							//4dB 0dB = 0x39
 #define	VOL_VOIP_SPK_BOOST			(4<<WM8994_SPKOUTL_BOOST_SHIFT)		// 6dB
 #define	VOL_VOIP_REC				(0x39+4)							// 4dB
 #define	VOL_VOIP_HP2				(0<<WM8994_HPOUT2_VOL_SHIFT)		// 0:0dB  1: -6dB
-#define	VOL_VOIP_HP					(0x39-6)							// -6dB
+#define	VOL_VOIP_HP					(0x39+0)							// 0dB
 #define	VOL_VOIP_AIF2DAC_BOOST			(1<<WM8994_AIF2DAC_BOOST_SHIFT)		// 6dB
 
 // 0x19 = +21dB  0x1F = +30dB 0x07 = -6dB
-#define	VOL_IN1L_BOOST_SPK					(1<<WM8994_IN1L_MIXINL_VOL_SHIFT)	// +30dB
+#define	VOL_IN1L_BOOST_SPK					(0<<WM8994_IN1L_MIXINL_VOL_SHIFT)	// +30dB
+#define	VOL_IN1R_BOOST_SPK					(0<<WM8994_IN1R_MIXINR_VOL_SHIFT)	// +30dB
 #define	VOL_IN2L_BOOST_SPK					(1<<WM8994_IN2L_MIXINL_VOL_SHIFT)	// +30dB
-#define	VOL_IN1R_BOOST_SPK					(1<<WM8994_IN1R_MIXINR_VOL_SHIFT)	// +30dB
-#define	VOL_IN1L_SPK					(0x0B)	// 0dB
-#define	VOL_IN1R_SPK					(0x0F)	// 6db  = 11 + 4*1.5dB
-#define	VOL_IN2L_SPK					(0x0B)	// 0dB
+#define	VOL_IN1L_SPK					(0x1D)	// +27dB
+#define	VOL_IN1R_SPK					(0x1D)	// +27dB
+#define	VOL_IN2L_SPK					(0x11)	// +9dB
 
 // 0x19 = +21dB  0x1F = +30dB 0x07 = -6dB
 #define	VOL_IN1L_BOOST_REC					(0<<WM8994_IN1L_MIXINL_VOL_SHIFT)	// 0dB
-#define	VOL_IN2L_BOOST_REC					(0<<WM8994_IN2L_MIXINL_VOL_SHIFT)	// 0dB
 #define	VOL_IN1R_BOOST_REC					(0<<WM8994_IN1R_MIXINR_VOL_SHIFT)	// 0dB
-#define	VOL_IN1L_REC					(0x1D)	// +25dB
-#define	VOL_IN1R_REC					(0x1D)	// +25dB
-#define	VOL_IN2L_REC					(0x1D)	// +25dB
+#define	VOL_IN2L_BOOST_REC					(0<<WM8994_IN2L_MIXINL_VOL_SHIFT)	// 0dB
+#define	VOL_IN1L_REC					(0x1A)	// +22.5dB
+#define	VOL_IN1R_REC					(0x1E)	// +28.5dB
+#define	VOL_IN2L_REC					(0x1D)	// +27dB
 
 #define	VOL_AIF1_ADC1_RIGHT				(0xE0<<WM8994_AIF1ADC1R_VOL_SHIFT)	// +12dB
 #define	VOL_AIF1_ADC1_LEFT				(0xE0<<WM8994_AIF1ADC1L_VOL_SHIFT)	// +12dB
