@@ -52,5 +52,4 @@ obj-$(CONFIG_S5P_DEV_DSIM)	+= dev-dsim.o
 obj-$(CONFIG_S5P_SETUP_MIPIPHY)	+= setup-mipiphy.o
 obj-$(CONFIG_S5P_DEV_THERMAL)	+= dev-tmu.o
 obj-$(CONFIG_S5P_DEV_ACE) 	+= dev-ace.o
-obj-$(CONFIG_ION)		+= s5p_iovmm.o
 obj-$(CONFIG_S5P_DEV_I2C_HDMIPHY)	+= dev-i2c-hdmiphy.o

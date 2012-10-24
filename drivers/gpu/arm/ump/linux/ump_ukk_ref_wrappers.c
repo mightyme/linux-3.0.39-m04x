@@ -24,7 +24,7 @@
 #ifdef CONFIG_ION_EXYNOS
 #include <linux/ion.h>
 #include <linux/scatterlist.h>
-#include "../../../../../gpu/ion/ion_priv.h"
+#include "../../../../gpu/ion/ion_priv.h"
 #include "ump_kernel_interface_ref_drv.h"
 #include "mali_osk_list.h"
 extern struct ion_device *ion_exynos;

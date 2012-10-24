@@ -194,7 +194,14 @@ static struct cma_region m040_regions[] = {
 		.name = "logger",
 		.size = CONFIG_ANDROID_LOGGER_MEMSIZE * SZ_1K * 4 + PAGE_SIZE * 2,
 		.start = 0,
-	}, {
+	}, 
+#ifdef CONFIG_ION_EXYNOS_CONTIGHEAP_SIZE
+	{
+		.name	= "ion",
+		.size	= CONFIG_ION_EXYNOS_CONTIGHEAP_SIZE * SZ_1K,
+	},
+#endif
+	{
 		.size = 0
 	},
 };

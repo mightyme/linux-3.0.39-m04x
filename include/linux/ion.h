@@ -36,8 +36,8 @@ enum ion_heap_type {
 	ION_HEAP_TYPE_CUSTOM, /* must be last so device specific heaps always
 				 are at the end of this enum */
 #ifdef CONFIG_ION_EXYNOS
-	ION_HEAP_TYPE_EXYNOS,
 	ION_HEAP_TYPE_EXYNOS_CONTIG,
+	ION_HEAP_TYPE_EXYNOS,
 	ION_HEAP_TYPE_EXYNOS_USER,
 #endif
 	ION_NUM_HEAPS,
@@ -51,6 +51,7 @@ enum ion_heap_type {
 #define ION_HEAP_EXYNOS_MASK		(1 << ION_HEAP_TYPE_EXYNOS)
 #define ION_HEAP_EXYNOS_CONTIG_MASK	(1 << ION_HEAP_TYPE_EXYNOS_CONTIG)
 #define ION_HEAP_EXYNOS_USER_MASK	(1 << ION_HEAP_TYPE_EXYNOS_USER)
+#define ION_EXYNOS_NONCACHE_MASK	(1 << (BITS_PER_LONG - 2))
 #define ION_EXYNOS_WRITE_MASK		(1 << (BITS_PER_LONG - 1))
 #endif
 
@@ -279,18 +280,19 @@ struct ion_handle *ion_import_fd(struct ion_client *client, int fd);
  * ION_IOC_SHARE ioctl.
  * This function does same job with ion_import_fd().
  */
-struct ion_handle *ion_import_uva(struct ion_client *client, unsigned long uva);
+struct ion_handle *ion_import_uva(struct ion_client *client, unsigned long uva,
+								off_t *offset);
 
 #ifdef CONFIG_ION_EXYNOS
 struct ion_handle *ion_exynos_get_user_pages(struct ion_client *client,
 			unsigned long uvaddr, size_t len, unsigned int flags);
 #else
-#include <err.h>
+#include <linux/err.h>
 static inline struct ion_handle *ion_exynos_get_user_pages(
 				struct ion_client *client, unsigned long uvaddr,
 				size_t len, unsigned int flags)
 {
-	return PTR_ERR(-ENOSYS);
+	return ERR_PTR(-ENOSYS);
 }
 #endif
 

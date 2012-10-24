@@ -71,6 +71,7 @@
 #ifdef CONFIG_XMM6260_MODEM
 #include <mach/modem.h>
 #endif
+#include <mach/exynos-ion.h>
 #include <plat/regs-serial.h>
 #include <plat/exynos4.h>
 #include <plat/cpu.h>
@@ -1009,6 +1010,9 @@ static struct platform_device __initdata *m040_devices[]  = {
 #ifdef CONFIG_SND_SOC_MX_WM8958
 	&m040_audio_device,
 #endif
+#ifdef CONFIG_ION_EXYNOS
+	&exynos_device_ion,
+#endif
 #ifdef CONFIG_VIDEO_TVOUT
 	&s5p_device_tvout,
 	&s5p_device_cec,
@@ -1234,7 +1238,9 @@ static void __init m040_machine_init(void)
 #if defined(CONFIG_SAMSUNG_DEV_BACKLIGHT)
 	samsung_bl_set(&m040_bl_gpio_info, &m040_bl_data);
 #endif
-
+#ifdef CONFIG_ION_EXYNOS
+	exynos_ion_set_platdata();
+#endif
 #ifdef CONFIG_S3C_DEV_HWMON
 	s3c_hwmon_set_platdata(&m040_hwmon_pdata);
 #endif
