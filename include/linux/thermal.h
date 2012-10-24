@@ -122,6 +122,7 @@ struct thermal_zone_device {
 	struct thermal_cooling_stats *stat;
 	int last_trip_level;
 	struct pm_qos_request qos_cpu_tmu_tc;
+	bool initialized;
 #ifdef CONFIG_ARCH_EXYNOS
 	bool cold_tc;
 	bool mem_th;

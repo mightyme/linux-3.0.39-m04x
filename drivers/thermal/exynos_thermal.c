@@ -474,6 +474,8 @@ int exynos4_register_thermal(struct thermal_sensor_conf *sensor_conf)
 		pr_err("Failed to initialize mail voltage lock.\n");
 		goto err_unregister;
 	}
+
+	th_zone->therm_dev->initialized = true;
 #endif
 
 	pr_debug("Exynos: Kernel Thermal management registered\n");

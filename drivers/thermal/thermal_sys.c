@@ -1092,14 +1092,16 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 			break;
 #ifdef CONFIG_ARCH_EXYNOS
 		case THERMAL_TRIP_START_COLD_TC:
-			if (temp <= trip_temp && tz->cold_tc == false) {
+			if (temp <= trip_temp && tz->cold_tc == false 
+				&& tz->initialized == true) {
 				tz->cold_tc = true;
 				if (tz->ops->notify)
 					tz->ops->notify(tz, count, trip_type);
 			}
 			break;
 		case THERMAL_TRIP_STOP_COLD_TC:
-			if (temp >= trip_temp && tz->cold_tc == true) {
+			if (temp >= trip_temp && tz->cold_tc == true
+				&& tz->initialized == true) {
 				tz->cold_tc = false;
 				if (tz->ops->notify)
 					tz->ops->notify(tz, count, trip_type);
