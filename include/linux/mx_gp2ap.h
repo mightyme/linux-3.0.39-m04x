@@ -146,16 +146,22 @@ struct gp2ap_data {
 	atomic_t opened;
 	int debug;
 
-	int als_data;
+	int als_data[2];
+	int current_range;
+	int current_intval_time;
 	int ps_data;
+	int prev_lux;
+	int prev_range;
 	u16 ps_near_threshold;	/* The count when barrier is at about 3 ~ 4cm */
 	u16 ps_far_threshold;	/* The count when barrier is at about 4 ~ 5cm */
 	u16 ps_calib_value;	/* The count when no barrier */
 	u8 ps_thresholds[4];
+	int CURRENT_ALS_RANGE[3];
 	int init_threshold_flag;
 	int reset_threshold_flag;
 	bool irq_wake_enabled;
 	bool calib_value_readed;
+	bool lowlight_mode;
 
 	struct mutex ioctl_lock;
 };
