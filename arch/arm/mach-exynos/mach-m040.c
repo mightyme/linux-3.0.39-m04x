@@ -1124,6 +1124,7 @@ static void __init m040_sysmmu_init(void)
 
 static void __init m040_map_io(void)
 {
+	int tmp;
 	clk_xusbxti.rate = 24000000;
 	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
 	s3c24xx_init_clocks(24000000);
@@ -1132,7 +1133,13 @@ static void __init m040_map_io(void)
 #if defined(CONFIG_S5P_MEM_CMA)
 	m040_reserve_mem();
 #endif
+
+	/*jtag reset pin set to pull down*/
+	tmp = __raw_readl(S5P_VA_GPIO2 + 0x208);
+	tmp |= 0x1;
+	__raw_writel(tmp, S5P_VA_GPIO2 + 0x208);
 }
+
 
 static void __init m040_machine_init(void)
 {
