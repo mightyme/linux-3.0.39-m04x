@@ -278,7 +278,7 @@ static int init_extra_partitioin(struct mmc_blk_data *md)
 				pr_err("error add partition %s\n", extra_partition[i].volname);
 			} else {
 				index++;
-				pr_info("add extra partion at mmcblk0p%d(%s), start_sec = %u, sec_num = %u\n",
+				pr_info("add extra partion at mmcblk0p%d(%s), start_sec = %llu, sec_num = %u\n",
 						i + 5, extra_partition[i].volname,
 						extra_partition[i].start_sec, extra_partition[i].sec_num);
 			}
