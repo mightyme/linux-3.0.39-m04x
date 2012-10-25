@@ -901,7 +901,7 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 	unsigned long data0, data1;
 	int gamma, alpha, beta;
         int ret;
-	unsigned long light_lux;
+	unsigned long light_lux =0;
 	bool gp2ap_reset_als = 0;
 
 	ret = gp2ap_i2c_read_multibytes(client, REG_D0_LSB, buf, 2);

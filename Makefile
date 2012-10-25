@@ -375,7 +375,7 @@ NEAK_FLAGS   = -marm -march=armv7-a -mfloat-abi=hard -mfpu=vfpv3 -mcpu=cortex-a9
 			   -fipa-cp-clone -pipe \
 			   -Wno-array-bounds -Wall
 else
-NEAK_FLAGS   = -marm -march=armv7-a
+NEAK_FLAGS   = -marm -march=armv7-a -Wall
 endif
 
 KBUILD_CFLAGS   := -Wundef -Wstrict-prototypes -Wno-trigraphs \
