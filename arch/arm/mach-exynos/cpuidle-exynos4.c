@@ -941,6 +941,26 @@ static struct notifier_block exynos4_leds_idle_nb = {
 	.notifier_call = exynos4_leds_idle_notifier,
 };
 #endif
+#ifdef CONFIG_HOTPLUG_CPU
+static int
+exynos4_cpu_hotplug_notifier(struct notifier_block *nfb, unsigned long action, void *hcpu)
+{
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_UP_PREPARE:
+		disable_hlt();
+		break;
+	case CPU_UP_CANCELED:
+	case CPU_ONLINE:
+		enable_hlt();
+		break;
+	};
+
+	return NOTIFY_OK;
+}
+static struct notifier_block exynos4_cpuhotplug_nb = {
+	.notifier_call		= exynos4_cpu_hotplug_notifier,
+};
+#endif
 
 static int __init exynos4_init_cpuidle(void)
 {
@@ -1027,6 +1047,9 @@ static int __init exynos4_init_cpuidle(void)
 		printk(KERN_ERR "failed to map io region\n");
 		return -EINVAL;
 	}
+#endif
+#ifdef CONFIG_HOTPLUG_CPU
+	register_cpu_notifier(&exynos4_cpuhotplug_nb);
 #endif
 	register_pm_notifier(&exynos4_cpuidle_notifier);
 	sys_pwr_conf_addr = (unsigned long)S5P_CENTRAL_SEQ_CONFIGURATION;
