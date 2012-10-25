@@ -800,7 +800,7 @@ struct vcm_mmu_res *mfc_vcm_bind(unsigned int addr, unsigned int size)
 
 	phys = vcm_alloc(vcm_info.sysmmu_vcm, size, 0);
 	if (IS_ERR(phys))
-		return ERR_PTR(PTR_ERR(phys));
+		return ERR_CAST(phys);
 
 	mfc_dbg("phys->size: 0x%08x\n", phys->size);
 	for (i = 0; i < phys->count; i++)
