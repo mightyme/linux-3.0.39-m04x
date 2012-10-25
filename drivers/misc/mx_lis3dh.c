@@ -1339,7 +1339,7 @@ static int __devinit lis3dh_acc_probe(struct i2c_client *client,
 	int err = -1;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		printk(KERN_ERR "LIS3DH lis3dh_acc_probe:check_functionality failed.\n");
+		pr_info("LIS3DH lis3dh_acc_probe:check_functionality failed.\n");
 		err = -ENODEV;
 		goto exit;
 	}
@@ -1352,10 +1352,8 @@ static int __devinit lis3dh_acc_probe(struct i2c_client *client,
 
 	acc = kzalloc(sizeof(struct lis3dh_acc_data), GFP_KERNEL);
 	if (acc == NULL) {
+		dev_err(&client->dev, "failed to allocate memory for acc data.\n");
 		err = -ENOMEM;
-		dev_err(&client->dev,
-				"failed to allocate memory for module data: "
-					"%d\n", err);
 		goto err_platformdata;
 	}
 
@@ -1364,16 +1362,14 @@ static int __devinit lis3dh_acc_probe(struct i2c_client *client,
 	acc->client = client;
 	i2c_set_clientdata(client, acc);
 
-	acc->pdata = kmalloc(sizeof(*acc->pdata), GFP_KERNEL);
+	acc->pdata = kmemdup(client->dev.platform_data,
+			        sizeof(struct lis3dh_acc_data),	GFP_KERNEL);
 	if (acc->pdata == NULL) {
-		err = -ENOMEM;
 		dev_err(&client->dev,
-				"failed to allocate memory for pdata: %d\n",
-				err);
+				"failed to allocate memory for pdata.\n");
+		err = -ENOMEM;
 		goto err_freedata;
 	}
-
-	memcpy(acc->pdata, client->dev.platform_data, sizeof(*acc->pdata));
 
 	err = lis3dh_acc_validate_pdata(acc);
 	if (err < 0) {

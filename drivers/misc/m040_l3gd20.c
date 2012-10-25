@@ -1012,11 +1012,10 @@ static int __devinit l3gd20_probe(struct i2c_client *client,
 	data->client = client;
 	gyro = data;
 
-	data->pdata = kmalloc(sizeof(*data->pdata), GFP_KERNEL);
-	if (data->pdata == NULL)
+	data->pdata = kmemdup(client->dev.platform_data,
+							sizeof(*data->pdata), GFP_KERNEL);
+	if (!data->pdata)
 		goto exit_kfree;
-
-	memcpy(data->pdata, client->dev.platform_data, sizeof(*data->pdata));
 
 	err = l3g4200d_validate_pdata(data);
 	if (err < 0) {
