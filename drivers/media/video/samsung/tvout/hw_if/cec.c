@@ -224,7 +224,7 @@ int __init s5p_cec_mem_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	size = (res->end - res->start) + 1;
+	size = resouce_size(res);
 	cec_mem = request_mem_region(res->start, size, pdev->name);
 
 	if (cec_mem == NULL) {

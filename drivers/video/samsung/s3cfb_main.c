@@ -426,14 +426,14 @@ static int s3cfb_probe(struct platform_device *pdev)
 			goto err1;
 		}
 		res = request_mem_region(res->start,
-					res->end - res->start + 1, pdev->name);
+					resource_size(res), pdev->name);
 		if (!res) {
 			dev_err(fbdev[i]->dev,
 				"failed to request io memory region\n");
 			ret = -EINVAL;
 			goto err1;
 		}
-		fbdev[i]->regs = ioremap(res->start, res->end - res->start + 1);
+		fbdev[i]->regs = ioremap(res->start, resource_size(res));
 		if (!fbdev[i]->regs) {
 			dev_err(fbdev[i]->dev, "failed to remap io region\n");
 			ret = -EINVAL;

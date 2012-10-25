@@ -403,7 +403,7 @@ static int ipc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	res = request_mem_region(res->start, res->end - res->start + 1,
+	res = request_mem_region(res->start, resource_size(res),
 								pdev->name);
 	if (!res) {
 		ipc_err("failed to request io memory region\n");
@@ -411,7 +411,7 @@ static int ipc_probe(struct platform_device *pdev)
 	}
 
 	/* ioremap for register block */
-	ipc->regs = ioremap(res->start, res->end - res->start + 1);
+	ipc->regs = ioremap(res->start, resource_size(res));
 	if (!ipc->regs) {
 		ipc_err("failed to remap io region\n");
 		return -EINVAL;

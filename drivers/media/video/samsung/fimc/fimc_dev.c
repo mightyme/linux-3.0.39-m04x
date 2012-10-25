@@ -693,7 +693,7 @@ static struct fimc_control *fimc_register_controller(struct platform_device *pde
 	}
 
 	/* request mem region */
-	res = request_mem_region(res->start, res->end - res->start + 1,
+	res = request_mem_region(res->start, resource_size(res),
 			pdev->name);
 	if (!res) {
 		fimc_err("%s: failed to request io memory region\n", __func__);
@@ -701,7 +701,7 @@ static struct fimc_control *fimc_register_controller(struct platform_device *pde
 	}
 
 	/* ioremap for register block */
-	ctrl->regs = ioremap(res->start, res->end - res->start + 1);
+	ctrl->regs = ioremap(res->start, resource_size(res));
 	if (!ctrl->regs) {
 		fimc_err("%s: failed to remap io region\n", __func__);
 		return NULL;

@@ -436,14 +436,14 @@ static int __devinit rotator_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	res = request_mem_region(res->start, res->end -	res->start + 1,
+	res = request_mem_region(res->start, resource_size(res),
 			pdev->name);
 	if (res	== NULL) {
 		printk(KERN_ERR	"failed	to reserved memory region\n");
 		return -ENOENT;
 	}
 
-	ctrl->regs = ioremap(res->start, res->end - res->start + 1);
+	ctrl->regs = ioremap(res->start, resource_size(res));
 	if (ctrl->regs == NULL)	{
 		printk(KERN_ERR	"failed	ioremap\n");
 		return -ENOENT;

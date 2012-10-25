@@ -100,7 +100,7 @@ int s5p_tvout_map_resource_mem(
 	if (!tmp_res)
 		goto not_found;
 
-	size = (tmp_res->end - tmp_res->start) + 1;
+	size = resource_size(tmp_res);
 
 	tmp_res = request_mem_region(tmp_res->start, size, tmp_res->name);
 
