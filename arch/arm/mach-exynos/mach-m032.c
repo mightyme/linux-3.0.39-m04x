@@ -60,9 +60,6 @@
 #ifdef CONFIG_BT
 #include <mach/mx-rfkill.h>
 #endif
-#ifdef CONFIG_XMM6260_MODEM
-#include <mach/modem.h>
-#endif
 #include <mach/exynos_fiq_debugger.h>
 
 #include <plat/regs-serial.h>
@@ -738,32 +735,6 @@ static struct platform_device wakeup_assist_device = {
 };
 #endif
 
-#ifdef CONFIG_XMM6260_MODEM
-static struct modem_platform_data xmm6260_data = {
-	.name = "xmm6260",
-	.gpio_phone_on = GPIO_MODEM_ON,
-	.gpio_cp_reset = GPIO_MODEM_RST,
-	.gpio_pmu_reset = GPIO_MODEM_RST_FULL,
-	.gpio_ipc_slave_wakeup = GPIO_SLAVE_WAKEUP,
-	.gpio_ipc_host_wakeup = GPIO_HOST_WAKEUP,
-	.gpio_suspend_request = GPIO_REQUEST_SUSPEND,
-	.gpio_active_state = GPIO_HOST_ACTIVE,
-	.gpio_cp_dump_int = GPIO_MODEM_DUMP_INT,
-	.gpio_cp_reset_int = GPIO_MODEM_RESET_INT,
-	.gpio_sim_detect_int = 0,
-	.wakeup = 1,
-};
-
-static struct platform_device xmm6260_modem = {
-	.name = "xmm_modem",
-	.id = -1,
-
-	.dev = {
-		.platform_data = &xmm6260_data,
-	},
-};
-#endif
-
 #ifdef CONFIG_EXYNOS4_DEV_PPMU
 /* image, peril, mfc_l, g3d */
 static struct exynos4_ppmu_pd __initdata ppmu_pd_dmc_l = {
@@ -912,9 +883,6 @@ static struct platform_device __initdata *m032_devices[]  = {
 	&s3c_device_rtc,
 #endif
 
-#ifdef CONFIG_XMM6260_MODEM
-	&xmm6260_modem,
-#endif	
 #if defined(CONFIG_USB_GADGET)	
 	&s3c_device_usbgadget,
 #endif

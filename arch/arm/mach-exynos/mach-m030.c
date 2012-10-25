@@ -94,9 +94,6 @@
 #ifdef CONFIG_SENSORS_L3G4200D
 #include <linux/mx_l3g4200d.h>
 #endif
-#ifdef CONFIG_XMM6260_MODEM
-#include <mach/modem.h>
-#endif
 #ifdef CONFIG_VIDEO_TVOUT
 #include <plat/tvout.h>
 #endif
@@ -687,31 +684,6 @@ static struct fimg2d_platdata __initdata fimg2d_data  = {
 	.clkrate = 267 * 1000000,	/* 266 Mhz */
 };
 #endif
-#ifdef CONFIG_XMM6260_MODEM
-static struct modem_platform_data xmm6260_data = {
-	.name = "xmm6260",
-	.gpio_phone_on = M030_GPIO_MODEM_ON,
-	.gpio_cp_reset = M030_GPIO_MODEM_RST,
-	.gpio_pmu_reset = M030_GPIO_MODEM_RST_FULL,
-	.gpio_ipc_slave_wakeup = M030_GPIO_SLAVE_WAKEUP,
-	.gpio_ipc_host_wakeup = M030_GPIO_HOST_WAKEUP,
-	.gpio_suspend_request = M030_GPIO_REQUEST_SUSPEND,
-	.gpio_active_state = M030_GPIO_HOST_ACTIVE,
-	.gpio_cp_dump_int = M030_GPIO_MODEM_DUMP_INT,
-	.gpio_cp_reset_int = M030_GPIO_MODEM_RESET_INT,
-	.gpio_sim_detect_int = M030_INT16_SIMDETECT,
-	.wakeup = 1,
-};
-
-static struct platform_device xmm6260_modem = {
-	.name = "xmm_modem",
-	.id = -1,
-
-	.dev = {
-		.platform_data = &xmm6260_data,
-	},
-};
-#endif
 #ifdef CONFIG_WAKEUP_ASSIST
 static struct platform_device wakeup_assist_device = {
 	.name   = "wakeup_assist",
@@ -916,10 +888,6 @@ static struct platform_device __initdata *m030_devices[]  = {
 	&m030_fixed_voltage8,
 	&wm8958_fixed_voltage0,
 	&wm8958_fixed_voltage1,
-#endif
-
-#ifdef CONFIG_XMM6260_MODEM
-	&xmm6260_modem,
 #endif
 
 #ifdef CONFIG_EXYNOS_IOMMU
