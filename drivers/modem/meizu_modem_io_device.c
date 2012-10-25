@@ -154,54 +154,25 @@ static int vnet_is_opened(struct net_device *ndev)
 	return (atomic_read(&vnet->iod->opened));
 }
 
-static int get_ip_packet_sz(struct io_device *iod)
+static int get_ip_packet_sz(struct io_device *iod, struct sk_buff *skb)
 {
-	struct sk_buff *tmp_skb = NULL;
-	struct sk_buff *skb = NULL;
-	struct sk_buff *skb2 = NULL;
 	struct iphdr rx_ip_hdr;
-	int pkt_sz;
+	int pkt_sz = 0;
 
-retry:
-	skb = skb_dequeue(&iod->rx_q);
 	if (!skb) {
 		return 0;
 	}
 	if (iod->atdebug)
 		iod->atdebugfunc(iod, skb->data, skb->len);
-	if (skb->len >= sizeof(struct iphdr)) {
+
+	if (skb->len >= sizeof(struct iphdr))
 		memcpy(&rx_ip_hdr, skb->data, sizeof(struct iphdr));
-		skb_queue_head(&iod->rx_q, skb);
-	} else {
-		/*combind two skb to one, and continue*/
-		skb2 = skb_dequeue(&iod->rx_q);
-		if (skb2 == NULL) {
-			skb_queue_head(&iod->rx_q, skb);
-			return -EINVAL;
-		} else {
-			tmp_skb = dev_alloc_skb(skb->len + skb2->len);
-			tmp_skb->len = 0;
-			if (tmp_skb) {
-				memcpy(skb_put(tmp_skb, skb->len),
-							skb->data, skb->len);
-				memcpy(skb_put(tmp_skb, skb2->len),
-							skb2->data, skb2->len);
-				dev_kfree_skb_any(skb);
-				dev_kfree_skb_any(skb2);
-				skb_queue_head(&iod->rx_q, tmp_skb);
-				goto retry;
-			} else {
-				skb_queue_head(&iod->rx_q, skb);
-				skb_queue_head(&iod->rx_q, skb2);
-				return -EINVAL;
-			}
-		}
-	}
+	else
+		return -EINVAL;
 
 	if(rx_ip_hdr.ihl != 5 && rx_ip_hdr.version != 4) {
 		pr_err("%s no IP packet!\n", __func__);
-		pkt_sz = -EINVAL;
-		return pkt_sz;
+		return -EINVAL;
 	}
 	pkt_sz = ntohs(rx_ip_hdr.tot_len);
 	switch(rx_ip_hdr.protocol) {
@@ -282,80 +253,43 @@ static void hsic_net_data_handler(struct io_device *iod)
 {
 	struct net_device *ndev = iod->ndev;
 	struct vnet *vnet = netdev_priv(ndev);
-	struct sk_buff *net_skb = NULL;
 	struct sk_buff *skb = NULL;
-	unsigned char *buf;
 
 	if (!vnet_is_opened(ndev)) {
 		skb_queue_purge(&iod->rx_q);
 		vnet->pkt_sz = 0;
 		skb = vnet->skb;
-		vnet->skb == NULL;
+		vnet->skb = NULL;
 		dev_kfree_skb_any(skb);
 		return;
 	}
 
-	if (vnet->pkt_sz <= 0)
-		vnet->pkt_sz = get_ip_packet_sz(iod);
-
-	skb = skb_dequeue(&iod->rx_q);
-	while(skb) {
+	do {
 		wake_lock_timeout(&iod->wakelock, HZ * 0.5);
+		skb = skb_dequeue(&iod->rx_q);
+		if (!skb)
+			break;
+		vnet->pkt_sz = get_ip_packet_sz(iod, skb);
 		if (vnet->pkt_sz <= 0) {
 			dev_kfree_skb_any(skb);
 			break;
 		}
-		if (vnet->skb == NULL) {
-			net_skb = dev_alloc_skb(vnet->pkt_sz);
-			if (net_skb == NULL) {
-				pr_err("%s allocate skb err!\n", __func__);
-				dev_kfree_skb_any(skb);
-				break;
-			} else {
-				net_skb->dev = ndev;
-				net_skb->protocol = htons(ETH_P_IP);
-				vnet->skb = net_skb;
-			}
-		} else
-			net_skb = vnet->skb;
-
-
-		if (vnet->pkt_sz >= skb->len) {
-			buf = skb_put(net_skb, skb->len);
-			memcpy(buf, skb->data, skb->len);
-			vnet->pkt_sz -= skb->len;
-			dev_kfree_skb_any(skb);
-		} else {
-			buf = skb_put(net_skb, vnet->pkt_sz);
-			memcpy(net_skb->data, skb->data, vnet->pkt_sz);
-			skb_pull(skb, vnet->pkt_sz);
-			skb_queue_head(&iod->rx_q, skb);
-		}
-
-		if (vnet->pkt_sz == 0) {
-			vnet->stats.rx_packets++;
-			vnet->stats.rx_bytes += net_skb->len;
-			skb_reset_mac_header(net_skb);
-			netif_rx(net_skb);
-			vnet->skb = NULL;
-			pr_debug("%s rx size=%d", __func__, net_skb->len);
-			if (iod->atdebug)
-				iod->atdebugfunc(iod, net_skb->data,
-								net_skb->len);
-			vnet->pkt_sz = get_ip_packet_sz(iod);
-			if (vnet->pkt_sz <= 0)
-				break;
-		}
-		skb = skb_dequeue(&iod->rx_q);
-	}
+		skb->dev = ndev;
+		skb->protocol = htons(ETH_P_IP);
+		if (iod->atdebug)
+			iod->atdebugfunc(iod, skb->data, skb->len);
+		skb_reset_mac_header(skb);
+		netif_rx(skb);
+		vnet->stats.rx_packets++;
+		vnet->stats.rx_bytes += vnet->pkt_sz;
+		pr_debug("%s rx size=%d", __func__, vnet->pkt_sz);
+	} while(skb);
 
 	return;
 }
 
 static void recv_data_handler_work(struct work_struct *work)
 {
-	int ret = 0;
-	struct sk_buff *skb = NULL;
 	struct io_device *iod = container_of(work, struct io_device,
 				rx_work.work);
 	
@@ -435,12 +369,13 @@ static int vnet_stop(struct net_device *ndev)
 	if (atomic_read(&iod->opened) == 0) {
 		while (is_iod_handle_data(iod)) {
 			mutex_unlock(&iod->op_mutex);
-			msleep(2);
+			msleep(1);
 			mutex_lock(&iod->op_mutex);
 		}
+		flush_delayed_work(&iod->rx_work);
 		skb_queue_purge(&iod->rx_q);
-		mif_info("close iod = %s\n", iod->name);
 		netif_stop_queue(ndev);
+		mif_info("close iod = %s\n", iod->name);
 		list_for_each_entry(ld, &commons->link_dev_list, list) {
 			if (IS_CONNECTED(iod, ld) && ld->terminate_comm)
 				ld->terminate_comm(ld, iod);
@@ -559,11 +494,12 @@ static void modem_tty_close(struct tty_struct *tty, struct file *f)
 	if (atomic_read(&iod->opened) == 0) {
 		while (is_iod_handle_data(iod)) {
 			mutex_unlock(&iod->op_mutex);
-			msleep(2);
+			msleep(1);
 			mutex_lock(&iod->op_mutex);
 		}
-		mif_info("close iod = %s\n", iod->name);
 		skb_queue_purge(&iod->rx_q);
+		flush_delayed_work(&iod->rx_work);
+		mif_info("close iod = %s\n", iod->name);
 		tty->driver_data = NULL;
 		list_for_each_entry(ld, &commons->link_dev_list, list) {
 			if (IS_CONNECTED(iod, ld) && ld->terminate_comm)
