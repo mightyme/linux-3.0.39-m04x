@@ -491,28 +491,28 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				input_report_key(info->input, KEY_MEDIA, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
-				msleep(10);
+				msleep(10);				
 				input_report_key(info->input, KEY_MEDIA, 0);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,0);				
 				break;
 			case FSA8108_SEND_END_DOUBLE:  //TBD = to be done?
 				pr_err("%s OKOKOKOKOOOK__DOUBLE",__func__);
-				input_report_key(info->input, KEY_FN_F1, 1);
+				input_report_key(info->input, 194, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
 				msleep(10);
-				input_report_key(info->input, KEY_FN_F1, 0);
+				input_report_key(info->input, 194, 0);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,0);	
 				break;
 			case FSA8108_SEND_END_LONG:  //TBD
 				pr_err("%s OKOKOKOKOOOK__LONG",__func__);
-				input_report_key(info->input, KEY_FN_F2, 1);
+				input_report_key(info->input, 195, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
 				msleep(10);
-				input_report_key(info->input, KEY_FN_F2, 0);
+				input_report_key(info->input, 195, 0);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,0);	
 				break;					
@@ -535,21 +535,21 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				break;
 			case FSA8108_VOL_UP_LONG_P:  //TBD
 				pr_err("%s volumn ++++++LONG_PRESSED",__func__);
-				input_report_key(info->input, KEY_FN_F3, 1);
+				input_report_key(info->input, 196, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
 				msleep(10);
-				input_report_key(info->input, KEY_FN_F3, 0);
+				input_report_key(info->input, 196, 0);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,0);	
 				break;
 			case FSA8108_VOL_UP_LONG_R:  //TBD
 				pr_err("%s volumn ++++++LONG_RELEASE",__func__);
-				input_report_key(info->input, KEY_FN_F4, 1);
+				input_report_key(info->input, 197, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
 				msleep(10);
-				input_report_key(info->input, KEY_FN_F4, 0);
+				input_report_key(info->input, 197, 0);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,0);
 				break;
@@ -565,21 +565,21 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				break;
 			case FSA8108_VOL_DOWN_LONG_P:  //TBD
 				pr_err("%s volumn ------LONG_PRESSED",__func__);
-				input_report_key(info->input, KEY_FN_F5, 1);
+				input_report_key(info->input, 198, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
 				msleep(10);
-				input_report_key(info->input, KEY_FN_F5, 0);
+				input_report_key(info->input, 198, 0);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,0);
 				break;
 			case FSA8108_VOL_DOWN_LOGN_R:  //TBD
 				pr_err("%s volumn ------LONG_RELEASE",__func__);
-				input_report_key(info->input, KEY_FN_F6, 1);
+				input_report_key(info->input, 199, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
 				msleep(10);
-				input_report_key(info->input, KEY_FN_F6, 0);
+				input_report_key(info->input, 199, 0);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,0);
 				break;					
