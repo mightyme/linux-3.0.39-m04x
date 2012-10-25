@@ -170,6 +170,7 @@ struct s3cfb_global {
 	int 			system_state;
 #if defined(CONFIG_FB_S5P_VSYNC_THREAD)
 	struct s3cfb_vsync	vsync_info;
+	int vsync_enable;
 	int vsync_debug;
 #endif
 #ifdef CONFIG_HAS_WAKELOCK

@@ -69,6 +69,28 @@ static ssize_t s3cfb_sysfs_store_vsync_debug(struct device *dev, struct device_a
 }
 static DEVICE_ATTR(vsync_debug, S_IRUGO | S_IWUSR, s3cfb_sysfs_show_vsync_debug, s3cfb_sysfs_store_vsync_debug);
 
+static ssize_t s3cfb_sysfs_show_vsync_enable(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct s3cfb_global *fbdev[1];
+	fbdev[0] = fbfimd->fbdev[0];
+	
+    return sprintf(buf, "%d\n", fbdev[0]->vsync_enable);
+}
+static ssize_t s3cfb_sysfs_store_vsync_enable(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	unsigned long value;
+	struct s3cfb_global *fbdev[1];
+	fbdev[0] = fbfimd->fbdev[0];
+	
+	sscanf(buf, "%lu", &value);
+	fbdev[0]->vsync_enable = !!value;
+
+	return count;
+}
+static DEVICE_ATTR(vsync_enable, S_IRUGO | S_IWUSR, s3cfb_sysfs_show_vsync_enable, s3cfb_sysfs_store_vsync_enable);
+
 static void s3cfb_activate_vsync(struct s3cfb_global *fbdev)
 {
 	int prev_refcount;
@@ -128,23 +150,12 @@ int s3cfb_wait_for_vsync(struct s3cfb_global *fbdev)
 	int ret;
 	u32 timeout = HZ/10;
 
-	pm_runtime_get_sync(fbdev->dev);
-
 	timestamp = fbdev->vsync_info.timestamp;
-	if (timeout) {
-		ret = wait_event_interruptible_timeout(fbdev->vsync_info.wait,
-						!ktime_equal(timestamp,
-						fbdev->vsync_info.timestamp),
-						msecs_to_jiffies(timeout));
-	} else {
-		ret = wait_event_interruptible(fbdev->vsync_info.wait,
-						!ktime_equal(timestamp,
-						fbdev->vsync_info.timestamp));
-	}
-
-	pm_runtime_put_sync(fbdev->dev);
-
-	if (timeout && ret == 0)
+	ret = wait_event_interruptible_timeout(fbdev->vsync_info.wait,
+					!ktime_equal(timestamp,
+					fbdev->vsync_info.timestamp),
+					msecs_to_jiffies(timeout));
+	if (ret == 0)
 		return -ETIMEDOUT;
 
 	return 0;
@@ -163,7 +174,7 @@ static int s3cfb_wait_for_vsync_thread(void *data)
 						fbdev->vsync_info.active,
 						msecs_to_jiffies(VSYNC_TIMEOUT_MSEC));
 
-		if (ret > 0) {
+		if (ret > 0 && fbdev->vsync_enable) {
 			char *envp[2];
 			char buf[64];
 			snprintf(buf, sizeof(buf), "VSYNC=%llu",
@@ -502,6 +513,7 @@ static int s3cfb_probe(struct platform_device *pdev)
 			dev_err(fbdev[i]->dev, "failed to run vsync thread\n");
 			fbdev[i]->vsync_info.thread = NULL;
 		}
+		fbdev[i]->vsync_enable = 1;
 #endif
 	}
 #ifdef CONFIG_FB_S5P_LCD_INIT
@@ -514,6 +526,9 @@ static int s3cfb_probe(struct platform_device *pdev)
 #endif
 #if defined(CONFIG_FB_S5P_VSYNC_THREAD)
 	ret = device_create_file(&(pdev->dev), &dev_attr_vsync_debug);
+	if (ret < 0)
+		dev_err(fbdev[0]->dev, "failed to add sysfs entries\n");
+	ret = device_create_file(&(pdev->dev), &dev_attr_vsync_enable);
 	if (ret < 0)
 		dev_err(fbdev[0]->dev, "failed to add sysfs entries\n");
 #endif
