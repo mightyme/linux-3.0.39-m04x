@@ -21,6 +21,6 @@ obj-$(CONFIG_VIDEO_TVOUT) :=	s5p_tvout.o		\
 				s5p_tvif_ctrl.o		\
 				hw_if/
 
-obj-$(CONFIG_MHL_DRIVER) +=	mhl.o sii_9244_driver.o
+#obj-$(CONFIG_MHL_DRIVER) +=	mhl.o sii_9244_driver.o
 obj-$(CONFIG_HDMI_HPD) 	 +=	s5p_tvout_hpd.o
 obj-$(CONFIG_HDMI_CEC)	 +=	s5p_tvout_cec.o

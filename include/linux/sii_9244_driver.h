@@ -26,13 +26,6 @@
 #define	PAGE_CBUS_0XC8		0xCC
 #endif
 
-/* MHL Timings applicable to this driver. */
-#define	T_SRC_VBUS_CBUS_TO_STABLE	(200)	// 100 - 1000 milliseconds. Per MHL 1.0 Specs
-#define	T_SRC_WAKE_PULSE_WIDTH_1	(13)//(20)	// 20 milliseconds. Per MHL 1.0 Specs
-#define	T_SRC_WAKE_PULSE_WIDTH_2	(52)//(60)	// 60 milliseconds. Per MHL 1.0 Specs
-
-#define	T_SRC_WAKE_TO_DISCOVER		(500)	// 100 - 1000 milliseconds. Per MHL 1.0 Specs
-
 /* Allow RSEN to stay low this much before reacting.
 Per specs between 100 to 200 ms */
 #define	T_SRC_RSEN_DEGLITCH			5//(100)	// (150)
@@ -478,13 +471,6 @@ void MHLPowerStatusCheck (void);
 //
 // CBUS register defintions
 //
-#define REG_CBUS_INTR_STATUS            0x08
-#define BIT_DDC_ABORT                   (BIT2)    /* Responder aborted DDC command at translation layer */
-#define BIT_MSC_MSG_RCV                 (BIT3)    /* Responder sent a VS_MSG packet (response data or command.) */
-#define BIT_MSC_XFR_DONE                (BIT4)    /* Responder sent ACK packet (not VS_MSG) */
-#define BIT_MSC_XFR_ABORT               (BIT5)    /* Command send aborted on TX side */
-#define BIT_MSC_ABORT                   (BIT6)    /* Responder aborted MSC command at translation layer */
-
 #define REG_CBUS_INTR_ENABLE            0x09
 
 #define REG_DDC_ABORT_REASON        	  0x0C
@@ -612,7 +598,6 @@ void MHLPowerStatusCheck (void);
 
 //Device Category
 #define	MHL_DEV_CATEGORY_OFFSET				0x02
-#define	MHL_DEV_CATEGORY_POW_BIT			(BIT4)
 
 #define	MHL_DEV_CAT_SOURCE					0x00
 #define	MHL_DEV_CAT_SINGLE_INPUT_SINK		0x01
@@ -638,10 +623,6 @@ void MHLPowerStatusCheck (void);
 
 //Feature Flag in the devcap
 #define	MHL_DEV_FEATURE_FLAG_OFFSET			0x0A
-#define	MHL_FEATURE_RCP_SUPPORT				BIT0	// Dongles have freedom to not support RCP
-#define	MHL_FEATURE_RAP_SUPPORT				BIT1	// Dongles have freedom to not support RAP
-#define	MHL_FEATURE_SP_SUPPORT				BIT2	// Dongles have freedom to not support SCRATCHPAD
-
 /*
 #define		MHL_POWER_SUPPLY_CAPACITY		16		// 160 mA current
 #define		MHL_POWER_SUPPLY_PROVIDED		16		// 160mA 0r 0 for Wolverine.
@@ -684,14 +665,6 @@ void MHLPowerStatusCheck (void);
 
 #define MHL_RCHANGE_INT                     0x20
 #define MHL_DCHANGE_INT                     0x21
-
-#define  MHL_INT_DCAP_CHG				BIT0
-#define  MHL_INT_DSCR_CHG               		BIT1
-#define  MHL_INT_REQ_WRT                     	BIT2
-#define  MHL_INT_GRT_WRT                     	BIT3
-
-// On INTR_1 the EDID_CHG is located at BIT 0
-#define	MHL_INT_EDID_CHG				BIT1
 
 #define		MHL_INT_AND_STATUS_SIZE			0x03		// This contains one nibble each - max offset
 #define		MHL_SCRATCHPAD_SIZE				16

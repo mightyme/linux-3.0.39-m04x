@@ -40,29 +40,29 @@
 #include <plat/tvout.h>
 
 #ifdef CONFIG_MHL_DRIVER
-static int mhl_state = 0;
-static DEFINE_MUTEX(mhl_lock);
 static int mx2_mhl_power_on(struct mhl_platform_data *pdata, int enable)
 {
 	struct regulator *vdd12mhl_regulator;
 	struct regulator *vdd12mhl_gpio_regulator;
-	int ret = 0;
-
-	mutex_lock(&mhl_lock);
-	if(mhl_state == enable)
-		goto err0;
+	int ret;
 
 	pdata->mhl_logic_regulator = regulator_get(NULL, "vdd_ldo26");
-	if (IS_ERR_OR_NULL(pdata->mhl_logic_regulator)) {
-		goto err1;
+	if (!pdata->mhl_logic_regulator) {
+		MHLPRINTK("regulator_get failed");
+		return -1;
 	}
 	vdd12mhl_regulator = regulator_get(NULL, "vdd_ldo20");
-	if (IS_ERR_OR_NULL(vdd12mhl_regulator)) {
-		goto err2;
+	if (!vdd12mhl_regulator) {
+		MHLPRINTK("regulator_get failed");
+		regulator_put(pdata->mhl_logic_regulator);
+		return -1;
 	}
 	vdd12mhl_gpio_regulator = regulator_get(NULL, "MHL_1.2V");
-	if (IS_ERR_OR_NULL(vdd12mhl_gpio_regulator)) {
-		goto err3;
+	if (!vdd12mhl_gpio_regulator) {
+		regulator_put(pdata->mhl_logic_regulator);
+		regulator_put(vdd12mhl_regulator);
+		MHLPRINTK("regulator_get failed");
+		return -1;
 	}
 
 	if (enable) {
@@ -74,23 +74,16 @@ static int mx2_mhl_power_on(struct mhl_platform_data *pdata, int enable)
 		ret = regulator_disable(vdd12mhl_regulator);
 		ret = regulator_disable(vdd12mhl_gpio_regulator);
 	}
+	regulator_put(pdata->mhl_logic_regulator);
+	regulator_put(vdd12mhl_regulator);
+	regulator_put(vdd12mhl_gpio_regulator);
 
 	if (ret < 0) {
-		pr_info("regulator_%sable failed\n", enable ? "en" : "dis");
-		goto err3;
+		MHLPRINTK("regulator_%sable failed\n", enable ? "en" : "dis");
+		return ret;
 	}
-
-	mhl_state = enable;
-
-err3:
-	regulator_put(vdd12mhl_gpio_regulator);
-err2:
-	regulator_put(vdd12mhl_regulator);
-err1:
-	regulator_put(pdata->mhl_logic_regulator);
-err0:
-	mutex_unlock(&mhl_lock);
-	return ret;
+	MHLPRINTK("regulator_%sable\n", enable ? "en" : "dis");
+	return 0;
 }
 
 static int mx2_mhl_reset(struct mhl_platform_data *pdata)
@@ -98,6 +91,7 @@ static int mx2_mhl_reset(struct mhl_platform_data *pdata)
 	int err;
 
 	/* mhl wake */
+	
 	err = gpio_request(pdata->mhl_wake_pin, NULL);
 	if (err) {
 		MHLPRINTK("gpio_request failed\n");
@@ -131,19 +125,47 @@ static struct mhl_platform_data mx2_mhl_platdata = {
 	.mhl_irq_pin  = M040_MHL_IRQ,
 	.eint  = IRQ_EINT(23),
 	.mhl_usb_irq_pin  = M040_MHL_USB_IRQ,
+	.hw_onoff = mx2_mhl_power_on,
 	.mhl_power_on = mx2_mhl_power_on,
-	.reset = mx2_mhl_reset,
+	.hw_reset = mx2_mhl_reset,
 };
+/*
+static struct sii9234_platform_data sii9234_pdata = {
+	.init = sii9234_cfg_gpio,
+#if defined(CONFIG_SAMSUNG_USE_11PIN_CONNECTOR) || \
+		defined(CONFIG_MACH_P4NOTE)
+	.mhl_sel = NULL,
+#else
+	.mhl_sel = mhl_usb_switch_control,
 #endif
-static struct i2c_board_info __initdata i2c_devs8[] = {
-#ifdef CONFIG_MHL_DRIVER
-	{I2C_BOARD_INFO("mhl_page0", (0x76 >> 1)),},
-	{I2C_BOARD_INFO("mhl_page1", (0x7E >> 1)),},
-	{I2C_BOARD_INFO("mhl_page2", (0x96 >> 1)),},
-	{I2C_BOARD_INFO("mhl_cbus", (0xCC >> 1)),
+	.hw_onoff = sii9234_power_onoff,
+	.hw_reset = sii9234_reset,
+	.enable_vbus = NULL,
+#if defined(__MHL_NEW_CBUS_MSC_CMD__)
+	.vbus_present = NULL,
+#else
+	.vbus_present = NULL,
+#endif
+
+#ifdef CONFIG_EXTCON
+	.extcon_name = "max77693-muic",
+#endif
+};
+*/
+#endif
+static struct i2c_board_info i2c_devs8[] = {
+#ifdef CONFIG_MHL_DRIVER	
+	{I2C_BOARD_INFO("sii9244_tpi",  (0x7E >> 1)),
+	.platform_data = &mx2_mhl_platdata,},
+	{I2C_BOARD_INFO("sii9244_hdmi_rx", (0x96 >> 1)),
+	.platform_data = &mx2_mhl_platdata,},
+	{I2C_BOARD_INFO("sii9244_cbus",    (0xCC >> 1)),
+	.platform_data = &mx2_mhl_platdata,},
+	{I2C_BOARD_INFO("sii9244_mhl_tx",  (0x76 >> 1)),
 	.platform_data = &mx2_mhl_platdata,},
 #endif
 };
+
 
 #if defined(CONFIG_VIDEO_TVOUT)
 static int mx2_tvout_enable_power( int on)

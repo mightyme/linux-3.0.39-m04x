@@ -10,7 +10,7 @@
 
 #include <mach/usb-detect.h>
 
-//#define MHLDEBUG
+ #define MHLDEBUG 
 
 #ifdef MHLDEBUG
 #define MHLPRINTK(fmt, args...) \
@@ -162,8 +162,27 @@ struct mhl_platform_data {
 	u32 mhl_irq_pin;
 	u32 eint;
 	u32 mhl_usb_irq_pin;
-
+	/*****data compatible with sii9234_platform data begin****/
+	u8 power_state;
+	u8	swing_level;
+	int ddc_i2c_num;
+	bool factory_test;
+	void (*init)(void);
+	void (*mhl_sel)(bool enable);
+	int (*hw_onoff)(struct mhl_platform_data *, int);
+	int (*hw_reset)(struct mhl_platform_data *);
+	void (*enable_vbus)(bool enable);
+#if defined(__MHL_NEW_CBUS_MSC_CMD__)
+	void (*vbus_present)(bool on, int value);
+#else
+	void (*vbus_present)(bool on);
+#endif
+	/*****data compatible with sii9234_platform data end****/
 	struct regulator *mhl_logic_regulator;
+	struct i2c_client *mhl_tx_client;
+	struct i2c_client *tpi_client;
+	struct i2c_client *hdmi_rx_client;
+	struct i2c_client *cbus_client;
 
 	int (*mhl_power_on)(struct mhl_platform_data *, int);
 	int (*reset)(struct mhl_platform_data *);

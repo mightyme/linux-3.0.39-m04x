@@ -63,13 +63,13 @@ config ANALOG_TVENC
 	---help---
 	  This is a analog TVENC driver for Samsung S5P platform.
 
-config MHL_DRIVER
-	bool "MHL driver support."
-	depends on VIDEO_TVOUT && (CPU_EXYNOS4412 || CPU_EXYNOS4210)
-	default y
-	---help---
-	  This is a MHL driver for Lenovo TD platform.
-	  Check dev node (major 10, minor 244)
+#config MHL_DRIVER
+#	bool "MHL driver support."
+#	depends on VIDEO_TVOUT && (CPU_EXYNOS4412 || CPU_EXYNOS4210)
+#	default y
+#	---help---
+#	  This is a MHL driver for Lenovo TD platform.
+#	  Check dev node (major 10, minor 244)
 
 config VPLL_USE_FOR_TVENC
 	bool "VPLL use for TVENC."
