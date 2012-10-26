@@ -23,9 +23,6 @@
 #include <linux/slab.h>
 #include <linux/earlysuspend.h>
 #include <linux/gpio.h>
-#ifdef CONFIG_TOUCH_BOOSTER
-#include <mach/touch_booster.h>
-#endif
 #include <asm/mach-types.h>
 #include <plat/cpu.h>
 #include <mach/usb-detect.h>
@@ -692,11 +689,6 @@ static void mxt_input_report(struct mxt_data *data, int single_id)
 	}
 
 	input_sync(input_dev);
-#ifdef CONFIG_TOUCH_BOOSTER
-	if (status != MXT_RELEASE) {
-		start_touch_boost();
-	}
-#endif
 }
 
 static void mxt_input_touchevent(struct mxt_data *data,

@@ -26,9 +26,6 @@
 #include <linux/input.h>
 #include <linux/rmi.h>
 #include "rmi_driver.h"
-#ifdef CONFIG_TOUCH_BOOSTER
-#include <mach/touch_booster.h>
-#endif
 #define RESUME_REZERO (1 && defined(CONFIG_PM))
 #if RESUME_REZERO
 #include <linux/delay.h>
@@ -1901,9 +1898,6 @@ int rmi_f11_attention(struct rmi_function_container *fc, u8 *irq_bits)
 				f11->sensors[i].pkt_size);
 		if (error < 0)
 			return error;
-#ifdef CONFIG_TOUCH_BOOSTER
-		start_touch_boost();
-#endif
 		rmi_f11_finger_handler(&f11->sensors[i]);
 		rmi_f11_virtual_button_handler(&f11->sensors[i]);
 		data_base_addr_offset += f11->sensors[i].pkt_size;

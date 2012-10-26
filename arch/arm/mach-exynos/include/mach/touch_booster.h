@@ -22,11 +22,8 @@ struct tb_private_data {
 	struct device dev;
 #endif
 	unsigned int down_time;
-	unsigned int lock_cpufreq;
+	unsigned int boost_cpufreq;
 	unsigned int lock_busfreq;
 };
-
-extern void start_touch_boost(void);
-
 #endif
 
