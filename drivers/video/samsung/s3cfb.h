@@ -187,6 +187,7 @@ struct s3cfb_global {
 	struct delayed_work  dvfs_work;
 	struct notifier_block dvfs_nb;
 	u32 src_clk;
+	int dynamic_freq_disable;
 #endif	
 };
 

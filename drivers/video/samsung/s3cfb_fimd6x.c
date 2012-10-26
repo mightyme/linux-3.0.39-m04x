@@ -562,7 +562,6 @@ int s3cfb_frame_adjust(struct s3cfb_global *ctrl, fb_refresh freq)
 {
 #define MAX_CNT 0xfffff
 	static int freq_prev = -1;
-	unsigned int regs = 0;
 	long long remain_cnt = MAX_CNT;
 	static long long delta_max_total = 0, delta_min_cnt = MAX_CNT;
 	ktime_t delta_total, rettime_total;

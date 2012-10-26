@@ -908,13 +908,6 @@ fb_pan_display(struct fb_info *info, struct fb_var_screeninfo *var)
 	else
 		info->var.vmode &= ~FB_VMODE_YWRAP;
 
-#ifdef CONFIG_FB_DYNAMIC_FREQ
-	do {
-		struct fb_event event;
-		event.info = info;
-		fb_notifier_call_chain(FB_EVENT_MODE_PAN, &event);
-	} while(0);
-#endif
 	return 0;
 }
 

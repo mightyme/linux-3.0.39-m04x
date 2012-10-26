@@ -320,6 +320,27 @@ static DEVICE_ATTR(win_power, 0644,
 
 #ifdef CONFIG_FB_DYNAMIC_FREQ
 #include <asm/mach-types.h>
+static ssize_t s3cfb_sysfs_show_dynamic_freq_disable(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct s3cfb_global *fbdev[1];
+	fbdev[0] = fbfimd->fbdev[0];
+	
+    return sprintf(buf, "%d\n", fbdev[0]->dynamic_freq_disable);
+}
+static ssize_t s3cfb_sysfs_store_dynamic_freq_disable(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	unsigned long value;
+	struct s3cfb_global *fbdev[1];
+	fbdev[0] = fbfimd->fbdev[0];
+	
+	sscanf(buf, "%lu", &value);
+	fbdev[0]->dynamic_freq_disable = !!value;
+
+	return count;
+}
+static DEVICE_ATTR(dynamic_freq_disable, S_IRUGO | S_IWUSR, s3cfb_sysfs_show_dynamic_freq_disable, s3cfb_sysfs_store_dynamic_freq_disable);
 static void set_lcd_freq(struct work_struct *work)
 {
 	struct s3cfb_global *fbdev =
@@ -351,9 +372,11 @@ static int lcd_dvfs_notify(struct notifier_block *nb,
 #endif
 	switch (action) {
 	case FB_EVENT_MODE_PAN:
-		if (delayed_work_pending(&fbdev->dvfs_work))
-			cancel_delayed_work(&fbdev->dvfs_work);
-		queue_delayed_work(fbdev->fimd_dvfs, &fbdev->dvfs_work, HZ);
+		if(!fbdev->dynamic_freq_disable){
+			if (delayed_work_pending(&fbdev->dvfs_work))
+				cancel_delayed_work(&fbdev->dvfs_work);
+			queue_delayed_work(fbdev->fimd_dvfs, &fbdev->dvfs_work, HZ);
+		}
 		s3cfb_frame_adjust(fbdev, FB_DYNAMIC_HIGH_FREQ);
 		break;
 	default:
@@ -537,9 +560,12 @@ static int s3cfb_probe(struct platform_device *pdev)
 		dev_err(fbdev[0]->dev, "failed to add sysfs entries\n");
 
 #ifdef CONFIG_FB_DYNAMIC_FREQ
+	ret = device_create_file(&(pdev->dev), &dev_attr_dynamic_freq_disable);
+	if (ret < 0)
+		dev_err(fbdev[0]->dev, "failed to add sysfs entries\n");
 	if (machine_is_m031() || machine_is_m032()||machine_is_m040()) {
 		INIT_DELAYED_WORK(&fbdev[0]->dvfs_work, set_lcd_freq);
-		fbdev[0]->fimd_dvfs = create_freezable_workqueue("lcd_fresh");
+		fbdev[0]->fimd_dvfs = create_singlethread_workqueue("lcd_fresh");
 		fbdev[0]->dvfs_nb.notifier_call = lcd_dvfs_notify;
 		fb_register_client(&fbdev[0]->dvfs_nb);
 	}
