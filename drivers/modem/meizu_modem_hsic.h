@@ -79,7 +79,6 @@ typedef enum {
 } acm_wait_state_t;
 
 struct link_pm_data {
-	struct miscdevice miscdev;
 	struct usb_link_device *usb_ld;
 	unsigned irq_link_hostwake;
 	unsigned gpio_link_enable;
@@ -89,8 +88,8 @@ struct link_pm_data {
 
 	struct workqueue_struct *wq;
 	struct completion active_done;
-	struct delayed_work link_pm_work;
-	struct delayed_work link_pm_start;
+	struct delayed_work hsic_pm_work;
+	struct delayed_work hsic_pm_start;
 	bool resume_requested;
 	int resume_retry_cnt;
 

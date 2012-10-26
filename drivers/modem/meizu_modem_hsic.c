@@ -40,16 +40,18 @@
 #define HSIC_MAX_PIPE_ORDER_NR 3
 
 static struct modem_ctl *modem_hsic_get_modemctl(struct link_pm_data *pm_data);
-static int link_pm_runtime_get_active(struct link_pm_data *pm_data);
+static int hsic_pm_runtime_get_active(struct link_pm_data *pm_data);
 static int usb_tx_urb_with_skb(struct usb_device *usbdev, struct sk_buff *skb,
 					struct if_usb_devdata *pipe_data);
 static void usb_rx_complete(struct urb *urb);
 
-static int link_pm_set_slave_wakeup(unsigned int gpio, int val)
+static int hsic_set_slave_wakeup_gpio(unsigned int gpio, int val)
 {
+	int v = gpio_get_value(gpio);
 	gpio_set_value(gpio, val);
-	mif_trace("\n");
-	mif_debug("[SWK]=>[%d]:[%d]\n", val, gpio_get_value(gpio));
+	mif_debug("called(%pF) [SWK][%d]=>[%d]:[%d]\n",  \
+			 __builtin_return_address(0), v, \
+			 val, gpio_get_value(gpio));
 
 	return 0;
 }
@@ -118,7 +120,7 @@ retry:
 			mif_debug("QW PM\n");
 			INIT_COMPLETION(pm_data->active_done);
 			queue_delayed_work(pm_data->wq,
-					&pm_data->link_pm_work, 0);
+					&pm_data->hsic_pm_work, 0);
 		}
 		mif_debug("Wait pm\n");
 		err = wait_for_completion_timeout(&pm_data->active_done,
@@ -409,7 +411,7 @@ static void usb_tx_work(struct work_struct *work)
 	pm_data->tx_cnt++;
 
 	while (ld->sk_raw_tx_q.qlen) {
-		ret = link_pm_runtime_get_active(pm_data);
+		ret = hsic_pm_runtime_get_active(pm_data);
 		if (ret < 0) {
 			mif_err("link not avail. ret:%d\n", ret);
 			if (ret == -ENODEV)
@@ -462,7 +464,7 @@ retry_tx_work:
 /*
 #ifdef CONFIG_LINK_PM
 */
-static int link_pm_runtime_get_active(struct link_pm_data *pm_data)
+static int hsic_pm_runtime_get_active(struct link_pm_data *pm_data)
 {
 	int ret;
 	struct usb_link_device *usb_ld = pm_data->usb_ld;
@@ -488,12 +490,14 @@ static int link_pm_runtime_get_active(struct link_pm_data *pm_data)
 
 	if (!pm_data->resume_requested) {
 		mif_debug("QW PM\n");
-		queue_delayed_work(pm_data->wq, &pm_data->link_pm_work, 0);
+		queue_delayed_work(pm_data->wq, &pm_data->hsic_pm_work, 0);
 	}
 	mif_debug("Wait pm\n");
 	INIT_COMPLETION(pm_data->active_done);
 	ret = wait_for_completion_timeout(&pm_data->active_done,
 						msecs_to_jiffies(2000));
+	if (!ret)
+		pr_info("%s wait_for_completion_timeout!\n", __func__);
 
 	/* If usb link was disconnected while waiting ACTIVE State, usb device
 	 * was removed, usb_ld->usbdev->dev is invalid and below
@@ -516,10 +520,10 @@ static int link_pm_runtime_get_active(struct link_pm_data *pm_data)
 	return 0;
 }
 
-static void link_pm_runtime_start(struct work_struct *work)
+static void hsic_pm_runtime_start(struct work_struct *work)
 {
 	struct link_pm_data *pm_data =
-		container_of(work, struct link_pm_data, link_pm_start.work);
+		container_of(work, struct link_pm_data, hsic_pm_start.work);
 	struct usb_device *usbdev = pm_data->usb_ld->usbdev;
 	struct device *dev, *ppdev;
 	struct link_device *ld = &pm_data->usb_ld->ld;
@@ -534,7 +538,7 @@ static void link_pm_runtime_start(struct work_struct *work)
 	/* wait interface driver resumming */
 	if (dev->power.runtime_status == RPM_SUSPENDED) {
 		mif_debug("suspended yet, delayed work\n");
-		queue_delayed_work(pm_data->wq, &pm_data->link_pm_start,
+		queue_delayed_work(pm_data->wq, &pm_data->hsic_pm_start,
 			msecs_to_jiffies(10));
 		return;
 	}
@@ -543,9 +547,9 @@ static void link_pm_runtime_start(struct work_struct *work)
 		mif_debug("rpm_status: %d\n", dev->power.runtime_status);
 		ppdev = dev->parent->parent;
 		usb_set_autosuspend_delay(usbdev, 200);
-		pm_runtime_forbid(dev);
+		/*pm_runtime_forbid(dev);*/
 		pm_runtime_allow(dev);
-		pm_runtime_forbid(ppdev);
+		/*pm_runtime_forbid(ppdev);*/
 		pm_runtime_allow(ppdev);
 		pm_data->resume_requested = false;
 		pm_data->resume_retry_cnt = 0;
@@ -554,42 +558,30 @@ static void link_pm_runtime_start(struct work_struct *work)
 	}
 }
 
-static inline int link_pm_slave_wake(struct link_pm_data *pm_data)
+static inline int hsic_pm_slave_wake(struct link_pm_data *pm_data)
 {
-	int spin = 20;
 	int ret  = 0;
 	int val;
 
-	/* when slave device is in sleep, wake up slave cpu first */
 	val = gpio_get_value(pm_data->gpio_hostwake);
 	if (val != HOSTWAKE_TRIGLEVEL) {
 		if (gpio_get_value(pm_data->gpio_slavewake)) {
-			link_pm_set_slave_wakeup(pm_data->gpio_slavewake, 0);
+			hsic_set_slave_wakeup_gpio(pm_data->gpio_slavewake, 0);
 			mif_debug("[SWK][1]=>[0]:[%d]\n",
 				gpio_get_value(pm_data->gpio_slavewake));
 			mdelay(5);
 		}
-		link_pm_set_slave_wakeup(pm_data->gpio_slavewake, 1);
-		mif_debug("[SWK][0]=>[1]:[%d]\n",
-				gpio_get_value(pm_data->gpio_slavewake));
-		/* wait host wake signal*/
-		while (spin-- && gpio_get_value(pm_data->gpio_hostwake) !=
-							HOSTWAKE_TRIGLEVEL)
-			mdelay(5);
-		if (spin == 0)
-			ret = MC_HOST_TIMEOUT;
-		/*
-		 *do {
-		 *        struct platform_device *dev_modem = pm_data->pdev_modem;
-		 *        struct modem_ctl *mc = platform_get_drvdata(dev_modem);
-		 *        DECLARE_COMPLETION_ONSTACK(done);
-		 *
-		 *        mc->l2_done = &done;
-		 *        if (!wait_for_completion_timeout(&done, 20*HZ))
-		 *                ret = MC_HOST_TIMEOUT;
-		 *        mc->l2_done = NULL;
-		 *} while(0);
-		 */
+		do {
+			struct platform_device *dev_modem = pm_data->pdev_modem;
+			struct modem_ctl *mc = platform_get_drvdata(dev_modem);
+			DECLARE_COMPLETION_ONSTACK(done);
+			
+			mc->l2_done = &done;
+			hsic_set_slave_wakeup_gpio(pm_data->gpio_slavewake, 1);
+			if (!wait_for_completion_timeout(&done, 20*HZ))
+				ret = MC_HOST_TIMEOUT;
+			mc->l2_done = NULL;
+		} while(0);
 	} else {
 		mif_debug("HOST_WUP:HOSTWAKE_TRIGLEVEL!\n");
 		ret = MC_HOST_HIGH;
@@ -598,11 +590,11 @@ static inline int link_pm_slave_wake(struct link_pm_data *pm_data)
 	return ret;
 }
 
-static void link_pm_runtime_work(struct work_struct *work)
+static void hsic_pm_runtime_work(struct work_struct *work)
 {
 	int ret;
 	struct link_pm_data *pm_data =
-		container_of(work, struct link_pm_data, link_pm_work.work);
+		container_of(work, struct link_pm_data, hsic_pm_work.work);
 	struct usb_device *usbdev = pm_data->usb_ld->usbdev;
 	struct device *dev = &usbdev->dev;
 	int host_wakeup_done = 0;
@@ -642,7 +634,7 @@ retry:
 		}
 		pm_data->resume_requested = true;
 		wake_lock(&pm_data->rpm_wake);
-		ret = link_pm_slave_wake(pm_data);
+		ret = hsic_pm_slave_wake(pm_data);
 		switch (ret) {
 		case MC_SUCCESS:
 			host_wakeup_done = 1;
@@ -653,7 +645,7 @@ retry:
 		case MC_HOST_HIGH:
 			if (spin2-- == 0) {
 				mif_err("MC_HOST_HIGH! spin2==0\n");
-				if(!link_pm_runtime_get_active(pm_data)) {
+				if(!hsic_pm_runtime_get_active(pm_data)) {
 					host_wakeup_done = 1;
 					spin2 = 20;
 					goto retry;
@@ -684,10 +676,7 @@ retry:
 				mif_debug("run time idle\n");
 				pm_runtime_idle(dev);
 			}
-		} else
-			queue_delayed_work(pm_data->wq,
-					&pm_data->link_pm_start, 0);
-
+		}
 		wake_unlock(&pm_data->rpm_wake);
 		break;
 	case RPM_SUSPENDING:
@@ -719,7 +708,7 @@ retry:
 			dev->power.runtime_status, pm_data->resume_retry_cnt);
 		modem_notify_event(MODEM_EVENT_DISCONN);
 	} else
-		queue_delayed_work(pm_data->wq, &pm_data->link_pm_work,
+		queue_delayed_work(pm_data->wq, &pm_data->hsic_pm_work,
 							msecs_to_jiffies(20));
 }
 
@@ -735,10 +724,8 @@ static irqreturn_t host_wakeup_irq_handler(int irq, void *data)
 
 	/*igonore host wakeup interrupt at suspending kernel*/
 	if (pm_data->dpm_suspending) {
-		mif_info("ignore request by suspending\n");
-		/* Ignore HWK but AP got to L2 by suspending fail */
+		mif_info("%s when suspending\n", __func__);
 		wake_lock(&pm_data->l2_wake);
-		return IRQ_HANDLED;
 	}
 
 	if (!mc->enum_done) {
@@ -746,7 +733,7 @@ static irqreturn_t host_wakeup_irq_handler(int irq, void *data)
 			if (mc->l2_done) {
 				complete(mc->l2_done);
 				mc->l2_done = NULL;
-				link_pm_set_slave_wakeup(pm_data->gpio_slavewake, 0);
+				hsic_set_slave_wakeup_gpio(pm_data->gpio_slavewake, 0);
 			}
 		}
 	} else {
@@ -755,36 +742,20 @@ static irqreturn_t host_wakeup_irq_handler(int irq, void *data)
 				complete(mc->l2_done);
 				mc->l2_done = NULL;
 			}
-			link_pm_set_slave_wakeup(pm_data->gpio_slavewake, 0);
+			hsic_set_slave_wakeup_gpio(pm_data->gpio_slavewake, 0);
 		} else {
-			queue_delayed_work(pm_data->wq, &pm_data->link_pm_work, 0);
+			if (mc->l2_done) {
+				complete(mc->l2_done);
+				mc->l2_done = NULL;
+			}
+			queue_delayed_work(pm_data->wq, &pm_data->hsic_pm_work, 0);
 		}
 	}
 
 	return IRQ_HANDLED;
 }
 
-static int link_pm_open(struct inode *inode, struct file *file)
-{
-	struct link_pm_data *pm_data =
-		(struct link_pm_data *)file->private_data;
-	file->private_data = (void *)pm_data;
-	return 0;
-}
-
-static int link_pm_release(struct inode *inode, struct file *file)
-{
-	file->private_data = NULL;
-	return 0;
-}
-
-static const struct file_operations link_pm_fops = {
-	.owner   = THIS_MODULE,
-	.open    = link_pm_open,
-	.release = link_pm_release,
-};
-
-static int link_pm_notifier_event(struct notifier_block *this,
+static int hsic_pm_notifier_event(struct notifier_block *this,
 				unsigned long event, void *ptr)
 {
 	struct link_pm_data *pm_data =
@@ -802,7 +773,7 @@ static int link_pm_notifier_event(struct notifier_block *this,
 		pm_data->dpm_suspending = false;
 		if (gpio_get_value(pm_data->gpio_hostwake)
 			== HOSTWAKE_TRIGLEVEL) {
-			queue_delayed_work(pm_data->wq, &pm_data->link_pm_work,
+			queue_delayed_work(pm_data->wq, &pm_data->hsic_pm_work,
 				0);
 			mif_info("post resume\n");
 		}
@@ -888,7 +859,7 @@ static int modem_hsic_resume(struct usb_interface *intf)
 	if (!devdata->usb_ld->suspended) {
 		mif_debug("[modem_hsic_resumed]\n");
 		wake_lock(&pm_data->l2_wake);
-		queue_delayed_work(pm_data->wq, &pm_data->link_pm_start, 0);
+		queue_delayed_work(pm_data->wq, &pm_data->hsic_pm_start, 0);
 	}
 
 	return 0;
@@ -906,7 +877,7 @@ static int modem_hsic_reset_resume(struct usb_interface *intf)
 	 * for runtime suspend, kick runtime pm at L3 -> L0 reset resume
 	*/
 	if (!devdata->usb_ld->suspended)
-		queue_delayed_work(pm_data->wq, &pm_data->link_pm_start, 0);
+		queue_delayed_work(pm_data->wq, &pm_data->hsic_pm_start, 0);
 
 	return ret;
 }
@@ -947,7 +918,7 @@ static void modem_hsic_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 
 	/* cancel runtime start delayed works */
-	cancel_delayed_work_sync(&pm_data->link_pm_start);
+	cancel_delayed_work_sync(&pm_data->hsic_pm_start);
 	cancel_delayed_work_sync(&ld->tx_delayed_work);
 
 	return;
@@ -1102,9 +1073,9 @@ static int __devinit modem_hsic_probe(struct usb_interface *intf,
 		usb_ld->link_pm_data->state = ACM_READY;
 		usb_ld->if_usb_connected = 1;
 		modem_notify_event(MODEM_EVENT_CONN);
-		if (!work_pending(&usb_ld->link_pm_data->link_pm_start.work))
+		if (!work_pending(&usb_ld->link_pm_data->hsic_pm_start.work))
 			queue_delayed_work(usb_ld->link_pm_data->wq,
-				&usb_ld->link_pm_data->link_pm_start,
+				&usb_ld->link_pm_data->hsic_pm_start,
 				msecs_to_jiffies(500));
 		skb_queue_purge(&usb_ld->ld.sk_raw_tx_q);
 		usb_ld->ld.com_state = COM_ONLINE;
@@ -1199,7 +1170,7 @@ static int modem_hsic_init(struct link_device *ld)
 	return ret;
 }
 
-static int usb_link_pm_init(struct usb_link_device *usb_ld, void *data)
+static int hsic_pm_init(struct usb_link_device *usb_ld, void *data)
 {
 	int r;
 	struct platform_device *pdev = (struct platform_device *)data;
@@ -1230,16 +1201,6 @@ static int usb_link_pm_init(struct usb_link_device *usb_ld, void *data)
 	pm_data->ipc_debug_cnt = 0;
 	usb_ld->link_pm_data = pm_data;
 
-	pm_data->miscdev.minor = MISC_DYNAMIC_MINOR;
-	pm_data->miscdev.name = "link_pm";
-	pm_data->miscdev.fops = &link_pm_fops;
-
-	r = misc_register(&pm_data->miscdev);
-	if (r < 0) {
-		mif_err("fail to register pm device(%d)\n", r);
-		goto err_misc_register;
-	}
-
 	r = request_threaded_irq(pm_data->irq_link_hostwake,
 		NULL, host_wakeup_irq_handler,
 		IRQF_NO_SUSPEND | IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
@@ -1262,12 +1223,12 @@ static int usb_link_pm_init(struct usb_link_device *usb_ld, void *data)
 		goto err_create_wq;
 	}
 
-	pm_data->pm_notifier.notifier_call = link_pm_notifier_event;
+	pm_data->pm_notifier.notifier_call = hsic_pm_notifier_event;
 	register_pm_notifier(&pm_data->pm_notifier);
 
 	init_completion(&pm_data->active_done);
-	INIT_DELAYED_WORK(&pm_data->link_pm_work, link_pm_runtime_work);
-	INIT_DELAYED_WORK(&pm_data->link_pm_start, link_pm_runtime_start);
+	INIT_DELAYED_WORK(&pm_data->hsic_pm_work, hsic_pm_runtime_work);
+	INIT_DELAYED_WORK(&pm_data->hsic_pm_start, hsic_pm_runtime_start);
 
 	wake_lock_init(&pm_data->l2_wake, WAKE_LOCK_SUSPEND, "l2_hsic");
 	wake_lock_init(&pm_data->rpm_wake, WAKE_LOCK_SUSPEND, "rpm_hsic");
@@ -1280,8 +1241,6 @@ err_create_wq:
 err_set_wake_irq:
 	free_irq(pm_data->irq_link_hostwake, (void *)pm_data);
 err_request_irq:
-	misc_deregister(&pm_data->miscdev);
-err_misc_register:
 	kfree(pm_data);
 	return r;
 }
@@ -1320,7 +1279,7 @@ struct link_device *hsic_create_link_device(void *data)
 	usb_ld->rx_retry_cnt = 0;
 
 	/* create link pm device */
-	ret = usb_link_pm_init(usb_ld, data);
+	ret = hsic_pm_init(usb_ld, data);
 	if (ret)
 		goto err;
 
