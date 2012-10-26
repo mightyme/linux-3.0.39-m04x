@@ -1092,7 +1092,7 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 	gp2ap->als_data[0] = data0;
 	gp2ap->als_data[1] = data1;
 	
-	pr_info("light_lux is %ld, data0 is %ld, data1 is %ld,range is %d\n",
+	pr_debug("light_lux is %ld, data0 is %ld, data1 is %ld,range is %d\n",
 			light_lux, data0,data1, gp2ap->current_range);
 
 	/*when the gp2ap als enable the first time, set the intval_time is 0

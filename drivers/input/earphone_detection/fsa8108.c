@@ -33,9 +33,9 @@
 #include <mach/gpio-common.h>
 
 
-/******************************************************************************
+/***********************************************
 * Register addresses	
-******************************************************************************/
+***********************************************/
 #define FSA8108_REG_DEVICE_ID	             1
 #define FSA8108_REG_INT_1	                 2
 #define FSA8108_REG_INT_2                    3
@@ -52,9 +52,9 @@
 #define FSA8108_REG_COMPARATOR_34         0x0e
 #define FSA8108_REG_RESET                 0x0f
 
-/******************************************************************************
+/********************************************
 * Register bits	
-******************************************************************************/
+*********************************************/
 
 /* FSA8108_REG_DEVICE_ID (0x01) */
 #define FSA8108_VER_ID             (0x0f << 4)
@@ -210,10 +210,20 @@
 /**********************************************/
 #define TRUE 1
 #define FALSE 0
+/*******************key macro area*****************/
+#define KEY_HEADSETHOOK                       226 
+#define KEY_VOLUME_UP                         115 
+#define KEY_VOLUME_DOWN                       114 
+#define KEY_HEADSETHOOK_DOUBLECLICK           194 
+#define KEY_HEADSETHOOK_LONG                  195 
+#define KEY_VOLUME_UP_LONG_PRESS              196 
+#define KEY_VOLUME_UP_LONG_RELEASE            197 
+#define KEY_VOLUME_DOWN_LONG_PRESS            198 
+#define KEY_VOLUME_DOWN_LONG_RELEASE          199 
 
+/***********************************************/
 struct fsa8108_info {
-	struct i2c_client		*client;
-	struct fsa8108_platform_data	*pdata;
+	struct i2c_client		*client;	
 	struct mutex		mutex;
 	struct input_dev *input;
 	struct work_struct  det_work;
@@ -229,11 +239,12 @@ static struct switch_dev switch_sendend = {
 	.name = "send_end",
 };
 
-static struct i2c_client *this_client;
+struct fsa8108_info *g_fsa8108_info;
 
-static int fsa8108_WriteReg(int reg, int val)
+static int fsa8108_write_reg(int reg, int val)
 {
     int ret;
+	struct i2c_client *this_client = g_fsa8108_info->client;
 	
 	ret = i2c_smbus_write_byte_data(this_client, reg, val);
 		
@@ -247,42 +258,43 @@ static int fsa8108_WriteReg(int reg, int val)
     return ret;
 }
 
-static int fsa8108_ReadReg(int reg)
+static int fsa8108_read_reg(int reg)
 {
     int ret;
+	struct i2c_client *this_client = g_fsa8108_info->client;
 	
 	ret = i2c_smbus_read_byte_data(this_client, reg);
 		
-		if (ret < 0){
-			pr_err("%s: error = %d , try again", __func__, ret);
-			ret = i2c_smbus_read_byte_data(this_client, reg);
-			if (ret < 0)
-				pr_err("%s: error = %d", __func__, ret);
-		}
+	if (ret < 0){
+		pr_err("%s: error = %d , try again", __func__, ret);
+		ret = i2c_smbus_read_byte_data(this_client, reg);
+		if (ret < 0)
+			pr_err("%s: error = %d", __func__, ret);
+	}
     return ret;
 }
 
-static void fsa8108_SetValue(BYTE reg, BYTE reg_bit, BYTE reg_shift, BYTE val)
+static void fsa8108_set_value(u8 reg, u8 reg_bit, u8 reg_shift, u8 val)
 {
-	BYTE tmp;
+	u8 tmp;
 
-	tmp = fsa8108_ReadReg(reg);
+	tmp = fsa8108_read_reg(reg);
 	tmp &= (~reg_bit);
 	tmp |= (val << reg_shift);
 
-	fsa8108_WriteReg(reg,tmp);
+	fsa8108_write_reg(reg, tmp);
 }
-
-static BYTE fsa8108_GetValue(BYTE reg, BYTE reg_bit, BYTE reg_shift)
+/*
+static u8 fsa8108_get_value(u8 reg, u8 reg_bit, u8 reg_shift)
 {
-	BYTE tmp,ret;
+	u8 tmp,ret;
 
-	tmp = (BYTE)fsa8108_ReadReg(reg);
+	tmp = (u8)fsa8108_read_reg(reg);
 	ret = (tmp & reg_bit) >> reg_shift;
 
 	return ret;
 }
-
+*/
 static ssize_t fsa8108_show(struct device *dev,
                                       struct device_attribute *attr,
                                       char *buf);
@@ -323,11 +335,11 @@ static ssize_t fsa8108_show(struct device *dev,
 			int reg,value;
 			for(reg = FSA8108_REG_DEVICE_ID;reg <= FSA8108_REG_RESET;reg++)
 			{
-				value = fsa8108_ReadReg(reg);
+				value = fsa8108_read_reg(reg);
 				pr_info("%s: R=0x%.2X D=0x%.2X \n", __func__, reg,value);
 			}
 		}
-		i += scnprintf(buf+i, PAGE_SIZE-i, "0x%.2X 0x%.2X\n",fsa8108_ReadReg(2),fsa8108_ReadReg(3));
+		i += scnprintf(buf+i, PAGE_SIZE-i, "0x%.2X 0x%.2X\n",fsa8108_read_reg(2),fsa8108_read_reg(3));
 		break;
 	default:
 		i += scnprintf(buf+i, PAGE_SIZE-i, "Error\n");
@@ -349,7 +361,7 @@ static ssize_t fsa8108_store(struct device *dev,
 	switch(off){
 	case REG_SETVALUE:
 		if (sscanf(buf, "%X %X \n", &reg,&value) == 2) {	
-			fsa8108_WriteReg(reg,value);
+			fsa8108_write_reg(reg,value);
 			pr_info("%s: R=0x%.2X D=0x%.2X \n", __func__, reg,value);
 		}
 		ret = count;
@@ -357,7 +369,7 @@ static ssize_t fsa8108_store(struct device *dev,
 	case REG_GETVALUE:
 		if (sscanf(buf, "%X\n", &reg) == 1) {	
 			
-			value = fsa8108_ReadReg(reg);
+			value = fsa8108_read_reg(reg);
 			pr_info("%s: R=0x%.2X D=0x%.2X \n", __func__, reg,value);
 			
 		}
@@ -401,58 +413,31 @@ static void fsa8108_destroy_atts(struct device * dev)
 static void fsa8108_mask_int(int onoff)
 {
 	if(onoff){
-		fsa8108_WriteReg(FSA8108_REG_INT_MASK_1,0xFB);
-		fsa8108_WriteReg(FSA8108_REG_INT_MASK_2,0xFF);
+		fsa8108_write_reg(FSA8108_REG_INT_MASK_1,0xFB);
+		fsa8108_write_reg(FSA8108_REG_INT_MASK_2,0xFF);
 	}else{
-		fsa8108_WriteReg(FSA8108_REG_INT_MASK_1,0xC0);
-		fsa8108_WriteReg(FSA8108_REG_INT_MASK_2,0xC0);
+		fsa8108_write_reg(FSA8108_REG_INT_MASK_1,0xC0);
+		fsa8108_write_reg(FSA8108_REG_INT_MASK_2,0xC0);
 	}
 }
 
 
-/***** Example
-	fsa8108_SetValue(FSA8108_REG_CON, FSA8108_MP3_MODE, FSA8108_MP3_MODE_SHIFT, CONTROL_ON);
-	curr_mode = fsa8108_GetValue(FSA8108_REG_CON, FSA8108_MP3_MODE, FSA8108_MP3_MODE_SHIFT);
-*****/
-
-/*********************************************************************
-* Function: fsa8108_MP3_mode(int onoff)
-*
-* Parameters: onoff - MP3 mode ON : 1
-*                               MP3 mode OFF : 0
-*             
-* Return: None
-*
-* Description:  real register value which will be set is 0 when set MP3 ON(1)
-*
-*******************************************************************/
 void fsa8108_MP3_mode(int onoff)
 {
     if(onoff)
-        fsa8108_SetValue(FSA8108_REG_CON, FSA8108_MP3_MODE, FSA8108_MP3_MODE_SHIFT, CONTROL_ON);
+        fsa8108_set_value(FSA8108_REG_CON, FSA8108_MP3_MODE, FSA8108_MP3_MODE_SHIFT, CONTROL_ON);
 	else
-		fsa8108_SetValue(FSA8108_REG_CON, FSA8108_MP3_MODE, FSA8108_MP3_MODE_SHIFT, CONTROL_OFF);
+		fsa8108_set_value(FSA8108_REG_CON, FSA8108_MP3_MODE, FSA8108_MP3_MODE_SHIFT, CONTROL_OFF);
 		
 }
 EXPORT_SYMBOL(fsa8108_MP3_mode);
 
-/*********************************************************************
-* Function: fsa8108_LDO_output(int onoff)
-*
-* Parameters: onoff - LDO out ON : 1
-*                             LDO out OFF : 0
-*             
-* Return: None
-*
-* Description:  real register value which will be set is 0 when set LDO out ON(1)
-*
-*******************************************************************/
 void fsa8108_LDO_output(int onoff)
 {
     if(onoff)
-        fsa8108_SetValue(FSA8108_REG_CON, FSA8108_LDO_OUT, FSA8108_LDO_OUT_SHIFT, CONTROL_ON);
+        fsa8108_set_value(FSA8108_REG_CON, FSA8108_LDO_OUT, FSA8108_LDO_OUT_SHIFT, CONTROL_ON);
 	else
-		fsa8108_SetValue(FSA8108_REG_CON, FSA8108_LDO_OUT, FSA8108_LDO_OUT_SHIFT, CONTROL_OFF);
+		fsa8108_set_value(FSA8108_REG_CON, FSA8108_LDO_OUT, FSA8108_LDO_OUT_SHIFT, CONTROL_OFF);
 
 }
 EXPORT_SYMBOL(fsa8108_LDO_output);
@@ -488,31 +473,31 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				break;
 			case FSA8108_SEND_END_PRESS:
 				pr_err("%s OKOKOKOKOOOK",__func__);
-				input_report_key(info->input, KEY_MEDIA, 1);
+				input_report_key(info->input, KEY_HEADSETHOOK, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
 				msleep(10);				
-				input_report_key(info->input, KEY_MEDIA, 0);
+				input_report_key(info->input, KEY_HEADSETHOOK, 0);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,0);				
 				break;
 			case FSA8108_SEND_END_DOUBLE:  //TBD = to be done?
 				pr_err("%s OKOKOKOKOOOK__DOUBLE",__func__);
-				input_report_key(info->input, 194, 1);
+				input_report_key(info->input, KEY_HEADSETHOOK_DOUBLECLICK, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
 				msleep(10);
-				input_report_key(info->input, 194, 0);
+				input_report_key(info->input, KEY_HEADSETHOOK_DOUBLECLICK, 0);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,0);	
 				break;
 			case FSA8108_SEND_END_LONG:  //TBD
 				pr_err("%s OKOKOKOKOOOK__LONG",__func__);
-				input_report_key(info->input, 195, 1);
+				input_report_key(info->input, KEY_HEADSETHOOK_LONG, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
 				msleep(10);
-				input_report_key(info->input, 195, 0);
+				input_report_key(info->input, KEY_HEADSETHOOK_LONG, 0);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,0);	
 				break;					
@@ -525,61 +510,61 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 	    switch(val2){
 			case FSA8108_VOL_UP:
 				pr_err("%s volumn ++++++",__func__);
-				input_report_key(info->input, KEY_VOLUMEUP, 1);
+				input_report_key(info->input, KEY_VOLUME_UP, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
 				msleep(10);
-				input_report_key(info->input, KEY_VOLUMEUP, 0);
+				input_report_key(info->input, KEY_VOLUME_UP, 0);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,0);				
 				break;
-			case FSA8108_VOL_UP_LONG_P:  //TBD
+			case FSA8108_VOL_UP_LONG_P: 
 				pr_err("%s volumn ++++++LONG_PRESSED",__func__);
-				input_report_key(info->input, 196, 1);
+				input_report_key(info->input, KEY_VOLUME_UP_LONG_PRESS, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
 				msleep(10);
-				input_report_key(info->input, 196, 0);
+				input_report_key(info->input, KEY_VOLUME_UP_LONG_PRESS, 0);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,0);	
 				break;
-			case FSA8108_VOL_UP_LONG_R:  //TBD
+			case FSA8108_VOL_UP_LONG_R:  
 				pr_err("%s volumn ++++++LONG_RELEASE",__func__);
-				input_report_key(info->input, 197, 1);
+				input_report_key(info->input, KEY_VOLUME_UP_LONG_RELEASE, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
 				msleep(10);
-				input_report_key(info->input, 197, 0);
+				input_report_key(info->input, KEY_VOLUME_UP_LONG_RELEASE, 0);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,0);
 				break;
 			case FSA8108_VOL_DOWN:
 				pr_err("%s volumn ------",__func__);
-				input_report_key(info->input, KEY_VOLUMEDOWN, 1);
+				input_report_key(info->input, KEY_VOLUME_DOWN, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
 				msleep(10);
-				input_report_key(info->input, KEY_VOLUMEDOWN, 0);
+				input_report_key(info->input, KEY_VOLUME_DOWN, 0);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,0);				
 				break;
-			case FSA8108_VOL_DOWN_LONG_P:  //TBD
+			case FSA8108_VOL_DOWN_LONG_P: 
 				pr_err("%s volumn ------LONG_PRESSED",__func__);
-				input_report_key(info->input, 198, 1);
+				input_report_key(info->input, KEY_VOLUME_DOWN_LONG_PRESS, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
 				msleep(10);
-				input_report_key(info->input, 198, 0);
+				input_report_key(info->input, KEY_VOLUME_DOWN_LONG_PRESS, 0);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,0);
 				break;
-			case FSA8108_VOL_DOWN_LOGN_R:  //TBD
+			case FSA8108_VOL_DOWN_LOGN_R:  
 				pr_err("%s volumn ------LONG_RELEASE",__func__);
-				input_report_key(info->input, 199, 1);
+				input_report_key(info->input, KEY_VOLUME_DOWN_LONG_RELEASE, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
 				msleep(10);
-				input_report_key(info->input, 199, 0);
+				input_report_key(info->input, KEY_VOLUME_DOWN_LONG_RELEASE, 0);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,0);
 				break;					
@@ -589,7 +574,7 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 	}
 	else
 	{
-	    pr_err("%s : interrupt trigger is wrong. intr_type = 0x%.4X \n", __func__,intr_type);
+	    pr_err("%s : [fsa8108]interrupt status: intr_type = 0x%.4X \n", __func__,intr_type);
 	}
 
 }
@@ -597,7 +582,7 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 static irqreturn_t fsa8108_irq_thread(int irq, void *handle)
 {
 	struct fsa8108_info *info = (struct fsa8108_info *)handle;
-
+	pr_info("[fsa8108] irq triggered\n");
 	schedule_work(&info->det_work);
 
 	return IRQ_HANDLED;
@@ -606,65 +591,50 @@ static irqreturn_t fsa8108_irq_thread(int irq, void *handle)
 
 static void fsa8081_jack_det_work_func(struct work_struct *work)
 {
+	int intr_type;	
 	struct fsa8108_info *info =
 		container_of(work, struct fsa8108_info, det_work);
-
-	struct i2c_client *client = info->client;
-	int intr_type;	
+	struct i2c_client *client = info->client;	
 
 	mutex_lock(&info->mutex);
-	intr_type = i2c_smbus_read_word_data(client, FSA8108_REG_INT_1);
+	intr_type = i2c_smbus_read_word_data(client, FSA8108_REG_INT_1);	
 	process_int(intr_type,info);
 	mutex_unlock(&info->mutex);
 }
 static void fsa8108_reset_work(struct work_struct *work)
-{
-	fsa8108_WriteReg(FSA8108_REG_RESET,0x01);
+{	
+	fsa8108_write_reg(FSA8108_REG_RESET,0x01);
 	msleep(100);
-	fsa8108_WriteReg(FSA8108_REG_RESET,0x00);
+	fsa8108_write_reg(FSA8108_REG_RESET,0x00);
 }
-//extern void set_ext_mic_bias(bool bOnOff);
-//extern bool get_ext_mic_bias(void);
+
 static void fsa8108_initialization(struct fsa8108_info *info)
 {
 	struct i2c_client *client = info->client;
 	int int_type=0;	
 	
 	/*** Set Comparator Thresholds setting Send/End***/
-	fsa8108_SetValue(FSA8108_REG_COMPARATOR_12, FSA8108_NO_SE_KEY_CMP,
-	FSA8108_NO_SE_KEY_CMP_SHIFT, NO_SE_170);//0.083 //0.05
-	fsa8108_SetValue(FSA8108_REG_COMPARATOR_12, FSA8108_NC_SE_KEY_CMP,
-	FSA8108_NC_SE_KEY_CMP_SHIFT, NC_SE_2300);//2300mV
+	fsa8108_set_value(FSA8108_REG_COMPARATOR_12, FSA8108_NO_SE_KEY_CMP,
+	FSA8108_NO_SE_KEY_CMP_SHIFT, NO_SE_170);
+	fsa8108_set_value(FSA8108_REG_COMPARATOR_12, FSA8108_NC_SE_KEY_CMP,
+	FSA8108_NC_SE_KEY_CMP_SHIFT, NC_SE_2300);
     
 	/*** Set Comparator Thresholds setting for volum up***/
-	//	fsa8108_SetValue(FSA8108_REG_COMPARATOR_34, FSA8108_VOL_UP_CMP, 
-	//	FSA8108_VOL_UP_CMP_SHIFT , /*0x0d*/0x06);//0.299 //0.18 //default 0.25
-
+	
+	//fsa8108_set_value(FSA8108_REG_COMPARATOR_34, FSA8108_VOL_UP_CMP, 
+	//	FSA8108_VOL_UP_CMP_SHIFT , 0x06);
+	
 	
 	/*** Set Comparator Thresholds setting for volum down***/
-	fsa8108_SetValue(FSA8108_REG_COMPARATOR_34, FSA8108_VOL_DOWN_CMP, 
-	FSA8108_VOL_DOWN__CMP_SHIFT , /*0x06*/0x0F);//0.620 //0.29
-
+	fsa8108_set_value(FSA8108_REG_COMPARATOR_34, FSA8108_VOL_DOWN_CMP, 
+		FSA8108_VOL_DOWN__CMP_SHIFT , 0x0F);
 
 	/*** Set Timing parameters and Global Multiplier setting ***/
-	fsa8108_SetValue(FSA8108_REG_KEY_PRS_T,FSA8108_TDOUBLE,FSA8108_TDOUBLE_SHIFT,0x02);
+	fsa8108_set_value(FSA8108_REG_KEY_PRS_T,FSA8108_TDOUBLE,FSA8108_TDOUBLE_SHIFT,0x02);
 
-	/*** Set Control bits: All key/Double/Long/3-4 pole/LDO ***/
-
-	//set_ext_mic_bias(1); internal micbiasd provided,this sentence unnecessary
-	//clear interrupts
-	
-	//fsa8108_mask_int(0);
-
-	int_type = i2c_smbus_read_word_data(client, FSA8108_REG_INT_1);
+	int_type = i2c_smbus_read_word_data(client, FSA8108_REG_INT_1);		
 	process_int(int_type,info); 
 
-}
-
-
-static void power_on(int onoff)
-{
-	return;
 }
 
 static int fsa8108_probe(
@@ -674,34 +644,29 @@ static int fsa8108_probe(
 	int i,ret = 0;
 	struct fsa8108_info *info;
 
-	int fsa8108_jack_keycode[] = {KEY_MEDIA, KEY_VOLUMEUP, KEY_VOLUMEDOWN
-								,KEY_FN_F1, KEY_FN_F2, KEY_FN_F3
-								,KEY_FN_F4, KEY_FN_F5, KEY_FN_F6};
-	int device_id = -1;
-	
-	//power_on(1);
-	//msleep(100);
+	int fsa8108_jack_keycode[] = {KEY_HEADSETHOOK, KEY_VOLUME_UP, KEY_VOLUME_DOWN
+								,KEY_HEADSETHOOK_DOUBLECLICK, KEY_HEADSETHOOK_LONG,
+								KEY_VOLUME_UP_LONG_PRESS,KEY_VOLUME_UP_LONG_RELEASE,
+								KEY_VOLUME_DOWN_LONG_PRESS, KEY_VOLUME_DOWN_LONG_RELEASE};
+	int device_id = -1;	
 
-	printk("[fsa8108]earphone detection fsa8108_probe begin\n");	
+	pr_info("[fsa8108]earphone detection fsa8108_probe begin\n");	
 	info = kzalloc(sizeof(struct fsa8108_info), GFP_KERNEL);
 	if(info == NULL){
 		pr_info("%s  allocate memory for info failed\n",__func__);
 	}
-	info->client = client;
-	info->pdata = client->dev.platform_data;
+	g_fsa8108_info = info;
+	info->client = client;	
 	i2c_set_clientdata(client, info);
 	mutex_init(&info->mutex);
 
-	this_client = client;
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		pr_err("%s: i2c check functionality error\n", __func__);
 		ret = -ENODEV;
 		goto check_funcionality_failed;
 	}
-
-	//pr_info("%s: FSA8108_REG_COMPARATOR_12=0x%.2X \n", __func__,fsa8108_ReadReg(FSA8108_REG_COMPARATOR_12));
-
-	device_id = fsa8108_ReadReg(FSA8108_REG_DEVICE_ID);
+	
+	device_id = fsa8108_read_reg(FSA8108_REG_DEVICE_ID);
 	pr_info("%s: FSADEVICE_ID =%d \n",__func__,device_id);
 	if(device_id < 0){
 		pr_err("%s: i2c check device error\n", __func__);
@@ -742,10 +707,13 @@ static int fsa8108_probe(
 	INIT_WORK(&info->det_work, fsa8081_jack_det_work_func);
 	INIT_WORK(&info->reset_work, fsa8108_reset_work);
 	// Reset
-	//schedule_work(&info->reset_work);
+	schedule_work(&info->reset_work);
 
 	client->irq = gpio_to_irq(client->irq);
-	if (client->irq < 0) return -EINVAL;
+	if (client->irq < 0){
+		pr_err("%s : Failed gpio_to_irq\n", __func__);
+		goto err_switch_dev_register;
+	}
 	
 	if (client->irq) {
 	    ret = request_threaded_irq(client->irq, NULL,
@@ -758,7 +726,6 @@ static int fsa8108_probe(
     }
 	fsa8108_initialization(info);
 	
-	/*pr_info("fsa8081 irq:%d",client->irq);206*/
 	ret = enable_irq_wake(client->irq);
 	if (ret < 0)
 		dev_err(&client->dev,
@@ -787,8 +754,7 @@ static int fsa8108_remove(struct i2c_client *client)
 {
     struct fsa8108_info *info = i2c_get_clientdata(client);
 
-	fsa8108_destroy_atts(&client->dev);
-	power_on(0);
+	fsa8108_destroy_atts(&client->dev);	
 
 	if (client->irq) {
 		disable_irq_wake(client->irq);
@@ -800,16 +766,6 @@ static int fsa8108_remove(struct i2c_client *client)
 	
 	kfree(info);
 	
-	return 0;
-}
-
-static int  fsa8108_suspend(struct i2c_client *client, pm_message_t message)
-{
-	return 0;
-}
-
-static int  fsa8108_resume(struct i2c_client *client)
-{
 	return 0;
 }
 
@@ -825,8 +781,8 @@ static struct i2c_driver fsa8108_i2c_driver = {
 	},
 	.probe    = fsa8108_probe,
 	.remove   = __devexit_p(fsa8108_remove),
-	.suspend  = fsa8108_suspend,
-	.resume	  = fsa8108_resume,
+	.suspend  = NULL,
+	.resume	  = NULL,
 	.id_table = fsa8108_i2c_id,
 };
 
