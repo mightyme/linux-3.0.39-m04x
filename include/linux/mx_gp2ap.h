@@ -164,6 +164,7 @@ struct gp2ap_data {
 	bool lowlight_mode;
 
 	struct mutex ioctl_lock;
+	struct mutex i2c_lock;
 };
 #endif
 

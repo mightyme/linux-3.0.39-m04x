@@ -76,6 +76,8 @@ static atomic_t gp2ap_als_start = ATOMIC_INIT(0);
 static int gp2ap_i2c_read_byte(struct i2c_client *client, u8 reg, u8 *val)
 {
 	int ret = 0, retry = I2C_RETRIES;
+	struct gp2ap_data  *gp2ap = i2c_get_clientdata(client);
+	
 	struct i2c_msg msgs[] = {
 		{
 			.addr = client->addr,
@@ -90,15 +92,20 @@ static int gp2ap_i2c_read_byte(struct i2c_client *client, u8 reg, u8 *val)
 		},
 	};
 
+	mutex_lock(&gp2ap->i2c_lock);
 	while (retry--) {
 		ret = i2c_transfer(client->adapter, msgs, 2);
-		if (ret == 2)
+		if (ret == 2){
+			mutex_unlock(&gp2ap->i2c_lock);
 			return 0;
-
-		pr_err("%s: i2c_transfer fail, retry %d\n", __func__, I2C_RETRIES - retry);
-		msleep_interruptible(I2C_RETRY_DELAY);
+		}else{
+			pr_err("%s: i2c_transfer fail, retry %d\n",
+					__func__, I2C_RETRIES - retry);
+			msleep_interruptible(I2C_RETRY_DELAY);
+		}
 	}
-
+	
+	mutex_unlock(&gp2ap->i2c_lock);
 	dev_err(&client->dev, "gp2ap sensor i2c read byte error(ret = %d).\n", ret);
 
 	return ret;
@@ -112,7 +119,9 @@ static int gp2ap_i2c_write_byte(struct i2c_client *client, u8 reg, u8 val)
 	int ret = 0, retry = I2C_RETRIES;
 	struct i2c_msg msg;
 	u8 buf[2];
+	struct gp2ap_data  *gp2ap = i2c_get_clientdata(client);
 
+	mutex_lock(&gp2ap->i2c_lock);
 	buf[0] = reg;
 	buf[1] = val;
 	msg.addr = client->addr;
@@ -122,13 +131,16 @@ static int gp2ap_i2c_write_byte(struct i2c_client *client, u8 reg, u8 val)
 
 	while (retry--) {
 		ret = i2c_transfer(client->adapter, &msg, 1);
-		if (ret == 1)
+		if (ret == 1){
+			mutex_unlock(&gp2ap->i2c_lock);
 			return 0;
-
-		pr_err("%s: i2c_transfer fail, retry %d\n", __func__, I2C_RETRIES - retry);
-		msleep_interruptible(I2C_RETRY_DELAY);
+		}else{
+			pr_err("%s: i2c_transfer fail, retry %d\n", __func__, I2C_RETRIES - retry);
+			msleep_interruptible(I2C_RETRY_DELAY);
+		}	
 	}
-
+	
+	mutex_unlock(&gp2ap->i2c_lock);
 	dev_err(&client->dev, "gp2ap sensor i2c write byte error(ret = %d).\n", ret);
 
 	return ret;
@@ -137,6 +149,8 @@ static int gp2ap_i2c_write_byte(struct i2c_client *client, u8 reg, u8 val)
 static int gp2ap_i2c_read_multibytes(struct i2c_client *client, u8 reg, u8* buf, int count)
 {
 	int ret = 0, retry = I2C_RETRIES;
+	struct gp2ap_data  *gp2ap = i2c_get_clientdata(client);
+
 	struct i2c_msg msgs[] = {
 		{
 			.addr = client->addr,
@@ -151,15 +165,19 @@ static int gp2ap_i2c_read_multibytes(struct i2c_client *client, u8 reg, u8* buf,
 		},
 	};
 
+	mutex_lock(&gp2ap->i2c_lock);	
 	while (retry--) {
 		ret = i2c_transfer(client->adapter, msgs, 2);
-		if (ret == 2)
+		if (ret == 2){
+			mutex_unlock(&gp2ap->i2c_lock);
 			return 0;
-
-		pr_err("%s: i2c_transfer fail, retry %d\n", __func__, I2C_RETRIES - retry);
-		msleep_interruptible(I2C_RETRY_DELAY);
+		}else{
+			pr_err("%s: i2c_transfer fail, retry %d\n", __func__, I2C_RETRIES - retry);
+			msleep_interruptible(I2C_RETRY_DELAY);
+		}
 	}
 
+	mutex_unlock(&gp2ap->i2c_lock);
 	dev_err(&client->dev, "gp2ap sensor i2c read multi bytes error(ret = %d).\n", ret);
 
 	return ret;
@@ -170,7 +188,9 @@ static int gp2ap_i2c_write_multibytes(struct i2c_client *client, u8 reg, u8 *buf
 	int ret = 0, i, retry = I2C_RETRIES;
 	struct i2c_msg msg;
 	u8 wbuf[count + 1];
+	struct gp2ap_data  *gp2ap = i2c_get_clientdata(client);
 
+	mutex_lock(&gp2ap->i2c_lock);
 	wbuf[0] = reg;
 	for (i = 0; i < count; i++)
 		wbuf[i + 1] = buf[i];
@@ -182,16 +202,21 @@ static int gp2ap_i2c_write_multibytes(struct i2c_client *client, u8 reg, u8 *buf
 
 	while (retry--) {
 		ret = i2c_transfer(client->adapter, &msg, 1);
-		if (ret == 1)
+		if (ret == 1){
+			mutex_unlock(&gp2ap->i2c_lock);
 			return 0;
-		pr_err("%s: i2c_transfer fail, retry %d\n", __func__, I2C_RETRIES - retry);
-		msleep_interruptible(I2C_RETRY_DELAY);
-	};
-
+		}else{
+			pr_err("%s: i2c_transfer fail, retry %d\n", __func__, I2C_RETRIES - retry);
+			msleep_interruptible(I2C_RETRY_DELAY);
+		}
+	}
+	
+	mutex_unlock(&gp2ap->i2c_lock);
 	dev_err(&client->dev, "gp2ap sensor i2c write multi bytes error(ret = %d).\n", ret);
 
 	return ret;
 }
+
 
 /*
  * Detect the device,
@@ -903,7 +928,7 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
         int ret;
 	unsigned long light_lux =0;
 	bool gp2ap_reset_als = 0;
-
+	
 	ret = gp2ap_i2c_read_multibytes(client, REG_D0_LSB, buf, 2);
 	if (ret < 0) {
 		pr_err("%s()->%d:read REG_ALS_D0_LSB reg fail!\n",
@@ -1031,23 +1056,23 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 			light_lux = gamma * (alpha * data0 - beta * data1);
 			light_lux /= 100000;
 			if(gp2ap->prev_range == __ALS_RANGE_X8){
-				light_lux = light_lux * 4;
+				light_lux = light_lux << 2;
 			}
 		}else if(gp2ap->current_range == __ALS_RANGE_X8){
 				gamma = 1;
 				light_lux = gamma * (alpha * data0 - beta * data1);
 				light_lux /= 1000;
 				if(gp2ap->prev_range == __ALS_RANGE_X2){
-					light_lux = light_lux / 4;
+					light_lux = light_lux >> 2;
 				}else if(gp2ap->prev_range == __ALS_RANGE_X128){
-					light_lux = light_lux * 16;
+					light_lux = light_lux << 4;
 				}
 		} else if(gp2ap->current_range == __ALS_RANGE_X128){
 				gamma = 16;
 				light_lux = gamma * (alpha * data0 - beta * data1);
 				light_lux /= 1000;
 				if(gp2ap->prev_range == __ALS_RANGE_X8){
-					light_lux = light_lux / 16;
+					light_lux = light_lux >> 4;
 				}
 			}
 		gp2ap->prev_lux = light_lux;
@@ -1067,7 +1092,7 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 	gp2ap->als_data[0] = data0;
 	gp2ap->als_data[1] = data1;
 	
-	pr_debug("light_lux is %ld, data0 is %ld, data1 is %ld,range is %d\n",
+	pr_info("light_lux is %ld, data0 is %ld, data1 is %ld,range is %d\n",
 			light_lux, data0,data1, gp2ap->current_range);
 
 	/*when the gp2ap als enable the first time, set the intval_time is 0
@@ -1168,7 +1193,9 @@ static irqreturn_t gp2ap_irq_handler(int irq, void *dev_id)
 		gp2ap_ps_handler(gp2ap);
 	} else {
 		pr_debug("%s: ********** als ***********\n", __func__);
-		queue_delayed_work(gp2ap->als_wq, &gp2ap->als_dwork, msecs_to_jiffies(ALS_DELAYTIME));
+
+		queue_delayed_work(gp2ap->als_wq, &gp2ap->als_dwork, 
+				msecs_to_jiffies(ALS_DELAYTIME));
 	}
 
 	return IRQ_HANDLED;
@@ -1335,7 +1362,20 @@ static int __devinit gp2ap_probe(struct i2c_client *client, const struct i2c_dev
 	int ret;
 	struct gp2ap_data *gp2ap;
 
-	pr_info("%s(): address 0x%02x, id %s.\n", __func__, client->addr, id->name);
+	/*request private data*/
+	gp2ap = kzalloc(sizeof(struct gp2ap_data), GFP_KERNEL);
+	if (!gp2ap) {
+		pr_err("%s()->%d:can not alloc memory to private data !\n",
+			__func__, __LINE__);
+		return -ENOMEM;
+	}
+
+	/*set client private data*/
+	gp2ap->client = client;
+	i2c_set_clientdata(client, gp2ap);
+
+	mutex_init(&gp2ap->ioctl_lock);
+	mutex_init(&gp2ap->i2c_lock);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		pr_err("%s()->%d:i2c adapter don't support i2c operation!\n",
@@ -1350,20 +1390,6 @@ static int __devinit gp2ap_probe(struct i2c_client *client, const struct i2c_dev
 			__func__, __LINE__);
 		return -ENODEV;
 	}
-
-	/*request private data*/
-	gp2ap = kzalloc(sizeof(struct gp2ap_data), GFP_KERNEL);
-	if (!gp2ap) {
-		pr_err("%s()->%d:can not alloc memory to private data !\n",
-			__func__, __LINE__);
-		return -ENOMEM;
-	}
-
-	mutex_init(&gp2ap->ioctl_lock);
-
-	/*set client private data*/
-	gp2ap->client = client;
-	i2c_set_clientdata(client, gp2ap);
 
 	/*create input device for reporting data*/
 	ret = gp2ap_create_input(gp2ap);
@@ -1389,10 +1415,8 @@ static int __devinit gp2ap_probe(struct i2c_client *client, const struct i2c_dev
 
 	gp2ap->irq = gpio_to_irq(client->irq);
 	if (gp2ap->irq) {
-		/*pull up the gpio*/
-		s3c_gpio_setpull(client->irq, S3C_GPIO_PULL_UP);
 		ret = request_threaded_irq(gp2ap->irq, NULL, gp2ap_irq_handler,
-			IRQF_TRIGGER_FALLING, client->name, gp2ap);
+			IRQF_TRIGGER_FALLING | IRQF_ONESHOT, client->name, gp2ap);
 		if (ret < 0) {
 			pr_err("%s()->%d:can not request threaded irq for %d!\n",
 				__func__, __LINE__, gp2ap->irq);
