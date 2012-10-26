@@ -128,7 +128,7 @@
 #define PS_IRQ_MODE		0
 #define PS_SHUTDOWN_MODE	1
 
-#define ALS_DELAYTIME	100	/* ms */
+#define ALS_DELAYTIME	0	/*default:100 ms */
 
 /* gp2ap driver private data struct*/
 #ifdef __KERNEL__

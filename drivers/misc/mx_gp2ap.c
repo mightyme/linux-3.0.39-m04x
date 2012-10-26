@@ -65,10 +65,10 @@ static atomic_t gp2ap_als_start = ATOMIC_INIT(0);
 #define __ALS_RANGE_X128 2 
 
 #define __INTVAL_TIME_0 0
-#define __INTVAL_TIME_8 1
+#define __INTVAL_TIME_16 1
 
 #define CURRENT_INTVAL_TIME(intval_time) \
-	(((intval_time) == __INTVAL_TIME_0) ? INTVAL_TIME_0 : INTVAL_TIME_8)
+	(((intval_time) == __INTVAL_TIME_0) ? INTVAL_TIME_0 : INTVAL_TIME_16)
 
 /*
  * i2c read byte function, if success, return zero, else return negative value
@@ -615,7 +615,7 @@ static ssize_t gp2ap_report_time_show(struct device *dev,
 	/*the intermittent time = RESOLUTION * INTVAL_TIME 
 	 ALS_RESOLUTION_14 refer to 25ms.*/
 	
-	report_time = ALS_DELAYTIME + (25 * 8); 
+	report_time = 25 * 16; 
 	
 	return sprintf(buf, "%d\n", report_time);
 }
@@ -1100,7 +1100,7 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 	  operation is 25ms * 8 = 200ms; 
 	 */
 	if(gp2ap->current_intval_time == __INTVAL_TIME_0) {
-		gp2ap->current_intval_time = __INTVAL_TIME_8;
+		gp2ap->current_intval_time = __INTVAL_TIME_16;
 		gp2ap_reset_als = 1;
 	}
 
@@ -1197,7 +1197,6 @@ static irqreturn_t gp2ap_irq_handler(int irq, void *dev_id)
 		queue_delayed_work(gp2ap->als_wq, &gp2ap->als_dwork, 
 				msecs_to_jiffies(ALS_DELAYTIME));
 	}
-
 	return IRQ_HANDLED;
 }
 
