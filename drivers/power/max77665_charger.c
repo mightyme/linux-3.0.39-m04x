@@ -214,7 +214,6 @@ static void max77665_work_func(struct work_struct *work)
 	struct max77665_charger *charger =
 		container_of(work, struct max77665_charger, dwork.work);
 	enum cable_status_t cable_status = CABLE_TYPE_NONE;
-	enum cable_status_t last_cable_status = charger->cable_status;
 
 	mutex_lock(&charger->mutex_t);
 
@@ -703,11 +702,20 @@ static __devexit int max77665_charger_remove(struct platform_device *pdev)
 	s3c_adc_release(charger->client);
 #endif
 	regulator_put(charger->ps);
+	regulator_put(charger->reverse);
 	power_supply_unregister(&charger->psy_usb);
 	power_supply_unregister(&charger->psy_ac);
 	platform_set_drvdata(pdev, NULL);
 	kfree(charger);
 	return 0;
+}
+
+static void max77665_shutdown(struct platform_device *pdev)
+{
+	struct max77665_charger *charger = platform_get_drvdata(pdev);
+	if(regulator_is_enabled(charger->reverse))
+		regulator_disable(charger->reverse);
+	regulator_put(charger->reverse);
 }
 
 #ifdef CONFIG_PM
@@ -748,6 +756,7 @@ static struct platform_driver max77665_charger_driver =
 	},
 	.probe = max77665_charger_probe,
 	.remove = __devexit_p(max77665_charger_remove),
+	.shutdown	= max77665_shutdown,
 };
 
 static int __init max77665_charger_init(void)
