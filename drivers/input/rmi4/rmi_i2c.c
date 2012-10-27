@@ -361,6 +361,7 @@ static int __devinit rmi_i2c_probe(struct i2c_client *client,
 				pdata->attn_gpio);
 			goto err_unregister;
 		}
+		disable_device(rmi_phys);
 	}
 
 #if defined(CONFIG_RMI4_DEV)

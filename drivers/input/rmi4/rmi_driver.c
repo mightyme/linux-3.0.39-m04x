@@ -658,7 +658,7 @@ static int rmi_driver_irq_handler(struct rmi_device *rmi_dev, int irq)
 	/* Can get called before the driver is fully ready to deal with
 	 * interrupts.
 	 */
-	if (!data || !data->f01_container || !data->f01_container->fh) {
+	if (!data || !data->f01_container || !data->f01_container->fh ||!data->enabled) {
 		dev_warn(&rmi_dev->dev,
 			 "Not ready to handle interrupts yet!\n");
 		return 0;
@@ -675,7 +675,7 @@ static int rmi_driver_reset_handler(struct rmi_device *rmi_dev)
 	/* Can get called before the driver is fully ready to deal with
 	 * interrupts.
 	 */
-	if (!data || !data->f01_container || !data->f01_container->fh) {
+	if (!data || !data->f01_container || !data->f01_container->fh ||!data->enabled) {
 		dev_warn(&rmi_dev->dev,
 			 "Not ready to handle reset yet!\n");
 		return 0;
@@ -938,8 +938,6 @@ static int do_initial_reset(struct rmi_device *rmi_dev)
 	int i;
 	int retval;
 	struct rmi_device_platform_data *pdata;
-	
-	disable_sensor(rmi_dev);
 
 	dev_info(dev, "Initial reset.\n");
 	pdata = to_rmi_platform_data(rmi_dev);
@@ -1003,8 +1001,6 @@ static int do_initial_reset(struct rmi_device *rmi_dev)
 	else
 		dev_warn(dev, "WARNING: No F34, firmware update will not be done.\n");
 #endif
-	
-	enable_sensor(rmi_dev);
 
 	return 0;
 }
@@ -1209,6 +1205,8 @@ static int rmi_driver_probe(struct rmi_device *rmi_dev)
 		dev_warn(&fc->dev, "Failed to setup debugfs. Code: %d.\n",
 			 retval);
 #endif
+
+	enable_sensor(rmi_dev);
 
 	return 0;
 

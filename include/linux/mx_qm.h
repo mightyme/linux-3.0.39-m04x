@@ -70,9 +70,11 @@ enum mx_qm_reg {
 #define MXQM_REG_INVALID	(0xff)
 
 enum mx_qm_state {
-        QM_STATE_SLEEP = 0,
-        QM_STATE_NORMAL = 1,
-        
+	QM_STATE_SLEEP = 0,
+	QM_STATE_NORMAL = 1,
+	QM_STATE_RAW = 2,
+	QM_STATE_IDLE = 3,
+
 	QM_STATE_MAX,
 };
 

@@ -55,8 +55,9 @@ struct mx_qm_reg_data {
 	unsigned char value;
 };
 
-//led_bu26507
+//initial registers
 const struct mx_qm_reg_data init_regs[] = {
+	{QM_REG_STATUS, QM_STATE_IDLE},
 	{LED_REG_PWM, 0xFF},
 	{LED_REG_CUR0, 0x02},
 //	{LED_REG_CUR1, 0x00},
