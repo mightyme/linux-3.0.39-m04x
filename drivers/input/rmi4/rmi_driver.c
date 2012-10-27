@@ -1280,10 +1280,10 @@ static int standard_suspend(struct rmi_device *rmi_dev)
 				goto exit;
 		}
 
-	rmi_driver_irq_save(rmi_dev,data->f01_container->irq_mask);
 
 	if (data->f01_container && data->f01_container->fh
-				&& data->f01_container->fh->suspend) {
+				&& data->f01_container->fh->suspend) {				
+		rmi_driver_irq_save(rmi_dev,data->f01_container->irq_mask);
 		retval = data->f01_container->fh->suspend(data->f01_container);
 		if (retval < 0)
 			goto exit;
@@ -1333,10 +1333,6 @@ static int standard_resume(struct rmi_device *rmi_dev)
 	if (retval)
 		goto exit;
 	
-	retval = rmi_driver_irq_restore(rmi_dev);
-	if (retval < 0)
-		dev_err(&rmi_dev->dev, "%s: Failed to write restore interupts!",__func__);
-
 #if !defined(CONFIG_HAS_EARLYSUSPEND) || defined(CONFIG_RMI4_SPECIAL_EARLYSUSPEND)
 	if (data->post_resume) {
 		retval = data->post_resume(data->pm_data);
@@ -1344,6 +1340,11 @@ static int standard_resume(struct rmi_device *rmi_dev)
 			goto exit;
 	}
 #endif
+
+	msleep(10);
+	retval = rmi_driver_reset_handler(rmi_dev);
+	if (retval < 0)
+		dev_err(&rmi_dev->dev, "%s: Failed to reset handle!",__func__);	
 
 	data->suspended = false;
 exit:

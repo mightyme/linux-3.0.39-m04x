@@ -62,8 +62,6 @@
 #define DEFAULT_MAX_ABS_MT_TRACKING_ID 10
 #define MAX_NAME_LENGTH 256
 
-static int _turn_on_calibration(struct rmi_device *rmi_dev,int bOnOff);
-
 static ssize_t f11_flip_show(struct device *dev,
 				   struct device_attribute *attr, char *buf);
 
@@ -569,7 +567,7 @@ struct f11_data {
 	bool rezero_on_resume;
 #endif
 	struct f11_2d_sensor sensors[F11_MAX_NUM_OF_SENSORS];
-struct rmi_device  *rmi_dev;
+	struct rmi_device  *rmi_dev;
 
 };
 
@@ -579,6 +577,8 @@ enum finger_state_values {
 	F11_INACCURATE	= 0x02,
 	F11_RESERVED	= 0x03
 };
+
+static int _turn_on_calibration(struct f11_data *data,int bOnOff);
 
 /* ctrl sysfs files */
 show_store_union_struct_prototype(abs_pos_filt)
@@ -1548,20 +1548,48 @@ static int rmi_f11_initialize(struct rmi_function_container *fc)
 			return rc;
 	}
 
-	_turn_on_calibration(rmi_dev,false);
+	f11->rmi_dev = rmi_dev;
+	_turn_on_calibration(f11,false);
 	
 	mutex_init(&f11->dev_controls_mutex);
 	return 0;
 }
 
+static u8 rmi_f11_getfingers(struct f11_2d_sensor *sensor)
+{
+	const u8 *f_state = sensor->data.f_state;
+	u8 finger_state;
+	u8 finger_pressed_count;
+	u8 i;
+
+	for (i = 0, finger_pressed_count = 0; i < sensor->nbr_fingers; i++) {
+		/* Possible of having 4 fingers per f_statet register */
+		finger_state = GET_FINGER_STATE(f_state, i);
+
+		if (finger_state == F11_RESERVED) {
+			pr_err("%s: Invalid finger state[%d]:0x%02x.", __func__,
+					i, finger_state);
+			continue;
+		} else if ((finger_state == F11_PRESENT) ||
+				(finger_state == F11_INACCURATE)) {
+			finger_pressed_count++;
+		}
+	}
+
+	return finger_pressed_count;
+}
+
+
 #define	REG_F54_G0	0x010D
 #define	REG_F54_G1	0x011D
 #define	REG_F54_G2	0x0172
-static int _turn_on_calibration(struct rmi_device *rmi_dev,int bOnOff)
+static int _turn_on_calibration(struct f11_data *data,int bOnOff)
 {
+	struct rmi_device *rmi_dev =data->rmi_dev;
 	static u8 fast_relax_rate =  0xFF;
-	u8 val = 0x00;
+	u8 val = 0x00,i;
 	int ret;
+	u8 fingers = 0;
 
 	// Enable/Disable Energy Ratio Relaxation
 	ret = rmi_read(rmi_dev,REG_F54_G0,&val);//0x20
@@ -1596,15 +1624,33 @@ static int _turn_on_calibration(struct rmi_device *rmi_dev,int bOnOff)
 		printk("%s:write error %d\n",__func__,ret);
 
 
-	// Force Update
+	// Force Update / Force Cal
 	ret = rmi_read(rmi_dev,REG_F54_G2,&val);
 	if( ret < 0)		
 		printk("%s:read error %d\n",__func__,ret);
 
-	val |= (1<<2);
-	ret = rmi_write(rmi_dev,REG_F54_G2,val);	
-	if( ret < 0)		
-		printk("%s:write error %d\n",__func__,ret);
+	i = 10;
+	do
+	{
+		msleep(20);
+		fingers = rmi_f11_getfingers(&data->sensors[0]) ;
+	}while( i-- && fingers);
+	
+	printk("%s:fingers %d\n",__func__,fingers);
+	if( fingers == 0)
+	{
+		val |= (1<<2) |((1<<1));
+		ret = rmi_write(rmi_dev,REG_F54_G2,val);	
+		if( ret < 0)		
+			printk("%s:write error %d\n",__func__,ret);
+	}
+	else
+	{
+		val |= (1<<2) ;
+		ret = rmi_write(rmi_dev,REG_F54_G2,val);	
+		if( ret < 0)		
+			printk("%s:write error %d\n",__func__,ret);
+	}
 	
 	return ret;
 }
@@ -1614,7 +1660,6 @@ static ssize_t mxt_turn_on_calibration_store(struct device *dev,
 					const char *buf, size_t count)
 {		
 	struct f11_data *f11 = dev_get_drvdata(dev);
-	 struct rmi_device *rmi_dev =f11->rmi_dev;
 	unsigned long turn_off;
 	char tmp_str[33];
 	int error;
@@ -1630,14 +1675,13 @@ static ssize_t mxt_turn_on_calibration_store(struct device *dev,
 
 	if (0xff == turn_off) {
 		dev_info(dev, "%s:turn_off\n", __func__);
-		_turn_on_calibration(rmi_dev, 0);
+		_turn_on_calibration(f11, 0);
 	} else {
 		dev_info(dev, "%s get wrong value:0x%lx!\n", __func__, turn_off);
 	}
 
 	return count;
 }
-
 
 static DEVICE_ATTR(mxt_toc, 0666, NULL, mxt_turn_on_calibration_store);
 
@@ -1930,7 +1974,7 @@ static int rmi_f11_resume(struct rmi_function_container *fc)
 		return retval;
 	}
 	
-	//_turn_on_calibration(rmi_dev,0);
+	//_turn_on_calibration(data,0);
 
 	return retval;
 }
@@ -1944,7 +1988,7 @@ static int rmi_f11_suspund(struct rmi_function_container *fc)
 
 	dev_dbg(&fc->dev, "Suspend...\n");
 
-	_turn_on_calibration(rmi_dev,1);
+	_turn_on_calibration(data,1);
 	
 	return retval;
 }
