@@ -52,6 +52,23 @@ int s3cfb_dvfs_remove(struct s3cfb_global *fbdev);
 struct s3cfb_fimd_desc	*fbfimd;
 
 #ifdef CONFIG_FB_S5P_VSYNC_THREAD
+static ssize_t s3cfb_sysfs_vsync_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	static int test =1;
+	struct s3cfb_global *fbdev[1];
+	fbdev[0] = fbfimd->fbdev[0];
+
+	WARN_ON(test);
+	test =0;
+	if(fbdev[0]->vsync_debug)
+		pr_info("%llu\n", ktime_to_ns(fbdev[0] ->vsync_info.timestamp));
+	return scnprintf(buf, PAGE_SIZE, "%llu\n",
+			ktime_to_ns(fbdev[0] ->vsync_info.timestamp));
+}
+
+static DEVICE_ATTR(vsync, S_IRUGO, s3cfb_sysfs_vsync_show, NULL);
+
 static ssize_t s3cfb_sysfs_show_vsync_debug(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
@@ -180,16 +197,7 @@ static int s3cfb_wait_for_vsync_thread(void *data)
 						msecs_to_jiffies(VSYNC_TIMEOUT_MSEC));
 
 		if (ret > 0 && fbdev->vsync_enable) {
-			char *envp[2];
-			char buf[64];
-			snprintf(buf, sizeof(buf), "VSYNC=%llu",
-					ktime_to_ns(fbdev->vsync_info.timestamp));
-			envp[0] = buf;
-			envp[1] = NULL;
-			if(fbdev->vsync_debug)
-				dev_info(fbdev->dev, "%s", buf);
-			kobject_uevent_env(&fbdev->dev->kobj, KOBJ_CHANGE,
-							envp);
+			sysfs_notify(&fbdev->dev->kobj, NULL, "vsync");
 		}
 	}
 
@@ -485,6 +493,9 @@ static int s3cfb_probe(struct platform_device *pdev)
 	s3cfb_dvfs_init(fbfimd->fbdev[0]);
 #endif
 #if defined(CONFIG_FB_S5P_VSYNC_THREAD)
+	ret = device_create_file(&(pdev->dev), &dev_attr_vsync);
+	if (ret < 0) 
+		dev_err(fbdev[0]->dev, "failed to create vsync file\n");
 	ret = device_create_file(&(pdev->dev), &dev_attr_vsync_debug);
 	if (ret < 0)
 		dev_err(fbdev[0]->dev, "failed to add sysfs entries\n");
@@ -521,7 +532,9 @@ static int s3cfb_remove(struct platform_device *pdev)
 	int i;
 	int j;
 #if defined(CONFIG_FB_S5P_VSYNC_THREAD)
+	device_remove_file(&(pdev->dev), &dev_attr_vsync_enable);
 	device_remove_file(&(pdev->dev), &dev_attr_vsync_debug);
+	device_remove_file(&(pdev->dev), &dev_attr_vsync);
 #endif
 #ifdef CONFIG_FB_DYNAMIC_FREQ
 	s3cfb_dvfs_remove(fbfimd->fbdev[0]);
