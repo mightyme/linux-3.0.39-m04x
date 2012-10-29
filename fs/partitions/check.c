@@ -46,7 +46,8 @@ extern void md_autodetect_dev(dev_t dev);
 int warn_no_part = 1; /*This is ugly: should make genhd removable media aware*/
 
 #if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
-u64 system_part_start, system_part_size;
+sector_t system_part_start;
+sector_t system_part_count;
 #endif
 
 static int (*check_part[])(struct parsed_partitions *) = {
@@ -196,8 +197,12 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 
 	}
 	if (res > 0) {
-		printk(KERN_INFO "%s", state->pp_buf);
-
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+		if(!strncmp(hd->disk_name, "mmcblk0", 7)) {
+			system_part_start = state->parts[2].from;
+			system_part_count = state->parts[2].size;
+		}
+#endif
 		free_page((unsigned long)state->pp_buf);
 		return state;
 	}
@@ -675,13 +680,6 @@ rescan:
 
 		if (state->parts[p].has_info)
 			info = &state->parts[p].info;
-#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
-		/* p == 2 for system partition */
-		if (p == 2) {
-			system_part_start = from;
-			system_part_size = size;
-		}
-#endif
 		part = add_partition(disk, p, from, size,
 				     state->parts[p].flags,
 				     &state->parts[p].info);

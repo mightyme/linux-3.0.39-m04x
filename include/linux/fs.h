@@ -2606,8 +2606,5 @@ static inline void inode_has_no_xattr(struct inode *inode)
 		inode->i_flags |= S_NOSEC;
 }
 
-#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
-extern u64 system_part_start, system_part_size;
-#endif
 #endif /* __KERNEL__ */
 #endif /* _LINUX_FS_H */

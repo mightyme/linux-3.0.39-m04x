@@ -143,6 +143,9 @@ enum {
 module_param(perdev_minors, int, 0444);
 MODULE_PARM_DESC(perdev_minors, "Minors numbers to allocate per device");
 
+extern sector_t system_part_start;
+extern sector_t system_part_count;
+
 enum {
 	dumy_id = 0, //dumy
 	param_id = 0, //abandon
@@ -157,30 +160,33 @@ enum {
 
 struct extra_part_info {
 	sector_t start_sec;
-	uint32_t sec_num;
+	sector_t sec_num;
 	u8 *volname;
 };
 
+#ifdef CONFIG_MX_RECOVERY_KERNEL
 static struct extra_part_info extra_partition[max_partition];
+#endif
 static struct extra_part_info private_info_partition;
+static struct extra_part_info userspace_area;
+
+static inline int is_userspace_area(struct request *rqc)
+{
+	return (blk_rq_pos(rqc) >= userspace_area.start_sec);
+}
 
 static inline int is_system_area(struct request *rqc)
 {
 #define FS_EXT4_RESERVED_SEC	0x8
-	return (blk_rq_pos(rqc) >= (sector_t)system_part_start + FS_EXT4_RESERVED_SEC
-			&& blk_rq_pos(rqc) < (sector_t)system_part_start + system_part_size);
+	return (blk_rq_pos(rqc) >= system_part_start + FS_EXT4_RESERVED_SEC
+			&& blk_rq_pos(rqc) < system_part_start + system_part_count);
 }
 
 static inline int is_private_info_area(struct request *rqc)
 {
-	if(blk_rq_pos(rqc) >= private_info_partition.start_sec
+	return (blk_rq_pos(rqc) >= private_info_partition.start_sec
 			&& blk_rq_pos(rqc) < private_info_partition.start_sec +
-								private_info_partition.sec_num) {
-		pr_info("=== %s start %llu, len %u\n", rq_data_dir(rqc) == WRITE ? "write" : "read",
-				blk_rq_pos(rqc), blk_rq_sectors(rqc));
-		return 1;
-	}
-	return 0;
+								private_info_partition.sec_num);
 }
 
 static int init_extra_partitioin(struct mmc_blk_data *md)
@@ -278,7 +284,7 @@ static int init_extra_partitioin(struct mmc_blk_data *md)
 				pr_err("error add partition %s\n", extra_partition[i].volname);
 			} else {
 				index++;
-				pr_info("add extra partion at mmcblk0p%d(%s), start_sec = %llu, sec_num = %u\n",
+				pr_info("add extra partion at mmcblk0p%d(%s), start_sec = %llu, sec_num = %llu\n",
 						i + 5, extra_partition[i].volname,
 						extra_partition[i].start_sec, extra_partition[i].sec_num);
 			}
@@ -290,6 +296,10 @@ static int init_extra_partitioin(struct mmc_blk_data *md)
 	private_info_partition.sec_num = bootinfo.partinfo[misc_id].sec_num 
 									+ bootinfo.partinfo[modem_id].sec_num;
 	private_info_partition.volname = "PRIVATE";
+
+	userspace_area.start_sec =  bootinfo.partinfo[tiny_id].start_sec
+								+ bootinfo.partinfo[tiny_id].sec_num;
+	userspace_area.sec_num = -1;
 
 	return 0;
 }
@@ -1542,16 +1552,18 @@ static u8 mmc_blk_prep_packed_list(struct mmc_queue *mq, struct request *req)
 		if (!next)
 			break;
 
+		if(rq_data_dir(next) == WRITE) {
+			if(is_userspace_area(next)) {
 #ifdef CONFIG_SYSTEM_PARTITION_WRITE_PROTECTION
-		if (rq_data_dir(next) == WRITE && is_system_area(next)) {
-			put_back = 1;
-			break;
-		}
+				if(is_system_area(next)) {
+					put_back = 1;
+					break;
+				}
 #endif
-
-		if (rq_data_dir(next) == WRITE && is_private_info_area(next)) {
-			put_back = 1;
-			break;
+			} else {
+				put_back = 1;
+				break;
+			}
 		}
 
 		if (next->cmd_flags & REQ_DISCARD ||
@@ -2055,22 +2067,30 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		goto out;
 	}
 
+	if (req) {
+		if(rq_data_dir(req) == WRITE) {
+			if(is_userspace_area(req)) {
+				if(is_system_area(req)) {
 #ifdef CONFIG_SYSTEM_PARTITION_WRITE_PROTECTION
-	if (req) {
-		if (rq_data_dir(req) == WRITE && is_system_area(req)) {
-			blk_end_request_all(req, -EIO);
-			ret = 0;
-			goto out;
-		}
-	}
+					blk_end_request_all(req, -EIO);
+					ret = 0;
+					goto out;
 #endif
-
-	if (req) {
-		if (is_private_info_area(req) && rq_data_dir(req) == WRITE) {
-			if (req->bio->bi_private != protect_block_bh) {
-				blk_end_request_all(req, -EIO);
-				ret = 0;
-				goto out;
+				}
+			} else {
+				if (is_private_info_area(req)) {
+					if (req->bio->bi_private != protect_block_bh) {
+						blk_end_request_all(req, -EIO);
+						ret = 0;
+						goto out;
+					}
+				} else {
+#ifndef CONFIG_MX_RECOVERY_KERNEL
+					blk_end_request_all(req, -EIO);
+					ret = 0;
+					goto out;
+#endif
+				}
 			}
 		}
 	}
