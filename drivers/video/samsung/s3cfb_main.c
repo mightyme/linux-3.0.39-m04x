@@ -44,6 +44,11 @@
 #include <plat/cpu.h>
 #endif
 
+#ifdef CONFIG_FB_DYNAMIC_FREQ
+int s3cfb_dvfs_init(struct s3cfb_global *fbdev);
+int s3cfb_dvfs_remove(struct s3cfb_global *fbdev);
+#endif
+
 struct s3cfb_fimd_desc	*fbfimd;
 
 #ifdef CONFIG_FB_S5P_VSYNC_THREAD
@@ -318,77 +323,6 @@ static int s3cfb_sysfs_store_win_power(struct device *dev,
 static DEVICE_ATTR(win_power, 0644,
 	s3cfb_sysfs_show_win_power, s3cfb_sysfs_store_win_power);
 
-#ifdef CONFIG_FB_DYNAMIC_FREQ
-#include <asm/mach-types.h>
-static ssize_t s3cfb_sysfs_show_dynamic_freq_disable(struct device *dev, struct device_attribute *attr,
-		char *buf)
-{
-	struct s3cfb_global *fbdev[1];
-	fbdev[0] = fbfimd->fbdev[0];
-	
-    return sprintf(buf, "%d\n", fbdev[0]->dynamic_freq_disable);
-}
-static ssize_t s3cfb_sysfs_store_dynamic_freq_disable(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t count)
-{
-	unsigned long value;
-	struct s3cfb_global *fbdev[1];
-	fbdev[0] = fbfimd->fbdev[0];
-	
-	sscanf(buf, "%lu", &value);
-	fbdev[0]->dynamic_freq_disable = !!value;
-
-	return count;
-}
-static DEVICE_ATTR(dynamic_freq_disable, S_IRUGO | S_IWUSR, s3cfb_sysfs_show_dynamic_freq_disable, s3cfb_sysfs_store_dynamic_freq_disable);
-static void set_lcd_freq(struct work_struct *work)
-{
-	struct s3cfb_global *fbdev =
-		list_entry(work, struct s3cfb_global, dvfs_work.work);
-#ifdef CONFIG_EXYNOS_DEV_PD
-	struct platform_device *pdev = to_platform_device(fbdev->dev);
-
-	if (fbdev->system_state == POWER_OFF)
-		return;
-	pm_runtime_get_sync(&pdev->dev);
-#endif
-	s3cfb_frame_adjust(fbdev, FB_DYNAMIC_LOW_FREQ);
-#ifdef CONFIG_EXYNOS_DEV_PD
-	pm_runtime_put(&pdev->dev);
-#endif
-}
-
-static int lcd_dvfs_notify(struct notifier_block *nb,
-			  unsigned long action, void *data)
-{
-	struct s3cfb_global *fbdev =
-		list_entry(nb, struct s3cfb_global, dvfs_nb);
-#ifdef CONFIG_EXYNOS_DEV_PD
-	struct platform_device *pdev = to_platform_device(fbdev->dev);
-
-	if (fbdev->system_state == POWER_OFF)
-		return NOTIFY_OK;
-	pm_runtime_get_sync(&pdev->dev);
-#endif
-	switch (action) {
-	case FB_EVENT_MODE_PAN:
-		if(!fbdev->dynamic_freq_disable){
-			if (delayed_work_pending(&fbdev->dvfs_work))
-				cancel_delayed_work(&fbdev->dvfs_work);
-			queue_delayed_work(fbdev->fimd_dvfs, &fbdev->dvfs_work, HZ);
-		}
-		s3cfb_frame_adjust(fbdev, FB_DYNAMIC_HIGH_FREQ);
-		break;
-	default:
-		break;
-	}
-#ifdef CONFIG_EXYNOS_DEV_PD
-	pm_runtime_put(&pdev->dev);
-#endif
-	return NOTIFY_OK;
-}
-#endif
-
 static int s3cfb_probe(struct platform_device *pdev)
 {
 	struct s3c_platform_fb *pdata = NULL;
@@ -547,6 +481,9 @@ static int s3cfb_probe(struct platform_device *pdev)
 	if (pdata->lcd_on)
 		pdata->lcd_on(pdev);
 #endif
+#ifdef CONFIG_FB_DYNAMIC_FREQ
+	s3cfb_dvfs_init(fbfimd->fbdev[0]);
+#endif
 #if defined(CONFIG_FB_S5P_VSYNC_THREAD)
 	ret = device_create_file(&(pdev->dev), &dev_attr_vsync_debug);
 	if (ret < 0)
@@ -558,18 +495,6 @@ static int s3cfb_probe(struct platform_device *pdev)
 	ret = device_create_file(&(pdev->dev), &dev_attr_win_power);
 	if (ret < 0)
 		dev_err(fbdev[0]->dev, "failed to add sysfs entries\n");
-
-#ifdef CONFIG_FB_DYNAMIC_FREQ
-	ret = device_create_file(&(pdev->dev), &dev_attr_dynamic_freq_disable);
-	if (ret < 0)
-		dev_err(fbdev[0]->dev, "failed to add sysfs entries\n");
-	if (machine_is_m031() || machine_is_m032()||machine_is_m040()) {
-		INIT_DELAYED_WORK(&fbdev[0]->dvfs_work, set_lcd_freq);
-		fbdev[0]->fimd_dvfs = create_singlethread_workqueue("lcd_fresh");
-		fbdev[0]->dvfs_nb.notifier_call = lcd_dvfs_notify;
-		fb_register_client(&fbdev[0]->dvfs_nb);
-	}
-#endif
 
 	dev_info(fbdev[0]->dev, "registered successfully\n");
 	return 0;
@@ -597,6 +522,9 @@ static int s3cfb_remove(struct platform_device *pdev)
 	int j;
 #if defined(CONFIG_FB_S5P_VSYNC_THREAD)
 	device_remove_file(&(pdev->dev), &dev_attr_vsync_debug);
+#endif
+#ifdef CONFIG_FB_DYNAMIC_FREQ
+	s3cfb_dvfs_remove(fbfimd->fbdev[0]);
 #endif
 	for (i = 0; i < FIMD_MAX; i++) {
 		fbdev[i] = fbfimd->fbdev[i];
@@ -637,14 +565,6 @@ static int s3cfb_remove(struct platform_device *pdev)
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 #endif
-
-#ifdef CONFIG_FB_DYNAMIC_FREQ
-	if (machine_is_m031() || machine_is_m032()||machine_is_m040()) {
-		destroy_workqueue(fbdev[0]->fimd_dvfs);
-		fb_unregister_client(&fbdev[0]->dvfs_nb);
-	}
-#endif
-
 	return 0;
 }
 
@@ -666,14 +586,6 @@ void s3cfb_early_suspend(struct early_suspend *h)
 	struct platform_device *pdev = to_platform_device(info->dev);
 	struct s3cfb_global *fbdev[2];
 	int i;
-
-
-#ifdef CONFIG_FB_DYNAMIC_FREQ
-	if (machine_is_m031() || machine_is_m032()|| machine_is_m040()) {
-		fbdev[0] = fbfimd->fbdev[0];
-		flush_delayed_work_sync(&fbdev[0]->dvfs_work);
-	}
-#endif
 
 	info->system_state = POWER_OFF;
 

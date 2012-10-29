@@ -6,6 +6,7 @@ obj-$(CONFIG_FB_S5P_MIPI_DSIM)	  += s5p_mipi_dsi.o s5p_mipi_dsi_common.o s5p_mip
 
 obj-y				+= s3cfb.o
 s3cfb-y				:= s3cfb_main.o s3cfb_ops.o
+obj-$(CONFIG_FB_DYNAMIC_FREQ)	+= s3cfb_dvfs.o
 obj-$(CONFIG_ARCH_S5PV210)	+= s3cfb_fimd6x.o
 obj-$(CONFIG_ARCH_EXYNOS4)	+= s3cfb_fimd6x.o
 
