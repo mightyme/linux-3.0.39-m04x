@@ -34,10 +34,10 @@
 #define __CONFIG_TMDS_OFFON_WORKAROUND__
 #endif
 
-#ifndef CONFIG_SII9234_RCP
-#define CONFIG_SII9234_RCP		1
-#include <linux/input.h>
-#endif
+//#ifndef CONFIG_SII9234_RCP
+//#define CONFIG_SII9234_RCP		1
+//#include <linux/input.h>
+//#endif
 #include <linux/wakelock.h>
 
 #ifdef CONFIG_SAMSUNG_MHL_9290

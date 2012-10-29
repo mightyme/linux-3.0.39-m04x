@@ -1111,7 +1111,7 @@ static void cbus_handle_msc_msg(struct sii9234_data *sii9234)
 	case MSG_RCP:
 		pr_debug("sii9234: RCP Arrived. KEY CODE:%d\n", key);
 		sii9234_cbus_mutex_unlock(&sii9234->cbus_lock);
-		cbus_process_rcp_key(sii9234, key);
+//		cbus_process_rcp_key(sii9234, key);
 		return;
 	case MSG_RAP:
 		pr_debug("sii9234: RAP Arrived\n");
