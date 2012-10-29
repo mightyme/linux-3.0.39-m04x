@@ -189,6 +189,8 @@ static inline int is_private_info_area(struct request *rqc)
 								private_info_partition.sec_num);
 }
 
+extern int meizu_device_info_init(void);
+
 static int init_extra_partitioin(struct mmc_blk_data *md)
 {
 #ifdef CONFIG_MX_RECOVERY_KERNEL
@@ -300,6 +302,8 @@ static int init_extra_partitioin(struct mmc_blk_data *md)
 	userspace_area.start_sec =  bootinfo.partinfo[tiny_id].start_sec
 								+ bootinfo.partinfo[tiny_id].sec_num;
 	userspace_area.sec_num = -1;
+
+	meizu_device_info_init();
 
 	return 0;
 }

@@ -150,11 +150,9 @@ void get_mac_form_device(unsigned char *buf)
 	buf[2] = 0x1A;
 }
 
-static int __init security_init(void)
+int meizu_device_info_init(void)
 {
 	init_device_sn();
 	init_device_mac();
 	return 0;
 }
-
-late_initcall(security_init);
