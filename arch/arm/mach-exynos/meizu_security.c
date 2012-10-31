@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/random.h>
 #include <linux/rsa.h>
+#include <linux/sha.h>
 #include <linux/rsa_pubkey.h>
 #include <asm/uaccess.h>
 
@@ -90,7 +91,8 @@ int private_entry_write(int slot, __user char *in_buf)
 	if (err)
 		goto out;
 
-	err = RSA_verify(&writeable_rsa, private_entry_buf, RSANUMBYTES, private_entry_random);
+	err = RSA_verify(&write_rsa_pk, private_entry_buf, 
+			sizeof(private_entry_random), private_entry_random);
 	if (err) {
 		pr_info("RSA verify failed\n");
 		goto out;
@@ -114,19 +116,43 @@ static char device_mac[6];
 
 extern int meizu_set_sn(char *sn, int size);
 
+static int rsa_with_sha1_verify(const uint8_t* data, uint16_t len ,const uint8_t* signature)
+{
+	int err = 0;
+	static char msg[35] =  {0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e,
+							0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14, };
+	SHA_CTX ctx;
+
+	SHA_init(&ctx);
+	SHA_update(&ctx, data, len);
+	SHA_final(&ctx);
+
+	memcpy(msg + 15, ctx.buf.b, 20);
+
+	err = RSA_verify(&verify_rsa_pk, signature, sizeof(msg), msg);
+
+	return err;
+}
+
 static void init_device_sn(void)
 {
 	int offset = slot_to_offset(0);//sn slot 0
-	int16_t len;
+	uint16_t len;
+	char* data = private_entry_buf + PRIVATE_ENTRY_SIG_SIZE + sizeof(len);
+
 
 	deal_private_block(0, offset, PRIVATE_ENTRY_BLOCK_SIZE, private_entry_buf);
+	len = *(uint16_t *)(private_entry_buf + PRIVATE_ENTRY_SIG_SIZE);
 
-	len = *(int16_t *)(private_entry_buf + PRIVATE_ENTRY_SIG_SIZE);
+	if(!rsa_with_sha1_verify(data, len, private_entry_buf)) {
 
-	memcpy(device_sn, private_entry_buf + PRIVATE_ENTRY_SIG_SIZE + sizeof(len), len);
+		memcpy(device_sn, data, len);
 
-	meizu_set_sn(device_sn, sizeof(device_sn));
-	pr_info("@@@@ SN %s\n", device_sn);
+		meizu_set_sn(device_sn, sizeof(device_sn));
+		pr_info("@@@@ SN %s\n", device_sn);
+	} else {
+		pr_info("@@@@ SN rsa with sha1 verify failed!!!!\n");
+	}
 }
 
 static void init_device_mac(void)
@@ -135,7 +161,7 @@ static void init_device_mac(void)
 
 	deal_private_block(0, offset, PRIVATE_ENTRY_BLOCK_SIZE, private_entry_buf);
 
-	memcpy(device_sn, private_entry_buf + PRIVATE_ENTRY_SIG_SIZE + sizeof(int16_t), 6);
+	memcpy(device_sn, private_entry_buf + PRIVATE_ENTRY_SIG_SIZE + sizeof(uint16_t), 6);
 
 	pr_info("@@@@ MAC %02X:%02X:%02X:%02X:%02X:%02X",
 			device_mac[0], device_mac[1], device_mac[2],
