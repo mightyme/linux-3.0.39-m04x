@@ -78,6 +78,7 @@ struct mx_qm_led {
 #endif
 };
 static int gSlope = 0;
+static int gPWM = 0;
  
  static int bu26507_set_led_current(struct led_classdev *led_cdev, int cur)
  {
@@ -162,7 +163,7 @@ static int tca6507_set_led_pwm(struct led_classdev *led_cdev, int value)
   int ret = 0;
   unsigned char data;
 
-	  value = value *255 /100;
+  value = value *255 /100;
   
   data = (value & 0xF0) |((value >> 4) & 0xF);	  
   pr_debug("%s:pwm = 0x%.2X\n",__func__,data);
@@ -201,7 +202,8 @@ static int mx_qm_set_led_pwm(struct led_classdev *led_cdev, int value)
 {
 	 struct mx_qm_led *led =container_of(led_cdev, struct mx_qm_led, led_cdev);
 	 struct mx_qm_data *mx = led->data;
-	 
+
+	 gPWM = value;
 	if( mx->LedVer == LED_VERSION1)
 		return tca6507_set_led_pwm(led_cdev,value);
 	else
@@ -368,30 +370,19 @@ static void mx_qm_led_brightness_set(struct led_classdev *led_cdev,
 
 }
  
-static int mx_qm_led_blink_set(struct led_classdev *led_cdev,
-				     unsigned long *delay_on,
-				     unsigned long *delay_off)
-{
-	 int ret = 0;
-	 struct mx_qm_led *led =container_of(led_cdev, struct mx_qm_led, led_cdev);
-	 struct mx_qm_data *mx = led->data;
-	 
- 	return ret;
-}
- 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void mx_qm_led_early_suspend(struct early_suspend *h)
 {
 	 struct mx_qm_led *led =
 			 container_of(h, struct mx_qm_led, early_suspend);
+	struct mx_qm_data *mx = led->data;
 	 
 	 if( led->id == 0)
-	 {
-		//led->led_cdev.brightness_set(&led->led_cdev,((MODE_PWM<<8) | 0x20)); 	 	
-		//led->led_cdev.brightness_set(&led->led_cdev,((MODE_SLOPE<<8) | gSlope)); 
-		
-		//led->led_cdev.brightness_set(&led->led_cdev,((MODE_PWM<<8) | 0x4)); 	 	
-		//led->led_cdev.brightness_set(&led->led_cdev,0x10); 
+	 {		 
+		 if( mx->LedVer == LED_VERSION1)
+		 	tca6507_set_led_pwm(&led->led_cdev,0x1FF);
+		 else
+		 	bu26507_set_led_pwm(&led->led_cdev,0x1FF);
 	 }
 }
  
@@ -401,6 +392,10 @@ static void mx_qm_led_late_resume(struct early_suspend *h)
 			 container_of(h, struct mx_qm_led, early_suspend);
  
 	 //led->led_cdev.brightness_set(&led->led_cdev,LED_OFF);
+	 if( led->id == 0)
+	 {
+		led->led_cdev.brightness_set(&led->led_cdev,((MODE_PWM<<8) | gPWM)); 			
+	 }
 }
 #endif
  
@@ -432,7 +427,6 @@ static int __devinit mx_qm_led_probe(struct platform_device *pdev)
 	 led->led_cdev.max_brightness= 0xFFF;
 	 
 	 led->led_cdev.brightness_set = mx_qm_led_brightness_set;
-	 led->led_cdev.blink_set= mx_qm_led_blink_set;
  
 	 mutex_init(&led->mutex);
 	 platform_set_drvdata(pdev, led);
@@ -474,7 +468,7 @@ void mx_qm_led_shutdown(struct platform_device *pdev)
 	struct mx_qm_led *led = platform_get_drvdata(pdev);
 	
 	if( led->id == 0)
-		led->led_cdev.brightness_set(&led->led_cdev,(&led->led_cdev,((MODE_PWM<<8) | LED_OFF)));
+		led->led_cdev.brightness_set(&led->led_cdev,((MODE_PWM<<8) | LED_OFF));
 	
 	led->led_cdev.brightness_set(&led->led_cdev,LED_OFF);
 }
