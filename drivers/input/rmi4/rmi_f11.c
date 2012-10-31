@@ -1593,24 +1593,23 @@ static int _turn_on_calibration(struct f11_data *data,int bOnOff)
 
 	// Enable/Disable Energy Ratio Relaxation
 	ret = rmi_read(rmi_dev,REG_F54_G0,&val);//0x20
-	if( ret < 0)		
-		printk("%s:read error %d\n",__func__,ret);
+	if( ret < 0)
+		dev_err(&rmi_dev->dev, "read error %d\n",ret);
 
 	if( bOnOff )		
 		val |= (1<<5);
 	else
 		val &=  ~(1<<5);		
 	ret = rmi_write(rmi_dev,REG_F54_G0,val);
-	if( ret < 0)		
-		printk("%s:write error %d\n",__func__,ret);
-
+	if( ret < 0)
+		dev_err(&rmi_dev->dev, "write error %d\n",ret);
 
 	// Fast Relaxation Rate
 	if( fast_relax_rate == 0xFF )
 	{
 		ret = rmi_read(rmi_dev,REG_F54_G1,&val);//0x0A
-		if( ret < 0)		
-			printk("%s:read error %d\n",__func__,ret);
+		if( ret < 0)
+			dev_err(&rmi_dev->dev, "read error %d\n",ret);
 		else
 			fast_relax_rate = val;
 	}
@@ -1620,14 +1619,14 @@ static int _turn_on_calibration(struct f11_data *data,int bOnOff)
 	else
 		val = 0x00;		
 	ret = rmi_write(rmi_dev,REG_F54_G1,val);	
-	if( ret < 0)		
-		printk("%s:write error %d\n",__func__,ret);
+	if( ret < 0)
+		dev_err(&rmi_dev->dev, "write error %d\n",ret);
 
 
 	// Force Update / Force Cal
 	ret = rmi_read(rmi_dev,REG_F54_G2,&val);
-	if( ret < 0)		
-		printk("%s:read error %d\n",__func__,ret);
+	if( ret < 0)
+		dev_err(&rmi_dev->dev, "read error %d\n",ret);
 
 	i = 10;
 	do
@@ -1635,27 +1634,47 @@ static int _turn_on_calibration(struct f11_data *data,int bOnOff)
 		msleep(20);
 		fingers = rmi_f11_getfingers(&data->sensors[0]) ;
 	}while( i-- && fingers);
-	
-	printk("%s:fingers %d\n",__func__,fingers);
+
 	if( fingers == 0)
 	{
 		val |= (1<<2) |((1<<1));
 		ret = rmi_write(rmi_dev,REG_F54_G2,val);	
 		if( ret < 0)		
-			printk("%s:write error %d\n",__func__,ret);
+			dev_err(&rmi_dev->dev, "write error %d\n",ret);
 	}
 	else
 	{
+		dev_info(&rmi_dev->dev, "fingers %d\n",fingers);
 		val |= (1<<2) ;
 		ret = rmi_write(rmi_dev,REG_F54_G2,val);	
 		if( ret < 0)		
-			printk("%s:write error %d\n",__func__,ret);
+			dev_err(&rmi_dev->dev, "write error %d\n",ret);
 	}
 	
 	return ret;
 }
 
-static ssize_t mxt_turn_on_calibration_store(struct device *dev,
+static int rmi_f11_force_calibration(struct f11_data *data)
+{
+	struct rmi_device *rmi_dev =data->rmi_dev;
+	u8 val = 0x00;
+	int ret;
+
+	// Force Update / Force Cal
+	ret = rmi_read(rmi_dev,REG_F54_G2,&val);
+	if( ret < 0)		
+		dev_err(&rmi_dev->dev, "read error %d\n",ret);
+
+	val |= (1<<2) |(1<<1);
+	ret = rmi_write(rmi_dev,REG_F54_G2,val);	
+	if( ret < 0)		
+		dev_err(&rmi_dev->dev, "write error %d\n",ret);
+	
+	return ret;
+}
+
+
+static ssize_t rmi_turn_on_calibration_store(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t count)
 {		
@@ -1674,16 +1693,19 @@ static ssize_t mxt_turn_on_calibration_store(struct device *dev,
 	error = strict_strtoul(tmp_str, 0, &turn_off);
 
 	if (0xff == turn_off) {
-		dev_info(dev, "%s:turn_off\n", __func__);
+		dev_info(dev, "turn off calibration\n");
 		_turn_on_calibration(f11, 0);
+	} else if (0xAA == turn_off) {
+		dev_info(dev, "turn on calibration\n");
+		_turn_on_calibration(f11, 1);
 	} else {
-		dev_info(dev, "%s get wrong value:0x%lx!\n", __func__, turn_off);
+		dev_info(dev, "get wrong value:0x%lx!\n",  turn_off);
 	}
 
 	return count;
 }
 
-static DEVICE_ATTR(mxt_toc, 0666, NULL, mxt_turn_on_calibration_store);
+static DEVICE_ATTR(mxt_toc, 0666, NULL, rmi_turn_on_calibration_store);
 
 static struct attribute *mxt_attrs[] = {
 	&dev_attr_mxt_toc.attr,
@@ -1974,7 +1996,8 @@ static int rmi_f11_resume(struct rmi_function_container *fc)
 		return retval;
 	}
 	
-	//_turn_on_calibration(data,0);
+	_turn_on_calibration(data,true);
+	rmi_f11_force_calibration(data);
 
 	return retval;
 }
@@ -1982,13 +2005,12 @@ static int rmi_f11_resume(struct rmi_function_container *fc)
 
 static int rmi_f11_suspund(struct rmi_function_container *fc)
 {
-	struct rmi_device *rmi_dev = fc->rmi_dev;
-	struct f11_data *data = fc->data;
+	//struct f11_data *data = fc->data;
 	int retval = 0;
 
 	dev_dbg(&fc->dev, "Suspend...\n");
 
-	_turn_on_calibration(data,1);
+	//_turn_on_calibration(data,true);
 	
 	return retval;
 }
@@ -2299,8 +2321,6 @@ static ssize_t f11_reg_store(struct device *dev,
 	int reg;
 	int data;
 	int retval = 0;
-	/* Command register always reads as 0, so we can just use a local. */
-	union f11_2d_commands commands = {};
 
 	fc = to_rmi_function_container(dev);
 
@@ -2326,8 +2346,6 @@ static ssize_t f11_reg_show(struct device *dev,
 	int reg;
 	u8 data;
 	int retval = 0;
-	/* Command register always reads as 0, so we can just use a local. */
-	union f11_2d_commands commands = {};
 
 	fc = to_rmi_function_container(dev);
 
@@ -2351,7 +2369,6 @@ static ssize_t f11_reg_show_all(struct device *dev,
 					char *buf)
 {
 	struct rmi_function_container *fc;
-	struct f11_data *instance_data;
 	int i;
 	int ret = 0;
 	u8 buffer[READ_BUFF_SIZE];
