@@ -146,10 +146,6 @@ void wifi_card_set_power(int onoff)
 {
 	pr_info("## %s: %s power\n", __func__, onoff?"enable":"disable");
 	if(onoff) {
-		//wlan host wakeup:   int 20, pull down 
-		s3c_gpio_cfgpin(wl_host_wake, S3C_GPIO_SPECIAL(15));  
-		s3c_gpio_setpull(wl_host_wake, S3C_GPIO_PULL_DOWN);  
-
 		//wlan power:output ,1
 		s3c_gpio_cfgpin(wl_power, S3C_GPIO_OUTPUT);
 		gpio_set_value(wl_power, 1);		
