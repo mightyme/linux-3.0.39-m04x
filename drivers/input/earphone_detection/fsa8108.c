@@ -413,7 +413,7 @@ static void fsa8108_destroy_atts(struct device * dev)
 static void fsa8108_mask_int(int onoff)
 {
 	if(onoff){
-		fsa8108_write_reg(FSA8108_REG_INT_MASK_1,0xFB);
+		fsa8108_write_reg(FSA8108_REG_INT_MASK_1,0xF8);
 		fsa8108_write_reg(FSA8108_REG_INT_MASK_2,0xFF);
 	}else{
 		fsa8108_write_reg(FSA8108_REG_INT_MASK_1,0xC0);
@@ -454,7 +454,8 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 	    switch(val1){
 			case FSA8108_3POLE_CONNECT:
 				pr_err("%s 3pole connect",__func__);
-				info->cur_jack_type = FSA_HEADSET_3POLE;				
+				info->cur_jack_type = FSA_HEADSET_3POLE;
+				fsa8108_mask_int(1);
 				fsa8108_LDO_output(0);
 				switch_set_state(&switch_jack_detection, FSA_HEADSET_3POLE);
 				break;
@@ -467,7 +468,8 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				break;
 			case FSA8108_PLUG_DISCONNECT:
 				pr_err("%s plug disconnect",__func__);
-				info->cur_jack_type = FSA_JACK_NO_DEVICE;				
+				info->cur_jack_type = FSA_JACK_NO_DEVICE;
+				fsa8108_mask_int(1);
 				fsa8108_LDO_output(1);
 				switch_set_state(&switch_jack_detection, FSA_JACK_NO_DEVICE);				
 				break;
