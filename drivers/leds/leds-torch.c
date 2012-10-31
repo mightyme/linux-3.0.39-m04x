@@ -41,7 +41,7 @@ static void torch_led_brightness_set(struct led_classdev *led_cdev,
 	struct torch_led *led =
 			container_of(led_cdev, struct torch_led, cdev);
 	int ret;
-
+	pr_info("%s(), torch current is set to %dmA\n", __func__, value);
 	/*value is from 0 to 250mA*/
 	ret = torch_led_set_current(led, value * 1000);  /*change current in uA unit*/
 	if (ret) {
@@ -77,6 +77,10 @@ static int __devinit torch_led_probe(struct platform_device *pdev)
 	led->cdev.brightness_set = torch_led_brightness_set;
 	//led->cdev.flags |= LED_CORE_SUSPENDRESUME;
 	led->cdev.brightness = 0;
+	/*
+	* Maximum torch current is 250mA
+	*/
+	led->cdev.max_brightness = 250;
 	platform_set_drvdata(pdev, led);
 
 	ret = led_classdev_register(&pdev->dev, &led->cdev);
