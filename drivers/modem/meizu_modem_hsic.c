@@ -288,7 +288,7 @@ rx_submit:
 	}
 }
 
-static int usb_send(struct link_device *ld, struct io_device *iod,
+static int hsic_send(struct link_device *ld, struct io_device *iod,
 			struct sk_buff *skb)
 {
 	struct sk_buff_head *txq;
@@ -297,7 +297,8 @@ static int usb_send(struct link_device *ld, struct io_device *iod,
 	struct link_pm_data *pm_data = usb_ld->link_pm_data;
 
 	if (usb_ld->ld.com_state != COM_ONLINE)
-		return 0;
+		return -ENODEV;
+
 	if (iod->send_delay)
 		udelay(iod->send_delay);
 
@@ -1263,7 +1264,7 @@ struct link_device *hsic_create_link_device(void *data)
 	ld->name = "hsic";
 	ld->init_comm = usb_init_communication;
 	ld->terminate_comm = usb_terminate_communication;
-	ld->send = usb_send;
+	ld->send = hsic_send;
 	ld->com_state = COM_NONE;
 	ld->raw_tx_suspended = false;
 	init_completion(&ld->raw_tx_resumed_by_cp);
