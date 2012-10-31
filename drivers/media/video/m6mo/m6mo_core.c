@@ -887,14 +887,25 @@ static int m6mos_set_panorama_mode(struct v4l2_subdev *sd)
 	return ret;
 }
 
-static void m6mo_set_1216x912_val(unsigned int val)
+static void set_prev_special_resolution_val(struct m6mo_state *state,
+	enum v4l2_camera_mode mode)
 {
-	int i;
-	
-	for (i = 0; i < ARRAY_SIZE(m6mo_prev_sizes); i++) {
-		if ((m6mo_prev_sizes[i].width == 1216) &&
-			(m6mo_prev_sizes[i].height == 912))
-			m6mo_prev_sizes[i].regs->val = val;
+	/* normal preview and record */
+	if (mode != V4L2_CAMERA_PANORAMA) {
+		m6mo_prev_1216x912[0].val = 0x36;
+	} else {
+		/* panorama preview mode */
+		m6mo_prev_1216x912[0].val = 0x24;
+	}
+
+	/*
+	* For Front camera record mode's frame rate
+	*/
+	if (FRONT_CAMERA == state->cam_id  &&
+		V4L2_CAMERA_RECORD == mode) {
+		m6mo_prev_720p[0].val = 0x28;		
+	} else {
+		m6mo_prev_720p[0].val = 0x21;
 	}
 }
 
@@ -903,14 +914,10 @@ static int m6mo_set_preview_size(struct v4l2_subdev *sd,
 {
 	struct m6mo_state *state = to_state(sd);
 	int i, ret;
+	bool update_isp = false;
+	static unsigned int last_reg_val = 0;
 	struct m6mo_size_struct *sizes = m6mo_prev_sizes;
 	int len = ARRAY_SIZE(m6mo_prev_sizes);
-
-	/* normal preview and record */
-	if (mode != V4L2_CAMERA_PANORAMA)
-		m6mo_set_1216x912_val(0x36);
-	else  /* panorama preview mode */
-		m6mo_set_1216x912_val(0x24);
 		
 	/* look down to find the smaller preview size */
 	for (i = len - 1; i >= 0; i--) 
@@ -927,36 +934,33 @@ static int m6mo_set_preview_size(struct v4l2_subdev *sd,
 	fmt->width = sizes[i].width;
 	fmt->height = sizes[i].height;
 
-	/* normal preview or record mode */
-	if (mode != V4L2_CAMERA_PANORAMA) {
-		if (state->panorama_preview) {
-			state->panorama_preview = false;
-			goto set_size;
-		}
-	} else {  /* panorama preview mode */
-		if (!state->panorama_preview) {
-			state->panorama_preview = true;
-			goto set_size;
-		}
+	set_prev_special_resolution_val(state, mode);
+
+	if (last_reg_val != sizes[i].regs->val ||
+		state->prev_size.width != fmt->width ||
+		state->prev_size.height != fmt->height) {
+		update_isp = true;
 	}
 
-	if (state->prev_size.width == fmt->width &&
-		state->prev_size.height == fmt->height) {
-		pr_info("%s(), Set to the same preview%d(1: panorama) size\n",
-			__func__, state->panorama_preview);
-		return 0;
-	}
-
-set_size:
 	state->prev_size = sizes[i];
 
-	/* should be set parameter mode first */
-	ret = m6mo_set_mode(sd, PARAMETER_MODE);
-	if (ret) return ret;
+	if (update_isp) {		
+		/* should be set parameter mode first */
+		ret = m6mo_set_mode(sd, PARAMETER_MODE);
+		if (ret) return ret;
 
-	ret = m6mo_write_regs(sd, state->prev_size.regs, state->prev_size.size);
-	if (ret) return ret;
+		pr_info("%s(), write ISP reg 0x%04x to value 0x%x\n"
+			"Last reg value is 0x%x", __func__,
+			state->prev_size.regs->addr, state->prev_size.regs->val, last_reg_val);
+		ret = m6mo_write_regs(sd, state->prev_size.regs, state->prev_size.size);
+		if (ret) return ret;
 
+		last_reg_val = state->prev_size.regs->val;
+		
+	} else {
+		pr_info("%s(), no Need to update ISP register\n", __func__);
+	}
+	
 	return 0;
 }
 
@@ -1265,7 +1269,6 @@ static int m6mo_init(struct v4l2_subdev *sd, u32 cam_id)
 	state->cap_size.width = DEFAULT_CAPTURE_WIDTH;
 	state->cap_size.height = DEFAULT_CAPTURE_HEIGHT;
 	state->cap_fmt.mbus_code = V4L2_MBUS_FMT_JPEG_1X8;
-	state->panorama_preview = false;
 
 	/* init default userset parameter, this is the reset value of ISP */
 	state->userset.manual_wb = M6MO_WB_AUTO;
