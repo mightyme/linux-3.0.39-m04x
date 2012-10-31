@@ -55,12 +55,9 @@ struct s3cfb_fimd_desc	*fbfimd;
 static ssize_t s3cfb_sysfs_vsync_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	static int test =1;
 	struct s3cfb_global *fbdev[1];
 	fbdev[0] = fbfimd->fbdev[0];
 
-	WARN_ON(test);
-	test =0;
 	if(fbdev[0]->vsync_debug)
 		pr_info("%llu\n", ktime_to_ns(fbdev[0] ->vsync_info.timestamp));
 	return scnprintf(buf, PAGE_SIZE, "%llu\n",
