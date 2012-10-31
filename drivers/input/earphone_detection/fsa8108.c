@@ -454,20 +454,20 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 	    switch(val1){
 			case FSA8108_3POLE_CONNECT:
 				pr_err("%s 3pole connect",__func__);
-				info->cur_jack_type = FSA_HEADSET_3POLE;
-				fsa8108_mask_int(1);/*mask key interrupts for 3 pole headset*/
+				info->cur_jack_type = FSA_HEADSET_3POLE;				
 				fsa8108_LDO_output(0);
 				switch_set_state(&switch_jack_detection, FSA_HEADSET_3POLE);
 				break;
 			case FSA8108_4POLE_CONNECT:
 				pr_err("%s 4pole connect",__func__);
 				info->cur_jack_type = FSA_HEADSET_4POLE;				
-				switch_set_state(&switch_jack_detection, FSA_HEADSET_4POLE);				
+				switch_set_state(&switch_jack_detection, FSA_HEADSET_4POLE);
+				msleep(20);/*deglitch*/ 
+				fsa8108_mask_int(0);/*recover key interrupts after 4pole connect*/
 				break;
 			case FSA8108_PLUG_DISCONNECT:
 				pr_err("%s plug disconnect",__func__);
-				info->cur_jack_type = FSA_JACK_NO_DEVICE;
-				fsa8108_mask_int(0);/*recover key interrupts when plug disconnect*/
+				info->cur_jack_type = FSA_JACK_NO_DEVICE;				
 				fsa8108_LDO_output(1);
 				switch_set_state(&switch_jack_detection, FSA_JACK_NO_DEVICE);				
 				break;
@@ -632,8 +632,9 @@ static void fsa8108_initialization(struct fsa8108_info *info)
 	/*** Set Timing parameters and Global Multiplier setting ***/
 	fsa8108_set_value(FSA8108_REG_KEY_PRS_T,FSA8108_TDOUBLE,FSA8108_TDOUBLE_SHIFT,0x02);
 
+	fsa8108_mask_int(1);/*mask key interrupts before plug in*/
 	int_type = i2c_smbus_read_word_data(client, FSA8108_REG_INT_1);		
-	process_int(int_type,info); 
+	process_int(int_type,info);	
 
 }
 
