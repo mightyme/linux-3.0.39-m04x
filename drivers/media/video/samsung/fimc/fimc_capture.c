@@ -1683,6 +1683,9 @@ int fimc_reqbufs_capture_mmap(void *fh, struct v4l2_requestbuffers *b)
 		return -ENODEV;
 	}
 
+	pr_info("%s(), FiMC%d request %d bufs\n", __func__, ctrl->id,
+		b->count);
+
 	mutex_lock(&ctrl->v4l2_lock);
 
 	/*  A count value of zero frees all buffers */
