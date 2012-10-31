@@ -74,6 +74,7 @@ static void start_touch_boost(struct tb_private_data *data)
 			}
 		}
 		cpufreq_cpu_put(policy);
+		start_vsync_boost(data);
 	}
 	delta_total= ktime_sub(ktime_get(),rettime_total);
 	delta_us = ktime_to_us(delta_total);
