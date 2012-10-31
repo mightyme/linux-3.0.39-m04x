@@ -16,7 +16,113 @@
 
 #define DEV_NAME "wakeup_assist"
 
-static int wakeup_assist_keycode[] = { KEY_HOME, KEY_VOLUMEDOWN, KEY_VOLUMEUP};
+static int wakeup_assist_keycode[] = {
+ 	KEY_HOME,
+	KEY_VOLUMEDOWN,
+	KEY_VOLUMEUP,
+};
+
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+
+#define WAKE_STR_LEN 256
+static unsigned long mx_wakeup_type;
+
+struct wakeup_assist_des assist_des[] = {
+	{MX_UNKNOW_WAKE, 	"MX_UNKNOW_WAKE"},
+	{MX_USB_WAKE, 		"MX_USB_WAKE"},
+	{MX_LOWBAT_WAKE, 	"MX_LOWBAT_WAKE"},
+	{MX_KEY_POWER_WAKE, 	"MX_KEY_POWER_WAKE"},
+	{MX_KEY_HOME_WAKE, 	"MX_KEY_HOME_WAKE"},
+	{MX_MODEM_WAKE, 	"MX_MODEM_WAKE"},
+	{MX_BLUETOOTH_WAKE, 	"MX_BLUETOOTH_WAKE"},
+	{MX_MODEM_RST_WAKE, 	"MX_MODEM_RST_WAKE"},
+	{MX_CHARG_WAKE,	 	"MX_CHARG_WAKE"},
+	{MX_ALARM_WAKE, 	"MX_ALARM_WAKE"},
+	{MX_TICK_WAKE, 		"MX_TICK_WAKE"},
+	{MX_I2S_WAKE, 		"MX_I2S_WAKE"},
+	{MX_SYSTIMER_WAKE, 	"MX_SYSTIMER_WAKE"},
+	{MX_WIFI_WAKE, 		"MX_WIFI_WAKE"},
+	{MX_IR_WAKE, 		"MX_IR_WAKE"},
+	{MX_USB_HOST_WAKE, 	"MX_USB_HOST_WAKE"},
+	{MX_MINUS_KEY_WAKE, 	"MX_MINUS_KEY_WAKE"},
+	{MX_PLUS_KEY_WAKE, 	"MX_PLUS_KEY_WAKE"},
+};
+
+static unsigned long mx_get_wakeup_type(void)
+{
+	return mx_wakeup_type;
+}
+
+unsigned long mx_set_wakeup_type(unsigned long mask)
+{
+	return mask ? (mx_wakeup_type |= mask) :
+				  (mx_wakeup_type = mask);
+}
+
+static void mx_show_wakeup_name(void)
+{
+	int i = 0, len;
+	char wakeup_str[WAKE_STR_LEN];
+	int size = ARRAY_SIZE(assist_des);
+	unsigned long type = mx_get_wakeup_type();
+	
+	memset(wakeup_str, 0, WAKE_STR_LEN);
+	len = sprintf(wakeup_str, "%s", "System wake up by ---> ");
+
+	if (!type) {
+		len += sprintf(wakeup_str + len, "[%s] ",
+					assist_des[0].name);
+		goto out;
+	}
+
+	for (i = 1; i < size; i++) {
+		if (type & assist_des[i].type)
+			len += sprintf(wakeup_str + len, "[%s] ", 
+						assist_des[i].name); 
+	}
+out:	
+	pr_info("%s\n", wakeup_str);
+}
+
+static inline int wakeup_assist_done(struct input_dev *input_dev)
+{
+	unsigned long mx_wake_typed = mx_get_wakeup_type();
+	unsigned long allow_wake_type = MX_USB_WAKE | MX_LOWBAT_WAKE |	\
+				 MX_KEY_HOME_WAKE | MX_KEY_POWER_WAKE ;
+
+	if (mx_wake_typed & allow_wake_type) {
+		input_report_key(input_dev, wakeup_assist_keycode[0], 1);
+		input_sync(input_dev);
+		input_report_key(input_dev, wakeup_assist_keycode[0], 0);
+		input_sync(input_dev);
+	} else if (mx_wake_typed & MX_MINUS_KEY_WAKE) {
+		input_report_key(input_dev, wakeup_assist_keycode[1], 1);
+		input_sync(input_dev);
+		input_report_key(input_dev, wakeup_assist_keycode[1], 0);
+		input_sync(input_dev);
+	} else if (mx_wake_typed & MX_PLUS_KEY_WAKE) {
+		input_report_key(input_dev, wakeup_assist_keycode[2], 1);
+		input_sync(input_dev);
+		input_report_key(input_dev, wakeup_assist_keycode[2], 0);
+		input_sync(input_dev);
+	}
+
+	mx_show_wakeup_name();
+	mx_set_wakeup_type(0);
+	return 0;
+}
+#else
+static inline int wakeup_assist_done(struct input_dev *input_dev)
+{
+	if (readl(S5P_WAKEUP_STAT) & 0x1) {
+		input_report_key(input_dev, wakeup_assist_keycode[0], 1);
+		input_sync(input_dev);
+		input_report_key(input_dev, wakeup_assist_keycode[0], 0);
+		input_sync(input_dev);
+	}
+	return 0;
+}
+#endif
 
 static int __devinit wakeup_assist_probe(struct platform_device *pdev)
 {
@@ -66,104 +172,6 @@ static int __devexit wakeup_assist_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
-static unsigned long mx_wakeup_type;
-unsigned long mx_get_wakeup_type(void)
-{
-	return mx_wakeup_type;
-}
-
-unsigned long mx_set_wakeup_type(unsigned long mask)
-{
-	return mask ? (mx_wakeup_type |= mask) :
-				  (mx_wakeup_type = mask);
-}
-
-void mx_show_wakeup_name(void)
-{
-	int len;
-	char wakeup_str[256];
-
-	memset(wakeup_str, 0, 256);
-
-	len = sprintf(wakeup_str, "%s", "MX Wakeup By:");
-
-	if(mx_get_wakeup_type() & MX_USB_WAKE)
-		len +=  sprintf(wakeup_str+len, " USB_WAKE");
-	if(mx_get_wakeup_type() & MX_LOWBAT_WAKE)
-		len +=  sprintf(wakeup_str+len, " LOWBAT_WAKE");
-	if(mx_get_wakeup_type() & MX_CHARG_WAKE)
-		len +=  sprintf(wakeup_str+len, " CHARG_WAKE");
-	if(mx_get_wakeup_type() & MX_WIFI_WAKE)
-		len +=  sprintf(wakeup_str+len, " WIFI_WAKE");
-	if(mx_get_wakeup_type() & MX_BLUETOOTH_WAKE)
-		len +=  sprintf(wakeup_str+len, " BLUETOOTH_WAKE");
-	if(mx_get_wakeup_type() & MX_MODEM_RST_WAKE)
-		len +=  sprintf(wakeup_str+len, " MODEM_RST_WAKE");
-	if(mx_get_wakeup_type() & MX_MODEM_WAKE)
-		len +=  sprintf(wakeup_str+len, " MODEM_WAKE");
-	if(mx_get_wakeup_type() & MX_KEY_POWER_WAKE)
-		len +=  sprintf(wakeup_str+len, " KEY_POWER_WAKE");
-	if(mx_get_wakeup_type() & MX_KEY_HOME_WAKE)
-		len +=  sprintf(wakeup_str+len, " KEY_HOME_WAKE");
-	if(mx_get_wakeup_type() & MX_USB_HOST_WAKE)
-		len +=  sprintf(wakeup_str+len, " MX_USB_HOST_WAKE");
-	if(mx_get_wakeup_type() & MX_ALARM_WAKE)
-		len +=  sprintf(wakeup_str+len, " ALARM_WAKE");
-	if(mx_get_wakeup_type() & MX_TICK_WAKE)
-		len +=  sprintf(wakeup_str+len, " TICK_WAKE");
-	if(mx_get_wakeup_type() & MX_I2S_WAKE)
-		len +=  sprintf(wakeup_str+len, " I2S_WAKE");
-	if(mx_get_wakeup_type() & MX_SYSTIMER_WAKE)
-		len +=  sprintf(wakeup_str+len, " SYSTIMER_WAKE");
-	if(mx_get_wakeup_type() & MX_MINUS_KEY_WAKE)
-		len +=  sprintf(wakeup_str+len, " VOLUMEDOWN_KEY_WAKE");
-	if(mx_get_wakeup_type() & MX_PLUS_KEY_WAKE)
-		len +=  sprintf(wakeup_str+len, " VOLUMEUP_KEY_WAKE");
-	if(!mx_get_wakeup_type())
-		len +=  sprintf(wakeup_str+len, " UNKNOW_WAKE");
-	pr_info("%s\n", wakeup_str);
-}
-
-static inline int wakeup_assist_done(struct input_dev *input_dev)
-{
-	unsigned long mx_wake_typed = mx_get_wakeup_type();
-	unsigned long allow_wake_type = MX_USB_WAKE | MX_LOWBAT_WAKE | MX_KEY_HOME_WAKE | MX_KEY_POWER_WAKE ;
-
-	if (mx_wake_typed & allow_wake_type) {
-		input_report_key(input_dev, wakeup_assist_keycode[0], 1);
-		input_sync(input_dev);
-		input_report_key(input_dev, wakeup_assist_keycode[0], 0);
-		input_sync(input_dev);
-	} else if (mx_wake_typed & MX_MINUS_KEY_WAKE) {
-		input_report_key(input_dev, wakeup_assist_keycode[1], 1);
-		input_sync(input_dev);
-		input_report_key(input_dev, wakeup_assist_keycode[1], 0);
-		input_sync(input_dev);
-	} else if (mx_wake_typed & MX_PLUS_KEY_WAKE) {
-		input_report_key(input_dev, wakeup_assist_keycode[2], 1);
-		input_sync(input_dev);
-		input_report_key(input_dev, wakeup_assist_keycode[2], 0);
-		input_sync(input_dev);
-	}
-
-	mx_show_wakeup_name();
-	mx_set_wakeup_type(0);
-	return 0;
-}
-#else
-static inline int wakeup_assist_done(struct input_dev *input_dev)
-{
-	if (readl(S5P_WAKEUP_STAT) & 0x1) {
-		input_report_key(input_dev, wakeup_assist_keycode[0], 1);
-		input_sync(input_dev);
-		input_report_key(input_dev, wakeup_assist_keycode[0], 0);
-		input_sync(input_dev);
-	}
-	return 0;
-}
-#endif
 
 static int wakeup_assist_resume(struct device *dev)
 {

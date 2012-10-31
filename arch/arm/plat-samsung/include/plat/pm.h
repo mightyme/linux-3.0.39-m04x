@@ -34,8 +34,9 @@ static inline int s3c_pm_init(void)
 
 #if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 typedef enum {
+	MX_UNKNOW_WAKE  	= 0,
 	MX_USB_WAKE		= 1<<0,
-	MX_LOWBAT_WAKE 	= 1<<1,
+	MX_LOWBAT_WAKE 		= 1<<1,
 	MX_KEY_POWER_WAKE	= 1<<2,
 	MX_KEY_HOME_WAKE 	= 1<<3,
 	MX_MODEM_WAKE 		= 1<<4,
@@ -44,17 +45,20 @@ typedef enum {
 	MX_CHARG_WAKE		= 1<<7,
 	MX_ALARM_WAKE		= 1<<8,
 	MX_TICK_WAKE		= 1<<9,
-	MX_I2S_WAKE			= 1<<10,
+	MX_I2S_WAKE		= 1<<10,
 	MX_SYSTIMER_WAKE	= 1<<11,
 	MX_WIFI_WAKE		= 1<<12,
-	MX_IR_WAKE			= 1<<13,
+	MX_IR_WAKE		= 1<<13,
 	MX_USB_HOST_WAKE	= 1<<14,	
 	MX_MINUS_KEY_WAKE	= 1<<15,	
-	MX_PLUS_KEY_WAKE	= 1<<16,	
-	MX_UNKNOW_WAKE	= 0,
+	MX_PLUS_KEY_WAKE	= 1<<16,
 } wake_type_t;
 
-extern unsigned long mx_get_wakeup_type(void);
+struct wakeup_assist_des {
+	wake_type_t	type;
+	char		*name;
+};
+
 extern unsigned long mx_set_wakeup_type(unsigned long);
 #endif
 

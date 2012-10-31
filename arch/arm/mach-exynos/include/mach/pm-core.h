@@ -135,7 +135,8 @@ static inline void m032_set_wakeup_type(mx_int_type group, int pending)
 		break;
 	}
 }
-static inline void m040_set_wakeup_type(unsigned int group, unsigned int mask)
+
+static inline void m040_set_wakeup_type(mx_int_type group, int mask)
 {
 	switch(group) {
 	case 0:
@@ -158,7 +159,7 @@ static inline void m040_set_wakeup_type(unsigned int group, unsigned int mask)
 			mx_set_wakeup_type(MX_IR_WAKE);
 		}			
 		break;
-	case 1:
+	case EINT_GROUP1:
 		if (mask & (1 << 0)) {
 			mx_set_wakeup_type(MX_KEY_HOME_WAKE);//TOUCH PAD
 		}
@@ -166,7 +167,7 @@ static inline void m040_set_wakeup_type(unsigned int group, unsigned int mask)
 			mx_set_wakeup_type(MX_WIFI_WAKE);//
 		}	
 		break;
-	case 2:
+	case EINT_GROUP2:
 		if (mask & (1 << 1)) {
 			mx_set_wakeup_type(MX_BLUETOOTH_WAKE);
 		}
@@ -180,7 +181,7 @@ static inline void m040_set_wakeup_type(unsigned int group, unsigned int mask)
 			mx_set_wakeup_type(MX_PLUS_KEY_WAKE);
 		}
 		break;
-	case 3:
+	case EINT_GROUP3:
 		if (mask & (1 << 0)) {
 			mx_set_wakeup_type(MX_LOWBAT_WAKE);
 		}
@@ -191,7 +192,8 @@ static inline void m040_set_wakeup_type(unsigned int group, unsigned int mask)
 			mx_set_wakeup_type(MX_MODEM_RST_WAKE);
 		}
 		break;
-	case 5:
+
+	case OTHER_INT:
 		if (mask & 0x2) {
 			mx_set_wakeup_type(MX_ALARM_WAKE);
 		} else if (mask & 0x4) {
@@ -200,13 +202,11 @@ static inline void m040_set_wakeup_type(unsigned int group, unsigned int mask)
 			mx_set_wakeup_type(MX_I2S_WAKE);
 		} else if (mask & 0x4000) {
 			mx_set_wakeup_type(MX_SYSTIMER_WAKE);
-		} else {
-			mx_set_wakeup_type(MX_UNKNOW_WAKE);
 		}
+		break;
 	default:
 		break;
 	}
-
 }
 
 static inline void set_wakeup_type(mx_int_type group, int pending)
