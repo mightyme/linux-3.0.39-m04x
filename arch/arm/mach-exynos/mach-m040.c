@@ -645,7 +645,7 @@ static struct max77665_platform_data __initdata m040_max77665_info = {
 	.top_off_timer = MAX77665_CHG_TO_TIME_70MIN,
 	.charger_termination_voltage = MAX77665_CHG_CV_PRM_4300MV,
 	.fast_charge_current = 866,		/* 0mA ~ 2100mA */
-	.chgin_ilim_usb = 460,			/* 60mA ~ 2580mA */
+	.chgin_ilim_usb = 900,			/* 60mA ~ 2580mA */
 	.chgin_ilim_ac = 900,
 #ifdef CONFIG_USB_GADGET
 	.charger_pin = M040_CHARGER_IRQ,
