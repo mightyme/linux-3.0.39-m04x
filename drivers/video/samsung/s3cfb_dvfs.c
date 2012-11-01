@@ -180,7 +180,6 @@ int s3cfb_dvfs_init(struct s3cfb_global *fbdev)
 	s3cfb_dvfs->fbdev = fbdev;
 	s3cfb_dvfs->dynamic_freq_disable = 0;
 	fbdvfs = s3cfb_dvfs;
-	WARN_ON(1);
 	return 0;
 }
 void s3cfb_dvfs_remove(struct s3cfb_global *fbdev)

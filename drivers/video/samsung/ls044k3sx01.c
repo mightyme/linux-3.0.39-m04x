@@ -179,7 +179,7 @@ static int lcd_read_id(struct mipi_dsim_lcd_device *mipi_dev)
 
 	write_to_lcd(lcd, ls044k3sx01_unlock); /*set password for ROnly*/
 	set_packet_size(lcd, 1); /* set return data size*/
-	lcd->id_code = read_data(lcd, 0xda); /*read ID Code reg 0xda*/
+	lcd->id_code = read_data(lcd, 0xdc); /*read ID Code reg 0xda*/
 	return 0;
 }
 
