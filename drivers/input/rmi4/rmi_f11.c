@@ -793,8 +793,12 @@ static void rmi_f11_finger_handler(struct f11_2d_sensor *sensor)
 		if (sensor->data.rel_pos)
 			rmi_f11_rel_pos_report(sensor, i);
 	}
-	input_report_key(sensor->input, BTN_TOUCH, finger_pressed_count);
-	input_sync(sensor->input);
+	
+	if (sensor->input)
+	{
+		input_report_key(sensor->input, BTN_TOUCH, finger_pressed_count);
+		input_sync(sensor->input);
+	}
 }
 
 static int f11_2d_construct_data(struct f11_2d_sensor *sensor)
