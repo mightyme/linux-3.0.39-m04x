@@ -73,6 +73,12 @@ function gen_all_kernel_image()
 	mv arch/arm/boot/zImage output/zImage-recovery
 	save_image $svn_rev mx2_recovery_defconfig
 
+	make mx2_release_recovery_defconfig
+	make all -j$CPU_JOB_NUM
+	check_kernel_build_result mx2_release_recovery_defconfig
+	mv arch/arm/boot/zImage output/zImage-release-recovery
+	save_image $svn_rev mx2_release_recovery_defconfig
+
 	make mx2_overseas_defconfig
 	make all -j$CPU_JOB_NUM
 	check_kernel_build_result mx2_overseas_defconfig
