@@ -1319,6 +1319,24 @@ static int standard_resume(struct rmi_device *rmi_dev)
 		if (retval < 0)
 			goto exit;
 	}
+	
+	if (data->f01_container)
+	{
+		u8 cmd_buf = RMI_DEVICE_RESET_CMD;
+		struct rmi_device_platform_data *pdata;
+		pdata = to_rmi_platform_data(rmi_dev);
+		
+		retval = rmi_write_block(rmi_dev,
+				data->f01_container->fd.command_base_addr,
+				&cmd_buf, 1);
+		if (retval < 0) {
+			dev_err(&rmi_dev->dev, "Initial reset failed. "
+				"Code = %d.\n", retval);
+			goto exit;
+		}
+		
+		mdelay(pdata->reset_delay_ms);
+	}
 
 	list_for_each_entry(entry, &data->rmi_functions.list, list)
 		if (entry->fh && entry->fh->resume) {
@@ -1339,10 +1357,9 @@ static int standard_resume(struct rmi_device *rmi_dev)
 	}
 #endif
 
-	msleep(10);
 	retval = rmi_driver_reset_handler(rmi_dev);
 	if (retval < 0)
-		dev_err(&rmi_dev->dev, "%s: Failed to reset handle!",__func__);	
+		dev_err(&rmi_dev->dev, "Failed to reset handle!");	
 
 	data->suspended = false;
 exit:
