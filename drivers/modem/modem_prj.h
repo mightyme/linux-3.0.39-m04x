@@ -27,50 +27,6 @@
 #include <linux/wakelock.h>
 #include <linux/regulator/consumer.h>
 
-#define MAX_CPINFO_SIZE		512
-
-#define MAX_LINK_DEVTYPE	3
-
-#define MAX_FMT_DEVS	10
-#define MAX_RAW_DEVS	32
-#define MAX_RFS_DEVS	10
-#define MAX_NUM_IO_DEV	(MAX_FMT_DEVS + MAX_RAW_DEVS + MAX_RFS_DEVS)
-
-#define IOCTL_MODEM_ON			_IO('o', 0x19)
-#define IOCTL_MODEM_OFF			_IO('o', 0x20)
-#define IOCTL_MODEM_RESET		_IO('o', 0x21)
-#define IOCTL_MODEM_BOOT_ON		_IO('o', 0x22)
-#define IOCTL_MODEM_BOOT_OFF		_IO('o', 0x23)
-#define IOCTL_MODEM_START		_IO('o', 0x24)
-
-#define IOCTL_MODEM_PROTOCOL_SUSPEND	_IO('o', 0x25)
-#define IOCTL_MODEM_PROTOCOL_RESUME	_IO('o', 0x26)
-
-#define IOCTL_MODEM_STATUS		_IO('o', 0x27)
-#define IOCTL_MODEM_DL_START		_IO('o', 0x28)
-#define IOCTL_MODEM_FW_UPDATE		_IO('o', 0x29)
-
-#define IOCTL_MODEM_NET_SUSPEND		_IO('o', 0x30)
-#define IOCTL_MODEM_NET_RESUME		_IO('o', 0x31)
-
-#define IOCTL_MODEM_DUMP_START		_IO('o', 0x32)
-#define IOCTL_MODEM_DUMP_UPDATE		_IO('o', 0x33)
-#define IOCTL_MODEM_FORCE_CRASH_EXIT	_IO('o', 0x34)
-#define IOCTL_MODEM_CP_UPLOAD		_IO('o', 0x35)
-#define IOCTL_MODEM_DUMP_RESET		_IO('o', 0x36)
-
-#define IOCTL_DPRAM_SEND_BOOT		_IO('o', 0x40)
-#define IOCTL_DPRAM_INIT_STATUS		_IO('o', 0x43)
-
-/* ioctl command definitions. */
-#define IOCTL_DPRAM_PHONE_POWON		_IO('o', 0xd0)
-#define IOCTL_DPRAM_PHONEIMG_LOAD	_IO('o', 0xd1)
-#define IOCTL_DPRAM_NVDATA_LOAD		_IO('o', 0xd2)
-#define IOCTL_DPRAM_PHONE_BOOTSTART	_IO('o', 0xd3)
-
-#define IOCTL_DPRAM_PHONE_UPLOAD_STEP1	_IO('o', 0xde)
-#define IOCTL_DPRAM_PHONE_UPLOAD_STEP2	_IO('o', 0xdf)
-
 /* modem status */
 #define MODEM_OFF		0
 #define MODEM_CRASHED		1
@@ -81,17 +37,7 @@
 #define MODEM_DUMPING		6
 #define MODEM_RUNNING		7
 
-#define HDLC_HEADER_MAX_SIZE	6 /* fmt 3, raw 6, rfs 6 */
-
-#define PSD_DATA_CHID_BEGIN	0x2A
-#define PSD_DATA_CHID_END	0x38
-
-#define PS_DATA_CH_0	10
-#define PS_DATA_CH_LAST	24
-
 #define IP6VERSION		6
-
-#define SOURCE_MAC_ADDR		{0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC}
 
 /* Debugging features */
 #define MAX_MIF_LOG_PATH_LEN	128
@@ -191,13 +137,6 @@ enum link_mode {
 #define SIZE_OF_HDLC_END	1
 #define MAX_LINK_PADDING_SIZE	3
 
-struct header_data {
-	char hdr[HDLC_HEADER_MAX_SIZE];
-	unsigned len;
-	unsigned frag_len;
-	char start; /*hdlc start header 0x7F*/
-};
-
 struct fmt_hdr {
 	u16 len;
 	u8 control;
@@ -224,115 +163,12 @@ struct sipc_fmt_hdr {
 	u8  cmd_type;
 } __packed;
 
-#define SIPC5_START_MASK	0b11111000
-#define SIPC5_CONFIG_MASK	0b00000111
-#define SIPC5_EXT_FIELD_MASK	0b00000011
-
-#define SIPC5_PADDING_EXIST	0b00000100
-#define SIPC5_EXT_FIELD_EXIST	0b00000010
-#define SIPC5_CTL_FIELD_EXIST	0b00000001
-
-#define SIPC5_MAX_HEADER_SIZE	6
-#define SIPC5_HEADER_SIZE_WITH_EXT_LEN	6
-#define SIPC5_HEADER_SIZE_WITH_CTL_FLD	5
-#define SIPC5_MIN_HEADER_SIZE	4
-#define SIPC5_CONFIG_SIZE	1
-#define SIPC5_CH_ID_SIZE	1
-
-#define SIPC5_CONFIG_OFFSET	0
-#define SIPC5_CH_ID_OFFSET	1
-#define SIPC5_LEN_OFFSET	2
-#define SIPC5_CTL_OFFSET	4
-
-#define SIPC5_CH_ID_RAW_0	0
-#define SIPC5_CH_ID_FMT_0	235
-#define SIPC5_CH_ID_RFS_0	245
-#define SIPC5_CH_ID_MAX		255
-
-
-/* Channel 0, 5, 6, 27, 255 are reserved in SIPC5.
- * see SIPC5 spec: 2.2.2 Channel Identification (Ch ID) Field.
- * They do not need to store in `iodevs_tree_fmt'
- */
-#define sipc5_is_not_reserved_channel(ch) \
-	((ch) != 0 && (ch) != 5 && (ch) != 6 && (ch) != 27 && (ch) != 255)
-
-struct sipc5_link_hdr {
-	u8 cfg;
-	u8 ch;
-	u16 len;
-	u8 ctl;
-} __packed;
-
-struct sipc5_frame_data {
-	/* Config octet */
-	u8 config;
-
-	/* Channel ID */
-	u8 ch_id;
-
-	/* Control for multiple FMT frame */
-	u8 control;
-
-	/* Frame configuration set by header analysis */
-	bool padding;
-	bool ext_fld;
-	bool ctl_fld;
-	bool ext_len;
-
-	/* Frame length calculated from the length fields */
-	unsigned len;
-
-	/* The length of link layer header */
-	unsigned hdr_len;
-
-	/* The length of received header */
-	unsigned hdr_rcvd;
-
-	/* The length of data payload */
-	unsigned data_len;
-
-	/* The length of received data */
-	unsigned data_rcvd;
-
-	/* Header buffer */
-	u8 hdr[SIPC5_MAX_HEADER_SIZE];
-};
-
-static inline unsigned sipc5_get_hdr_size(u8 cfg)
-{
-	if (cfg & SIPC5_EXT_FIELD_EXIST) {
-		if (cfg & SIPC5_CTL_FIELD_EXIST)
-			return SIPC5_HEADER_SIZE_WITH_CTL_FLD;
-		else
-			return SIPC5_HEADER_SIZE_WITH_EXT_LEN;
-	} else {
-		return SIPC5_MIN_HEADER_SIZE;
-	}
-}
-
-static inline unsigned sipc5_calc_padding_size(unsigned len)
-{
-	unsigned residue = len & 0x3;
-	return residue ? (4 - residue) : 0;
-}
-
 struct vnet {
 	int pkt_sz;
 	struct io_device *iod;
 	struct sk_buff *skb;
 	struct net_device_stats stats;
 };
-
-/* for fragmented data from link devices */
-struct fragmented_data {
-	struct sk_buff *skb_recv;
-	struct header_data h_data;
-	struct sipc5_frame_data f_data;
-	/* page alloc fail retry*/
-	unsigned realloc_offset;
-};
-#define fragdata(iod, ld) (&(iod)->fragments[(ld)->link_type])
 
 /** struct skbuff_priv - private data of struct sk_buff
  * this is matched to char cb[48] of struct sk_buff
@@ -394,9 +230,6 @@ struct io_device {
 
 	bool use_handover;	/* handover 2+ link devices */
 
-	/* SIPC version */
-	enum sipc_ver ipc_version;
-
 	/* Rx queue of sk_buff */
 	struct sk_buff_head rx_q;
 
@@ -405,8 +238,6 @@ struct io_device {
 	** use this for private io device rx action
 	*/
 	struct delayed_work rx_work;
-
-	struct fragmented_data fragments[LINKDEV_MAX];
 
 	/* for multi-frame */
 	struct sk_buff *skb[128];
@@ -445,9 +276,6 @@ struct link_device {
 
 	enum modem_link link_type;
 	unsigned aligned;
-
-	/* SIPC version */
-	enum sipc_ver ipc_version;
 
 	/* Modem data */
 	struct modem_data *mdm_data;

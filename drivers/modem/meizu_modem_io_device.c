@@ -391,31 +391,27 @@ static int vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 	struct vnet *vnet = netdev_priv(ndev);
 	struct io_device *iod = vnet->iod;
 	struct link_device *ld = get_current_link(iod);
-	struct sk_buff *tmp_skb = NULL;
+	int is_ip_packet = 0;
+	int data_len  = 0;
 	int ret = 0;
 
 	if (iod->atdebug)
 		iod->atdebugfunc(iod, skb->data, skb->len);
 	wake_lock_timeout(&iod->wakelock, HZ * 0.5);
-	tmp_skb = skb_clone(skb, GFP_ATOMIC);
-	if (!tmp_skb) {
-		mif_err("fail alloc tmp_skb (%d)\n", __LINE__);
-		return -ENOMEM;
-	}
-	memcpy(tmp_skb->data, skb->data, skb->len);
-	skbpriv(tmp_skb)->iod = iod;
-	skbpriv(tmp_skb)->ld = ld;
-	ret = ld->send(ld, iod, tmp_skb);
+	is_ip_packet = (skb->protocol == htons(ETH_P_IP)) ? 1 : 0;
+	skbpriv(skb)->iod = iod;
+	skbpriv(skb)->ld = ld;
+	data_len = skb->len;
+	ret = ld->send(ld, iod, skb);
 	if (ret < 0) {
-		dev_kfree_skb_any(tmp_skb);
+		dev_kfree_skb_any(skb);
 		ret = NETDEV_TX_BUSY;
 	} else {
-		if(skb->protocol == htons(ETH_P_IP)) {
+		if(is_ip_packet) {
 			ndev->stats.tx_packets++;
-			ndev->stats.tx_bytes += skb->len;
+			ndev->stats.tx_bytes += data_len;
 		}
 	}
-	dev_kfree_skb_any(skb);
 	ret = NETDEV_TX_OK;
 
 	return ret;
@@ -511,7 +507,7 @@ static void modem_tty_close(struct tty_struct *tty, struct file *f)
 
 static int modem_tty_write_room(struct tty_struct *tty)
 {
-	int ret = 16 * 1024;
+	int ret = 128 * 1024;
 
 	return ret;
 }
@@ -658,7 +654,7 @@ int meizu_ipc_init_io_device(struct io_device *iod)
 				iod->atdebug = 255;
 		else
 			iod->atdebug = 0;
-		iod->send_delay = 100;
+		iod->send_delay = 20;
 		iod->ndev = alloc_netdev(sizeof(struct vnet), iod->name,
 			vnet_setup);
 		if (!iod->ndev) {

@@ -147,11 +147,11 @@ static int usb_init_communication(struct link_device *ld,
 	return 0;
 }
 
-static void usb_terminate_communication(struct link_device *ld,
+static void hsic_close_channel(struct link_device *ld,
 			struct io_device *iod)
 {
 	/*ld->com_state = COM_NONE;*/
-	pr_info("%s iod id:%d\n", __func__, iod->id);
+	pr_info("%s,channel id:%d\n", __func__, iod->id);
 }
 
 static int usb_rx_submit(struct usb_link_device *usb_ld,
@@ -299,14 +299,13 @@ static int hsic_send(struct link_device *ld, struct io_device *iod,
 	if (usb_ld->ld.com_state != COM_ONLINE)
 		return -ENODEV;
 
-	if (iod->send_delay)
+	if (iod->send_delay && (iod->io_typ == IODEV_NET) \
+			&& (1400 == skb->len))
 		udelay(iod->send_delay);
 
 	txq = &ld->sk_raw_tx_q;
 	tx_size = skb->len;
-
 	skb_queue_tail(txq, skb);
-
 	usb_ld->devdata[iod->id].hsic_channel_tx_count ++;
 
 	/* Hold wake_lock for getting schedule the tx_work */
@@ -339,10 +338,12 @@ static void usb_tx_complete(struct urb *urb)
 		iod->atdebugfunc(iod, skb->data, skb->len);
 
 	usb_ld->devdata[iod->id].hsic_channel_tx_count --;
-	dev_kfree_skb_any(skb);
+
 	if (urb->dev)
 		usb_mark_last_busy(urb->dev);
 	usb_free_urb(urb);
+	
+	dev_kfree_skb_any(skb);
 }
 
 /* Even if usb_tx_urb_with_skb is failed, does not release the skb to retry */
@@ -1263,7 +1264,7 @@ struct link_device *hsic_create_link_device(void *data)
 
 	ld->name = "hsic";
 	ld->init_comm = usb_init_communication;
-	ld->terminate_comm = usb_terminate_communication;
+	ld->terminate_comm = hsic_close_channel;
 	ld->send = hsic_send;
 	ld->com_state = COM_NONE;
 	ld->raw_tx_suspended = false;

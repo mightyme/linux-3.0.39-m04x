@@ -153,9 +153,6 @@ struct modem_data {
 	enum modem_link     link_types;
 	char               *link_name;
 
-	/* SIPC version */
-	enum sipc_ver ipc_version;
-
 	/* Information of IO devices */
 	unsigned  num_iodevs;
 	struct    modem_io_t   *iodevs;

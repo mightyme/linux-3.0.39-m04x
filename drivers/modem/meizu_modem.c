@@ -109,7 +109,6 @@ static struct io_device *create_io_device(struct modem_io_t *io_t,
 	iod->link_types = io_t->links;
 	iod->phone_net_type = pdata->modem_net;
 	iod->use_handover = pdata->use_handover;
-	iod->ipc_version = pdata->ipc_version;
 	atomic_set(&iod->opened, 0);
 	wake_lock_init(&iod->wakelock, WAKE_LOCK_SUSPEND, iod->name);
 
