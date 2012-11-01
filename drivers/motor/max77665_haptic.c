@@ -179,7 +179,7 @@ static void haptic_enable(struct timed_output_dev *tdev, int value)
 		hrtimer_start(&chip->timer, ktime_set(value/1000, (value%1000)*1000000),
 						HRTIMER_MODE_REL);
 	} 
-
+	pr_info("%s: process: %s, time: %d seconds\n", __func__, current->comm, value/1000);
 	max77665_haptic_on(chip, !!value);
 
 	mutex_unlock(&chip->haptic_mutex);
