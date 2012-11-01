@@ -1421,6 +1421,18 @@ static void f11_set_abs_params(struct rmi_function_container *fc, int index)
 #endif
 }
 
+static int enable_sensor_irq(struct rmi_function_container *fc)
+{
+	struct rmi_device *rmi_dev = fc->rmi_dev;
+	int retval = 0;
+	
+	retval = rmi_dev->phys->enable_device(rmi_dev->phys);
+	if (retval)
+		return retval;
+
+	return 0;
+}
+
 static int rmi_f11_init(struct rmi_function_container *fc)
 {
 	int rc;
@@ -1436,6 +1448,10 @@ static int rmi_f11_init(struct rmi_function_container *fc)
 	rc = rmi_f11_create_sysfs(fc);
 	if (rc < 0)
 		goto err_free_data;
+
+	rc = enable_sensor_irq(fc);
+	if (rc)
+		return rc;
 
 	return 0;
 

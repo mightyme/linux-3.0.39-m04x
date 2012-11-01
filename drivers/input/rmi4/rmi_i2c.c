@@ -59,7 +59,7 @@ static irqreturn_t rmi_i2c_irq_thread(int irq, void *p)
 	struct rmi_device_platform_data *pdata = phys->dev->platform_data;
 
 #if IRQ_DEBUG
-	dev_dbg(phys->dev, "ATTN gpio, value: %d.\n",
+	dev_info(phys->dev, "ATTN gpio, value: %d.\n",
 			gpio_get_value(pdata->attn_gpio));
 #endif
 	if (gpio_get_value(pdata->attn_gpio) == pdata->attn_polarity) {
@@ -223,6 +223,7 @@ static int rmi_i2c_read(struct rmi_phys_device *phys, u16 addr, u8 *buf)
 
 static int acquire_attn_irq(struct rmi_i2c_data *data)
 {
+	dev_info(data->phys->dev, "irq_flags = 0x%.8X.\n",data->irq_flags);
 	return request_threaded_irq(data->irq, NULL, rmi_i2c_irq_thread,
 			data->irq_flags, dev_name(data->phys->dev), data->phys);
 }

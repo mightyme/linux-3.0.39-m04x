@@ -1206,8 +1206,6 @@ static int rmi_driver_probe(struct rmi_device *rmi_dev)
 			 retval);
 #endif
 
-	enable_sensor(rmi_dev);
-
 	return 0;
 
  err_free_data:
@@ -1340,14 +1338,11 @@ static int standard_resume(struct rmi_device *rmi_dev)
 
 	list_for_each_entry(entry, &data->rmi_functions.list, list)
 		if (entry->fh && entry->fh->resume) {
+			dev_info(&rmi_dev->dev, "resume F%.2X. ", entry->fd.function_number);
 			retval = entry->fh->resume(entry);
 			if (retval < 0)
 				goto exit;
 		}
-
-	retval = enable_sensor(rmi_dev);
-	if (retval)
-		goto exit;
 	
 #if !defined(CONFIG_HAS_EARLYSUSPEND) || defined(CONFIG_RMI4_SPECIAL_EARLYSUSPEND)
 	if (data->post_resume) {
@@ -1356,6 +1351,10 @@ static int standard_resume(struct rmi_device *rmi_dev)
 			goto exit;
 	}
 #endif
+
+	retval = enable_sensor(rmi_dev);
+	if (retval)
+		goto exit;
 
 	retval = rmi_driver_reset_handler(rmi_dev);
 	if (retval < 0)
