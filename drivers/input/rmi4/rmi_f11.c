@@ -62,6 +62,16 @@
 #define DEFAULT_MAX_ABS_MT_TRACKING_ID 10
 #define MAX_NAME_LENGTH 256
 
+static int touch_debug= 0;
+
+static ssize_t f11_touch_debug_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count);
+
+static ssize_t f11_touch_debug_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf);
+
 static ssize_t f11_flip_show(struct device *dev,
 				   struct device_attribute *attr, char *buf);
 
@@ -165,7 +175,8 @@ static struct device_attribute attrs[] = {
 #endif
 	__ATTR(rezero, RMI_WO_ATTR, rmi_show_error, f11_rezero_store),	
 	__ATTR(regw, RMI_WO_ATTR, rmi_show_error, f11_reg_store),
-	__ATTR(regr, RMI_RW_ATTR, f11_reg_show_all, f11_reg_show)
+	__ATTR(regr, RMI_RW_ATTR, f11_reg_show_all, f11_reg_show),
+	__ATTR(touch_debug, RMI_RW_ATTR, f11_touch_debug_show, f11_touch_debug_store)
 };
 
 
@@ -643,6 +654,7 @@ static void rmi_f11_rel_pos_report(struct f11_2d_sensor *sensor, u8 n_finger)
 static void rmi_f11_abs_pos_report(struct f11_2d_sensor *sensor,
 					u8 finger_state, u8 n_finger)
 {
+	static ktime_t time_last;
 	struct f11_2d_data *data = &sensor->data;
 	struct rmi_f11_2d_axis_alignment *axis_align = &sensor->axis_align;
 	int prev_state = sensor->finger_tracker[n_finger];
@@ -734,6 +746,10 @@ static void rmi_f11_abs_pos_report(struct f11_2d_sensor *sensor,
 	/* MT sync between fingers */
 	input_mt_sync(sensor->input);
 	sensor->finger_tracker[n_finger] = finger_state;
+
+	if(touch_debug)
+		printk(KERN_INFO"touch point %d:%d, timestampe=%llu us, %llu\n", x, y, ktime_to_us(ktime_sub(ktime_get(),time_last)), ktime_to_us(ktime_get()));
+	time_last = ktime_get();
 }
 
 #ifdef CONFIG_RMI4_VIRTUAL_BUTTON
@@ -2090,6 +2106,40 @@ static void __exit rmi_f11_module_exit(void)
 {
 	rmi_unregister_function_driver(&function_handler);
 }
+
+
+static ssize_t f11_touch_debug_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct rmi_function_container *fc = NULL;
+	struct f11_data *data;	
+	int value;
+
+	fc = to_rmi_function_container(dev);
+	data = fc->data;
+	
+	if (sscanf(buf, "%d ", &value) != 1)
+		return -EINVAL;
+	
+	touch_debug = !!value;
+
+	return count;
+}
+
+static ssize_t f11_touch_debug_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct rmi_function_container *fc = NULL;
+	struct f11_data *data;	
+	
+	fc = to_rmi_function_container(dev);
+	data = fc->data;
+	
+	return sprintf(buf,"%d\n", touch_debug);;
+}
+
 
 static ssize_t f11_maxPos_show(struct device *dev,
 				     struct device_attribute *attr,
