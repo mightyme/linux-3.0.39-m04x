@@ -440,7 +440,7 @@ static int mhl_tx_clear_reg(struct sii9234_data *sii9234, unsigned int offset,
 		       offset, mask);
 	return ret;
 }
-
+/*
 static int mhl_tx_update_reg(struct sii9234_data *sii9234, unsigned int offset,
 			    u8 mask,u8 new_value)
 {
@@ -463,7 +463,7 @@ static int mhl_tx_update_reg(struct sii9234_data *sii9234, unsigned int offset,
 		       offset, mask);
 	return ret;
 }
-
+*/
 static int tpi_write_reg(struct sii9234_data *sii9234, unsigned int offset,
 			 u8 value)
 {
@@ -588,6 +588,7 @@ static int cbus_set_reg(struct sii9234_data *sii9234, unsigned int offset,
 
 	return cbus_write_reg(sii9234, offset, value);
 }
+/*
 static int cbus_update_reg(struct sii9234_data *sii9234, unsigned int offset,
 			    u8 mask,u8 new_value)
 {
@@ -610,7 +611,7 @@ static int cbus_update_reg(struct sii9234_data *sii9234, unsigned int offset,
 		       offset, mask);
 	return ret;
 }
-
+*/
 #ifdef __CONFIG_TMDS_OFFON_WORKAROUND__
 void sii9234_tmds_offon_work(struct work_struct *work)
 {
@@ -3398,7 +3399,8 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data)
 	if (mhl_poweroff) {
 		if (sii9234_callback_sched != 0) {
 			sii9234_disable_irq();
-			schedule_work(&sii9234->mhl_d3_work);
+			//schedule_work(&sii9234->mhl_d3_work);
+			goto_d3();
 			check_mhl_connect();
 			//mhl_onoff_ex(0);
 		}
@@ -3835,15 +3837,6 @@ static int __devinit sii9234_mhl_tx_i2c_real_probe(struct i2c_client *client)
 		       "mhl_wake_lock");
 	pr_debug("%s(): wake lock is initialized.\n", __func__);
 #endif
-/*
-	ret = gpio_request(pdata->mhl_irq_pin, NULL);
-	if (ret) {
-		MHLPRINTK("gpio_request failed");
-		goto err_exit1;
-	}
-	s3c_gpio_cfgpin(pdata->mhl_irq_pin, S3C_GPIO_SFN(0xf));
-	s3c_gpio_setpull(pdata->mhl_irq_pin, S3C_GPIO_PULL_DOWN);
-*/
 	pr_info("request_threaded_irq eint=%d\n", pdata->eint);
 	ret = request_threaded_irq(pdata->eint, NULL, sii9234_irq_thread,
 				   IRQF_TRIGGER_HIGH | IRQF_ONESHOT,  "sii9234", sii9234);
