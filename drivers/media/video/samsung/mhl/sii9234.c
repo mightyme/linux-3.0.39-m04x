@@ -168,29 +168,7 @@ int en_irq;
 		} \
 	} while (0)
 #endif /*__SII9234_IRQ_DEBUG__*/
-/*
-#define	INTR_CBUS1_DESIRED_MASK			(BIT2 | BIT3 | BIT4 | BIT5 | BIT6)
-#define	UNMASK_CBUS1_INTERRUPTS			cbus_write_reg(sii9234, 0x09, INTR_CBUS1_DESIRED_MASK)
-#define	MASK_CBUS1_INTERRUPTS			cbus_write_reg(sii9234, 0x09, 0)
 
-#define	INTR_CBUS2_DESIRED_MASK			(BIT0 | BIT2 | BIT3)
-#define	UNMASK_CBUS2_INTERRUPTS			cbus_write_reg(sii9234, 0x1F, INTR_CBUS2_DESIRED_MASK)
-#define	MASK_CBUS2_INTERRUPTS			cbus_write_reg(sii9234, 0x1F, 0)
-
-#define	INTR_1_DESIRED_MASK				(BIT5 | BIT6)
-#define	UNMASK_INTR_1_INTERRUPTS		mhl_tx_write_reg(sii9234, 0x75, INTR_1_DESIRED_MASK)
-#define	MASK_INTR_1_INTERRUPTS			mhl_tx_write_reg(sii9234, 0x75, 0x00)
-
-#define	INTR_2_DESIRED_MASK				(BIT1)
-#define	UNMASK_INTR_2_INTERRUPTS		mhl_tx_write_reg(sii9234, 0x76, INTR_2_DESIRED_MASK)
-#define	MASK_INTR_2_INTERRUPTS			mhl_tx_write_reg(sii9234, 0x76, 0x00)
-
-#define	INTR_4_DESIRED_MASK				(BIT2 | BIT3 | BIT4 | BIT6)
-#define	UNMASK_INTR_4_INTERRUPTS		mhl_tx_write_reg(sii9234, 0x78, INTR_4_DESIRED_MASK)
-#define	MASK_INTR_4_INTERRUPTS			mhl_tx_write_reg(sii9234, 0x78, 0x00)
-
-#define	CLR_BIT(saddr,offset,bitnumber)		sii_9224_i2c_writebyte(saddr, offset, sii_9224_i2c_readbyte(saddr, offset) & ~(1<<bitnumber))
-*/
 /*////////////////////////////////////////////////////////////////////////////*/
 /*////////////////////     global value area     /////////////////////////////*/
 /*////////////////////////////////////////////////////////////////////////////*/
@@ -264,10 +242,14 @@ bool mhl_cable_status()
 EXPORT_SYMBOL(mhl_cable_status);
 void mhl_connect(bool connected)
 {
-	if(connected)
-		mhl_onoff_ex(true);
-	else
-		mhl_onoff_ex(false);
+	if(connected){	
+		pr_info("[MHL] Power On by muic\n");
+		mhl_onoff_ex(true);		
+	}
+	else{
+		pr_info("[MHL] Power Off by muic\n");
+		mhl_onoff_ex(false);		
+	}
 }
 EXPORT_SYMBOL(mhl_connect);
 
@@ -3841,9 +3823,8 @@ static int __devinit sii9234_mhl_tx_i2c_real_probe(struct i2c_client *client)
 	ret = request_threaded_irq(pdata->eint, NULL, sii9234_irq_thread,
 				   IRQF_TRIGGER_HIGH | IRQF_ONESHOT,  "sii9234", sii9234);
 	if (ret < 0)
-		goto err_exit1;	
+		goto err_exit1;
 	atomic_set(&sii9234->is_irq_enabled, false);
-	pr_info("[MHL]%s() client->irq= %d\n",__func__, client->irq);
 	disable_irq(client->irq);
 #ifdef __SII9234_IRQ_DEBUG__
 	en_irq = 0;
