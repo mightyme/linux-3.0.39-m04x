@@ -55,7 +55,7 @@ static irqreturn_t mx_qm_irq_handler(int irq, void *dev_id)
 	touch->keys_press = !(gpio_get_value(qm->gpio_irq));
 	qm_touch_report_key( input,KEY_HOME,touch->keys_press );	
 	
-	pr_info("%s:Key is %s.\n",__func__,touch->keys_press?"Pressed":"Released");		
+	pr_debug("%s:Key is %s.\n",__func__,touch->keys_press?"Pressed":"Released");		
 	
 	return IRQ_HANDLED;
 }
@@ -86,12 +86,12 @@ static irqreturn_t mx_qm_irq_handler(int irq, void *dev_id)
 static int __devinit mx_qm_touch_probe(struct platform_device *pdev)
 {
 	struct mx_qm_data *data = dev_get_drvdata(pdev->dev.parent);
-	struct mx_qm_platform_data *pdata = dev_get_platdata(data->dev);
+	//struct mx_qm_platform_data *pdata = dev_get_platdata(data->dev);
 	struct i2c_client *client;
 	struct mx_qm_touch*touch;
-	struct input_dev *input_key,*input_pad;
+	struct input_dev *input_key;
+	//struct input_dev *input_pad;
 
-	int i;
 	int err;
 	pr_debug("%s:++\n",__func__);
 
@@ -151,7 +151,7 @@ static int __devinit mx_qm_touch_probe(struct platform_device *pdev)
 	 pr_debug("%s:--\n",__func__);
 	 return 0;
  
- err_free_irq:
+// err_free_irq:
 	free_irq(client->irq, data);	
  err_un_input_key:
 	input_unregister_device(touch->input_key);
@@ -165,7 +165,7 @@ static int __devinit mx_qm_touch_probe(struct platform_device *pdev)
 static int __devexit mx_qm_touch_remove(struct platform_device *pdev)
 {
 	struct mx_qm_touch * touch = platform_get_drvdata(pdev);
-	struct mx_qm_data * mx = touch->data;
+//	struct mx_qm_data * mx = touch->data;
 	
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	 unregister_early_suspend(&touch->early_suspend);
