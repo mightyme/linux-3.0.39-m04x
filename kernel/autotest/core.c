@@ -45,7 +45,7 @@ static int autotest_thread(void *data)
 	return 0;
 }
 
-void __init start_autotest(void)
+void start_autotest(void)
 {
 	struct task_struct *autotest_task;
 
