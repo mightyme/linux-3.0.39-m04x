@@ -186,17 +186,21 @@ static struct cma_region m040_regions[] = {
 		.name = "fimd",
 		.size = 16384 * SZ_1K,
 		.start = 0
-	}, {
+	},
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+	{
 		.name = "ram_console",
 		.size = CONFIG_ANDROID_RAM_CONSOLE_MEMSIZE * SZ_1K,
 		.start = 0,
+	},
+#endif
 #ifdef CONFIG_ANDROID_LOGGER
-	}, {
+	{
 		.name = "logger",
 		.size = CONFIG_ANDROID_LOGGER_MEMSIZE * SZ_1K * 4 + PAGE_SIZE * 2,
 		.start = 0,
-#endif
-	}, 
+	},
+#endif 
 #ifdef CONFIG_ION_EXYNOS_CONTIGHEAP_SIZE
 	{
 		.name	= "ion",
