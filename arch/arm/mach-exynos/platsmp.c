@@ -138,7 +138,7 @@ static int exynos_power_up_cpu(unsigned int cpu)
 int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
-	int ret;
+	int ret = 0;
 #ifdef CONFIG_S3C2410_WATCHDOG
 	unsigned int tmp_wtcon;
 #endif
@@ -195,6 +195,11 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 		udelay(10);
 	}
 
+	if (pen_release != -1) {
+		ret = -ENOSYS;
+		pr_err("%s: cpu%d start up failed\n", __func__, cpu);
+	}
+
 #ifdef CONFIG_S3C2410_WATCHDOG
 	__raw_writel(tmp_wtcon, S3C2410_WTCON);
 #endif
@@ -205,7 +210,7 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 */
 	spin_unlock(&boot_lock);
 
-	return pen_release != -1 ? -ENOSYS : 0;
+	return ret;
 }
 
 static inline unsigned long exynos5_get_core_count(void)
