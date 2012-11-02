@@ -851,14 +851,11 @@ static struct attribute_group dbs_attr_group = {
 
 static void cpu_up_work(struct work_struct *work)
 {
-	int cpu;
+	int cpu = 0;
 	int online = num_online_cpus();
 	int nr_up = dbs_tuners_ins.up_nr_cpus;
 	int min_cpu_lock = dbs_tuners_ins.min_cpu_lock;
 	int hotplug_lock = atomic_read(&g_hotplug_lock);
-
-	cpu = raw_smp_processor_id();
-	pr_debug("cpu = %d\n", cpu);
 
 	if (hotplug_lock && min_cpu_lock)
 		nr_up = max(hotplug_lock, min_cpu_lock) - online;
@@ -886,17 +883,15 @@ static void cpu_up_work(struct work_struct *work)
 		pr_info("CPU_UP 1\n");
 		cpu_up(1);
 	}
+
 }
 
 static void cpu_down_work(struct work_struct *work)
 {
-	int cpu;
+	int cpu = 0;
 	int online = num_online_cpus();
 	int nr_down = 1;
 	int hotplug_lock = atomic_read(&g_hotplug_lock);
-
-	cpu = raw_smp_processor_id();
-	pr_debug("cpu = %d\n", cpu);
 
 	if (hotplug_lock)
 		nr_down = online - hotplug_lock;
