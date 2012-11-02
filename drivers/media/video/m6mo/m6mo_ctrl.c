@@ -1155,7 +1155,12 @@ static int m6mo_get_exif_ebv_d(struct v4l2_subdev *sd, struct v4l2_ext_control *
 	return m6mo_r32(sd, INFO_EBV_DENUMINATOR_REG, &ctrl->value);
 }
 
-static int m6mo_get_exif_iso(struct v4l2_subdev *sd, struct v4l2_ext_control *ctrl)
+static int m6mo_get_exif_iso_ext(struct v4l2_subdev *sd, struct v4l2_ext_control *ctrl)
+{
+	return m6mo_r16(sd, INFO_ISO_REG, &ctrl->value);
+}
+
+static int m6mo_get_exif_iso(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	return m6mo_r16(sd, INFO_ISO_REG, &ctrl->value);
 }
@@ -1216,7 +1221,7 @@ static int m6mo_g_ext_ctrl(struct v4l2_subdev *sd, struct v4l2_ext_control *ctrl
 		ret = m6mo_get_exif_ebv_d(sd, ctrl);
 		break;
 	case V4L2_CTRL_CLASS_CAMERA_ISO:
-		ret = m6mo_get_exif_iso(sd, ctrl);
+		ret = m6mo_get_exif_iso_ext(sd, ctrl);
 		break;
 	case V4L2_CTRL_CLASS_CAMERA_FLASH:
 		ret = m6mo_get_exif_flash(sd, ctrl);
@@ -1247,6 +1252,15 @@ int m6mo_g_ext_ctrls(struct v4l2_subdev *sd, struct v4l2_ext_controls *ctrls)
 		}
 	}
 	return ret;
+}
+
+/*exif informaion*/
+static int m6mo_get_exif_exptime(struct v4l2_subdev *sd, struct v4l2_control *ctrl, int flag)
+{
+	if (flag) 
+		return m6mo_r32(sd, INFO_EXPTIME_DENUMINATOR_REG, &ctrl->value);
+	else 
+		return m6mo_r32(sd, INFO_EXPTIME_NUMERATOR_REG, &ctrl->value);
 }
 
 int m6mo_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
@@ -1310,6 +1324,21 @@ int m6mo_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		break;
 	case V4L2_CID_CAMERA_SELECTED_FACE_SIZE:
 		ret = m6mo_get_selected_face_size(sd, ctrl);
+		break;
+
+	case V4L2_CID_CAMERA_EXIF_EXPTIME_NUMERATOR:
+		pr_info("LEGACY %s(), ctrl->id is 0x%x\n", __func__, ctrl->id);
+		ret = m6mo_get_exif_exptime(sd, ctrl, 0);
+		break;
+
+	case V4L2_CID_CAMERA_EXIF_EXPTIME_DENUMINATOR:
+		pr_info("LEGACY %s(), ctrl->id is 0x%x\n", __func__, ctrl->id);		
+		ret = m6mo_get_exif_exptime(sd, ctrl, 1);
+		break;
+
+	case V4L2_CID_CAMERA_EXIF_ISOV:
+		pr_info("LEGACY %s(), ctrl->id is 0x%x\n", __func__, ctrl->id);
+		ret = m6mo_get_exif_iso(sd, ctrl);
 		break;
 		
 	default:
