@@ -226,8 +226,7 @@ struct fsa8108_info {
 	struct i2c_client		*client;	
 	struct mutex		mutex;
 	struct input_dev *input;
-	struct work_struct  det_work;
-	struct work_struct  reset_work;
+	struct work_struct  det_work;	
 	unsigned int cur_jack_type;
 };
 
@@ -475,6 +474,7 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				break;
 			case FSA8108_SEND_END_PRESS:
 				pr_err("%s OKOKOKOKOOOK",__func__);
+				pr_info("read time reg value:0x%02x\n",fsa8108_read_reg(FSA8108_REG_KEY_PRS_T));
 				input_report_key(info->input, KEY_HEADSETHOOK, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
@@ -603,7 +603,7 @@ static void fsa8081_jack_det_work_func(struct work_struct *work)
 	process_int(intr_type,info);
 	mutex_unlock(&info->mutex);
 }
-static void fsa8108_reset_work(struct work_struct *work)
+static void fsa8108_reset(void)
 {	
 	fsa8108_write_reg(FSA8108_REG_RESET,0x01);
 	msleep(100);
@@ -632,7 +632,8 @@ static void fsa8108_initialization(struct fsa8108_info *info)
 		FSA8108_VOL_DOWN__CMP_SHIFT , 0x0F);
 
 	/*** Set Timing parameters and Global Multiplier setting ***/
-	fsa8108_set_value(FSA8108_REG_KEY_PRS_T,FSA8108_TDOUBLE,FSA8108_TDOUBLE_SHIFT,0x02);
+	fsa8108_set_value(FSA8108_REG_GLOBAL_MUL,0x07,0,0x04);
+	fsa8108_set_value(FSA8108_REG_KEY_PRS_T,FSA8108_TDOUBLE,FSA8108_TDOUBLE_SHIFT,0x00);
 
 	fsa8108_mask_int(1);/*mask key interrupts before plug in*/
 	int_type = i2c_smbus_read_word_data(client, FSA8108_REG_INT_1);		
@@ -708,9 +709,8 @@ static int fsa8108_probe(
 	}
 
 	INIT_WORK(&info->det_work, fsa8081_jack_det_work_func);
-	INIT_WORK(&info->reset_work, fsa8108_reset_work);
 	// Reset
-	schedule_work(&info->reset_work);
+	fsa8108_reset();
 
 	client->irq = gpio_to_irq(client->irq);
 	if (client->irq < 0){
