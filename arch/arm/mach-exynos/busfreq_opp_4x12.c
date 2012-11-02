@@ -99,7 +99,7 @@ static struct busfreq_table exynos4_busfreq_table_orig[] = {
 	{LV_5, 133133, 950000, 0, 0, 0},  /* MIF : 133MHz INT : 133MHz */
 	{LV_6, 100100, 950000, 0, 0, 0},  /* MIF : 100MHz INT : 100MHz */
 };
-
+#ifdef CONFIG_EXYNOS4412_MPLL_880MHZ
 static struct busfreq_table exynos4_busfreq_table_rev2[] = {
 	{LV_0, 440293, 1100000, 0, 0, 0}, /* MIF : 440MHz INT : 220MHz */
 	{LV_1, 440220, 1100000, 0, 0, 0}, /* MIF : 440MHz INT : 220MHz */
@@ -109,7 +109,7 @@ static struct busfreq_table exynos4_busfreq_table_rev2[] = {
 	{LV_5, 147147,  950000, 0, 0, 0},  /* MIF : 147MHz INT : 147MHz */
 	{LV_6, 110110,  950000, 0, 0, 0},  /* MIF : 110MHz INT : 110MHz */
 };
-
+#endif
 enum busfreq_qos_target {
 	BUS_QOS_0,
 	BUS_QOS_1,
@@ -882,7 +882,9 @@ int exynos4x12_init(struct device *dev, struct busfreq_data *data)
 		dmc_max_threshold = EXYNOS4212_DMC_MAX_THRESHOLD;
 	} else if (soc_is_exynos4412()) {
 		if (samsung_rev() >= EXYNOS4412_REV_2_0) {
+#ifdef CONFIG_EXYNOS4412_MPLL_880MHZ
 			exynos4_busfreq_table = exynos4_busfreq_table_rev2;
+#endif
 			exynos4_mif_volt = exynos4412_mif_volt_rev2;
 			exynos4_int_volt = exynos4412_int_volt_rev2;
 		} else {
@@ -932,12 +934,11 @@ int exynos4x12_init(struct device *dev, struct busfreq_data *data)
 	}
 
 	/* Disable MIF 267 INT 200 Level */
-	if (samsung_rev() >= EXYNOS4412_REV_2_0) {
+	maxfreq = 400200;
+#ifdef CONFIG_EXYNOS4412_MPLL_880MHZ
+	if (samsung_rev() >= EXYNOS4412_REV_2_0)
 		maxfreq = 440293;
-	} else {
-		//opp_disable(dev, 267200);
-		maxfreq = 400200;
-	}
+#endif
 	
 	data->table = exynos4_busfreq_table;
 	data->table_size = LV_END;
