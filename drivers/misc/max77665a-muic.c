@@ -223,9 +223,17 @@ static int __devinit max77665_muic_probe(struct platform_device *pdev)
 	ret = request_threaded_irq(irq, 0, max77665_muic_isr,
 			0, "max77665_adc1k", info);
 
+	irq = max77665->irq_base + MAX77665_MUIC_IRQ_INT1_ADCERR;
+	ret = request_threaded_irq(irq, 0, max77665_muic_isr,
+			0, "max77665_adcerr", info);
+
 	irq = max77665->irq_base + MAX77665_MUIC_IRQ_INT1_ADCLOW;
 	ret = request_threaded_irq(irq, 0, max77665_muic_isr,
 			0, "max77665_adclow", info);
+
+	irq = max77665->irq_base + MAX77665_MUIC_IRQ_INT1_ADC;
+	ret = request_threaded_irq(irq, 0, max77665_muic_isr,
+			0, "max77665_adc", info);
 
 	return 0;
 
