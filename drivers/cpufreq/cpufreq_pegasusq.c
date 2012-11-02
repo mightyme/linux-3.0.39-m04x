@@ -1472,7 +1472,7 @@ static int __init cpufreq_gov_dbs_init(void)
 		goto err_hist;
 	}
 
-	dvfs_workqueue = create_workqueue("kpegasusq");
+	dvfs_workqueue = create_singlethread_workqueue("kpegasusq");
 	if (!dvfs_workqueue) {
 		pr_err("%s cannot create workqueue\n", __func__);
 		ret = -ENOMEM;
