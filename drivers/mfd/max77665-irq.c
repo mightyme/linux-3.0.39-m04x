@@ -276,7 +276,7 @@ int max77665_irq_init(struct max77665_dev *max77665)
 			   i2c_data);
 
 	ret = request_threaded_irq(max77665->irq, NULL, max77665_irq_thread,
-				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+				   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 				   "max77665-irq", max77665);
 
 	if (ret) {
