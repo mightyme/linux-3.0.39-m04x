@@ -373,10 +373,11 @@ static void mx_qm_led_brightness_set(struct led_classdev *led_cdev,
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void mx_qm_led_early_suspend(struct early_suspend *h)
 {
+/*
 	 struct mx_qm_led *led =
 			 container_of(h, struct mx_qm_led, early_suspend);
 	struct mx_qm_data *mx = led->data;
-	 
+ 
 	 if( led->id == 0)
 	 {		 
 		 if( mx->LedVer == LED_VERSION1)
@@ -384,18 +385,19 @@ static void mx_qm_led_early_suspend(struct early_suspend *h)
 		 else
 		 	bu26507_set_led_pwm(&led->led_cdev,0x1FF);
 	 }
+*/	 
 }
  
 static void mx_qm_led_late_resume(struct early_suspend *h)
 {
+/*
 	 struct mx_qm_led *led =
 			 container_of(h, struct mx_qm_led, early_suspend);
  
 	 //led->led_cdev.brightness_set(&led->led_cdev,LED_OFF);
 	 if( led->id == 0)
-	 {
-		led->led_cdev.brightness_set(&led->led_cdev,((MODE_PWM<<8) | gPWM)); 			
-	 }
+		led->led_cdev.brightness_set(&led->led_cdev,((MODE_PWM<<8) | gPWM)); 	
+*/		
 }
 #endif
  

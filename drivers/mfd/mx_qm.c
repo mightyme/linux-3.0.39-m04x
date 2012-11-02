@@ -32,16 +32,7 @@
 #include	<linux/mx_qm.h>
 
 #define QM_MX_FW_6K 	"qm/qm_mx_led6k.bin"
-
-#ifdef	CONFIG_MX_DEV_KERNEL
-#define QM_MX_FW 		"qm/qm_mx_led_dev.bin"
-#else
 #define QM_MX_FW 		"qm/qm_mx_led.bin"
-#endif
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-//#define	QM_HAS_EARLYSUSPEND
-#endif
 
 #define 	RESET_COLD	1
 #define	RESET_SOFT	0
@@ -356,6 +347,17 @@ static bool __devinit mx_qm_identify(struct mx_qm_data *mx)
 	return true;
 }
 
+/*This function forces a recalibration of qm touch sensor.*/
+static void mx_qm_recalibration(struct mx_qm_data *mx)
+{	
+	unsigned char msg[2];
+	msg[0] = QM_REG_CALIBRATE;
+	msg[1] = 1;			
+	mx_qm_write(mx->client,2,msg);
+	
+	dev_dbg(&mx->client->dev, "force a recalibration\n");
+}
+
 static void mx_qm_reset(struct mx_qm_data *mx,int m)
 {
 	if(m)
@@ -365,8 +367,7 @@ static void mx_qm_reset(struct mx_qm_data *mx,int m)
 		gpio_set_value(mx->gpio_reset,  0);
 		msleep(100);
 		gpio_set_value(mx->gpio_reset,  1);
-		s3c_gpio_cfgpin(mx->gpio_reset, S3C_GPIO_INPUT);
-		
+		s3c_gpio_cfgpin(mx->gpio_reset, S3C_GPIO_INPUT);		
 	}
 	else
 	{
@@ -598,6 +599,7 @@ static struct device_attribute qm_attrs[] = {
     QM_ATTR(position),
     QM_ATTR(cmd),
     QM_ATTR(reset),
+    QM_ATTR(calibrate),
     QM_ATTR(version),
     QM_ATTR(led),
     QM_ATTR(update),
@@ -607,6 +609,7 @@ enum {
 	QM_POS,
 	QM_CMD,
 	QM_RESET,
+	QM_CAL,
 	QM_FWR_VER,
 	QM_LED,
 	QM_UPD,
@@ -661,6 +664,10 @@ static ssize_t qm_show_property(struct device *dev,
 		break;
 	case QM_RESET:
 		i += scnprintf(buf+i, PAGE_SIZE-i, "\n");
+		break;
+	case QM_CAL:
+		mx_qm_recalibration(qm);
+		i += scnprintf(buf+i, PAGE_SIZE-i, "Sensor recalibration. \n");
 		break;
 	case QM_LED:
 		i += scnprintf(buf+i, PAGE_SIZE-i, "\n");
@@ -740,6 +747,11 @@ static ssize_t qm_store(struct device *dev,
 		}
 		ret = count;
 		break;
+	case QM_CAL:
+		mx_qm_recalibration(qm);
+		pr_info("Sensor recalibration. \n");
+		ret = count;
+		break;
 	case QM_FWR_VER:
 		ret = count;
 		break;
@@ -806,14 +818,14 @@ static void qm_destroy_atts(struct device * dev)
 		device_remove_file(dev, &qm_attrs[i]);
 }
 
-#ifdef QM_HAS_EARLYSUSPEND
+#ifdef CONFIG_HAS_EARLYSUSPEND
  static void mx_qm_early_suspend(struct early_suspend *h)
  {
 	 struct mx_qm_data *mx =
 			 container_of(h, struct mx_qm_data, early_suspend);
-	 
-	 mx->wakeup(mx,false);
 
+	//mx_qm_reset(mx,0);// Soft reset sensor
+	mx_qm_recalibration(mx);// ReCalibration sensor
  }
  
  static void mx_qm_late_resume(struct early_suspend *h)
@@ -821,8 +833,7 @@ static void qm_destroy_atts(struct device * dev)
 	 struct mx_qm_data *mx =
 			 container_of(h, struct mx_qm_data, early_suspend);
 	 
-	mx->wakeup(mx,true);
-	
+	mx->wakeup(mx,true);	
  }
 #endif
 
@@ -919,7 +930,7 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 		goto err_free_mem;
 	}
 	
-#ifdef QM_HAS_EARLYSUSPEND
+#ifdef CONFIG_HAS_EARLYSUSPEND
 		 data->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
 		 data->early_suspend.suspend = mx_qm_early_suspend;
 		 data->early_suspend.resume = mx_qm_late_resume;
@@ -944,16 +955,10 @@ static int mx_qm_suspend(struct device *dev)
 	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
 	struct mx_qm_data *mx = i2c_get_clientdata(i2c);
 
-#ifdef QM_HAS_EARLYSUSPEND
-	disable_irq(mx->irq);
-	enable_irq_wake(mx->irq);
-	}
-#else
 	disable_irq(mx->irq);
 	enable_irq_wake(mx->irq);
 
 	mx->wakeup(mx,false);
-#endif
 
 	return 0;
 }
@@ -963,15 +968,10 @@ static int mx_qm_resume(struct device *dev)
 	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
 	struct mx_qm_data *mx = i2c_get_clientdata(i2c);
 	
-#ifdef QM_HAS_EARLYSUSPEND
-	disable_irq_wake(mx->irq);
-	enable_irq(mx->irq);
-#else
 	mx->wakeup(mx,true);
 
 	disable_irq_wake(mx->irq);
 	enable_irq(mx->irq);
-#endif	
 
 	return 0;
 }
@@ -989,7 +989,7 @@ static int __devexit mx_qm_remove(struct i2c_client *client)
 {
 	struct mx_qm_data *data = i2c_get_clientdata(client);
 	
-#ifdef QM_HAS_EARLYSUSPEND
+#ifdef CONFIG_HAS_EARLYSUSPEND
 	unregister_early_suspend(&data->early_suspend);
 #endif
 

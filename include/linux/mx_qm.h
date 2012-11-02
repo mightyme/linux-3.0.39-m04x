@@ -61,6 +61,7 @@ enum mx_qm_reg {
         
 	QM_REG_LEDVERSION	= 0xF0,
 	
+	QM_REG_CALIBRATE        = 0xFD,
 	QM_REG_SOFTRESET		= 0xFE,
 	
 	QM_REG_MAX,

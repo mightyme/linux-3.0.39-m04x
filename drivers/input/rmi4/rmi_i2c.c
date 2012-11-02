@@ -223,7 +223,6 @@ static int rmi_i2c_read(struct rmi_phys_device *phys, u16 addr, u8 *buf)
 
 static int acquire_attn_irq(struct rmi_i2c_data *data)
 {
-	dev_info(data->phys->dev, "irq_flags = 0x%.8X.\n",data->irq_flags);
 	return request_threaded_irq(data->irq, NULL, rmi_i2c_irq_thread,
 			data->irq_flags, dev_name(data->phys->dev), data->phys);
 }
