@@ -405,28 +405,31 @@ static irqreturn_t max77665_charger_isr(int irq, void *dev_id)
 		if(is_cable_connecting(charger)) {
 			int chg_limit;
 #define CURRENT_ADJUST_STEP 40
+#define MIN_CURRENT_ADJUST 400
 
 			pr_info("decrease the charge current\n");
 			chg_limit = regulator_get_current_limit(charger->ps) / MA_TO_UA;
 
-			mutex_lock(&charger->mutex_t);
-			do {
-				int chg_ok = 0;
+			if(chg_limit > MIN_CURRENT_ADJUST) {
+				mutex_lock(&charger->mutex_t);
+				do {
+					int chg_ok = 0;
 
-				msleep(50);
-				max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK, &reg_data);
-				chg_ok = !!(reg_data & 0x40);
+					msleep(50);
+					max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK, &reg_data);
+					chg_ok = !!(reg_data & 0x40);
 
-				if(chg_ok) {
-					mutex_unlock(&charger->mutex_t);
-					return IRQ_HANDLED;
-				} else {
-					chg_limit -= CURRENT_ADJUST_STEP;
-					pr_info("*********current limit %d\n", chg_limit);
-					regulator_set_current_limit(charger->ps, chg_limit * MA_TO_UA, MAX_CURRENT*MA_TO_UA);
-				}
-			}while(chg_limit > CURRENT_ADJUST_STEP);
-			mutex_unlock(&charger->mutex_t);
+					if(chg_ok) {
+						mutex_unlock(&charger->mutex_t);
+						return IRQ_HANDLED;
+					} else {
+						chg_limit -= CURRENT_ADJUST_STEP;
+						pr_info("*********current limit %d\n", chg_limit);
+						regulator_set_current_limit(charger->ps, chg_limit * MA_TO_UA, MAX_CURRENT*MA_TO_UA);
+					}
+				} while (chg_limit > MIN_CURRENT_ADJUST);
+				mutex_unlock(&charger->mutex_t);
+			}
 		}
 	}
 
