@@ -857,7 +857,7 @@ static void cpu_up_work(struct work_struct *work)
 	int min_cpu_lock = dbs_tuners_ins.min_cpu_lock;
 	int hotplug_lock = atomic_read(&g_hotplug_lock);
 
-	cpu = smp_processor_id();
+	cpu = raw_smp_processor_id();
 	pr_debug("cpu = %d\n", cpu);
 
 	if (hotplug_lock && min_cpu_lock)
@@ -895,7 +895,7 @@ static void cpu_down_work(struct work_struct *work)
 	int nr_down = 1;
 	int hotplug_lock = atomic_read(&g_hotplug_lock);
 
-	cpu = smp_processor_id();
+	cpu = raw_smp_processor_id();
 	pr_debug("cpu = %d\n", cpu);
 
 	if (hotplug_lock)
