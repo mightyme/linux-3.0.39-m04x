@@ -132,7 +132,10 @@ static void max77665_irq_mask(struct irq_data *data)
 	const struct max77665_irq_data *irq_data =
 				irq_to_max77665_irq(max77665, data->irq);
 
-	max77665->irq_masks_cur[irq_data->group] |= irq_data->mask;
+	if(irq_data->group == MUIC_INT1)
+		max77665->irq_masks_cur[irq_data->group] &= ~irq_data->mask;
+	else
+		max77665->irq_masks_cur[irq_data->group] |= irq_data->mask;
 }
 
 static void max77665_irq_unmask(struct irq_data *data)
@@ -141,7 +144,10 @@ static void max77665_irq_unmask(struct irq_data *data)
 	const struct max77665_irq_data *irq_data =
 	    irq_to_max77665_irq(max77665, data->irq);
 
-	max77665->irq_masks_cur[irq_data->group] &= ~irq_data->mask;
+	if(irq_data->group == MUIC_INT1)
+		max77665->irq_masks_cur[irq_data->group] |= irq_data->mask;
+	else
+		max77665->irq_masks_cur[irq_data->group] &= ~irq_data->mask;
 }
 
 static struct irq_chip max77665_irq_chip = {
@@ -191,7 +197,10 @@ static irqreturn_t max77665_irq_thread(int irq, void *data)
 
 	/* Apply masking */
 	for (i = 0; i < MAX77665_IRQ_GROUP_NR; i++) {
-		irq_reg[i] &= ~max77665->irq_masks_cur[i];
+		if(i == MUIC_INT1)
+			irq_reg[i] &= max77665->irq_masks_cur[i];
+		else
+			irq_reg[i] &= ~max77665->irq_masks_cur[i];
 	}
 
 	/* Report */
@@ -236,16 +245,25 @@ int max77665_irq_init(struct max77665_dev *max77665)
 	for (i = 0; i < MAX77665_IRQ_GROUP_NR; i++) {
 		struct i2c_client *i2c;
 
-		max77665->irq_masks_cur[i] = 0xff;
-		max77665->irq_masks_cache[i] = 0xff;
+		if(i == MUIC_INT1) {
+			max77665->irq_masks_cur[i] = 0x00;
+			max77665->irq_masks_cache[i] = 0x00;
+		} else {
+			max77665->irq_masks_cur[i] = 0xff;
+			max77665->irq_masks_cache[i] = 0xff;
+		}
 		i2c = get_i2c(max77665, i);
 
 		if (IS_ERR_OR_NULL(i2c))
 			continue;
 		if (max77665_mask_reg[i] == MAX77665_REG_INVALID)
 			continue;
-		
-		max77665_write_reg(i2c, max77665_mask_reg[i], 0xff);
+	
+		if(i == MUIC_INT1) {
+			max77665_write_reg(i2c, max77665_mask_reg[i], 0x00);
+		} else {
+			max77665_write_reg(i2c, max77665_mask_reg[i], 0xff);
+		}	
 	}
 
 	/* Register with genirq */
