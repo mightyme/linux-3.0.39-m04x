@@ -1191,7 +1191,7 @@ static int rmi_driver_probe(struct rmi_device *rmi_dev)
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	rmi_dev->early_suspend_handler.level =
-		EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
+		EARLY_SUSPEND_LEVEL_DISABLE_FB + 10;
 	rmi_dev->early_suspend_handler.suspend = rmi_driver_early_suspend;
 	rmi_dev->early_suspend_handler.resume = rmi_driver_late_resume;
 	register_early_suspend(&rmi_dev->early_suspend_handler);

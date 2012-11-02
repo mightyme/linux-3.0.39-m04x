@@ -389,7 +389,7 @@ static int fimg2d_probe(struct platform_device *pdev)
 #if defined(CONFIG_HAS_EARLYSUSPEND)
 	info->early_suspend.suspend = fimg2d_early_suspend;
 	info->early_suspend.resume = fimg2d_late_resume;
-	info->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
+	info->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB-10;
 	register_early_suspend(&info->early_suspend);
 #endif
 	printk(KERN_INFO "Samsung Graphics 2D driver, (c) 2011 Samsung Electronics\n");

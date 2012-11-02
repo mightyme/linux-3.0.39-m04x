@@ -1484,7 +1484,7 @@ static int __init cpufreq_gov_dbs_init(void)
 		goto err_reg;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
+	early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB+50;
 	early_suspend.suspend = cpufreq_pegasusq_early_suspend;
 	early_suspend.resume = cpufreq_pegasusq_late_resume;
 #endif

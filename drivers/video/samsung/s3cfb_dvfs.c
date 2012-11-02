@@ -104,6 +104,8 @@ static int lcd_dvfs_notify(struct notifier_block *nb,
 			list_entry(nb, struct s3cfb_dvfs_info, dvfs_nb);
 		struct s3cfb_global *fbdev = dvfsdev->fbdev;
 #ifdef CONFIG_EXYNOS_DEV_PD
+		if (fbdev->system_state == POWER_OFF)
+			return NOTIFY_OK;
 		pm_runtime_get_sync(fbdev->dev);
 #endif
 		if(!dvfsdev->dynamic_freq_disable){
@@ -172,7 +174,7 @@ int s3cfb_dvfs_init(struct s3cfb_global *fbdev)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 		s3cfb_dvfs->early_suspend.suspend = s3cfb_dvfs_early_suspend;
 		s3cfb_dvfs->early_suspend.resume = s3cfb_dvfs_late_resume;
-		s3cfb_dvfs->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
+		s3cfb_dvfs->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB-15;
 
 		register_early_suspend(&s3cfb_dvfs->early_suspend);
 #endif
