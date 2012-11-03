@@ -91,6 +91,15 @@ static int init_max77665_muic(struct max77665_muic_info *info)
 		return ret;
 	}
 
+	val = msk = 0;
+	val = (0x2 << ADCDBSET_SHIFT); /*set adc debounce time to 25ms*/
+	msk = ADCDBSET_MASK;
+	ret = max77665_update_reg(client, MAX77665_MUIC_REG_CTRL3, val, msk);
+	if (ret) {
+		pr_err("[MUIC]: can not set adc debounce time\n");
+		return ret;
+	}
+
 	return ret;
 }
 
