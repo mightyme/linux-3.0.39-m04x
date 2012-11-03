@@ -135,7 +135,6 @@ static irqreturn_t max77665_muic_isr(int irq, void *dev_id)
 	struct max77665_muic_info *info = dev_id;
 	u8 adc, adclow ,adcerr, adc1k;
 	u8 status1;
-	int insert = true;
 
 	max77665_read_reg(info->muic, MAX77665_MUIC_REG_STATUS1, &status1);
 	adc = status1 & STATUS1_ADC_MASK;

@@ -533,7 +533,8 @@ static __devinit int max77665_init(struct max77665_charger *charger)
 	}
 
 	/* disable muic ctrl */
-	ret = max77665_write_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_00, 0x24);
+	reg_data = 1<<5;
+	ret = max77665_update_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_00, reg_data, 0x1<<5);
 	if (unlikely(ret)) {
 		dev_err(charger->dev, "Failed to set MAX77665_CHG_REG_CHG_CNFG_00: %d\n", ret);
 		goto error;
@@ -652,7 +653,8 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	if (unlikely(ret < 0))
 		pr_err("Failed to read MAX77665_CHG_REG_CHG_INT: %d\n", ret);
 	else {
-		if (reg_data & 0x40) {	// CHGIN
+		if (!regulator_is_enabled(charger->reverse) 
+				&& (reg_data & 0x40)) {	// CHGIN
 			charger->chgin = true;
 			if(is_charging_mode()) {
 				charger->cable_status = CABLE_TYPE_USB;

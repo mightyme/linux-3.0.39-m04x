@@ -7,6 +7,7 @@
 #include <plat/ehci.h>
 #include <plat/cpu.h>
 #include <plat/usb-phy.h>
+#include <plat/devs.h>
 #include <asm/mach-types.h>
 
 /* USB EHCI */
@@ -83,10 +84,15 @@ static struct s5p_ehci_platdata mx2_ehci_pdata={
 
 static int __init mx2_ehci_init(void)
 {
+	int ret = 0;
 	struct s5p_ehci_platdata *pdata = &mx2_ehci_pdata;
 
+	ret = platform_device_register(&s5p_device_ehci);
+	if(ret)
+		return ret;
 	s5p_ehci_set_platdata(pdata);
-	return 0;
+
+	return ret;
 }
 
 arch_initcall(mx2_ehci_init);

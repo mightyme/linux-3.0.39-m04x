@@ -1357,9 +1357,6 @@ static int __init ehci_hcd_init(void)
 #endif
 
 #ifdef PLATFORM_DRIVER
-	retval = platform_device_register(&s5p_device_ehci);
-	if (retval < 0)
-		goto clean0;
 	retval = platform_driver_register(&PLATFORM_DRIVER);
 	if (retval < 0)
 		goto clean0;
