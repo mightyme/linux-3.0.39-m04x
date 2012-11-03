@@ -24,7 +24,6 @@
 #include <linux/delay.h>
 #include <linux/bootmode.h>
 #include <linux/android_alarm.h>
-#include <mach/usb-detect.h>
 #include <plat/adc.h>
 
 #define MAX_CURRENT 1000

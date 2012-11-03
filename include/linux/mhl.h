@@ -8,8 +8,6 @@
 #ifndef __SII_9244_API_H__
 #define __SII_9244_API_H__
 
-#include <mach/usb-detect.h>
-
  #define MHLDEBUG 
 
 #ifdef MHLDEBUG

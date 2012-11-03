@@ -32,7 +32,6 @@
 #include <linux/version.h>
 #include <linux/wakelock.h>
 #include <mach/modem.h>
-#include <mach/usb-detect.h>
 #include "modem_prj.h"
 #include "modem_utils.h"
 #include "meizu_modem_hsic.h"

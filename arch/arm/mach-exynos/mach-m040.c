@@ -63,7 +63,6 @@
 #include <mach/dev.h>
 #include <mach/system.h>
 #include <mach/regs-clock.h>
-#include <mach/usb-detect.h>
 #include <mach/i2c-m040.h>
 #ifdef CONFIG_BT
 #include <mach/mx-rfkill.h>
@@ -822,22 +821,6 @@ static struct platform_device m040_gpio_keys = {
 };
 #endif
 
-static struct usb_detect_platform_data usb_detect_data = {
-	.usb_vbus_gpio = M040_INT_USB,
-	.usb_host_gpio = M040_INT_USB_MHL,
-	.usb_dock_gpio = M040_DOCK_IRQ,
-};
-
-static struct platform_device usb_detect_device = {
-	.name	 = "usb_detect",
-	.id = -1,
-	.dev	 = {
-		.platform_data    = &usb_detect_data,
-	},
-	.num_resources	= 0,
-	.resource 	= NULL,
-};
-
 #ifdef CONFIG_BRCM_GPS
 static struct platform_device brcm_gps = {
 	.name = "brcm-gps",
@@ -1022,7 +1005,6 @@ static struct platform_device __initdata *m040_devices[]  = {
 	&s5p_device_fimg2d,
 	&SYSMMU_PLATDEV(g2d_acp),
 #endif
-	&usb_detect_device,
 	&s3c_device_adc,
 #ifdef CONFIG_S3C_DEV_HWMON
 	&s3c_device_hwmon,
