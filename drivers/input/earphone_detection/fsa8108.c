@@ -226,7 +226,8 @@ struct fsa8108_info {
 	struct i2c_client		*client;	
 	struct mutex		mutex;
 	struct input_dev *input;
-	struct work_struct  det_work;	
+	struct work_struct  det_work;
+	struct work_struct  reset_work;
 	unsigned int cur_jack_type;
 };
 
@@ -603,11 +604,14 @@ static void fsa8081_jack_det_work_func(struct work_struct *work)
 	process_int(intr_type,info);
 	mutex_unlock(&info->mutex);
 }
-static void fsa8108_reset(void)
+static void fsa8108_reset_work(struct work_struct *work)
 {	
+	struct fsa8108_info *info =
+		container_of(work, struct fsa8108_info, reset_work);
 	fsa8108_write_reg(FSA8108_REG_RESET,0x01);
 	msleep(100);
 	fsa8108_write_reg(FSA8108_REG_RESET,0x00);
+	fsa8108_set_value(FSA8108_REG_KEY_PRS_T,FSA8108_TDOUBLE,FSA8108_TDOUBLE_SHIFT,0x01);
 }
 
 static void fsa8108_initialization(struct fsa8108_info *info)
@@ -709,8 +713,10 @@ static int fsa8108_probe(
 	}
 
 	INIT_WORK(&info->det_work, fsa8081_jack_det_work_func);
+	INIT_WORK(&info->reset_work, fsa8108_reset_work);
 	// Reset
-	fsa8108_reset();
+	//fsa8108_reset();
+	schedule_work(&info->reset_work);
 
 	client->irq = gpio_to_irq(client->irq);
 	if (client->irq < 0){
