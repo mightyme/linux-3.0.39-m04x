@@ -497,14 +497,14 @@ void OpenAIF2(struct snd_soc_codec *codec)
 
  	// Clocking	&  AIF2 Interface
 	snd_soc_write(codec, WM8994_OVERSAMPLING, WM8994_ADC_OSR128 );	// Select High Power ADC/DMIC Oversample Rate, Select Low Power DAC Oversample Rate (Default)
-	snd_soc_write(codec, WM8994_AIF2_CONTROL_1, 0x411B );	// AIF2 Word Length = 16-bits, AIF2 Format = DSP,BCLK2 inverted
+	snd_soc_write(codec, WM8994_AIF2_CONTROL_1, 0x411B );	// AIF2 Word Length = 16-bits, AIF2 Format = DSP,BCLK2 not inverted
 	snd_soc_write(codec, WM8994_AIF2_CONTROL_2, 0x4000 );	// Disable AIF2 DSP Mono Mode
 #ifdef CONFIG_MACH_M040
 	snd_soc_write(codec, WM8994_AIF2_MASTER_SLAVE, 0x4000 );	// AIF2 Master Mode
 	// snd_soc_write(codec, WM8994_AIF2_MASTER_SLAVE, 0x0000 );	// AIF2 Master Mode
-	snd_soc_write(codec, WM8994_AIF2_BCLK, 0x00A0 );	// AIF2CLK / 16
-	snd_soc_write(codec, WM8994_AIF2ADC_LRCLK, 0x0040 );	// BCLK2 / 64
-	snd_soc_write(codec, WM8994_AIF2DAC_LRCLK, 0x0003 );	// BCLK2 / 3
+	snd_soc_write(codec, WM8994_AIF2_BCLK, 0x0070 );	// AIF2CLK / 8
+	snd_soc_write(codec, WM8994_AIF2ADC_LRCLK, 0x0080 );	// BCLK2 / 128
+	snd_soc_write(codec, WM8994_AIF2DAC_LRCLK, 0x0006 );	// BCLK2 / 6
 
 	snd_soc_update_bits(codec, WM8994_CLOCKING_1,WM8994_AIF2DSPCLK_ENA_MASK|WM8994_SYSDSPCLK_ENA_MASK, WM8994_AIF2DSPCLK_ENA|WM8994_SYSDSPCLK_ENA);
 	snd_soc_update_bits(codec, WM8994_CLOCKING_1,WM8994_SYSCLK_SRC_MASK, 0x00);// Set the core clock source to AIF1CLK

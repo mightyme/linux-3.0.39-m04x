@@ -280,7 +280,7 @@ static int es305b_send_cmd(unsigned int cmd)
 			AUD_ERR("es305b_i2c_write (0x%.8X) error, ret = %d\n", cmd, ret);
 			return -1;
 		} else
-			AUD_ERR("es305b_i2c_write (0x%.8X) OK\n", cmd);
+			AUD_DBG("es305b_i2c_write (0x%.8X) OK\n", cmd);
 	} else {
 		AUD_INFO("es305b is in %d mode\n", es305b->status);
 		return -1;
@@ -300,7 +300,7 @@ static int es305b_get_cmd(void)
 			AUD_ERR("es305b_i2c_read error, ret = %d\n", ret);
 			return -EINVAL;
 		} else {
-			AUD_INFO("es305b_i2c_read (0x%.8X) OK\n", be32_to_cpu(msg));
+			AUD_DBG("es305b_i2c_read (0x%.8X) OK\n", be32_to_cpu(msg));
 			ret = be32_to_cpu(msg);
 		}
 	} else {
