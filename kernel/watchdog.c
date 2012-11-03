@@ -128,9 +128,10 @@ static unsigned long get_sample_period(void)
 /* Commands for resetting the watchdog */
 static void __touch_watchdog(void)
 {
-	int this_cpu = smp_processor_id();
+	int this_cpu = get_cpu();
 
 	__this_cpu_write(watchdog_touch_ts, get_timestamp(this_cpu));
+	put_cpu();
 }
 
 void touch_softlockup_watchdog(void)
