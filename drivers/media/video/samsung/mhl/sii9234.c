@@ -3937,7 +3937,6 @@ static int __devinit sii9234_mhl_tx_i2c_real_probe(struct i2c_client *client)
 	sii9234->tmds_state = 0;
 #endif
 	pr_info("%s() real probe ended successfully\n",__func__);
-	mhl_onoff_ex(1);
 	check_mhl_connect();
 	return 0;
 
