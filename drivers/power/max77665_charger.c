@@ -497,6 +497,13 @@ static __devinit int max77665_init(struct max77665_charger *charger)
 		goto error;
 	}
 
+	reg_data = 1<<7;
+	ret = max77665_update_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_02, reg_data, 0x1<<7);
+	if (unlikely(ret)) {
+		dev_err(charger->dev, "Failed to set MAX77665_CHG_REG_CHG_CNFG_02: %d\n", ret);
+		goto error;
+	}
+
 	reg_data = max((u8)MAX77665_CHG_TO_ITH_100MA, (u8)pdata->top_off_current_thresold);
 	ret = max77665_update_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_03, reg_data, 0x7<<0);
 	if (unlikely(ret)) {
