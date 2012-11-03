@@ -328,7 +328,8 @@ static int es305b_soc_config(enum ES305B_MODE mode)
 		: mode == ES305B_VOIP_WHS_NB ? "Voip Headset narrow band"
 		: mode == ES305B_VOIP_DV_NB ? "Voip Speaker narrow band"
 		: mode == ES305B_VOIP_BT ? "Voip Bluetooth"
-		: mode == ES305B_BT_RING ? "BT Ringtone" : "Unknown"));
+		: mode == ES305B_BT_RING ? "BT Ringtone"
+		: mode == ES305B_BYPASS_A2C ? "bypass a to c" : "Unknown"));
 
 	switch (mode) {
 	case ES305B_SUSPEND:
@@ -384,6 +385,11 @@ static int es305b_soc_config(enum ES305B_MODE mode)
 	case ES305B_BT_RING:
 		es305b_param = bt_ring_buf;
 		size = sizeof(bt_ring_buf);
+		break;
+
+	case ES305B_BYPASS_A2C:
+		es305b_param = bypass_a2c;
+		size = sizeof(bypass_a2c);
 		break;
 
 	default:

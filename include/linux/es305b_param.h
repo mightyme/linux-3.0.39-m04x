@@ -461,4 +461,9 @@ static const u8 bt_ring_buf[] = {
 	0x80, 0x52, 0x00, 0xF3,
 };
 
+static const u8 bypass_a2c[] = {
+	0x80, 0x52, 0x00, 0x00, // disable digital pass through
+	0x80, 0x52, 0x00, 0xC8,
+};
+
 #endif /* __LINUX_ES305B_PARAM_H_ */
