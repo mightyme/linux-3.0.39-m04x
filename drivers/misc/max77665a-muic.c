@@ -68,8 +68,30 @@ static int init_max77665_muic(struct max77665_muic_info *info)
 	msk = COMN1SW_MASK | COMP2SW_MASK | MICEN_MASK | IDBEN_MASK;
 
 	ret = max77665_update_reg(client, MAX77665_MUIC_REG_CTRL1, val, msk);
+	if (ret) {
+		pr_err("[MUIC]: can not update reg_ctrl1\n");
+		return ret;
+	}
 
-	return 0;
+	val = msk = 0;
+	val = (0 << ADCEN_SHIFT) | (0 << LOWPWR_SHIFT);
+	msk = ADCEN_MASK | LOWPWR_SHIFT;
+	ret = max77665_update_reg(client, MAX77665_MUIC_REG_CTRL2, val, msk);
+	if (ret) {
+		pr_err("[MUIC]: can not disable adc\n");
+		return ret;
+	}
+
+	val = msk = 0;
+	val = (1 << ADCEN_SHIFT) | (1 << LOWPWR_SHIFT);
+	msk = ADCEN_MASK | LOWPWR_SHIFT;
+	ret = max77665_update_reg(client, MAX77665_MUIC_REG_CTRL2, val, msk);
+	if (ret) {
+		pr_err("[MUIC]: can not enable adc\n");
+		return ret;
+	}
+
+	return ret;
 }
 
 inline static void echi_pm_runtime(int onoff)
@@ -154,8 +176,13 @@ void check_mhl_connect(void)
 	if(!adc1k) {
 		pr_info("adc1k not set\n");
 		info->mhl_insert = false;
-		schedule_delayed_work(&info->dwork, 0);
+	} else {
+		pr_info("adc1k is set\n");
+		info->mhl_insert = true;
 	}
+	if (delayed_work_pending(&info->dwork))
+		cancel_delayed_work(&info->dwork);
+	schedule_delayed_work(&info->dwork, 0);
 }
 
 #ifdef CONFIG_MHL_DRIVER
@@ -216,7 +243,6 @@ static int __devinit max77665_muic_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to initialize MUIC:%d\n", ret);
 		goto fail1;
 	}
-
 	INIT_DELAYED_WORK(&info->dwork, muic_mhl_work);
 
 	irq = max77665->irq_base + MAX77665_MUIC_IRQ_INT1_ADC1K;

@@ -230,6 +230,12 @@ enum max77665_types {
 #define MICEN_MASK					(0x1 << MICEN_SHIFT)
 #define IDBEN_MASK					(0x1 << IDBEN_SHIFT)
 
+/* MAX77665 CONTROL2 register */
+#define LOWPWR_SHIFT				(0x0)
+#define ADCEN_SHIFT				    (0x1)
+#define LOWPWR_MASK				    (0x1 << LOWPWR_SHIFT)
+#define ADCEN_MASK				    (0x1 << ADCEN_SHIFT)
+
 /*boost mode*/
 enum max77665_boost_control_mode {
 	MAX77665_BOOST_FLED_OFF_MODE = 0x00,
