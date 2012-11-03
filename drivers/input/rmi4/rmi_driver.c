@@ -1333,7 +1333,7 @@ static int standard_resume(struct rmi_device *rmi_dev)
 			goto exit;
 		}
 		
-		mdelay(pdata->reset_delay_ms);
+		msleep(pdata->reset_delay_ms);
 	}
 
 	list_for_each_entry(entry, &data->rmi_functions.list, list)

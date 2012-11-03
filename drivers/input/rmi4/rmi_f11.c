@@ -1516,7 +1516,8 @@ static int rmi_f11_initialize(struct rmi_function_container *fc)
 
 	fc->data = f11;
 #if	RESUME_REZERO
-	f11->rezero_on_resume = true;
+	//f11->rezero_on_resume = true;
+	f11->rezero_on_resume = false;// Send a reset to the sensor,so the rezero is not used.
 	f11->rezero_wait_ms = DEFAULT_REZERO_WAIT_MS;
 #endif
 	query_base_addr = fc->fd.query_base_addr;
@@ -2018,7 +2019,7 @@ static int rmi_f11_resume(struct rmi_function_container *fc)
 
 	dev_dbg(&fc->dev, "Resuming...\n");
 	if (!data->rezero_on_resume)
-		return 0;
+		goto exit;
 
 	if (data->rezero_wait_ms)
 		mdelay(data->rezero_wait_ms);
@@ -2032,8 +2033,9 @@ static int rmi_f11_resume(struct rmi_function_container *fc)
 		return retval;
 	}
 	
-	_turn_on_calibration(data,true);
+exit:	
 	rmi_f11_force_calibration(data);
+	//_turn_on_calibration(data,true);
 
 	return retval;
 }
