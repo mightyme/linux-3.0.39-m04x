@@ -2134,11 +2134,12 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	mmc_send_if_cond(host, host->ocr_avail);
 
 	/* Order's important: probe SDIO, then SD, then MMC */
+	/* Note: We know our card is MMC, probe MMC at first. */
+	if (!mmc_attach_mmc(host))
+		return 0;
 	if (!mmc_attach_sdio(host))
 		return 0;
 	if (!mmc_attach_sd(host))
-		return 0;
-	if (!mmc_attach_mmc(host))
 		return 0;
 
 	mmc_power_off(host);
