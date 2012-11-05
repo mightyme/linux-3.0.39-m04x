@@ -50,7 +50,9 @@
 #define ALARM_ENABLE_MASK		(1 << ALARM_ENABLE_SHIFT)
 
 #define MAX77686_RTC_UPDATE_DELAY	16
+#ifndef CONFIG_MX_RECOVERY_KERNEL
 #define MAX77686_RTC_WTSR_SMPL
+#endif
 
 enum {
 	RTC_SEC = 0,
@@ -156,7 +158,7 @@ static inline int max77686_rtc_update(struct max77686_rtc_info *info,
 				__func__, ret, data);
 	else {
 		/* Minimum 16ms delay required before RTC update. */
-		msleep(MAX77686_RTC_UPDATE_DELAY);
+		mdelay(MAX77686_RTC_UPDATE_DELAY);
 	}
 
 	return ret;
