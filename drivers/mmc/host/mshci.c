@@ -1487,6 +1487,12 @@ static struct mmc_host_ops mshci_ops = {
 #endif
 };
 
+int is_mshci_host(const struct mmc_host_ops *ops)
+{
+	return ops == &mshci_ops;
+}
+EXPORT_SYMBOL_GPL(is_sdhci_host);
+
 /*****************************************************************************\
  *                                                                           *
  * Tasklets                                                                  *

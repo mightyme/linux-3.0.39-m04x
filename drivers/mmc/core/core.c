@@ -2107,6 +2107,8 @@ int mmc_hw_reset_check(struct mmc_host *host)
 }
 EXPORT_SYMBOL(mmc_hw_reset_check);
 
+extern int is_mshci_host(const struct mmc_host_ops *ops);
+
 static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 {
 	host->f_init = freq;
@@ -2134,12 +2136,14 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	mmc_send_if_cond(host, host->ocr_avail);
 
 	/* Order's important: probe SDIO, then SD, then MMC */
-	/* Note: We know our card is MMC, probe MMC at first. */
+	/* Note: We know mshci is MMC */
+	if (!is_mshci_host(host->ops)) {
+		if (!mmc_attach_sdio(host))
+			return 0;
+		if (!mmc_attach_sd(host))
+			return 0;
+	}
 	if (!mmc_attach_mmc(host))
-		return 0;
-	if (!mmc_attach_sdio(host))
-		return 0;
-	if (!mmc_attach_sd(host))
 		return 0;
 
 	mmc_power_off(host);
