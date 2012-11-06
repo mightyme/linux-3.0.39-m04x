@@ -288,7 +288,10 @@ int boot_from_crash(void)
 {
 	int reason = get_current_boot_reason();
 
-	return (reason == OOPS_RESTART || reason == PANIC_RESTART || reason == WDT_RESTART);
+	return (reason == OOPS_RESTART
+		|| reason == PANIC_RESTART
+		|| reason == WDT_RESTART
+		|| reason == CRIT_TEMP_RESTART);
 }
 EXPORT_SYMBOL(boot_from_crash);
 
