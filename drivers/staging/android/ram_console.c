@@ -362,9 +362,12 @@ out:
 
 	/* Show boot stat */
 	pr_info(BOOT_FROM_LABEL "%d, %s, %llu\n", get_current_boot_reason(), get_current_boot_reason_str(), get_current_boot_count());
+#if 0
 	pr_info(BOOT_STAT_LABEL);
 	for (i = FRESH_BOOT; i < END_REASON; i++)
 		pr_info("%d, %s, %llu\n", i, get_boot_reason_str(i), get_boot_count(i));
+#endif
+	init_reboot_test();
 }
 
 static void get_std_time(char time[])
@@ -683,25 +686,32 @@ static int __init ram_console_init(struct ram_console_buffer *buffer,
 			printk(KERN_INFO "ram_console: found existing buffer, "
 			       "size %d, start %d\n",
 			       buffer->size, buffer->start);
-			ram_console_save_old(buffer, bootinfo, old_buf);
+			init_boot_reason();
+
+			if (boot_from_crash()) {
+				pr_err("Boot from a previous crash, Save the ram console to /proc/last_kmsg\n");
+				ram_console_save_old(buffer, bootinfo, old_buf);
+			}
+
+			buffer->sig = RAM_CONSOLE_SIG;
+			buffer->start = 0;
+			buffer->size = 0;
 		}
 	} else {
 		printk(KERN_INFO "ram_console: no valid data in buffer "
 		       "(sig = 0x%08x)\n", buffer->sig);
-		fresh_boot = 1;
-	}
 
-	buffer->sig = RAM_CONSOLE_SIG;
-	buffer->start = 0;
-	buffer->size = 0;
+		buffer->sig = RAM_CONSOLE_SIG;
+		buffer->start = 0;
+		buffer->size = 0;
+		fresh_boot = 1;
+		init_boot_reason();
+	}
 
 	register_console(&ram_console);
 #ifdef CONFIG_ANDROID_RAM_CONSOLE_ENABLE_VERBOSE
 	console_verbose();
 #endif
-
-	init_boot_reason();
-	init_reboot_test();
 
 	return 0;
 }
@@ -1027,7 +1037,7 @@ static int __init ram_console_late_init(void)
 #ifdef CONFIG_ANDROID_RAM_CONSOLE_EARLY_INIT
 console_initcall(ram_console_early_init);
 #else
-postcore_initcall(ram_console_module_init);
+device_initcall(ram_console_module_init);
 #endif
 late_initcall(ram_console_late_init);
 

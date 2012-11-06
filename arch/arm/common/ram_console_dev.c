@@ -42,4 +42,4 @@ static int __init ram_console_dev_init(void)
 	return 0;
 }
 
-arch_initcall(ram_console_dev_init);
+device_initcall(ram_console_dev_init);

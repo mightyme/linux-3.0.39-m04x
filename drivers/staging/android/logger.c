@@ -739,7 +739,7 @@ static int __init logger_init(void)
 
 	return err;
 }
-device_initcall(logger_init);
+late_initcall(logger_init);
 
 /*
 struct logger_entry {
