@@ -858,7 +858,7 @@ static void s3cfb_unregister(void)
 	platform_driver_unregister(&s3cfb_driver);
 }
 
-subsys_initcall_sync(s3cfb_register);
+arch_initcall_sync(s3cfb_register);
 module_exit(s3cfb_unregister);
 
 MODULE_AUTHOR("Jingoo Han <jg1.han@samsung.com>");

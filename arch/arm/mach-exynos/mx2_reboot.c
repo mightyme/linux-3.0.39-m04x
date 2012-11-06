@@ -128,5 +128,5 @@ static int __init mx2_reboot_init(void)
 	return 0;
 }
 
-subsys_initcall(mx2_reboot_init);
+arch_initcall(mx2_reboot_init);
 

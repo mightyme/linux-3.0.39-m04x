@@ -409,4 +409,4 @@ static int __init ls044k3sx01_init(void)
 	return s5p_mipi_dsi_register_lcd_driver(&ls044k3sx01_mipi_driver);
 }
 
-subsys_initcall(ls044k3sx01_init);
+arch_initcall(ls044k3sx01_init);

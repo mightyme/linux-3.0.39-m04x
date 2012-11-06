@@ -248,7 +248,7 @@ static int __init max77686_i2c_init(void)
 	return i2c_add_driver(&max77686_i2c_driver);
 }
 /* init early so consumer devices can complete system boot */
-subsys_initcall(max77686_i2c_init);
+arch_initcall(max77686_i2c_init);
 
 static void __exit max77686_i2c_exit(void)
 {

@@ -1817,7 +1817,7 @@ module_exit(fbmem_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Framebuffer base");
 #else
-subsys_initcall(fbmem_init);
+arch_initcall(fbmem_init);
 #endif
 
 int fb_new_modelist(struct fb_info *info)

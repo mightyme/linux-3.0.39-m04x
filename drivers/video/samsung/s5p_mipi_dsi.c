@@ -614,7 +614,7 @@ static void s5p_mipi_unregister(void)
 	platform_driver_unregister(&s5p_mipi_driver);
 }
 
-subsys_initcall_sync(s5p_mipi_register);
+arch_initcall_sync(s5p_mipi_register);
 module_exit(s5p_mipi_unregister);
 
 MODULE_AUTHOR("InKi Dae <inki.dae@samsung.com>");

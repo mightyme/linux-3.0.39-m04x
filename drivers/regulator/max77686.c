@@ -1038,7 +1038,7 @@ static int __init max77686_pmic_init(void)
 
 	return platform_driver_register(&max77686_pmic_driver);
 }
-subsys_initcall(max77686_pmic_init);
+arch_initcall(max77686_pmic_init);
 
 static void __exit max77686_pmic_cleanup(void)
 {

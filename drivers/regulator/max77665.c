@@ -719,7 +719,7 @@ static int __init max77665_pmic_init(void)
 	return platform_driver_register(&max77665_pmic_driver);
 }
 
-subsys_initcall(max77665_pmic_init);
+arch_initcall(max77665_pmic_init);
 
 static void __exit max77665_pmic_cleanup(void)
 {
