@@ -152,10 +152,12 @@ void __init_or_cpufreq s3c_set_clksrc(struct clksrc_clk *clk, bool announce)
 
 	clk->clk.parent = srcs->sources[clksrc];
 
+#ifdef CONFIG_MX_ENG_KERNEL
 	if (announce)
 		printk(KERN_INFO "%s: source is %s (%d), rate is %ld\n",
 		       clk->clk.name, clk->clk.parent->name, clksrc,
 		       clk_get_rate(&clk->clk));
+#endif
 }
 
 static struct clk_ops clksrc_ops = {

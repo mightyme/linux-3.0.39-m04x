@@ -926,7 +926,9 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 	}
 #endif
 
+#ifdef CONFIG_MX_ENG_KERNEL
 	print_constraints(rdev);
+#endif
 out:
 	return ret;
 }

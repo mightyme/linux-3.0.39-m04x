@@ -79,7 +79,9 @@ static void __init m040_cma_region_reserve(
 			}
 			reg->start = paddr;
 			reg->reserved = 1;
+#ifdef CONFIG_MX_ENG_KERNEL
 			pr_info("name = %s, paddr = 0x%x, size = %d\n", reg->name, paddr, reg->size);
+#endif
 		} else {
 			pr_err("S5P/CMA: No free space in memory for '%s'\n",
 								reg->name);

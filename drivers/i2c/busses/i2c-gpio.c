@@ -156,7 +156,7 @@ static int __devinit i2c_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, adap);
 
-	dev_info(&pdev->dev, "using pins %u (SDA) and %u (SCL%s)\n",
+	dev_dbg(&pdev->dev, "using pins %u (SDA) and %u (SCL%s)\n",
 		 pdata->sda_pin, pdata->scl_pin,
 		 pdata->scl_is_output_only
 		 ? ", no clock stretching" : "");

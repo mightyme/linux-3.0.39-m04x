@@ -643,6 +643,7 @@ void __init mem_init(void)
 #define MLM(b, t) b, t, ((t) - (b)) >> 20
 #define MLK_ROUNDUP(b, t) b, t, DIV_ROUND_UP(((t) - (b)), SZ_1K)
 
+#ifdef CONFIG_MX_ENG_KERNEL
 	printk(KERN_NOTICE "Virtual kernel memory layout:\n"
 			"    vector  : 0x%08lx - 0x%08lx   (%4ld kB)\n"
 #ifdef CONFIG_HAVE_TCM
@@ -686,6 +687,7 @@ void __init mem_init(void)
 			MLK_ROUNDUP(_text, _etext),
 			MLK_ROUNDUP(_sdata, _edata),
 			MLK_ROUNDUP(__bss_start, __bss_stop));
+#endif /* CONFIG_MX_ENG_KERNEL */
 
 #undef MLK
 #undef MLM

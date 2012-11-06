@@ -41,7 +41,7 @@ static int samsung_pd_probe(struct platform_device *pdev)
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
-	dev_info(dev, "power domain registered\n");
+	dev_dbg(dev, "power domain registered\n");
 	return 0;
 }
 
