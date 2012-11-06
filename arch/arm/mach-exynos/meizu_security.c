@@ -81,17 +81,23 @@ int private_entry_write(int slot, __user char *in_buf)
 {
 	int offset = slot_to_offset(slot);
 	const int data_len = PRIVATE_ENTRY_BLOCK_SIZE - PRIVATE_ENTRY_SIG_SIZE;
+	struct RSAPublicKey *pk;
 	int err = -EINVAL;
 
 	if(offset < 0)
 		goto out;
+
+	if(slot < 16)
+		pk = &write_rsa_pk;
+	else
+		pk = &remote_rsa_pk;
 
 	err = copy_from_user(private_entry_buf, in_buf, PRIVATE_ENTRY_BLOCK_SIZE);
 	if (err)
 		goto out;
 
 	err = rsa_with_sha1_verify(private_entry_random, sizeof(private_entry_random),
-			&write_rsa_pk, private_entry_buf);
+			pk, private_entry_buf);
 	if (err) {
 		pr_info("RSA verify failed\n");
 		goto out;
