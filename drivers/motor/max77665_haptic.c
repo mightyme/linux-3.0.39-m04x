@@ -52,6 +52,7 @@
 #define LSEN	(1<<7)	/* Low sys dac enable */
 #define LSDEN	(0<<7)
 #define LSEN_MASK	(1<<7)
+#define __CONFIG_DEBUG_HAPTIC__
 
 struct haptic_data {
 	char *name;
@@ -68,6 +69,7 @@ struct haptic_data {
 	u16 duty;
 	u16 period;
 };
+int g_vibrate_count = 0;
 #ifndef CONFIG_MACH_M040
 /* this function is useless when external pwm is applied*/
 static int haptic_clk_on(struct device *dev, bool en)
@@ -96,10 +98,22 @@ err_clk_get:
 	return -EINVAL;
 }
 #endif
+#ifdef __CONFIG_DEBUG_HAPTIC__
+static void max77665_show_regs(struct i2c_client *i2c)
+{
+	int i = 0;
+	u8 val;
+
+	for(i=0; i< 17; i++){
+		max77665_read_reg(i2c,i,&val);
+		pr_info("addr:%d valu:0x%02x\n",i , val);
+	}
+}
+#endif
 static int max77665_haptic_on(struct haptic_data *chip, bool en)
 {
 	int ret = 0;
-
+	msleep(5);
 	if (en) {
 		ret = max77665_update_reg(chip->pmic, MAX77665_PMIC_REG_LSCNFG,
 				LSEN, LSEN_MASK);
@@ -120,6 +134,9 @@ static int max77665_haptic_on(struct haptic_data *chip, bool en)
 					HAPTIC_CONF2_MEN_MASK);
 		ret = max77665_update_reg(chip->pmic, MAX77665_PMIC_REG_LSCNFG,
 				LSDEN, LSEN_MASK);
+#ifdef __CONFIG_DEBUG_HAPTIC__
+		max77665_show_regs(chip->client);
+#endif
 	}
 	return ret;
 }
@@ -128,18 +145,25 @@ static int max77665_haptic_disable(struct i2c_client *i2c)
 {
 	int ret = 0, i = 0;
 	u8 val;
-
+try_again:
 	for(i=0 ;i < 2; i++){
 		ret = max77665_update_reg(i2c,MAX77665_HAPTIC_REG_CONFIG2,
 				(0x0<<HAPTIC_CONF2_MEN_SHIFT),HAPTIC_CONF2_MEN_MASK);
+		msleep(5);
 		if(ret < 0 )
 			goto err;
 	}
 	ret = max77665_read_reg(i2c,MAX77665_HAPTIC_REG_CONFIG2, &val);
-	if(val & HAPTIC_CONF2_MEN_MASK)
+	if(val & HAPTIC_CONF2_MEN_MASK){
 		pr_info("func %s :enabled error should be disabled now\n", __func__);
-	else
+		goto try_again;
+	}
+	else{
 		pr_info("func %s :disabled\n", __func__);
+	}
+#ifdef __CONFIG_DEBUG_HAPTIC__
+	max77665_show_regs(i2c);
+#endif
 	if(ret < 0 )
 		goto err;
 
@@ -154,8 +178,8 @@ static void motor_work_func(struct work_struct *work)
 	struct haptic_data *chip = container_of(work, struct haptic_data, motor_work);
 
 	pr_info("write register to disable motor\n");
-	//max77665_haptic_disable(chip->client);
-	max77665_haptic_on(chip, false);
+	max77665_haptic_disable(chip->client);
+	//max77665_haptic_on(chip, false);
 }
 
 static enum hrtimer_restart motor_timer_func(struct hrtimer *timer)
@@ -188,8 +212,8 @@ static void haptic_enable(struct timed_output_dev *tdev, int value)
 		container_of(tdev, struct haptic_data, tdev);
 
 	mutex_lock(&chip->haptic_mutex);
-
-	max77665_haptic_on(chip, false);
+	pr_info("\n vibration time %d\n", g_vibrate_count++);
+	//max77665_haptic_on(chip, false);
 	hrtimer_cancel(&chip->timer);
 	if (value > 0) {
 		value = min(value, chip->max_timeout);
