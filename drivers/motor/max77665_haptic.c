@@ -48,7 +48,7 @@
 #define HAPTIC_CONF2_MODE_SHIFT		(7)
 #define HAPTIC_CONF2_MODE_MASK		(0x1<<HAPTIC_CONF2_MODE_SHIFT)
 
-#define MAX_TIMEOUT		25000
+#define MAX_TIMEOUT		1000
 #define LSEN	(1<<7)	/* Low sys dac enable */
 #define LSDEN	(0<<7)
 #define LSEN_MASK	(1<<7)
