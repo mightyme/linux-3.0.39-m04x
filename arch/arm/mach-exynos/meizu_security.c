@@ -118,6 +118,7 @@ out:
 
 static char device_sn[256];
 static char device_mac[6];
+static char err_mac[6] = {0x0,0x1,0x2,0x3,0x4,0x5};
 
 extern int meizu_set_sn(char *sn, int size);
 
@@ -126,7 +127,6 @@ static void init_device_sn(void)
 	int offset = slot_to_offset(0);//sn slot 0
 	uint16_t len;
 	char* data = private_entry_buf + PRIVATE_ENTRY_SIG_SIZE + sizeof(len);
-
 
 	deal_private_block(0, offset, PRIVATE_ENTRY_BLOCK_SIZE, private_entry_buf);
 	len = *(uint16_t *)(private_entry_buf + PRIVATE_ENTRY_SIG_SIZE);
@@ -145,22 +145,39 @@ static void init_device_sn(void)
 static void init_device_mac(void)
 {
 	int offset = slot_to_offset(1);//mac slot 1
+	uint16_t len;
+	char* data = private_entry_buf + PRIVATE_ENTRY_SIG_SIZE + sizeof(len);
+
+	memcpy(device_mac, err_mac, sizeof(device_mac));
 
 	deal_private_block(0, offset, PRIVATE_ENTRY_BLOCK_SIZE, private_entry_buf);
+	len = 6;
 
-	memcpy(device_sn, private_entry_buf + PRIVATE_ENTRY_SIG_SIZE + sizeof(uint16_t), 6);
+	if(!rsa_with_sha1_verify(data, len, &verify_rsa_pk, private_entry_buf)) {
 
-	pr_info("@@@@ MAC %02X:%02X:%02X:%02X:%02X:%02X",
-			device_mac[0], device_mac[1], device_mac[2],
-			device_mac[3], device_mac[4], device_mac[5]);
+		memcpy(device_mac, data, len);
+
+		pr_info("@@@@ MAC %02X:%02X:%02X:%02X:%02X:%02X\n",
+				device_mac[0], device_mac[1], device_mac[2],
+				device_mac[3], device_mac[4], device_mac[5]);
+	} else {
+		pr_info("@@@@ MAC rsa with sha1 verify failed!!!!\n");
+	}
 }
 
-void get_mac_form_device(unsigned char *buf)
+int get_mac_form_device(unsigned char *buf)
 {
-	memcpy(buf, device_mac, sizeof(device_mac));
-	buf[0] = 0x38;
-	buf[1] = 0xBC;
-	buf[2] = 0x1A;
+
+	if(memcmp(device_mac, err_mac, sizeof(err_mac))) {
+		memcpy(buf, device_mac, sizeof(device_mac));
+		buf[0] = 0x38;
+		buf[1] = 0xBC;
+		buf[2] = 0x1A;
+		return 0;
+	}
+
+	pr_info("%s failed\n", __func__);
+	return -EINVAL;
 }
 
 int meizu_device_info_init(void)

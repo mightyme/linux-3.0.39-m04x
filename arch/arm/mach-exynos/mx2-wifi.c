@@ -273,8 +273,7 @@ static void *brcm_wlan_get_country_code(char *ccode)
 	return &brcm_wlan_translate_custom_table[0];
 }
 
-#if 0
-extern void get_mac_form_device(unsigned char *buf);
+extern int get_mac_form_device(unsigned char *buf);
 
 static int brcm_wlan_get_mac_addr(unsigned char *buf)
 {
@@ -283,10 +282,19 @@ static int brcm_wlan_get_mac_addr(unsigned char *buf)
 	mm_segment_t oldfs    = {0};
 	char *mac_file       = "/data/calibration/mac_addr";
 	int ret = 0;
+	int no_mac = 0;
 
-	get_mac_form_device(buf);
+	no_mac = !!get_mac_form_device(buf);
+
 	fp = filp_open(mac_file, O_RDONLY, 0);
 	if (IS_ERR(fp)) {
+		if(no_mac) {
+			get_random_bytes(buf, 6);
+			buf[0] = 0x38;
+			buf[1] = 0xBC;
+			buf[2] = 0x1A;
+		}
+
 		pr_info("%s: write file %s\n", __func__, mac_file);
 
 		snprintf(macbuffer, sizeof(macbuffer),"%02X:%02X:%02X:%02X:%02X:%02X\n",
@@ -309,49 +317,33 @@ static int brcm_wlan_get_mac_addr(unsigned char *buf)
 			filp_close(fp, NULL);
 		}
 
-	}
-
-	pr_info("mac address mac=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
-
-	return 0;
-}
-#else
-static int brcm_wlan_get_mac_addr(unsigned char *buf)
-{
-	struct file *fp      = NULL;
-	char macbuffer[18]   = {0};
-	char *mac_file       = "/data/calibration/mac_addr";
-	int ret = 0;
-
-	fp = filp_open(mac_file, O_RDONLY, 0);
-	if (IS_ERR(fp)) {
-		pr_info("%s: open mac_info error(%ld), get random mac address\n", __func__, IS_ERR(fp));
-		get_random_bytes(buf, 6);
 	} else {
-		/* Reading the MAC Address from .mac.info file( the existed file or just created file)*/
-		ret = kernel_read(fp, 0, macbuffer, 18);
-		if(ret <= 17) {
-			pr_info("%s: read mac_info error, get random mac address\n", __func__);
-			get_random_bytes(buf, 6);
-		} else {
-			macbuffer[17] = '\0';
+		if(no_mac) {
+			ret = kernel_read(fp, 0, macbuffer, 18);
+			if(ret <= 17) {
+				pr_info("%s: read mac_info error, get random mac address\n", __func__);
+				get_random_bytes(buf, 6);
+			} else {
+				macbuffer[17] = '\0';
 
-			sscanf(macbuffer, "%02X:%02X:%02X:%02X:%02X:%02X",
-					(unsigned int *)&(buf[0]), (unsigned int *)&(buf[1]),
-					(unsigned int *)&(buf[2]), (unsigned int *)&(buf[3]),
-					(unsigned int *)&(buf[4]), (unsigned int *)&(buf[5]));
+				sscanf(macbuffer, "%02X:%02X:%02X:%02X:%02X:%02X",
+						(unsigned int *)&(buf[0]), (unsigned int *)&(buf[1]),
+						(unsigned int *)&(buf[2]), (unsigned int *)&(buf[3]),
+						(unsigned int *)&(buf[4]), (unsigned int *)&(buf[5]));
+			}
+			if (fp)
+				filp_close(fp, NULL);
+
+			buf[0] = 0x38;
+			buf[1] = 0xBC;
+			buf[2] = 0x1A;
 		}
-		if (fp)
-			filp_close(fp, NULL);
 	}
-	buf[0] = 0x38;
-	buf[1] = 0xBC;
-	buf[2] = 0x1A;
+
 	pr_info("mac address mac=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
 
 	return 0;
 }
-#endif
 
 static struct wifi_platform_data wifi_pdata = {
 	.set_power = wlan_power_en,
