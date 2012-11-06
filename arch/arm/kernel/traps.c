@@ -625,7 +625,7 @@ static int get_recovery_key(__user char *key)
 enum {
 	CMD_READ,
 	CMD_PREPARE,
-	CMD_BURN
+	CMD_WRITE
 };
 
 static DEFINE_MUTEX(private_entry_mutex);
@@ -634,27 +634,27 @@ extern int private_entry_read(int slot, __user char *out_buf);
 extern int private_entry_write_prepare(int slot, __user char *random_buf);
 extern int private_entry_write(int slot, __user char *in_buf);
 
-static int do_private_entry(int solt, int cmd , __user char *in_buf, __user char *out_buf)
+static int do_private_entry(int slot, int cmd , __user char *in_buf, __user char *out_buf)
 {
 	int err = 0;
-	pr_info("solt %d cmd %d %p %p\n", solt, cmd, in_buf, out_buf);
+	pr_info("slot %d cmd %d %p %p\n", slot, cmd, in_buf, out_buf);
 	mutex_lock(&private_entry_mutex);
 
 	switch(cmd) {
 		case CMD_READ:
-			if (private_entry_read(solt, out_buf)) {
+			if (private_entry_read(slot, out_buf)) {
 				err =   -EFAULT;
 				goto out;
 			}
 			break;
 		case CMD_PREPARE:
-			if (private_entry_write_prepare(solt, out_buf)) {
+			if (private_entry_write_prepare(slot, out_buf)) {
 				err =   -EFAULT;
 				goto out;
 			}
 			break;
-		case CMD_BURN:
-			if (private_entry_write(solt, in_buf)) {
+		case CMD_WRITE:
+			if (private_entry_write(slot, in_buf)) {
 				err =   -EFAULT;
 				goto out;
 			}
