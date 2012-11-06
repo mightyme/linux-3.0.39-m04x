@@ -320,22 +320,31 @@ static int xmm6260_renum(struct modem_ctl *mc)
 
 static int xmm6260_reset(struct modem_ctl *mc)
 {
+	struct completion done;
+
 	mif_info("xmm6260_reset()\n");
 	if (!mc->gpio_cp_reset || !mc->gpio_reset_req_n)
 		return -ENXIO;
-	gpio_set_value(mc->gpio_cp_on, 0);
-	gpio_set_value(mc->gpio_cp_reset, 0);
-	gpio_set_value(mc->gpio_reset_req_n, 0);
-	mc->phone_state = STATE_OFFLINE;
-	msleep(500);
-	gpio_set_value(mc->gpio_cp_reset, 1);
-	msleep(1);
-	gpio_set_value(mc->gpio_reset_req_n, 1);
-	msleep(2);
-	gpio_set_value(mc->gpio_cp_on, 1);
-	msleep(1);
-	gpio_set_value(mc->gpio_cp_on, 0);
-	mc->phone_state = STATE_BOOTING;
+	wake_up_interruptible(&mc->read_wq);
+	modem_wake_lock(mc);
+	mc->enum_done = 0;
+	xmm6260_off(mc);
+#ifndef CONFIG_MX_RECOVERY_KERNEL
+	s5p_ehci_power(0);
+	modem_set_active_state(0);
+#endif
+	msleep(100);
+	mc->cp_flag =0;
+	xmm6260_on(mc);
+#ifndef CONFIG_MX_RECOVERY_KERNEL
+	init_completion(&done);
+	mc->l2_done = &done;
+	wait_for_completion_timeout(&done, 20*HZ);
+	mc->l2_done = NULL;
+	s5p_ehci_power(1);
+#endif
+	mc->enum_done = 1;
+	modem_wake_lock_timeout(mc, 5*HZ);
 
 	return 0;
 }
