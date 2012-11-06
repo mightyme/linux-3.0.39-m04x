@@ -510,7 +510,7 @@ static void __exit lm3530_exit(void)
 	i2c_del_driver(&lm3530_i2c_driver);
 }
 
-module_init(lm3530_init);
+subsys_initcall_sync(lm3530_init);
 module_exit(lm3530_exit);
 
 MODULE_DESCRIPTION("Back Light driver for LM3530");
