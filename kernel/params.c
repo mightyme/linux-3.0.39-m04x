@@ -786,7 +786,6 @@ static void __init param_sysfs_builtin(void)
 	struct kernel_param *kp;
 	unsigned int name_len;
 	char modname[MODULE_NAME_LEN];
-	static int wifi = 0;
 
 	for (kp = __start___param; kp < __stop___param; kp++) {
 		char *dot;
@@ -802,15 +801,8 @@ static void __init param_sysfs_builtin(void)
 		} else {
 			name_len = dot - kp->name + 1;
 			strlcpy(modname, kp->name, name_len);
-			/* Wifi driver need the param interface, add it. */
-			if (strcmp(modname, "bcmdhd") == 0) {
-				wifi = 1;
-			} else if (wifi == 1) {
-				break;
-			}
 		}
-		if (wifi)
-			kernel_add_sysfs_param(modname, kp, name_len);
+		kernel_add_sysfs_param(modname, kp, name_len);
 	}
 }
 
@@ -922,9 +914,7 @@ static int __init param_sysfs_init(void)
 	}
 	module_sysfs_initialized = 1;
 
-#if 0
 	version_sysfs_builtin();
-#endif
 	param_sysfs_builtin();
 
 	return 0;
