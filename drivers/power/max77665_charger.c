@@ -540,13 +540,6 @@ static __devinit int max77665_init(struct max77665_charger *charger)
 		goto error;
 	}
 
-	//Input Current Limit Selection.
-	ret = max77665_write_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_09, 0);
-	if (unlikely(ret)) {
-		dev_err(charger->dev, "Failed to set MAX77665_CHG_REG_CHG_CNFG_09: %d\n", ret);
-		goto error;
-	}
-
 	return 0;
 
 error:
