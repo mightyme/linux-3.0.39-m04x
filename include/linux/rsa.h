@@ -40,9 +40,6 @@ typedef struct RSAPublicKey {
     uint32_t rr[RSANUMWORDS]; /* R^2 as little endian array */
 } RSAPublicKey;
 
-int RSA_verify(const RSAPublicKey *key,
-               const uint8_t* signature,
-               const int msg_len,
-               const uint8_t* msg);
-
+int rsa_with_sha1_verify(const uint8_t* data, uint16_t len, 
+		const RSAPublicKey *key, const uint8_t* signature);
 #endif

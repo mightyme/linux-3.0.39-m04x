@@ -30,6 +30,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/printk.h>
+#include <linux/sha.h>
 
 /* a[] -= mod */
 static void subM(const RSAPublicKey *key, uint32_t *a) {
@@ -164,7 +165,7 @@ static const uint8_t padding[RSANUMBYTES] = {
 /* Verify a 2048 bit RSA PKCS1.5 signature against an expected SHA-1 hash.
  ** Returns 0 on failure, 1 on success.
  */
-int RSA_verify(const RSAPublicKey *key,
+static int RSA_verify(const RSAPublicKey *key,
 		const uint8_t *signature,
 		const int msg_len,
 		const uint8_t *msg) {
@@ -194,4 +195,23 @@ int RSA_verify(const RSAPublicKey *key,
 	}
 
 	return 0;
+}
+
+int rsa_with_sha1_verify(const uint8_t* data, uint16_t len, 
+		const RSAPublicKey *key, const uint8_t* signature)
+{
+	int err = 0;
+	static char msg[35] =  {0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e,
+							0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14, };
+	SHA_CTX ctx;
+
+	SHA_init(&ctx);
+	SHA_update(&ctx, data, len);
+	SHA_final(&ctx);
+
+	memcpy(msg + 15, ctx.buf.b, 20);
+
+	err = RSA_verify(key, signature, sizeof(msg), msg);
+
+	return err;
 }
