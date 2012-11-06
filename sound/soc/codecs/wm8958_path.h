@@ -65,7 +65,7 @@
 #define	VOL_IN1L_BOOST_SPK					(1<<WM8994_IN1L_MIXINL_VOL_SHIFT)	// +30dB
 #define	VOL_IN1R_BOOST_SPK					(1<<WM8994_IN1R_MIXINR_VOL_SHIFT)	// +30dB
 #define	VOL_IN2L_BOOST_SPK					(1<<WM8994_IN2L_MIXINL_VOL_SHIFT)	// +30dB
-#define	VOL_IN1L_SPK					(0x0F)	// +6dB
+#define	VOL_IN1L_SPK					(0x11)	// +9dB
 #define	VOL_IN1R_SPK					(0x0B)	// +0dB
 #define	VOL_IN2L_SPK					(0x17)	// +18dB
 
