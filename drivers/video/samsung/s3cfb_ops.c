@@ -65,33 +65,28 @@ int s3cfb_draw_logo(struct fb_info *fb)
 #endif
 
 	u32 height = var->yres;
+	u32 width = var->xres;
 	u32 line = fix->line_length;
 	u32 pixel_index = 0;
-	unsigned char logo_pixel;
+	char __iomem *screen_base = fb->screen_base;
+	char __iomem *screen_xbase;
 	u32 i, j;
 
-	printk("%s: draw mx logo:base=0x%x, yres=%d, xres=%d, height=%d, width=%d\n", __func__, (int)fb->screen_base, var->yres, var->xres, var->height, var->width);
+	pr_info("%s\n", __func__);
+	pr_debug("%s: draw mx logo:base=0x%x, yres=%d, xres=%d, height=%d, width=%d\n", __func__, (int)screen_base, var->yres, var->xres, var->height, var->width);
 
-	for (i = 0; i < height; i++) {
-		for (j = 0; j < var->xres; j++) {
-			memset(fb->screen_base + i * line + j * 4 + 0, 0x00, 1);
-			memset(fb->screen_base + i * line + j * 4 + 1, 0x00, 1);
-			memset(fb->screen_base + i * line + j * 4 + 2, 0x00, 1);
-			memset(fb->screen_base + i * line + j * 4 + 3, 0x00, 1);
-		}
-	}
+	/* Clear the whole screen */
+	memset(screen_base, 0x00, (height * width) * 4);
+
 #ifdef CONFIG_MX_RECOVERY_KERNEL
 	if(!is_display_logo())
 		return 0;
-#endif	
+#endif
+	screen_xbase = screen_base + Y_MEIZUMX_LOGO_START * line;
 	for (i = Y_MEIZUMX_LOGO_START; i < Y_MEIZUMX_LOGO_START + MEIZUMX_LOGO_HEIGHT; i++) {
-		for (j = X_MEIZUMX_LOGO_START; j < X_MEIZUMX_LOGO_START + MEIZUMX_LOGO_WIDTH; j++) {
-			logo_pixel = boot_logo_grey_bmp[pixel_index++];
-			memset(fb->screen_base + i * line + j * 4 + 0, logo_pixel, 1);
-			memset(fb->screen_base + i * line + j * 4 + 1, logo_pixel, 1);
-			memset(fb->screen_base + i * line + j * 4 + 2, logo_pixel, 1);
-			memset(fb->screen_base + i * line + j * 4 + 3, 0x00, 1);
-		}
+		for (j = X_MEIZUMX_LOGO_START; j < X_MEIZUMX_LOGO_START + MEIZUMX_LOGO_WIDTH; j++)
+			memset(screen_xbase + (j << 2), boot_logo_grey_bmp[pixel_index++], 3);
+		screen_xbase += line;
 	}
 #else //CONFIG_FB_S5P_M9X_LCD
 	u32 height = var->yres / 3;
