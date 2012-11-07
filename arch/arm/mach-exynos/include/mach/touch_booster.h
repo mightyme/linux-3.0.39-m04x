@@ -14,16 +14,23 @@
 #define __H_TOUCH_BOOSTER__
 
 #include <linux/sysdev.h>
+#include <linux/input.h>
 
-struct tb_private_data {
+struct tb_private_info {
 	struct sysdev_class tb_class;
 #ifdef CONFIG_BUSFREQ_OPP
 	struct device *bus_dev;
-	struct device dev;
+	struct device *dev;
 #endif
 	unsigned int down_time;
 	unsigned int boost_cpufreq;
 	unsigned int lock_busfreq;
+	unsigned int boost_debug;
+
+	struct input_handle handle;
+	struct workqueue_struct *wq;
+	struct work_struct boost_work;
+	atomic_t boost_lock;
 };
 #endif
 
