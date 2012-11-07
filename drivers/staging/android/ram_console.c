@@ -328,7 +328,7 @@ static void check_hardware_reset_reason(void)
 
 static void init_boot_reason(void)
 {
-	int reason, i;
+	int reason;
 
 	if (fresh_boot) {
 		memset(&ram_console_buffer->bs, 0, sizeof(struct boot_stat));
