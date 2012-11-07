@@ -729,9 +729,20 @@ static void rmi_f11_abs_pos_report(struct f11_2d_sensor *sensor,
 
 #ifdef ABS_MT_PRESSURE
 	input_report_abs(sensor->input, ABS_MT_PRESSURE, z);
-#endif
+	if(z)
+	{
+		input_report_abs(sensor->input, ABS_MT_TOUCH_MAJOR, w_max?w_max:1);
+		input_report_abs(sensor->input, ABS_MT_TOUCH_MINOR, w_min);		
+	}
+	else
+	{
+		input_report_abs(sensor->input, ABS_MT_TOUCH_MAJOR, w_max);
+		input_report_abs(sensor->input, ABS_MT_TOUCH_MINOR, w_min);
+	}
+#else
 	input_report_abs(sensor->input, ABS_MT_TOUCH_MAJOR, w_max);
 	input_report_abs(sensor->input, ABS_MT_TOUCH_MINOR, w_min);
+#endif
 	input_report_abs(sensor->input, ABS_MT_ORIENTATION, orient);
 	input_report_abs(sensor->input, ABS_MT_POSITION_X, x);
 	input_report_abs(sensor->input, ABS_MT_POSITION_Y, y);
@@ -2447,15 +2458,11 @@ static ssize_t f11_reg_show_all(struct device *dev,
 
 	fc = to_rmi_function_container(dev);
 	
-	ret = rmi_read_block(fc->rmi_dev,0x0000,buffer,READ_BUFF_SIZE);
-
-	if( ret < 0 )	{
-		printk("%s:Read error : %d !\n",__func__,ret);
-	}
-	else 	{
-		printk("RMI:Reg List\n");
-		for(i = 0;i< READ_BUFF_SIZE;i++)
-			printk("R:0x%.4X D:0x%.2X\n",i,buffer[i]);
+	printk("RMI:Reg List\n");
+	for(i = 0;i< READ_BUFF_SIZE;i++)
+	{
+		ret = rmi_read(fc->rmi_dev,i,&buffer[i]);
+		printk("R:0x%.4X D:0x%.2X\n",i,buffer[i]);
 	}
 
 	return snprintf(buf, PAGE_SIZE, "%d \n",ret);
