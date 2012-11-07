@@ -219,18 +219,18 @@ static void hsic_tty_data_handler(struct io_device *iod)
 		wake_lock_timeout(&iod->wakelock, HZ*0.5);
 		count = tty_prepare_flip_string(tty, &buf, skb->len);
 		if (count <= 0) {
-			mif_err("%s:tty buffer avail size=%d\n",
+			MIF_ERR("%s:tty buffer avail size=%d\n",
 							__func__, count);
 			break;
 		}
 		if (skb->len > count) {
-			mif_err("skb->len %d > count %d\n", skb->len, count);
+			MIF_ERR("skb->len %d > count %d\n", skb->len, count);
 			memcpy(buf, skb->data, count);
 			if (iod->atdebug)
 				iod->atdebugfunc(iod, skb->data, count);
 			skb_pull(skb, count);
 			if (skb->len) {
-				mif_debug("queue-head, skb->len = %d\n",
+				MIF_DEBUG("queue-head, skb->len = %d\n",
 						skb->len);
 				skb_queue_head(&iod->rx_q, skb);
 			}
@@ -301,7 +301,7 @@ static void recv_data_handler_work(struct work_struct *work)
 		hsic_net_data_handler(iod);
 		break;
 	default:
-		mif_err("wrong io_type : %d\n", iod->io_typ);
+		MIF_ERR("wrong io_type : %d\n", iod->io_typ);
 		break;
 	}
 }
@@ -315,7 +315,7 @@ static int recv_data_handler(struct io_device *iod,
 
 	skb = rx_alloc_skb(len, GFP_ATOMIC, iod, ld);
 	if (!skb) {
-		mif_err("fail alloc skb (%d)\n", __LINE__);
+		MIF_ERR("fail alloc skb (%d)\n", __LINE__);
 		return -ENOMEM;
 	}
 
@@ -335,7 +335,7 @@ static int recv_data_handler(struct io_device *iod,
 		atomic_dec(&iod->is_iod_op);
 		break;
 	default:
-		mif_err("wrong io_type : %d\n", iod->io_typ);
+		MIF_ERR("wrong io_type : %d\n", iod->io_typ);
 		dev_kfree_skb_any(skb);
 		ret = -EINVAL;
 		break;
@@ -375,7 +375,7 @@ static int vnet_stop(struct net_device *ndev)
 		flush_delayed_work(&iod->rx_work);
 		skb_queue_purge(&iod->rx_q);
 		netif_stop_queue(ndev);
-		mif_info("close iod = %s\n", iod->name);
+		MIF_INFO("close iod = %s\n", iod->name);
 		list_for_each_entry(ld, &commons->link_dev_list, list) {
 			if (IS_CONNECTED(iod, ld) && ld->terminate_comm)
 				ld->terminate_comm(ld, iod);
@@ -468,7 +468,7 @@ static int modem_tty_open(struct tty_struct *tty, struct file *f)
 		if (IS_CONNECTED(iod, ld) && ld->init_comm) {
 			ret = ld->init_comm(ld, iod);
 			if (ret < 0) {
-				mif_err("%s: init_comm error: %d\n",
+				MIF_ERR("%s: init_comm error: %d\n",
 						ld->name, ret);
 				break;
 			}
@@ -495,7 +495,7 @@ static void modem_tty_close(struct tty_struct *tty, struct file *f)
 		}
 		skb_queue_purge(&iod->rx_q);
 		flush_delayed_work(&iod->rx_work);
-		mif_info("close iod = %s\n", iod->name);
+		MIF_INFO("close iod = %s\n", iod->name);
 		tty->driver_data = NULL;
 		list_for_each_entry(ld, &commons->link_dev_list, list) {
 			if (IS_CONNECTED(iod, ld) && ld->terminate_comm)
@@ -523,7 +523,7 @@ modem_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
 
 	skb = alloc_skb(count, GFP_ATOMIC);
 	if (!skb) {
-		mif_err("fail alloc skb (%d)\n", __LINE__);
+		MIF_ERR("fail alloc skb (%d)\n", __LINE__);
 		return -ENOMEM;
 	}
 	wake_lock_timeout(&iod->wakelock, HZ * 0.5);
@@ -550,7 +550,7 @@ modem_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
 		return err;
 	}
 	if (err != tx_size)
-		mif_debug("WARNNING: wrong tx size: %s, format=%d "
+		MIF_DEBUG("WARNNING: wrong tx size: %s, format=%d "
 			"count=%d, tx_size=%d, return_size=%d",
 			iod->name, iod->format, count, tx_size, err);
 	count = err;
@@ -635,11 +635,11 @@ int meizu_ipc_init_io_device(struct io_device *iod)
 		dev_set_drvdata(iod->ttydev, iod);
 		ret = device_create_file(iod->ttydev, &attr_atdebug);
 		if (ret)
-			mif_err("failed to create sysfs file : %s\n",
+			MIF_ERR("failed to create sysfs file : %s\n",
 					iod->name);
 		ret = device_create_file(iod->ttydev, &attr_send_delay);
 		if (ret)
-			mif_err("failed to create send_delay sysfs file : %s\n",
+			MIF_ERR("failed to create send_delay sysfs file : %s\n",
 					iod->name);
 		break;
 	case IODEV_NET:
@@ -658,7 +658,7 @@ int meizu_ipc_init_io_device(struct io_device *iod)
 		iod->ndev = alloc_netdev(sizeof(struct vnet), iod->name,
 			vnet_setup);
 		if (!iod->ndev) {
-			mif_err("failed to alloc netdev\n");
+			MIF_ERR("failed to alloc netdev\n");
 			return -ENOMEM;
 		}
 		ret = register_netdev(iod->ndev);
@@ -668,24 +668,24 @@ int meizu_ipc_init_io_device(struct io_device *iod)
 		dev_set_drvdata(&iod->ndev->dev, iod);
 		ret = device_create_file(&iod->ndev->dev, &attr_atdebug);
 		if (ret)
-			mif_err("failed to create sysfs file : %s\n",
+			MIF_ERR("failed to create sysfs file : %s\n",
 					iod->name);
 		ret = device_create_file(&iod->ndev->dev, &attr_send_delay);
 		if (ret)
-			mif_err("failed to create send_delay sysfs file : %s\n",
+			MIF_ERR("failed to create send_delay sysfs file : %s\n",
 					iod->name);
 		vnet = netdev_priv(iod->ndev);
-		mif_debug("(vnet:0x%p)\n", vnet);
+		MIF_DEBUG("(vnet:0x%p)\n", vnet);
 		vnet->pkt_sz = 0;
 		vnet->iod = iod;
 		vnet->skb = NULL;
 		break;
 	default:
-		mif_err("wrong io_type : %d\n", iod->io_typ);
+		MIF_ERR("wrong io_type : %d\n", iod->io_typ);
 		return -EINVAL;
 	}
 
-	mif_debug("%s(%d) : init_io_device() done : %d\n",
+	MIF_DEBUG("%s(%d) : init_io_device() done : %d\n",
 				iod->name, iod->io_typ, ret);
 	return ret;
 }

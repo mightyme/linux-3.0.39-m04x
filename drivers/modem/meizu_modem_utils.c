@@ -114,7 +114,7 @@ void iodev_netif_wake(struct io_device *iod, void *args)
 {
 	if (iod->io_typ == IODEV_NET && iod->ndev) {
 		netif_wake_queue(iod->ndev);
-		mif_info("%s\n", iod->name);
+		MIF_INFO("%s\n", iod->name);
 	}
 }
 
@@ -122,7 +122,7 @@ void iodev_netif_stop(struct io_device *iod, void *args)
 {
 	if (iod->io_typ == IODEV_NET && iod->ndev) {
 		netif_stop_queue(iod->ndev);
-		mif_info("%s\n", iod->name);
+		MIF_INFO("%s\n", iod->name);
 	}
 }
 
@@ -131,7 +131,7 @@ static void iodev_set_tx_link(struct io_device *iod, void *args)
 	struct link_device *ld = (struct link_device *)args;
 	if (iod->io_typ == IODEV_NET && IS_CONNECTED(iod, ld)) {
 		set_current_link(iod, ld);
-		mif_err("%s -> %s\n", iod->name, ld->name);
+		MIF_ERR("%s -> %s\n", iod->name, ld->name);
 	}
 }
 
@@ -180,7 +180,7 @@ void mif_print_data(char *buf, int len)
 
 	for (i = 0; i < words; i++) {
 		b = buf + (i << 4);
-		mif_err("%04X: "
+		MIF_ERR("%04X: "
 			"%02x %02x %02x %02x  %02x %02x %02x %02x  "
 			"%02x %02x %02x %02x  %02x %02x %02x %02x\n",
 			(i << 4),
@@ -190,6 +190,6 @@ void mif_print_data(char *buf, int len)
 
 	/* Print the last line */
 	if (residue > 0)
-		mif_err("%s\n", last);
+		MIF_ERR("%s\n", last);
 }
 

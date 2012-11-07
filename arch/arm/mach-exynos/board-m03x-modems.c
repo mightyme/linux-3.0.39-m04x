@@ -1,5 +1,8 @@
-/* arch/arm/mach-exynos/board-m03x-modems.c
- * Copyright (C) 2010 Samsung Electronics. All rights reserved.
+/**
+ * linux/arch/arm/mach-exynos/board-m03x-modems.c
+ *
+ * Copyright (C) 2010 Samsung Electronics.
+ * Copyright (C) 2012 Zhuhai Meizu Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -9,6 +12,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ *
  */
 
 #include <linux/clk.h>
@@ -148,7 +152,7 @@ static void xmm_gpio_revers_bias_restore(void)
 
 void modem_set_active_state(int state)
 {
-	mif_debug("%s state=>:%d\n", __func__, state);
+	MIF_DEBUG("%s state=>:%d\n", __func__, state);
 	gpio_direction_output(umts_modem_data.gpio_host_active, state);
 }
 
@@ -242,7 +246,7 @@ static void umts_modem_cfg_gpio(void)
 	printk(KERN_INFO "umts_modem_cfg_gpio done\n");
 }
 
-static void modem_link_pm_config_gpio(void)
+static void modem_hsic_pm_config_gpio(void)
 {
 	int err = 0;
 	unsigned gpio_link_enable    = modem_link_pm_data.gpio_link_enable;
@@ -284,10 +288,10 @@ static void modem_link_pm_config_gpio(void)
 		irq_set_irq_type(gpio_to_irq(gpio_hostwake),
 				IRQ_TYPE_EDGE_BOTH);
 
-	printk(KERN_INFO "modem_link_pm_config_gpio done\n");
+	printk(KERN_INFO "modem_hsic_pm_config_gpio done\n");
 }
 
-static int __init init_modem(void)
+static int __init modem_device_init(void)
 {
 	int ret;
 
@@ -298,7 +302,7 @@ static int __init init_modem(void)
 		umts_modem_data = umts_modem_data_m03x;
 
 	umts_modem_cfg_gpio();
-	modem_link_pm_config_gpio();
+	modem_hsic_pm_config_gpio();
 
 	if(machine_is_m030())
 		ret = platform_device_register(&umts_modem_m030);
@@ -310,4 +314,8 @@ static int __init init_modem(void)
 	pr_info("[MODEM_IF] init_modem device over.\n");
 	return ret;
 }
-late_initcall(init_modem);
+late_initcall(modem_device_init);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("KarlZheng<zhengkl@meizu.com>");
+MODULE_DESCRIPTION("Meizu Modem Interface Driver");

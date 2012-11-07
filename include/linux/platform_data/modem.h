@@ -166,8 +166,6 @@ struct modem_data {
 	/* Handover with 2+ modems */
 	bool use_handover;
 
-	/* Debugging option */
-	bool use_mif_log;
 };
 
 #define  MODEM_CONNECT_FLAG     0x0001
@@ -191,19 +189,19 @@ void modem_notify_event(int type);
 extern int  modem_debug;
 extern void modem_set_active_state(int state);
 
-#define LOG_TAG "modemif:"
+#define LOG_TAG "MODEMIF:"
 
-#define mif_err(fmt, ...) if (modem_debug > 0) \
+#define MIF_ERR(fmt, ...) if (modem_debug > 0) \
 	pr_err(LOG_TAG "%s: " pr_fmt(fmt), __func__, ##__VA_ARGS__)
 
-#define mif_info(fmt, ...) if (modem_debug > 1) \
+#define MIF_INFO(fmt, ...) if (modem_debug > 1) \
 	pr_info(LOG_TAG "%s: " pr_fmt(fmt), __func__, ##__VA_ARGS__)
 
-#define mif_trace(fmt, ...) if (modem_debug > 2) \
+#define MIF_TRACE(fmt, ...) if (modem_debug > 2) \
 	pr_info("mif: %s: %d: called(%pF): " fmt, __func__,\
 			__LINE__, __builtin_return_address(0), ##__VA_ARGS__)
 
-#define mif_debug(fmt, ...) if (modem_debug > 3) \
+#define MIF_DEBUG(fmt, ...) if (modem_debug > 3) \
 	pr_info(LOG_TAG "%s: " pr_fmt(fmt), __func__, ##__VA_ARGS__)
 
 #endif

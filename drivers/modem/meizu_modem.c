@@ -1,7 +1,9 @@
-/* drivers/modem/meizu_ipc_modem.c
+/**
+ * linux/drivers/modem/meizu_modem.c
  *
  * Copyright (C) 2010 Google, Inc.
  * Copyright (C) 2010 Samsung Electronics.
+ * Copyright (C) 2012 Zhuhai Meizu Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -66,24 +68,10 @@ static struct modem_ctl *create_modemctl_device(struct platform_device *pdev)
 		kfree(modemctl);
 		return NULL;
 	}
-#ifndef CONFIG_MX_RECOVERY_KERNEL	
+#ifndef CONFIG_MX_RECOVERY_KERNEL
 	modem_tty_driver_init(modemctl);
-
-	modemctl->use_mif_log = pdata->use_mif_log;
-	if (pdata->use_mif_log) {
-		mif_err("<%s> IPC logger can be used.\n",
-			pdata->name);
-	}
-
-        /*
-	 *ret = mif_init_log(modemctl);
-	 *if (ret < 0) {
-	 *        kfree(modemctl);
-	 *        return NULL;
-	 *}
-         */
 #endif
-	mif_info("%s is created!!!\n", pdata->name);
+	MIF_INFO("%s is created!!!\n", pdata->name);
 
 	return modemctl;
 }
@@ -96,7 +84,7 @@ static struct io_device *create_io_device(struct modem_io_t *io_t,
 
 	iod = kzalloc(sizeof(struct io_device), GFP_KERNEL);
 	if (!iod) {
-		mif_err("iod == NULL\n");
+		MIF_ERR("iod == NULL\n");
 		return NULL;
 	}
 
@@ -118,11 +106,11 @@ static struct io_device *create_io_device(struct modem_io_t *io_t,
 	ret = meizu_ipc_init_io_device(iod);
 	if (ret) {
 		kfree(iod);
-		mif_err("meizu_ipc_init_io_device fail (%d)\n", ret);
+		MIF_ERR("meizu_ipc_init_io_device fail (%d)\n", ret);
 		return NULL;
 	}
 
-	mif_debug("%s is created!!!\n", iod->name);
+	MIF_DEBUG("%s is created!!!\n", iod->name);
 	return iod;
 }
 
@@ -144,7 +132,7 @@ static int attach_devices(struct modem_ctl *mc, struct io_device *iod,
 			 */
 			if ((countbits(iod->link_types) <= 1) ||
 					(tx_link == ld->link_type)) {
-				mif_debug("set %s->%s\n", iod->name, ld->name);
+				MIF_DEBUG("set %s->%s\n", iod->name, ld->name);
 				set_current_link(iod, ld);
 			}
 		}
@@ -154,7 +142,7 @@ static int attach_devices(struct modem_ctl *mc, struct io_device *iod,
 	 * board-*-modems.c
 	 */
 	if (!get_current_link(iod)) {
-		mif_err("%s->link == NULL\n", iod->name);
+		MIF_ERR("%s->link == NULL\n", iod->name);
 		BUG();
 	}
 
@@ -173,15 +161,15 @@ static int __devinit modem_probe(struct platform_device *pdev)
 
 	modemctl = create_modemctl_device(pdev);
 	if (!modemctl) {
-		mif_err("modemctl == NULL\n");
+		MIF_ERR("modemctl == NULL\n");
 		goto err_free_modemctl;
 	}
-	
+
 	platform_set_drvdata(pdev, modemctl);
 #ifndef CONFIG_MX_RECOVERY_KERNEL
 	modemctl->rx_wq = create_singlethread_workqueue("modem_rx_wq");
 	if (!modemctl->rx_wq) {
-		mif_err("fail to create wq\n");
+		MIF_ERR("fail to create wq\n");
 		return -EINVAL;
 	}
 	for (i = 0; i < LINKDEV_MAX ; i++) {
@@ -190,7 +178,7 @@ static int __devinit modem_probe(struct platform_device *pdev)
 			if (!ld)
 				goto err_free_modemctl;
 
-			mif_err("link created: %s\n", ld->name);
+			MIF_ERR("link created: %s\n", ld->name);
 			ld->link_type = i;
 			ld->mc = modemctl;
 			list_add(&ld->list, &modemctl->commons.link_dev_list);
@@ -200,7 +188,7 @@ static int __devinit modem_probe(struct platform_device *pdev)
 	for (i = 0; i < pdata->num_iodevs; i++) {
 		iod[i] = create_io_device(&pdata->iodevs[i], modemctl, pdata);
 		if (!iod[i]) {
-			mif_err("iod[%d] == NULL\n", i);
+			MIF_ERR("iod[%d] == NULL\n", i);
 			goto err_free_modemctl;
 		}
 
@@ -208,7 +196,7 @@ static int __devinit modem_probe(struct platform_device *pdev)
 				pdata->iodevs[i].tx_link);
 	}
 #endif
-	mif_info("Complete!!!\n");
+	MIF_INFO("Complete!!!\n");
 
 	return 0;
 
@@ -249,20 +237,20 @@ static const struct dev_pm_ops modem_pm_ops = {
 };
 
 static struct platform_driver modem_driver = {
-	.probe    = modem_probe,    
-	.shutdown = modem_shutdown, 
-	.driver   = {               
+	.probe    = modem_probe,
+	.shutdown = modem_shutdown,
+	.driver   = {
 		.name = "modem_ifx_6260",
 		.pm   = &modem_pm_ops,
 	},
 };
 
-static int __init modem_init(void)
+static int __init modem_driver_init(void)
 {
 	return platform_driver_register(&modem_driver);
 }
 
-module_init(modem_init);
+module_init(modem_driver_init);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("KarlZheng<zhengkl@meizu.com>");

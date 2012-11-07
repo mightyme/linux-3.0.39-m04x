@@ -186,7 +186,7 @@ void modem_notify_event(int type)
 			break;
 
 		case MODEM_EVENT_BOOT_INIT:
-			global_mc->cp_flag = 
+			global_mc->cp_flag =
 				MODEM_RESET_FLAG | MODEM_INIT_ON_FLAG;
 			wake_up_interruptible(&global_mc->read_wq);
 			break;
@@ -196,15 +196,15 @@ void modem_notify_event(int type)
 							global_mc->cp_flag);
 }
 
-int modem_is_on(void)                                                                                                         
-{                                                                                                                             
-        struct modem_ctl *mc = global_mc;                                                                                      
-                                                                                                                              
+int modem_is_on(void)
+{
+        struct modem_ctl *mc = global_mc;
+
         if (!mc)
 		return 0;
 	else
-		return gpio_get_value(mc->gpio_cp_reset);                                                                      
-}                                                                                                                             
+		return gpio_get_value(mc->gpio_cp_reset);
+}
 EXPORT_SYMBOL_GPL(modem_is_on);
 
 int modem_is_host_wakeup(void)
@@ -239,10 +239,10 @@ EXPORT_SYMBOL_GPL(modem_set_slave_wakeup);
 
 static int xmm6260_on(struct modem_ctl *mc)
 {
-	mif_info("xmm6260_on()\n");
+	MIF_INFO("xmm6260_on()\n");
 
 	if (!mc->gpio_cp_reset || !mc->gpio_cp_on || !mc->gpio_reset_req_n) {
-		mif_err("no gpio data\n");
+		MIF_ERR("no gpio data\n");
 		return -ENXIO;
 	}
 
@@ -267,7 +267,7 @@ static int xmm6260_on(struct modem_ctl *mc)
 
 static int xmm6260_off(struct modem_ctl *mc)
 {
-	mif_info("xmm6260_off()\n");
+	MIF_INFO("xmm6260_off()\n");
 
 	gpio_set_value(mc->gpio_cp_on, 0);
 	gpio_set_value(mc->gpio_cp_reset, 0);
@@ -322,7 +322,7 @@ static int xmm6260_reset(struct modem_ctl *mc)
 {
 	struct completion done;
 
-	mif_info("xmm6260_reset()\n");
+	MIF_INFO("xmm6260_reset()\n");
 	if (!mc->gpio_cp_reset || !mc->gpio_reset_req_n)
 		return -ENXIO;
 	wake_up_interruptible(&mc->read_wq);
@@ -374,7 +374,7 @@ static irqreturn_t sim_detect_irq_handler(int irq, void *_mc)
 
 		modem_wake_lock_timeout(mc,  HZ*30);
 		mc->ops.modem_off(mc);
-		mif_err("SIM %s\n", mc->sim_state ? "removed": "insert");
+		MIF_ERR("SIM %s\n", mc->sim_state ? "removed": "insert");
 		mdelay(500);
 		modem_notify_event(MODEM_EVENT_SIM);
 	}
@@ -591,12 +591,12 @@ int xmm6260_init_modemctl_device(struct modem_ctl *mc,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				"sim_detect", mc);
 		if (ret) {
-			mif_err("failed to request_irq: %d\n", ret);
+			MIF_ERR("failed to request_irq: %d\n", ret);
 			goto err_sim_detect_request_irq;
 		}
 		ret = enable_irq_wake(mc->irq_sim_detect);
 		if (ret) {
-			mif_err("failed to enable_irq_wake: %d\n", ret);
+			MIF_ERR("failed to enable_irq_wake: %d\n", ret);
 			goto err_sim_detect_set_wake_irq;
 		}
 		/* initialize sim_state => insert: gpio=0, remove: gpio=1 */
@@ -615,7 +615,7 @@ int xmm6260_init_modemctl_device(struct modem_ctl *mc,
 		}
 		ret = enable_irq_wake(mc->irq_modem_reset);
 		if (ret) {
-			mif_err("failed to enable_irq_wake of modem reset:%d\n",
+			MIF_ERR("failed to enable_irq_wake of modem reset:%d\n",
 					ret);
 			goto err_reset_irq_enable_wake;
 		}
@@ -627,7 +627,7 @@ int xmm6260_init_modemctl_device(struct modem_ctl *mc,
 		pr_err("Failed to register modem control device\n");
 		goto err_misc_register;
 	}
-	
+
 	ret = device_create_file(modem_miscdev.this_device, &attr_modem_debug);
 	if (ret) {
 		pr_err("failed to create sysfs file:attr_modem_debug!\n");

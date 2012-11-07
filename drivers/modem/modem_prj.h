@@ -49,17 +49,6 @@
 #define MAX_MIF_STR_LEN		127
 #define MAX_MIF_LOG_LEN		128
 
-enum mif_event_id {
-	MIF_IRQ_EVT = 0,
-	MIF_LNK_RX_EVT,
-	MIF_MUX_RX_EVT,
-	MIF_IOD_RX_EVT,
-	MIF_IOD_TX_EVT,
-	MIF_MUX_TX_EVT,
-	MIF_LNK_TX_EVT,
-	MAX_MIF_EVT
-};
-
 struct dpram_queue_status {
 	unsigned in;
 	unsigned out;
@@ -82,7 +71,6 @@ struct mif_event_buff {
 	char time[MAX_MIF_TIME_LEN];
 
 	struct timeval tv;
-	enum mif_event_id evt;
 
 	char mc[MAX_MIF_NAME_LEN];
 
@@ -395,9 +383,6 @@ struct modem_ctl {
 	void (*gpio_revers_bias_restore)(void);
 
 	/* TODO this will be move to struct mif_common */
-	/* For debugging log */
-	bool use_mif_log;
-	enum mif_event_id log_level;
 	atomic_t log_open;
 
 	struct workqueue_struct *evt_wq;
@@ -411,10 +396,10 @@ struct modem_ctl {
 	bool fs_failed;
 
 	char *buff;
-	
+
 	struct completion *l2_done;
 	int enum_done;
-		
+
 	wait_queue_head_t  read_wq;
 	wait_queue_head_t  conn_wq;
 	struct wake_lock   modem_wakelock;
@@ -427,16 +412,5 @@ struct modem_ctl {
 
 int meizu_ipc_init_io_device(struct io_device *iod);
 int modem_tty_driver_init(struct modem_ctl *modemctl);
-
-int mif_init_log(struct modem_ctl *mc);
-void mif_set_log_level(struct modem_ctl *mc);
-int mif_open_log_file(struct modem_ctl *mc);
-void mif_close_log_file(struct modem_ctl *mc);
-
-void mif_irq_log(struct modem_ctl *mc, struct sk_buff *skb);
-void mif_ipc_log(struct modem_ctl *mc, enum mif_event_id evt,
-		struct io_device *iod, struct link_device *ld,
-		u8 *data, unsigned size);
-void mif_flush_logs(struct modem_ctl *mc);
 
 #endif
