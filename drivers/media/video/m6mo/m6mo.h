@@ -134,7 +134,7 @@ enum cap_mode {
 	CAP_SMILE_CAP_MODE,
 };
 
-#define PANORAMA_MAX_PICTURE 22
+#define PANORAMA_MAX_PICTURE 40
 
 /* panorama status */
 enum panorama_picture_status {

@@ -251,10 +251,10 @@ enum af_result {
 #define AF_TOUCH_WIN_Y_REG		0x0a2c
 
 enum af_touch_info {
-	AF_TOUCH_ROW = 0x07,
-	AF_TOUCH_COL = 0x07,	
-	AF_TOUCH_WIDTH = 0x24,
-	AF_TOUCH_HEIGHT = 0x24,
+	AF_TOUCH_ROW = 0x0a, /*For 10 * 10*/
+	AF_TOUCH_COL = 0x0a,
+	AF_TOUCH_WIDTH = 0x18,
+	AF_TOUCH_HEIGHT = 0x18,
 	AF_TOUCH_WIDTH_MAX = 0x100,
 	AF_TOUCH_HEIGHT_MAX = 0x100,
 };

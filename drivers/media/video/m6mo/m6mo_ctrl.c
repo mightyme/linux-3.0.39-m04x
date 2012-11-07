@@ -219,6 +219,7 @@ static void set_pano_picture_status(struct m6mo_state *state, int index,
 			int val;
 			ret = m6mo_r8(sd, PANO_ERROR_NO_REG, &val);
 			if (ret) goto exit_unlock_mutex;
+			pr_info("%s(), big error found, err: %d\n", __func__, (char)val);
 			state->pano.pictures[index].extra = val;
 		} while (0);
 		break;
@@ -322,7 +323,7 @@ static int m6mos_set_cur_panorama_info(struct v4l2_subdev *sd, struct v4l2_contr
 	int ret;
 
 	if (index < 1 || index > PANORAMA_MAX_PICTURE) {
-		pr_err("wrong pan num!\n");
+		pr_err("wrong pan num: %d!!!\n", index);
 		return -EINVAL;
 	}
 
@@ -333,6 +334,15 @@ static int m6mos_set_cur_panorama_info(struct v4l2_subdev *sd, struct v4l2_contr
 	mutex_unlock(&state->mutex);
 	
 	return ret;
+}
+
+static int m6mo_get_pan_direction(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	int err, value;
+
+	err = m6mo_r8(sd, PANO_CAP_DIRECTION_REG, &value);
+	if (!err) ctrl->value = value;
+	return err;
 }
 
 /*************************************************/
@@ -1307,7 +1317,10 @@ int m6mo_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		break;
 	case V4L2_CID_CAMERA_PANO_READY:
 		ret = m6mo_wait_panorama_stitch(sd, ctrl);
-		break;	
+		break;
+	case V4L2_CID_CAMERA_PANO_DIRECTION:
+		ret = m6mo_get_pan_direction(sd, ctrl);
+		break;
 
 	case V4L2_CID_CAMERA_MULTI_CAPTURE_READY:
 		ret = m6mo_wait_multi_capture_ready(sd, ctrl);
