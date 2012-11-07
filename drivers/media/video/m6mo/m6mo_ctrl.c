@@ -293,7 +293,7 @@ static int m6mo_wait_panorama_stitch(struct v4l2_subdev *sd, struct v4l2_control
 	if (state->pano.stitch_status == PANORAMA_STITCH_INIT) {
 		int ret;
 		mutex_unlock(&state->mutex);
-		ret = m6mo_wait_irq(sd, WAIT_TIMEOUT);
+		ret = m6mo_wait_irq(sd, 8000);
 		if (ret) return ret;
 		mutex_lock(&state->mutex);
 	}
