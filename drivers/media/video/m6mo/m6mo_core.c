@@ -997,7 +997,9 @@ int m6mo_set_capture_size(struct v4l2_subdev *sd,
 	struct m6mo_state *state = to_state(sd);
 	struct m6mo_size_struct *sizes = m6mo_cap_sizes;
 	int i, ret, len = ARRAY_SIZE(m6mo_cap_sizes);
-		
+
+	pr_info("%s(), user wants %d * %d capture size\n",
+		__func__, fmt->width, fmt->height);
 	for (i = 0; i < len; i++)
 		if ((fmt->width == sizes[i].width) &&
 			(fmt->height == sizes[i].height))

@@ -219,7 +219,7 @@ static void set_pano_picture_status(struct m6mo_state *state, int index,
 			int val;
 			ret = m6mo_r8(sd, PANO_ERROR_NO_REG, &val);
 			if (ret) goto exit_unlock_mutex;
-			pr_info("%s(), big error found, err: %d\n", __func__, (char)val);
+			pr_info("%s(), big error found, err: %d\n", __func__, (signed char)val);
 			state->pano.pictures[index].extra = val;
 		} while (0);
 		break;
