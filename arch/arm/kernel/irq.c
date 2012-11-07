@@ -133,17 +133,27 @@ int __init arch_probe_nr_irqs(void)
 
 static bool migrate_one_irq(struct irq_data *d)
 {
-	unsigned int cpu = cpumask_any_and(d->affinity, cpu_online_mask);
+	const struct cpumask *affinity = d->affinity;
+	struct irq_chip *c;
 	bool ret = false;
 
-	if (cpu >= nr_cpu_ids) {
-		cpu = cpumask_any(cpu_online_mask);
+	/*
+	 * If this is a per-CPU interrupt, or the affinity does not
+	 * include this CPU, then we have nothing to do.
+	 */
+	if (irqd_is_per_cpu(d) || !cpumask_test_cpu(smp_processor_id(), affinity))
+		return false;
+
+	if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
+		affinity = cpu_online_mask;
 		ret = true;
 	}
 
-	pr_debug("IRQ%u: moving from cpu%u to cpu%u\n", d->irq, d->node, cpu);
-
-	d->chip->irq_set_affinity(d, cpumask_of(cpu), true);
+	c = irq_data_get_irq_chip(d);
+	if (!c->irq_set_affinity)
+		pr_debug("IRQ%u: unable to set affinity\n", d->irq);
+	else if (c->irq_set_affinity(d, affinity, true) == IRQ_SET_MASK_OK && ret)
+		cpumask_copy(d->affinity, affinity);
 
 	return ret;
 }
