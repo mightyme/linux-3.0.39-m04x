@@ -456,13 +456,8 @@ static int mali_device_runtime_resume(struct device *dev)
 {
 	MALI_DEBUG_PRINT(4, ("PMMDEBUG: Mali device Run time Resumed \n" ));
 #ifdef CONFIG_BUSFREQ_OPP
-#ifdef CONFIG_MACH_M040
-	dev_lock(bus_dev, &mali_gpu_device.dev, 
-			soc_is_exynos4210() ? 267000 : 160160);
-#else
 	dev_lock(bus_dev, &mali_gpu_device.dev, 
 			soc_is_exynos4210() ? 267000 : 133133);
-#endif
 #endif
 	return 0;
 }

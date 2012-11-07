@@ -342,7 +342,7 @@ static mali_bool mali_pegasus_dvfs_table_update(void)
 			step_num = MALI_DVFS_STEPS-1;
 			for (i = 0; i < step_num; i++) {
 				MALI_PRINT((":::exynos_result_of_asv : %d\n", exynos_result_of_asv));
-				mali_dvfs[i].vol = asv_3d_volt_4412_9_table[i][exynos_result_of_asv] + 25000;
+				mali_dvfs[i].vol = asv_3d_volt_4412_9_table[i][exynos_result_of_asv];
 				MALI_PRINT(("mali_dvfs[%d].vol = %d\n", i, mali_dvfs[i].vol));
 			}
 		}
@@ -358,7 +358,7 @@ static mali_bool mali_pegasus_dvfs_table_update(void)
 		else {
 			for (i = 0; i < step_num; i++) {
 				MALI_PRINT(("pega-prime default ASV table:::exynos_result_of_asv : %d\n", exynos_result_of_asv));
-				mali_dvfs[i].vol = asv_3d_volt_9_table_for_prime[i][exynos_result_of_asv]+ 25000;
+				mali_dvfs[i].vol = asv_3d_volt_9_table_for_prime[i][exynos_result_of_asv];
 				MALI_PRINT(("mali_dvfs[%d].vol = %d\n", i, mali_dvfs[i].vol));
 			} 
 		}
