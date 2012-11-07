@@ -803,6 +803,9 @@ static int __init kernel_init(void * unused)
 	do_pre_smp_initcalls();
 	lockup_detector_init();
 
+	smp_init();
+	sched_init_smp();
+
 	do_basic_setup();
 
 	/* Open the /dev/console on the rootfs, this should never fail */

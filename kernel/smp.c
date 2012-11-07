@@ -665,7 +665,7 @@ void __init setup_nr_cpu_ids(void)
 }
 
 /* Called by boot processor to activate the rest. */
-int __init smp_init(void)
+void __init smp_init(void)
 {
 	unsigned int cpu;
 
@@ -680,11 +680,7 @@ int __init smp_init(void)
 	/* Any cleanup work */
 	printk(KERN_INFO "Brought up %ld CPUs\n", (long)num_online_cpus());
 	smp_cpus_done(setup_max_cpus);
-
-	return 0;
 }
-
-subsys_initcall_sync(smp_init);
 
 /*
  * Call a function on all processors.  May be used during early boot while

@@ -7890,7 +7890,7 @@ static struct notifier_block sched_nb = {
 };
 #endif
 
-int __init sched_init_smp(void)
+void __init sched_init_smp(void)
 {
 	cpumask_var_t non_isolated_cpus;
 
@@ -7925,17 +7925,13 @@ int __init sched_init_smp(void)
 #if defined(CONFIG_CPU_FREQ) && defined(CONFIG_SCHED_MC) && (defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE))
 	register_pfm_notifier(&sched_nb);
 #endif
-	return 0;
 }
 #else
-int __init sched_init_smp(void)
+void __init sched_init_smp(void)
 {
 	sched_init_granularity();
-	return 0;
 }
 #endif /* CONFIG_SMP */
-
-fs_initcall(sched_init_smp);
 
 const_debug unsigned int sysctl_timer_migration = 1;
 
