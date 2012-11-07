@@ -920,7 +920,11 @@ static int __init param_sysfs_init(void)
 	return 0;
 }
 #ifndef CONFIG_MX_RECOVERY_KERNEL
+#ifdef CONFIG_MODULES
+subsys_initcall(param_sysfs_init);
+#else
 late_initcall(param_sysfs_init);
+#endif
 #endif
 
 #endif /* CONFIG_SYSFS */
