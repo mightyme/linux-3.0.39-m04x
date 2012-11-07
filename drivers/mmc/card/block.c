@@ -175,6 +175,8 @@ static inline int is_userspace_area(struct request *rqc)
 	return (blk_rq_pos(rqc) >= userspace_area.start_sec);
 }
 
+extern int system_part_protect;
+
 static inline int is_system_area(struct request *rqc)
 {
 #define FS_EXT4_RESERVED_SEC	0x8
@@ -2074,7 +2076,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	if (req) {
 		if(rq_data_dir(req) == WRITE) {
 			if(is_userspace_area(req)) {
-				if(is_system_area(req)) {
+				if(system_part_protect && is_system_area(req)) {
 #ifdef CONFIG_SYSTEM_PARTITION_WRITE_PROTECTION
 					blk_end_request_all(req, -EIO);
 					ret = 0;
