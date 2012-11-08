@@ -145,6 +145,7 @@ struct rmi_device_platform_data {
 	char *sensor_name;	/* Used for diagnostics. */
 
 	int attn_gpio;
+	int vbus_gpio;
 	enum rmi_attn_polarity attn_polarity;
 	bool level_triggered;
 	void *gpio_data;
