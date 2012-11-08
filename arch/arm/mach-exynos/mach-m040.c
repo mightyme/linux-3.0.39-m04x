@@ -51,6 +51,7 @@
 #ifdef CONFIG_SWITCH_GPIO
 #include <linux/switch.h>
 #endif
+#include <linux/switch.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -772,6 +773,20 @@ static struct i2c_board_info __initdata i2c_devs17[] = {
 	},
 #endif
 };
+static struct gpio_switch_platform_data m040_earphone_pd = {
+	//.name = "h2w",
+	//.gpio = M040_HDETEC_IRQ,
+	.active_level = 0,
+	.adc_channel = 3,
+};
+
+static struct platform_device m040_headset_adc = {
+	.name = "fsa8108_adc",
+	.dev = {
+		.platform_data = &m040_earphone_pd,
+	},
+	.id = -1,
+};
 
 #if defined(CONFIG_KEYBOARD_GPIO)
 static struct gpio_keys_button m040_gpio_keys_tables[] = {
@@ -1020,7 +1035,7 @@ static struct platform_device __initdata *m040_devices[]  = {
 #ifdef CONFIG_SWITCH_GPIO
 	&m040_switch_gpio,
 #endif
-
+	&m040_headset_adc,
 #ifdef CONFIG_BT
 	&m040_bt,
 #endif

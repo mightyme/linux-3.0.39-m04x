@@ -31,6 +31,8 @@
 #include <linux/i2c.h>
 #include <linux/fsa8108.h>
 #include <mach/gpio-common.h>
+#include <plat/adc.h>
+
 
 
 /***********************************************
@@ -214,13 +216,6 @@
 #define KEY_HEADSETHOOK                       226 
 #define KEY_VOLUME_UP                         115 
 #define KEY_VOLUME_DOWN                       114 
-#define KEY_HEADSETHOOK_DOUBLECLICK           194 
-#define KEY_HEADSETHOOK_LONG                  195 
-#define KEY_VOLUME_UP_LONG_PRESS              196 
-#define KEY_VOLUME_UP_LONG_RELEASE            197 
-#define KEY_VOLUME_DOWN_LONG_PRESS            198 
-#define KEY_VOLUME_DOWN_LONG_RELEASE          199 
-
 /***********************************************/
 struct fsa8108_info {
 	struct i2c_client		*client;	
@@ -229,6 +224,9 @@ struct fsa8108_info {
 	struct work_struct  det_work;
 	struct work_struct  reset_work;
 	unsigned int cur_jack_type;
+	struct s3c_adc_client	*adc_client;
+	struct work_struct    adc_read_work;
+	struct timer_list detect_mic_adc_timer;	
 };
 
 static struct switch_dev switch_jack_detection = {
@@ -240,6 +238,8 @@ static struct switch_dev switch_sendend = {
 };
 
 struct fsa8108_info *g_fsa8108_info;
+struct platform_device *g_plat_dev;
+
 
 static int fsa8108_write_reg(int reg, int val)
 {
@@ -416,7 +416,7 @@ static void fsa8108_mask_int(int onoff)
 		fsa8108_write_reg(FSA8108_REG_INT_MASK_1,0xF8);
 		fsa8108_write_reg(FSA8108_REG_INT_MASK_2,0xFF);
 	}else{
-		fsa8108_write_reg(FSA8108_REG_INT_MASK_1,0xC0);
+		fsa8108_write_reg(FSA8108_REG_INT_MASK_1,0xD0);
 		fsa8108_write_reg(FSA8108_REG_INT_MASK_2,0xC0);
 	}
 }
@@ -442,13 +442,45 @@ void fsa8108_LDO_output(int onoff)
 }
 EXPORT_SYMBOL(fsa8108_LDO_output);
 
+#define EARPHONE_ADC_CAHNNEL 			3
+#define MIC_DETECT_NOPRESSED			200
+
+static void fsa8108_adc_read_func(struct work_struct *work)
+{
+	struct fsa8108_info *info =
+		container_of(work, struct fsa8108_info, adc_read_work);	
+
+	if (s3c_adc_read(info->adc_client,  EARPHONE_ADC_CAHNNEL) > MIC_DETECT_NOPRESSED) {
+		pr_info("%s OKOKOKOKOOOK__LONG RELEASED\n",__func__);
+		input_report_key(info->input, KEY_HEADSETHOOK, 0);
+		input_sync(info->input);
+		switch_set_state(&switch_sendend,0);
+		pr_info("[fsa8108] timer delete\n");
+		del_timer(&info->detect_mic_adc_timer);
+	}
+}
+
+static void fsa8108_adc_timer_func(unsigned long data){
+	struct fsa8108_info* info = (struct fsa8108_info*)data;
+
+	schedule_work(&info->adc_read_work);
+	pr_info("[fsa8108] timer triggered\n");
+	mod_timer(&info->detect_mic_adc_timer, jiffies + msecs_to_jiffies(40));	
+}
 static void process_int(int intr_type,struct fsa8108_info* info)
 {
 	unsigned char val1, val2;
+	int reg,value;
 	val1 = intr_type & 0xff;
 	val2 = intr_type >> 8;	
 	pr_info("\nvalue = 0x%.4X,val1 = 0x%x,val2 = 0x%x\n",intr_type, val1, val2);
-
+	/*
+	for(reg = FSA8108_REG_DEVICE_ID;reg <= FSA8108_REG_RESET;reg++)
+	{
+		value = fsa8108_read_reg(reg);
+		pr_info("%s: R=0x%.2X D=0x%.2X \n", __func__, reg,value);
+	}
+	*/
 	if(val1)
 	{
 	    switch(val1){
@@ -463,7 +495,8 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				pr_err("%s 4pole connect",__func__);
 				info->cur_jack_type = FSA_HEADSET_4POLE;				
 				switch_set_state(&switch_jack_detection, FSA_HEADSET_4POLE);
-				msleep(20);/*deglitch*/ 
+				msleep(2000);/*deglitch*/ 
+				i2c_smbus_read_word_data(info->client, FSA8108_REG_INT_1);/*clear pending interrupts*/
 				fsa8108_mask_int(0);/*recover key interrupts after 4pole connect*/
 				break;
 			case FSA8108_PLUG_DISCONNECT:
@@ -472,38 +505,29 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				fsa8108_mask_int(1);
 				fsa8108_LDO_output(1);
 				switch_set_state(&switch_jack_detection, FSA_JACK_NO_DEVICE);				
-				break;
-			case FSA8108_SEND_END_PRESS:
-				pr_err("%s OKOKOKOKOOOK",__func__);
-				pr_info("read time reg value:0x%02x\n",fsa8108_read_reg(FSA8108_REG_KEY_PRS_T));
+				break;			
+			case FSA8108_SEND_END_LONG:  //TBD
+				pr_info("%s OKOKOKOKOOOK__LONG PRESSED\n",__func__);
 				input_report_key(info->input, KEY_HEADSETHOOK, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
-				msleep(10);				
+
+				init_timer(&info->detect_mic_adc_timer);
+				info->detect_mic_adc_timer.function = fsa8108_adc_timer_func;
+				info->detect_mic_adc_timer.data = (unsigned long)info;
+				info->detect_mic_adc_timer.expires = jiffies + msecs_to_jiffies(40);
+				add_timer(&info->detect_mic_adc_timer);
+				break;	
+			case FSA8108_SEND_END_PRESS:
+				pr_info("%s OKOKOKOKOOOK PRESSED\n",__func__);
+				input_report_key(info->input, KEY_HEADSETHOOK, 1);
+				input_sync(info->input);
+				switch_set_state(&switch_sendend,1);
+				msleep(20);
 				input_report_key(info->input, KEY_HEADSETHOOK, 0);
 				input_sync(info->input);
-				switch_set_state(&switch_sendend,0);				
+				switch_set_state(&switch_sendend,0);
 				break;
-			case FSA8108_SEND_END_DOUBLE:  //TBD = to be done?
-				pr_err("%s OKOKOKOKOOOK__DOUBLE",__func__);
-				input_report_key(info->input, KEY_HEADSETHOOK_DOUBLECLICK, 1);
-				input_sync(info->input);
-				switch_set_state(&switch_sendend,1);
-				msleep(10);
-				input_report_key(info->input, KEY_HEADSETHOOK_DOUBLECLICK, 0);
-				input_sync(info->input);
-				switch_set_state(&switch_sendend,0);	
-				break;
-			case FSA8108_SEND_END_LONG:  //TBD
-				pr_err("%s OKOKOKOKOOOK__LONG",__func__);
-				input_report_key(info->input, KEY_HEADSETHOOK_LONG, 1);
-				input_sync(info->input);
-				switch_set_state(&switch_sendend,1);
-				msleep(10);
-				input_report_key(info->input, KEY_HEADSETHOOK_LONG, 0);
-				input_sync(info->input);
-				switch_set_state(&switch_sendend,0);	
-				break;					
 			default:
 				break;
 	    }
@@ -511,66 +535,50 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 	else if(val2)
 	{
 	    switch(val2){
-			case FSA8108_VOL_UP:
-				pr_err("%s volumn ++++++",__func__);
+			case FSA8108_VOL_UP_LONG_P: 
+				pr_info("%s volumn ++++++LONG_PRESSED\n",__func__);
 				input_report_key(info->input, KEY_VOLUME_UP, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
-				msleep(10);
-				input_report_key(info->input, KEY_VOLUME_UP, 0);
-				input_sync(info->input);
-				switch_set_state(&switch_sendend,0);				
 				break;
-			case FSA8108_VOL_UP_LONG_P: 
-				pr_err("%s volumn ++++++LONG_PRESSED",__func__);
-				input_report_key(info->input, KEY_VOLUME_UP_LONG_PRESS, 1);
-				input_sync(info->input);
-				switch_set_state(&switch_sendend,1);
-				msleep(10);
-				input_report_key(info->input, KEY_VOLUME_UP_LONG_PRESS, 0);
+			case FSA8108_VOL_UP_LONG_R: 
+				pr_info("%s volumn ++++++LONG_RELEASED\n",__func__);
+				input_report_key(info->input, KEY_VOLUME_UP, 0);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,0);	
 				break;
-			case FSA8108_VOL_UP_LONG_R:  
-				pr_err("%s volumn ++++++LONG_RELEASE",__func__);
-				input_report_key(info->input, KEY_VOLUME_UP_LONG_RELEASE, 1);
+			case FSA8108_VOL_DOWN_LONG_P: 
+				pr_info("%s volumn ------LONG_PRESSED\n",__func__);
+				input_report_key(info->input, KEY_VOLUME_DOWN, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
-				msleep(10);
-				input_report_key(info->input, KEY_VOLUME_UP_LONG_RELEASE, 0);
+				break;
+			case FSA8108_VOL_DOWN_LOGN_R: 
+				pr_err("%s volumn ------LONG_RELEASE\n",__func__);
+				input_report_key(info->input, KEY_VOLUME_DOWN, 0);
+				input_sync(info->input);
+				switch_set_state(&switch_sendend,0);
+				break;	
+			case FSA8108_VOL_UP:
+				pr_info("%s volumn ++++++ PRESSED\n",__func__);
+				input_report_key(info->input, KEY_VOLUME_UP, 1);
+				input_sync(info->input);
+				switch_set_state(&switch_sendend,1);
+				msleep(20);
+				input_report_key(info->input, KEY_VOLUME_UP, 0);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,0);
 				break;
 			case FSA8108_VOL_DOWN:
-				pr_err("%s volumn ------",__func__);
+				pr_info("%s volumn ------ PRESSED\n",__func__);
 				input_report_key(info->input, KEY_VOLUME_DOWN, 1);
 				input_sync(info->input);
 				switch_set_state(&switch_sendend,1);
-				msleep(10);
+				msleep(20);
 				input_report_key(info->input, KEY_VOLUME_DOWN, 0);
 				input_sync(info->input);
-				switch_set_state(&switch_sendend,0);				
-				break;
-			case FSA8108_VOL_DOWN_LONG_P: 
-				pr_err("%s volumn ------LONG_PRESSED",__func__);
-				input_report_key(info->input, KEY_VOLUME_DOWN_LONG_PRESS, 1);
-				input_sync(info->input);
-				switch_set_state(&switch_sendend,1);
-				msleep(10);
-				input_report_key(info->input, KEY_VOLUME_DOWN_LONG_PRESS, 0);
-				input_sync(info->input);
 				switch_set_state(&switch_sendend,0);
 				break;
-			case FSA8108_VOL_DOWN_LOGN_R:  
-				pr_err("%s volumn ------LONG_RELEASE",__func__);
-				input_report_key(info->input, KEY_VOLUME_DOWN_LONG_RELEASE, 1);
-				input_sync(info->input);
-				switch_set_state(&switch_sendend,1);
-				msleep(10);
-				input_report_key(info->input, KEY_VOLUME_DOWN_LONG_RELEASE, 0);
-				input_sync(info->input);
-				switch_set_state(&switch_sendend,0);
-				break;					
 			default:
 				break;
 	    }	
@@ -606,12 +614,15 @@ static void fsa8081_jack_det_work_func(struct work_struct *work)
 }
 static void fsa8108_reset_work(struct work_struct *work)
 {	
-	struct fsa8108_info *info =
-		container_of(work, struct fsa8108_info, reset_work);
 	fsa8108_write_reg(FSA8108_REG_RESET,0x01);
 	msleep(100);
 	fsa8108_write_reg(FSA8108_REG_RESET,0x00);
-	fsa8108_set_value(FSA8108_REG_KEY_PRS_T,FSA8108_TDOUBLE,FSA8108_TDOUBLE_SHIFT,0x01);
+	/*** Set Timing parameters and Global Multiplier setting ***/
+	//fsa8108_set_value(FSA8108_REG_GLOBAL_MUL,0x07,0,0x00);	
+	fsa8108_write_reg(FSA8108_REG_KEY_PRS_T,0);	
+	/*disable double click function*/
+	fsa8108_write_reg(FSA8108_REG_CON,0x68);	
+	fsa8108_mask_int(1);/*mask key interrupts before plug in*/
 }
 
 static void fsa8108_initialization(struct fsa8108_info *info)
@@ -633,29 +644,20 @@ static void fsa8108_initialization(struct fsa8108_info *info)
 	
 	/*** Set Comparator Thresholds setting for volum down***/
 	fsa8108_set_value(FSA8108_REG_COMPARATOR_34, FSA8108_VOL_DOWN_CMP, 
-		FSA8108_VOL_DOWN__CMP_SHIFT , 0x0F);
-
-	/*** Set Timing parameters and Global Multiplier setting ***/
-	fsa8108_set_value(FSA8108_REG_GLOBAL_MUL,0x07,0,0x04);
-	fsa8108_set_value(FSA8108_REG_KEY_PRS_T,FSA8108_TDOUBLE,FSA8108_TDOUBLE_SHIFT,0x00);
-
-	fsa8108_mask_int(1);/*mask key interrupts before plug in*/
+		FSA8108_VOL_DOWN__CMP_SHIFT , 0x0F);		
 	int_type = i2c_smbus_read_word_data(client, FSA8108_REG_INT_1);		
 	process_int(int_type,info);	
 
 }
 
-static int fsa8108_probe(
+static int fsa8108_i2c_probe(
 	struct i2c_client *client, const struct i2c_device_id *id)
 {
 
 	int i,ret = 0;
 	struct fsa8108_info *info;
 
-	int fsa8108_jack_keycode[] = {KEY_HEADSETHOOK, KEY_VOLUME_UP, KEY_VOLUME_DOWN
-								,KEY_HEADSETHOOK_DOUBLECLICK, KEY_HEADSETHOOK_LONG,
-								KEY_VOLUME_UP_LONG_PRESS,KEY_VOLUME_UP_LONG_RELEASE,
-								KEY_VOLUME_DOWN_LONG_PRESS, KEY_VOLUME_DOWN_LONG_RELEASE};
+	int fsa8108_jack_keycode[] = {KEY_HEADSETHOOK, KEY_VOLUME_UP, KEY_VOLUME_DOWN};
 	int device_id = -1;	
 
 	pr_info("[fsa8108]earphone detection fsa8108_probe begin\n");	
@@ -691,7 +693,7 @@ static int fsa8108_probe(
 
 	info->input->name = "mx-earphone-keypad";
 
-	for (i = 0 ; i < sizeof(fsa8108_jack_keycode); i++)
+	for (i = 0 ; i < sizeof(fsa8108_jack_keycode)/sizeof(int); i++)
 		input_set_capability(info->input, EV_KEY, fsa8108_jack_keycode[i]);
 	
 	ret = input_register_device(info->input);
@@ -714,16 +716,25 @@ static int fsa8108_probe(
 
 	INIT_WORK(&info->det_work, fsa8081_jack_det_work_func);
 	INIT_WORK(&info->reset_work, fsa8108_reset_work);
+	INIT_WORK(&info->adc_read_work, fsa8108_adc_read_func);
 	// Reset
 	//fsa8108_reset();
-	schedule_work(&info->reset_work);
+	schedule_work(&info->reset_work);	
 
+	fsa8108_initialization(info);
+
+	info->adc_client = s3c_adc_register(g_plat_dev, NULL, NULL, 0);
+	if (IS_ERR(info->adc_client)) {
+		pr_err("[fsa8108] cannot register adc\n");
+		ret = PTR_ERR(info->adc_client);
+		goto err_switch_dev_register;
+	}
+	
 	client->irq = gpio_to_irq(client->irq);
 	if (client->irq < 0){
 		pr_err("%s : Failed gpio_to_irq\n", __func__);
 		goto err_switch_dev_register;
 	}
-	
 	if (client->irq) {
 	    ret = request_threaded_irq(client->irq, NULL,
 		    fsa8108_irq_thread, IRQF_TRIGGER_FALLING,
@@ -732,8 +743,7 @@ static int fsa8108_probe(
 		    dev_err(&client->dev, "failed to reqeust IRQ\n");
 		    return ret;
 	    }
-    }
-	fsa8108_initialization(info);
+    }	
 	
 	ret = enable_irq_wake(client->irq);
 	if (ret < 0)
@@ -759,7 +769,7 @@ check_device_failed:
 	return ret;	
 
 }
-static int fsa8108_remove(struct i2c_client *client)
+static int fsa8108_i2c_remove(struct i2c_client *client)
 {
     struct fsa8108_info *info = i2c_get_clientdata(client);
 
@@ -788,23 +798,69 @@ static struct i2c_driver fsa8108_i2c_driver = {
 		.name = "fairchild_fsa8108",
 		.owner = THIS_MODULE,			
 	},
-	.probe    = fsa8108_probe,
-	.remove   = __devexit_p(fsa8108_remove),
+	.probe    = fsa8108_i2c_probe,
+	.remove   = __devexit_p(fsa8108_i2c_remove),
 	.suspend  = NULL,
 	.resume	  = NULL,
 	.id_table = fsa8108_i2c_id,
 };
 
-static __init int fsa8108_i2c_init(void)
+static  int fsa8108_i2c_init(void)
 {
 
 	return i2c_add_driver(&fsa8108_i2c_driver);
 }
 
-static __exit void fsa8108_i2c_exit(void)
+static  void fsa8108_i2c_exit(void)
 {
 	i2c_del_driver(&fsa8108_i2c_driver);
 }
 
-module_init(fsa8108_i2c_init);
-module_exit(fsa8108_i2c_exit);
+static int __devinit fsa8108_probe(struct platform_device *pdev)
+{
+	int ret;
+
+	pr_info("[fsa8108] platform_device probe\n");
+	g_plat_dev = pdev;
+	
+	ret = fsa8108_i2c_init();
+	
+	return ret;
+}
+
+static int __devexit fsa8108_remove(struct platform_device *pdev)
+{
+	fsa8108_i2c_exit();	
+	return 0;
+}
+
+static struct platform_driver fsa8108_driver={
+	.probe = fsa8108_probe,
+	.remove = fsa8108_remove,	
+	.driver		= {
+		.name	= "fsa8108_adc",
+		.owner	= THIS_MODULE,
+	},
+};
+
+static int __init fsa8108_init(void)
+{
+	int ret;
+	
+	ret = platform_driver_register(&fsa8108_driver);
+	if (ret)
+		return -ENOMEM;
+	
+	return ret;
+}
+
+static void __exit fsa8108_exit(void)
+{
+	platform_driver_unregister(&fsa8108_driver);
+}
+
+module_init(fsa8108_init);
+module_exit(fsa8108_exit);
+
+//module_init(fsa8108_i2c_init);
+//module_exit(fsa8108_i2c_exit);
