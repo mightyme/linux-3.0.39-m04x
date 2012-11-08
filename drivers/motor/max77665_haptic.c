@@ -104,10 +104,12 @@ static void max77665_show_regs(struct i2c_client *i2c)
 	int i = 0;
 	u8 val;
 
-	for(i=0; i< 17; i++){
-		max77665_read_reg(i2c,i,&val);
-		pr_info("addr:%d valu:0x%02x\n",i , val);
+	pr_info("%s:reg 0~16=", __func__);
+	for (i = 0; i < 17; i++) {
+		max77665_read_reg(i2c, i, &val);
+		pr_cont("0x%02x,", val);
 	}
+	pr_cont("\n");
 }
 #endif
 static int max77665_haptic_on(struct haptic_data *chip, bool en)
