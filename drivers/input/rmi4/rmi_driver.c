@@ -44,6 +44,12 @@
 #include <asm/uaccess.h>
 #endif
 
+#ifdef CONFIG_MX_RECOVERY_KERNEL
+#define __mdelay(t)	mdelay(t)
+#else
+#define __mdelay(t)	msleep(t)
+#endif
+
 #define REGISTER_DEBUG 0
 
 #define HAS_NONSTANDARD_PDT_MASK 0x40
@@ -971,7 +977,7 @@ static int do_initial_reset(struct rmi_device *rmi_dev)
 						"Code = %d.\n", retval);
 					return retval;
 				}
-				mdelay(pdata->reset_delay_ms);
+				__mdelay(pdata->reset_delay_ms);
 #ifndef CONFIG_RMI4_FWLIB
 				done = true;
 #else
