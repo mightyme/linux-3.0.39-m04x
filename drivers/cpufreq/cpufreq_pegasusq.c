@@ -76,7 +76,7 @@ static void start_rq_work(void)
 static void stop_rq_work(void)
 {
 	if (rq_data->nr_run_wq)
-		cancel_delayed_work(&rq_data->work);
+		cancel_delayed_work_sync(&rq_data->work);
 	return;
 }
 
