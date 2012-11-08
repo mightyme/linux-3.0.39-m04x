@@ -85,6 +85,10 @@ static ssize_t rmi_fn_34_appid_show(struct device *dev,
 					   struct device_attribute *attr,
 					   char *buf);
 
+static ssize_t rmi_fn_34_appid_store(struct device *dev,
+					    struct device_attribute *attr,
+					    const char *buf, size_t count);
+
 static ssize_t rmi_fn_34_bootloaderid_show(struct device *dev,
 					   struct device_attribute *attr,
 					   char *buf);
