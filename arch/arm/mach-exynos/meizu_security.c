@@ -119,6 +119,7 @@ out:
 static char device_sn[256];
 static char device_mac[6];
 static char err_mac[6] = {0x0,0x1,0x2,0x3,0x4,0x5};
+int system_part_protect = 1;
 
 extern int meizu_set_sn(char *sn, int size);
 
@@ -165,6 +166,42 @@ static void init_device_mac(void)
 	}
 }
 
+/*
+ * enable define：
+ * 0： None
+ * 1：Root/Lock
+ * 2：Unroot/Unlock
+*/
+#define MAGIC_NUMBER_LENGTH 16
+struct system_rtx {
+	unsigned int magic[MAGIC_NUMBER_LENGTH];
+	unsigned int product;
+	unsigned int enable;
+};
+
+unsigned int magic[MAGIC_NUMBER_LENGTH] = {	0x5A5A5A5A, 0x5A5A5A5A, 0x5A5A5A5A, 0x5A5A5A5A, 
+											0x5A5A5A5A, 0x5A5A5A5A, 0x5A5A5A5A, 0x5A5A5A5A, 
+											0x5A5A5A5A, 0x5A5A5A5A, 0x5A5A5A5A, 0x5A5A5A5A, 
+											0x5A5A5A5A, 0x5A5A5A5A, 0x5A5A5A5A, 0x5A5A5A5A };
+
+static void init_system_protect(void)
+{
+	int offset = slot_to_offset(16);//system_protect slot 16
+	struct system_rtx rtx;
+
+	deal_private_block(0, offset, PRIVATE_ENTRY_BLOCK_SIZE, private_entry_buf);
+	memcpy(&rtx, private_entry_buf, sizeof(rtx));
+
+	system_part_protect = 1;
+	if(!memcmp(rtx.magic, magic, sizeof(magic))) {
+		if(rtx.enable == 1)
+			system_part_protect = 0;
+		pr_info("SYSTEM PROTECT STATE %d\n", system_part_protect);
+	} else {
+		pr_info("NOT LEGAL SYSTEM PROTECT SLOT\n");
+	}
+}
+
 int get_mac_form_device(unsigned char *buf)
 {
 
@@ -184,5 +221,6 @@ int meizu_device_info_init(void)
 {
 	init_device_sn();
 	init_device_mac();
+	init_system_protect();
 	return 0;
 }
