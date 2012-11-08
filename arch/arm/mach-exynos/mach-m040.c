@@ -1256,8 +1256,8 @@ static void __init m040_machine_init(void)
 	platform_add_devices(m040_devices, ARRAY_SIZE(m040_devices));
 }
 
-//MACHINE_START(M040, "MX2")
-MACHINE_START(M040, "SMDK4X12")
+MACHINE_START(M040, "MX2")
+//MACHINE_START(M040, "SMDK4X12")
 	/* Maintainer: WenbinWu <wenbinwu@meizu.com> */
 	.boot_params	= S5P_PA_SDRAM + 0x100,
 	.init_irq	= exynos4_init_irq,
