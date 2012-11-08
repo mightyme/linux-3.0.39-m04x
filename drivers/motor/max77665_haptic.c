@@ -212,7 +212,7 @@ static void haptic_enable(struct timed_output_dev *tdev, int value)
 		container_of(tdev, struct haptic_data, tdev);
 
 	mutex_lock(&chip->haptic_mutex);
-	pr_info("\n vibration time %d\n", g_vibrate_count++);
+	pr_info("%s: vibration time = %d\n", __func__, g_vibrate_count++);
 	//max77665_haptic_on(chip, false);
 	hrtimer_cancel(&chip->timer);
 	if (value > 0) {
