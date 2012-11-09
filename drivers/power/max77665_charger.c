@@ -28,7 +28,6 @@
 #include <mach/usb-detect.h>
 #include <linux/workqueue.h>
 
-#define MAX_USB_CURRENT        500   
 #define MAX_AC_CURRENT         1000 
 #define MAX_INPUT_CURRENT      900
 #define MIN_CHGIN_CURRENT      400   
@@ -221,7 +220,7 @@ static int max77665_adjust_current(struct max77665_charger *charger,
 			return ret;
 		}
 		pr_info("waiting.................\n");
-
+		
 		init_completion(&charger->byp_complete);
 		ret = wait_for_completion_timeout(&charger->byp_complete, expire);
 		if (ret > 0) {
@@ -242,7 +241,7 @@ static int max77665_adjust_current(struct max77665_charger *charger,
 				msleep(20);
 				ret = max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK,
 						&int_ok);
-				if (int_ok == 0x1d) {
+				if (int_ok == 0x1d) { 
 					do{
 						ad_current -= CURRENT_INCREMENT_STEP;
 						regulator_set_current_limit(charger->ps,
@@ -706,6 +705,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	charger->chr_pin = pdata->charger_pin;
 	charger->done = false;
 
+	init_completion(&charger->byp_complete);
 	mutex_init(&charger->mutex_t);
 	wake_lock_init(&charger->wake_lock, WAKE_LOCK_SUSPEND, pdata->name);
 #if defined(CONFIG_MX_RECOVERY_KERNEL)
