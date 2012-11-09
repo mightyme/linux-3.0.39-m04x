@@ -233,7 +233,7 @@ static int m6mo_set_isp_power(bool enable)
 exit_regulator:
 	regulator_bulk_free(num_consumers, supplies);
 
-	msleep(5);
+	msleep(10);
 
 	return ret;
 }
@@ -271,7 +271,7 @@ static int m6mo_set_sensor_power(int cam_id, bool enable)
 exit_regulator:
 	regulator_bulk_free(num_consumers, supplies);
 
-	msleep(5);
+	msleep(10);
 
 	return ret;
 }
