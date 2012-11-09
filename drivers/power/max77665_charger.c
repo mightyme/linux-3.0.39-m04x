@@ -214,7 +214,7 @@ static int max77665_adjust_current(struct max77665_charger *charger,
 		
 		ret = regulator_set_current_limit(charger->ps,
 				ad_current*MA_TO_UA,
-				ad_current*MA_TO_UA+CURRENT_INCREMENT_STEP*MA_TO_UA);
+				(ad_current*MA_TO_UA+CURRENT_INCREMENT_STEP*MA_TO_UA));
 		if (ret) {
 			pr_err("failed to set current limit\n");
 			return ret;
@@ -228,8 +228,8 @@ static int max77665_adjust_current(struct max77665_charger *charger,
 			ad_current -= CURRENT_INCREMENT_STEP;
 			ret = regulator_set_current_limit(charger->ps, 
 					ad_current * MA_TO_UA,
-					ad_current * MA_TO_UA + 
-					CURRENT_INCREMENT_STEP * MA_TO_UA);
+					(ad_current * MA_TO_UA + 
+					CURRENT_INCREMENT_STEP * MA_TO_UA));
 			if (ret) {
 				pr_err("adjust current to %d failed\n", ad_current);
 			}
@@ -244,14 +244,15 @@ static int max77665_adjust_current(struct max77665_charger *charger,
 				if (int_ok == 0x1d) { 
 					do{
 						ad_current -= CURRENT_INCREMENT_STEP;
+						if (ad_current <= charger->chgin_ilim_usb)
+							break;
 						regulator_set_current_limit(charger->ps,
 								ad_current * MA_TO_UA,
-								ad_current*MA_TO_UA + 
-								CURRENT_INCREMENT_STEP*MA_TO_UA);
+								(ad_current*MA_TO_UA + 
+								CURRENT_INCREMENT_STEP*MA_TO_UA));
 						ret = max77665_read_reg(i2c, 
 								MAX77665_CHG_REG_CHG_INT_OK,
 								&int_ok);
-
 					} while (int_ok != 0x5d);
 				}
 				break;
