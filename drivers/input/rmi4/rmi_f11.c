@@ -1487,7 +1487,7 @@ static void set_noise_mitigation_by_vbus(struct f11_data *data)
 	}
 	else	{
 		rmi_f11_disable_noise_mitigation(f11,true);	
-		rmi_f11_saturation_capacitance(f11,136);
+		rmi_f11_saturation_capacitance(f11,188);
 	}	
 }
 
@@ -1620,8 +1620,8 @@ static int rmi_f11_force_reportmode_reduced(struct rmi_function_container *fc)
 	u8 val,deltaxy[2];
 	int rc = 0;
 
-	deltaxy[0] = 1;
-	deltaxy[1] = 1;
+	deltaxy[0] = 2;
+	deltaxy[1] = 2;
 	
 	control_base_addr = fc->fd.control_base_addr;
 
