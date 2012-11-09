@@ -1230,6 +1230,7 @@ static int m6mo_init(struct v4l2_subdev *sd, u32 cam_id)
 	int ret;
 	struct m6mo_state *state = to_state(sd);	
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	unsigned int delay_ms = 10;
 
 	if (cam_id != BACK_CAMERA && cam_id != FRONT_CAMERA) {
 		pr_err("unsupport camera id %d\n", cam_id);
@@ -1244,6 +1245,9 @@ static int m6mo_init(struct v4l2_subdev *sd, u32 cam_id)
 		pr_err("%s(), set sensor powr failed!\n", __func__);
 		return ret;
 	}
+
+	pr_info("%s(), sleep for %d ms\n", __func__, delay_ms);
+	msleep(delay_ms);
 
 	/* run firmware first */
 	ret = m6mo_run_firmware(sd);	
