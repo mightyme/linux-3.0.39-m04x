@@ -746,7 +746,7 @@ static int __init exynos_cpufreq_init(void)
 {
 	return platform_driver_register(&exynos_cpufreq_driver);
 }
-late_initcall(exynos_cpufreq_init);
+subsys_initcall(exynos_cpufreq_init);
 
 static void __exit exynos_cpufreq_exit(void)
 {

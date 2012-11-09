@@ -488,6 +488,9 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				pr_err("%s 3pole connect",__func__);
 				info->cur_jack_type = FSA_HEADSET_3POLE;
 				fsa8108_mask_int(1);
+				msleep(1000);
+				if(info->cur_jack_type != FSA_HEADSET_3POLE)
+					break;
 				fsa8108_LDO_output(0);
 				switch_set_state(&switch_jack_detection, FSA_HEADSET_3POLE);
 				break;
@@ -622,6 +625,8 @@ static void fsa8108_reset_work(struct work_struct *work)
 	fsa8108_write_reg(FSA8108_REG_KEY_PRS_T,0);	
 	/*disable double click function*/
 	fsa8108_write_reg(FSA8108_REG_CON,0x68);	
+	/*span insert time*/
+	fsa8108_write_reg(FSA8108_REG_JDET_T,0xF2);
 	fsa8108_mask_int(1);/*mask key interrupts before plug in*/
 }
 
