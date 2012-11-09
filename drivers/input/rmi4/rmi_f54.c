@@ -168,10 +168,10 @@ union f54_ad_control_2 {
 union f54_ad_control_3 {
 	/* control 3 */
 	struct {
-		u16 pixel_touch_threshold;
+		u8 pixel_touch_threshold;
 	} __attribute__((__packed__));
 	struct {
-		u8 regs[2];
+		u8 regs[1];
 		u16 address;
 	} __attribute__((__packed__));
 };

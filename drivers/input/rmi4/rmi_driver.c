@@ -50,6 +50,8 @@
 #define __mdelay(t)	msleep(t)
 #endif
 
+#define	RESUME_RESET
+
 #define REGISTER_DEBUG 0
 
 #define HAS_NONSTANDARD_PDT_MASK 0x40
@@ -1323,7 +1325,8 @@ static int standard_resume(struct rmi_device *rmi_dev)
 		if (retval < 0)
 			goto exit;
 	}
-	
+
+ #ifdef RESUME_RESET
 	if (data->f01_container)
 	{
 		u8 cmd_buf = RMI_DEVICE_RESET_CMD;
@@ -1341,6 +1344,7 @@ static int standard_resume(struct rmi_device *rmi_dev)
 		
 		msleep(pdata->reset_delay_ms);
 	}
+#endif	
 
 	list_for_each_entry(entry, &data->rmi_functions.list, list)
 		if (entry->fh && entry->fh->resume) {

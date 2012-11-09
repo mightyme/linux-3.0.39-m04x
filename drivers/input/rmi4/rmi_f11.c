@@ -29,6 +29,7 @@
 #include <linux/gpio.h>
 
 #define VBUS_IRQ_EN (1)
+#define F11_REPORTMODE_REDUCED	(1)	// 000:Continuous, when finger present  001: Reduced reporting mode		
 #define RESUME_REZERO (1 && defined(CONFIG_PM))
 #if RESUME_REZERO
 #include <linux/delay.h>
@@ -602,16 +603,22 @@ static int rmi_f11_saturation_capacitance(struct f11_data *data,u16 value);
 static int rmi_f11_disable_noise_mitigation(struct f11_data *data,bool enable);
 static int rmi_f11_force_calibration(struct f11_data *data);
 static int _turn_on_calibration(struct f11_data *data,int bOnOff);
-static void rmi_forc_cal_func(struct work_struct *work);
+static void rmi_force_cal_func(struct work_struct *work);
 
 /* ctrl sysfs files */
+show_store_union_struct_prototype(reporting_mode)
 show_store_union_struct_prototype(abs_pos_filt)
+show_store_union_struct_prototype(delta_x_threshold)
+show_store_union_struct_prototype(delta_y_threshold)
 show_store_union_struct_prototype(z_touch_threshold)
 show_store_union_struct_prototype(z_touch_hysteresis)
 
 /* This is a group in case we add the other ctrls. */
 static struct attribute *attrs_ctrl0[] = {
+	attrify(reporting_mode),
 	attrify(abs_pos_filt),
+	attrify(delta_x_threshold),
+	attrify(delta_y_threshold),
 	NULL
 };
 static struct attribute_group attrs_control0 = GROUP(attrs_ctrl0);
@@ -772,7 +779,7 @@ static void rmi_f11_abs_pos_report(struct f11_2d_sensor *sensor,
 	sensor->finger_tracker[n_finger] = finger_state;
 
 	if(touch_debug)
-		printk(KERN_INFO"touch point %d:%d, timestampe=%llu us, %llu\n", x, y, ktime_to_us(ktime_sub(ktime_get(),time_last)), ktime_to_us(ktime_get()));
+		printk(KERN_INFO"touch point %d:%d:%d, timestampe=%llu us, %llu\n", x, y,z,ktime_to_us(ktime_sub(ktime_get(),time_last)), ktime_to_us(ktime_get()));
 	time_last = ktime_get();
 }
 
@@ -1474,13 +1481,13 @@ static void set_noise_mitigation_by_vbus(struct f11_data *data)
 	
 	dev_dbg(&rmi_dev->dev,  "VBUS gpio, value: %d.\n",value);
 	
-	if ( value ) {
+	if ( value ) { // USB Dectected
 		rmi_f11_disable_noise_mitigation(f11,false);		
-		//rmi_f11_saturation_capacitance(f11,223);	
+		rmi_f11_saturation_capacitance(f11,223);	
 	}
 	else	{
 		rmi_f11_disable_noise_mitigation(f11,true);	
-		//rmi_f11_saturation_capacitance(f11,136);
+		rmi_f11_saturation_capacitance(f11,136);
 	}	
 }
 
@@ -1605,6 +1612,42 @@ static void rmi_f11_free_memory(struct rmi_function_container *fc)
 	}
 }
 
+#ifdef F11_REPORTMODE_REDUCED	
+static int rmi_f11_force_reportmode_reduced(struct rmi_function_container *fc)
+{
+	struct rmi_device *rmi_dev = fc->rmi_dev;
+	u16 control_base_addr;
+	u8 val,deltaxy[2];
+	int rc = 0;
+
+	deltaxy[0] = 1;
+	deltaxy[1] = 1;
+	
+	control_base_addr = fc->fd.control_base_addr;
+
+	/* set 2D Report Mode */	
+	if(F11_REPORTMODE_REDUCED)
+	{		
+		// distance threshold
+		rc = rmi_write_block(rmi_dev,control_base_addr+2,deltaxy,2); 
+		if( rc < 0)		
+			dev_err(&fc->dev, "set distance threshold error %d\n",rc);	
+		
+		// 2D Report Mode
+		rc = rmi_read(rmi_dev,control_base_addr,&val);
+		if( rc < 0)		
+			dev_err(&fc->dev,  "read error %d\n",rc);
+		
+		val = (val & 0xF8 ) |F11_REPORTMODE_REDUCED;
+		rc = rmi_write(rmi_dev,control_base_addr,val);	
+		if( rc < 0)		
+			dev_err(&fc->dev, "set 2D report mode error %d\n",rc);		
+		
+	}
+	return rc;
+}
+#endif		
+
 
 static int rmi_f11_initialize(struct rmi_function_container *fc)
 {
@@ -1662,6 +1705,13 @@ static int rmi_f11_initialize(struct rmi_function_container *fc)
 			}
 			query_offset += rc;
 		}
+		
+#ifdef	F11_REPORTMODE_REDUCED	
+		rc  = rmi_f11_force_reportmode_reduced(fc);
+		if (rc < 0) 
+			dev_err(&fc->dev,
+				"Failed to set reduced report mode.\n");
+#endif			
 
 		rc = f11_allocate_control_regs(rmi_dev,
 				&f11->dev_query, &f11->sensors[i].sens_query,
@@ -1701,7 +1751,7 @@ static int rmi_f11_initialize(struct rmi_function_container *fc)
 
 	f11->rmi_dev = rmi_dev;
 
-	INIT_DELAYED_WORK(&f11->fcal_work,rmi_forc_cal_func);
+	INIT_DELAYED_WORK(&f11->fcal_work,rmi_force_cal_func);
 	
 #ifdef	VBUS_IRQ_EN
 	set_noise_mitigation_by_vbus(f11);
@@ -1754,6 +1804,16 @@ static int rmi_f11_saturation_capacitance(struct f11_data *data,u16 value)
 	if( ret < 0)		
 		dev_err(&rmi_dev->dev, "write error %d\n",ret);
 	
+	// Force Update
+	ret = rmi_read(rmi_dev,REG_F54_ANALOG_CMD00,buf);
+	if( ret < 0)		
+		dev_err(&rmi_dev->dev, "read error %d\n",ret);
+
+	buf[0] |= (1<<2);
+	ret = rmi_write(rmi_dev,REG_F54_ANALOG_CMD00,buf[0]);	
+	if( ret < 0)		
+		dev_err(&rmi_dev->dev, "write error %d\n",ret);
+	
 	return ret;
 }
 
@@ -1766,6 +1826,16 @@ static int rmi_f11_disable_noise_mitigation(struct f11_data *data,bool enable)
 	// Noise Mitigation General Control
 	val = !!enable;
 	ret = rmi_write(rmi_dev,REG_F54_ANALOG_CTRL20,val);	
+	if( ret < 0)		
+		dev_err(&rmi_dev->dev, "write error %d\n",ret);
+	
+	// Force Update
+	ret = rmi_read(rmi_dev,REG_F54_ANALOG_CMD00,&val);
+	if( ret < 0)		
+		dev_err(&rmi_dev->dev, "read error %d\n",ret);
+
+	val |= (1<<2);
+	ret = rmi_write(rmi_dev,REG_F54_ANALOG_CMD00,val);	
 	if( ret < 0)		
 		dev_err(&rmi_dev->dev, "write error %d\n",ret);
 	
@@ -1906,12 +1976,12 @@ static const struct attribute_group mxt_attr_group = {
 	.attrs = mxt_attrs,
 };
 
-static void rmi_forc_cal_func(struct work_struct *work)
+static void rmi_force_cal_func(struct work_struct *work)
 {	
 	struct f11_data * data =
 		container_of(work, struct f11_data, fcal_work.work);
 	
-	dev_info(&data->rmi_dev->dev, "rmi_forc_cal_func \n");
+	dev_info(&data->rmi_dev->dev, "fcal count %d\n",data->fcal_work_cnt);
 
 	if ( rmi_f11_getfingers(&data->sensors[0]) )
 	{
@@ -1919,7 +1989,6 @@ static void rmi_forc_cal_func(struct work_struct *work)
 		return;
 	}
 
-	dev_info(&data->rmi_dev->dev, "fcal count %d\n",data->fcal_work_cnt);
 
 	rmi_f11_force_calibration(data);
 
@@ -1930,7 +1999,7 @@ static void rmi_forc_cal_func(struct work_struct *work)
 	}
 }
 
-static void set_rmi_forc_cal_delaywork(struct f11_data *data,bool enable)
+static void set_rmi_force_cal_delaywork(struct f11_data *data,bool enable)
 {	
 	dev_dbg(&data->rmi_dev->dev, "set force calibration %d\n",enable);
 	
@@ -2235,8 +2304,17 @@ exit:
 #ifdef	VBUS_IRQ_EN
 	set_noise_mitigation_by_vbus(data);
 #endif
-	set_rmi_forc_cal_delaywork(data,true);
+	set_rmi_force_cal_delaywork(data,true);
 
+#ifdef F11_REPORTMODE_REDUCED	
+	if (!data->rezero_on_resume)
+	{
+		retval  = rmi_f11_force_reportmode_reduced(fc);
+		if (retval < 0)
+			dev_err(&fc->dev,
+				"Failed to set reduced report mode.\n");
+	}
+#endif			
 	return retval;
 }
 #endif /* RESUME_REZERO */
@@ -2248,7 +2326,7 @@ static int rmi_f11_suspund(struct rmi_function_container *fc)
 
 	dev_dbg(&fc->dev, "Suspend...\n");
 
-	set_rmi_forc_cal_delaywork(data,false);
+	set_rmi_force_cal_delaywork(data,false);
 	
 	return retval;
 }
@@ -2270,7 +2348,7 @@ static void rmi_f11_remove(struct rmi_function_container *fc)
 #ifdef	VBUS_IRQ_EN
 	disable_vbus_irq(fc);
 #endif
-	set_rmi_forc_cal_delaywork(f11,false);
+	set_rmi_force_cal_delaywork(f11,false);
 
 	rmi_f11_free_devices(fc);
 
@@ -2740,7 +2818,10 @@ static ssize_t f11_rezeroWait_show(struct device *dev,
 
 #endif
 /* Control sysfs files */
+show_store_union_struct_unsigned(dev_controls, ctrl0_9, reporting_mode)
 show_store_union_struct_unsigned(dev_controls, ctrl0_9, abs_pos_filt)
+show_store_union_struct_unsigned(dev_controls, ctrl0_9, delta_x_threshold)
+show_store_union_struct_unsigned(dev_controls, ctrl0_9, delta_y_threshold)
 show_store_union_struct_unsigned(dev_controls, ctrl29_30, z_touch_threshold)
 show_store_union_struct_unsigned(dev_controls, ctrl29_30, z_touch_hysteresis)
 module_init(rmi_f11_module_init);
