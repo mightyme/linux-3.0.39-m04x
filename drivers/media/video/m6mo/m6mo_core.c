@@ -29,7 +29,7 @@
 /* default setting registers */
 static struct m6mo_reg m6mo_default_regs[] = {
 	{I2C_8BIT, OUT_SELECT_REG, MIPI_IF},
-	//{I2C_8BIT, FSHD_EN_REG, FSHD_ON},
+	{I2C_8BIT, FSHD_EN_REG, FSHD_ON},
 	{I2C_8BIT, JPEG_RATIO_REG, 0x62},
 	{I2C_32BIT, IASTER_CLK_FOR_SENSOR_REG, 0x06ddd000}, /* 24MHZ clock */
 };
