@@ -297,7 +297,7 @@ static void max77665_work_func(struct work_struct *work)
 	enum cable_status_t cable_status = CABLE_TYPE_NONE;
 
 	mutex_lock(&charger->mutex_t);
-
+	
 	if (charger->chgin) {
 #ifndef CONFIG_MACH_M040
 		if (mx_is_usb_dock_insert()) {
@@ -670,14 +670,12 @@ static __devinit int max77665_init(struct max77665_charger *charger)
 		goto error;
 	}
 
-#ifndef CONFIG_MACH_M040
 	/* disable muic ctrl */
 	ret = max77665_write_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_00, 0x24);
 	if (unlikely(ret)) {
 		dev_err(charger->dev, "Failed to set MAX77665_CHG_REG_CHG_CNFG_00: %d\n", ret);
 		goto error;
 	}
-#endif
 	return 0;
 
 error:
