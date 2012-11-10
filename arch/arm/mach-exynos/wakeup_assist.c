@@ -17,6 +17,7 @@
 #define DEV_NAME "wakeup_assist"
 
 static int wakeup_assist_keycode[] = {
+ 	KEY_POWER,
  	KEY_HOME,
 	KEY_VOLUMEDOWN,
 	KEY_VOLUMEUP,
@@ -89,22 +90,27 @@ static inline int wakeup_assist_done(struct input_dev *input_dev)
 {
 	unsigned long mx_wake_typed = mx_get_wakeup_type();
 	unsigned long allow_wake_type = MX_USB_WAKE | MX_LOWBAT_WAKE |	\
-				 MX_KEY_HOME_WAKE | MX_KEY_POWER_WAKE ;
+				 MX_KEY_POWER_WAKE ;
 
 	if (mx_wake_typed & allow_wake_type) {
 		input_report_key(input_dev, wakeup_assist_keycode[0], 1);
 		input_sync(input_dev);
 		input_report_key(input_dev, wakeup_assist_keycode[0], 0);
 		input_sync(input_dev);
-	} else if (mx_wake_typed & MX_MINUS_KEY_WAKE) {
+	} else if (mx_wake_typed & MX_KEY_HOME_WAKE) {
 		input_report_key(input_dev, wakeup_assist_keycode[1], 1);
 		input_sync(input_dev);
 		input_report_key(input_dev, wakeup_assist_keycode[1], 0);
 		input_sync(input_dev);
-	} else if (mx_wake_typed & MX_PLUS_KEY_WAKE) {
+	} else if (mx_wake_typed & MX_MINUS_KEY_WAKE) {
 		input_report_key(input_dev, wakeup_assist_keycode[2], 1);
 		input_sync(input_dev);
 		input_report_key(input_dev, wakeup_assist_keycode[2], 0);
+		input_sync(input_dev);
+	} else if (mx_wake_typed & MX_PLUS_KEY_WAKE) {
+		input_report_key(input_dev, wakeup_assist_keycode[3], 1);
+		input_sync(input_dev);
+		input_report_key(input_dev, wakeup_assist_keycode[3], 0);
 		input_sync(input_dev);
 	}
 
@@ -150,6 +156,7 @@ static int __devinit wakeup_assist_probe(struct platform_device *pdev)
 	__set_bit(wakeup_assist_keycode[0], input_dev->keybit);
 	__set_bit(wakeup_assist_keycode[1], input_dev->keybit);
 	__set_bit(wakeup_assist_keycode[2], input_dev->keybit);
+	__set_bit(wakeup_assist_keycode[3], input_dev->keybit);
 	__clear_bit(KEY_RESERVED, input_dev->keybit);
 
 	error = input_register_device(input_dev);
