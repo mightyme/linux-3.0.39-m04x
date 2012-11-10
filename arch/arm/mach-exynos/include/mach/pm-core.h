@@ -166,6 +166,9 @@ static inline void m040_set_wakeup_type(mx_int_type group, int mask)
 		if (mask & (1 << 4)) {
 			mx_set_wakeup_type(MX_WIFI_WAKE);//
 		}	
+		if (mask & (1 << 7)) {
+			mx_set_wakeup_type(MX_MIC_WAKE);//
+		}	
 		break;
 	case EINT_GROUP2:
 		if (mask & (1 << 1)) {

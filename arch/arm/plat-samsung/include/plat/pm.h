@@ -52,6 +52,7 @@ typedef enum {
 	MX_USB_HOST_WAKE	= 1<<14,	
 	MX_MINUS_KEY_WAKE	= 1<<15,	
 	MX_PLUS_KEY_WAKE	= 1<<16,
+	MX_MIC_WAKE		= 1<<17,
 } wake_type_t;
 
 struct wakeup_assist_des {
