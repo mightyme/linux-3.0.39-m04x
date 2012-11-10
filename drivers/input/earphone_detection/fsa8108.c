@@ -216,7 +216,13 @@
 #define KEY_HEADSETHOOK                       226 
 #define KEY_VOLUME_UP                         115 
 #define KEY_VOLUME_DOWN                       114 
+#define KEY_EVENT_RELEASE                     0
+#define KEY_EVENT_PRESS						  1
 /***********************************************/
+#define __FSA8108_DEBUG__ 				0
+#define EARPHONE_ADC_CAHNNEL 			3
+#define MIC_DETECT_NOPRESSED			200 //adc value when no key press
+
 struct fsa8108_info {
 	struct i2c_client		*client;	
 	struct mutex		mutex;
@@ -227,6 +233,7 @@ struct fsa8108_info {
 	struct s3c_adc_client	*adc_client;
 	struct work_struct    adc_read_work;
 	struct timer_list detect_mic_adc_timer;	
+	long jack_plug_time;
 };
 
 static struct switch_dev switch_jack_detection = {
@@ -284,20 +291,12 @@ static void fsa8108_set_value(u8 reg, u8 reg_bit, u8 reg_shift, u8 val)
 
 	fsa8108_write_reg(reg, tmp);
 }
-/*
-static u8 fsa8108_get_value(u8 reg, u8 reg_bit, u8 reg_shift)
-{
-	u8 tmp,ret;
 
-	tmp = (u8)fsa8108_read_reg(reg);
-	ret = (tmp & reg_bit) >> reg_shift;
-
-	return ret;
-}
-*/
+#if __FSA8108_DEBUG__
 static ssize_t fsa8108_show(struct device *dev,
                                       struct device_attribute *attr,
                                       char *buf);
+
 static ssize_t fsa8108_store(struct device *dev, 
 			     struct device_attribute *attr,
 			     const char *buf, size_t count);
@@ -339,7 +338,8 @@ static ssize_t fsa8108_show(struct device *dev,
 				pr_info("%s: R=0x%.2X D=0x%.2X \n", __func__, reg,value);
 			}
 		}
-		i += scnprintf(buf+i, PAGE_SIZE-i, "0x%.2X 0x%.2X\n",fsa8108_read_reg(2),fsa8108_read_reg(3));
+		i += scnprintf(buf+i, PAGE_SIZE-i, "0x%.2X 0x%.2X\n",fsa8108_read_reg(2),
+			fsa8108_read_reg(3));
 		break;
 	default:
 		i += scnprintf(buf+i, PAGE_SIZE-i, "Error\n");
@@ -408,8 +408,10 @@ static void fsa8108_destroy_atts(struct device * dev)
 	for (i = 0; i < ARRAY_SIZE(fsa8108_attrs); i++)
 		device_remove_file(dev, &fsa8108_attrs[i]);
 }
-
-
+#endif
+/*
+* mask key interrupts when 3pole plug in
+*/
 static void fsa8108_mask_int(int onoff)
 {
 	if(onoff){
@@ -421,13 +423,14 @@ static void fsa8108_mask_int(int onoff)
 	}
 }
 
-
 void fsa8108_MP3_mode(int onoff)
 {
     if(onoff)
-        fsa8108_set_value(FSA8108_REG_CON, FSA8108_MP3_MODE, FSA8108_MP3_MODE_SHIFT, CONTROL_ON);
+        fsa8108_set_value(FSA8108_REG_CON, FSA8108_MP3_MODE, 
+        	FSA8108_MP3_MODE_SHIFT, CONTROL_ON);
 	else
-		fsa8108_set_value(FSA8108_REG_CON, FSA8108_MP3_MODE, FSA8108_MP3_MODE_SHIFT, CONTROL_OFF);
+		fsa8108_set_value(FSA8108_REG_CON, FSA8108_MP3_MODE, 
+			FSA8108_MP3_MODE_SHIFT, CONTROL_OFF);
 		
 }
 EXPORT_SYMBOL(fsa8108_MP3_mode);
@@ -435,26 +438,32 @@ EXPORT_SYMBOL(fsa8108_MP3_mode);
 void fsa8108_LDO_output(int onoff)
 {
     if(onoff)
-        fsa8108_set_value(FSA8108_REG_CON, FSA8108_LDO_OUT, FSA8108_LDO_OUT_SHIFT, CONTROL_ON);
+        fsa8108_set_value(FSA8108_REG_CON, FSA8108_LDO_OUT, 
+        	FSA8108_LDO_OUT_SHIFT, CONTROL_ON);
 	else
-		fsa8108_set_value(FSA8108_REG_CON, FSA8108_LDO_OUT, FSA8108_LDO_OUT_SHIFT, CONTROL_OFF);
+		fsa8108_set_value(FSA8108_REG_CON, FSA8108_LDO_OUT, 
+			FSA8108_LDO_OUT_SHIFT, CONTROL_OFF);
 
 }
 EXPORT_SYMBOL(fsa8108_LDO_output);
 
-#define EARPHONE_ADC_CAHNNEL 			3
-#define MIC_DETECT_NOPRESSED			200
+static void fsa8108_report_key_event(int key_type,int updown)
+{
+	input_report_key(g_fsa8108_info->input, key_type, updown);
+	input_sync(g_fsa8108_info->input);
+	switch_set_state(&switch_sendend,updown);
+}
 
 static void fsa8108_adc_read_func(struct work_struct *work)
 {
 	struct fsa8108_info *info =
 		container_of(work, struct fsa8108_info, adc_read_work);	
 
-	if (s3c_adc_read(info->adc_client,  EARPHONE_ADC_CAHNNEL) > MIC_DETECT_NOPRESSED) {
-		pr_info("%s OKOKOKOKOOOK__LONG RELEASED\n",__func__);
-		input_report_key(info->input, KEY_HEADSETHOOK, 0);
-		input_sync(info->input);
-		switch_set_state(&switch_sendend,0);
+	if (s3c_adc_read(info->adc_client,  EARPHONE_ADC_CAHNNEL) > MIC_DETECT_NOPRESSED){
+		pr_info("%s OKOKOKOKOOOK__LONG RELEASED\n",__func__);		
+		
+		fsa8108_report_key_event(KEY_HEADSETHOOK, KEY_EVENT_RELEASE);
+
 		pr_info("[fsa8108] timer delete\n");
 		del_timer(&info->detect_mic_adc_timer);
 	}
@@ -464,23 +473,33 @@ static void fsa8108_adc_timer_func(unsigned long data){
 	struct fsa8108_info* info = (struct fsa8108_info*)data;
 
 	schedule_work(&info->adc_read_work);
+	
+#if __FSA8108_DEBUG__
 	pr_info("[fsa8108] timer triggered\n");
+#endif
 	mod_timer(&info->detect_mic_adc_timer, jiffies + msecs_to_jiffies(40));	
 }
+
 static void process_int(int intr_type,struct fsa8108_info* info)
 {
 	unsigned char val1, val2;
+#if __FSA8108_DEBUG__
 	int reg,value;
+#endif	
+
 	val1 = intr_type & 0xff;
 	val2 = intr_type >> 8;	
+	
 	pr_info("\nvalue = 0x%.4X,val1 = 0x%x,val2 = 0x%x\n",intr_type, val1, val2);
-	/*
+	
+#if __FSA8108_DEBUG__
 	for(reg = FSA8108_REG_DEVICE_ID;reg <= FSA8108_REG_RESET;reg++)
 	{
 		value = fsa8108_read_reg(reg);
 		pr_info("%s: R=0x%.2X D=0x%.2X \n", __func__, reg,value);
 	}
-	*/
+#endif
+
 	if(val1)
 	{
 	    switch(val1){
@@ -489,47 +508,49 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				info->cur_jack_type = FSA_HEADSET_3POLE;
 				fsa8108_mask_int(1);
 				msleep(1000);
+				
 				if(info->cur_jack_type != FSA_HEADSET_3POLE)
 					break;
 				fsa8108_LDO_output(0);
 				switch_set_state(&switch_jack_detection, FSA_HEADSET_3POLE);
 				break;
+				
 			case FSA8108_4POLE_CONNECT:
 				pr_err("%s 4pole connect",__func__);
-				info->cur_jack_type = FSA_HEADSET_4POLE;				
-				switch_set_state(&switch_jack_detection, FSA_HEADSET_4POLE);
-				msleep(2000);/*deglitch*/ 
-				i2c_smbus_read_word_data(info->client, FSA8108_REG_INT_1);/*clear pending interrupts*/
+				info->cur_jack_type = FSA_HEADSET_4POLE;			
+				switch_set_state(&switch_jack_detection, FSA_HEADSET_4POLE);				
 				fsa8108_mask_int(0);/*recover key interrupts after 4pole connect*/
+				info->jack_plug_time = jiffies;
 				break;
+				
 			case FSA8108_PLUG_DISCONNECT:
 				pr_err("%s plug disconnect",__func__);
 				info->cur_jack_type = FSA_JACK_NO_DEVICE;
 				fsa8108_mask_int(1);
 				fsa8108_LDO_output(1);
 				switch_set_state(&switch_jack_detection, FSA_JACK_NO_DEVICE);				
-				break;			
+				break;		
+				
 			case FSA8108_SEND_END_LONG:  //TBD
-				pr_info("%s OKOKOKOKOOOK__LONG PRESSED\n",__func__);
-				input_report_key(info->input, KEY_HEADSETHOOK, 1);
-				input_sync(info->input);
-				switch_set_state(&switch_sendend,1);
-
-				init_timer(&info->detect_mic_adc_timer);
-				info->detect_mic_adc_timer.function = fsa8108_adc_timer_func;
-				info->detect_mic_adc_timer.data = (unsigned long)info;
-				info->detect_mic_adc_timer.expires = jiffies + msecs_to_jiffies(40);
+				if(jiffies - info->jack_plug_time < msecs_to_jiffies(2000))
+					break;/*deglitch for plug-in triggered key press event*/
+				
+				pr_info("%s OKOKOKOKOOOK__LONG PRESSED\n",__func__);				
+				fsa8108_report_key_event(KEY_HEADSETHOOK,KEY_EVENT_PRESS);
+				
 				add_timer(&info->detect_mic_adc_timer);
 				break;	
+				
 			case FSA8108_SEND_END_PRESS:
+				if(jiffies - info->jack_plug_time < msecs_to_jiffies(2000))
+					break;
+				
 				pr_info("%s OKOKOKOKOOOK PRESSED\n",__func__);
-				input_report_key(info->input, KEY_HEADSETHOOK, 1);
-				input_sync(info->input);
-				switch_set_state(&switch_sendend,1);
+				
+				fsa8108_report_key_event(KEY_HEADSETHOOK,KEY_EVENT_PRESS);
 				msleep(20);
-				input_report_key(info->input, KEY_HEADSETHOOK, 0);
-				input_sync(info->input);
-				switch_set_state(&switch_sendend,0);
+				fsa8108_report_key_event(KEY_HEADSETHOOK,KEY_EVENT_RELEASE);
+				
 				break;
 			default:
 				break;
@@ -539,49 +560,57 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 	{
 	    switch(val2){
 			case FSA8108_VOL_UP_LONG_P: 
-				pr_info("%s volumn ++++++LONG_PRESSED\n",__func__);
-				input_report_key(info->input, KEY_VOLUME_UP, 1);
-				input_sync(info->input);
-				switch_set_state(&switch_sendend,1);
+				if(jiffies - info->jack_plug_time < msecs_to_jiffies(2000))
+					break;
+				
+				pr_info("%s volumn ++++++LONG_PRESSED\n",__func__);				
+				fsa8108_report_key_event(KEY_VOLUME_UP,KEY_EVENT_PRESS);
 				break;
+				
 			case FSA8108_VOL_UP_LONG_R: 
+				if(jiffies - info->jack_plug_time < msecs_to_jiffies(2000))
+					break;
+				
 				pr_info("%s volumn ++++++LONG_RELEASED\n",__func__);
-				input_report_key(info->input, KEY_VOLUME_UP, 0);
-				input_sync(info->input);
-				switch_set_state(&switch_sendend,0);	
+				fsa8108_report_key_event(KEY_VOLUME_UP,KEY_EVENT_RELEASE);
 				break;
-			case FSA8108_VOL_DOWN_LONG_P: 
-				pr_info("%s volumn ------LONG_PRESSED\n",__func__);
-				input_report_key(info->input, KEY_VOLUME_DOWN, 1);
-				input_sync(info->input);
-				switch_set_state(&switch_sendend,1);
+				
+			case FSA8108_VOL_DOWN_LONG_P:
+				if(jiffies - info->jack_plug_time < msecs_to_jiffies(2000))
+					break;
+				
+				pr_info("%s volumn ------LONG_PRESSED\n",__func__);				
+				fsa8108_report_key_event(KEY_VOLUME_DOWN,KEY_EVENT_PRESS);
 				break;
+				
 			case FSA8108_VOL_DOWN_LOGN_R: 
+				if(jiffies - info->jack_plug_time < msecs_to_jiffies(2000))
+					break;
+				
 				pr_err("%s volumn ------LONG_RELEASE\n",__func__);
-				input_report_key(info->input, KEY_VOLUME_DOWN, 0);
-				input_sync(info->input);
-				switch_set_state(&switch_sendend,0);
+				fsa8108_report_key_event(KEY_VOLUME_DOWN,KEY_EVENT_RELEASE);
 				break;	
+				
 			case FSA8108_VOL_UP:
+				if(jiffies - info->jack_plug_time < msecs_to_jiffies(2000))
+					break;
+				
 				pr_info("%s volumn ++++++ PRESSED\n",__func__);
-				input_report_key(info->input, KEY_VOLUME_UP, 1);
-				input_sync(info->input);
-				switch_set_state(&switch_sendend,1);
+				fsa8108_report_key_event(KEY_VOLUME_UP,KEY_EVENT_PRESS);
 				msleep(20);
-				input_report_key(info->input, KEY_VOLUME_UP, 0);
-				input_sync(info->input);
-				switch_set_state(&switch_sendend,0);
+				fsa8108_report_key_event(KEY_VOLUME_UP,KEY_EVENT_RELEASE);
 				break;
+				
 			case FSA8108_VOL_DOWN:
+				if(jiffies - info->jack_plug_time < msecs_to_jiffies(2000))
+					break;
+				
 				pr_info("%s volumn ------ PRESSED\n",__func__);
-				input_report_key(info->input, KEY_VOLUME_DOWN, 1);
-				input_sync(info->input);
-				switch_set_state(&switch_sendend,1);
+				fsa8108_report_key_event(KEY_VOLUME_DOWN,KEY_EVENT_PRESS);
 				msleep(20);
-				input_report_key(info->input, KEY_VOLUME_DOWN, 0);
-				input_sync(info->input);
-				switch_set_state(&switch_sendend,0);
+				fsa8108_report_key_event(KEY_VOLUME_DOWN,KEY_EVENT_RELEASE);
 				break;
+				
 			default:
 				break;
 	    }	
@@ -596,11 +625,11 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 static irqreturn_t fsa8108_irq_thread(int irq, void *handle)
 {
 	struct fsa8108_info *info = (struct fsa8108_info *)handle;
+	
 	pr_info("[fsa8108] irq triggered\n");
 	schedule_work(&info->det_work);
 
 	return IRQ_HANDLED;
-
 }
 
 static void fsa8081_jack_det_work_func(struct work_struct *work)
@@ -617,42 +646,15 @@ static void fsa8081_jack_det_work_func(struct work_struct *work)
 }
 static void fsa8108_reset_work(struct work_struct *work)
 {	
-	fsa8108_write_reg(FSA8108_REG_RESET,0x01);
+	fsa8108_write_reg(FSA8108_REG_RESET,1);
 	msleep(100);
-	fsa8108_write_reg(FSA8108_REG_RESET,0x00);
-	/*** Set Timing parameters and Global Multiplier setting ***/
-	//fsa8108_set_value(FSA8108_REG_GLOBAL_MUL,0x07,0,0x00);	
-	fsa8108_write_reg(FSA8108_REG_KEY_PRS_T,0);	
-	/*disable double click function*/
-	fsa8108_write_reg(FSA8108_REG_CON,0x68);	
+	fsa8108_write_reg(FSA8108_REG_RESET,0);
+	
+	/*** Set Timing parameters shorten long press time***/		
+	fsa8108_write_reg(FSA8108_REG_KEY_PRS_T,0);			
 	/*span insert time*/
-	fsa8108_write_reg(FSA8108_REG_JDET_T,0xF2);
+	//fsa8108_write_reg(FSA8108_REG_JDET_T,0xF2);
 	fsa8108_mask_int(1);/*mask key interrupts before plug in*/
-}
-
-static void fsa8108_initialization(struct fsa8108_info *info)
-{
-	struct i2c_client *client = info->client;
-	int int_type=0;	
-	
-	/*** Set Comparator Thresholds setting Send/End***/
-	fsa8108_set_value(FSA8108_REG_COMPARATOR_12, FSA8108_NO_SE_KEY_CMP,
-	FSA8108_NO_SE_KEY_CMP_SHIFT, NO_SE_170);
-	fsa8108_set_value(FSA8108_REG_COMPARATOR_12, FSA8108_NC_SE_KEY_CMP,
-	FSA8108_NC_SE_KEY_CMP_SHIFT, NC_SE_2300);
-    
-	/*** Set Comparator Thresholds setting for volum up***/
-	
-	//fsa8108_set_value(FSA8108_REG_COMPARATOR_34, FSA8108_VOL_UP_CMP, 
-	//	FSA8108_VOL_UP_CMP_SHIFT , 0x06);
-	
-	
-	/*** Set Comparator Thresholds setting for volum down***/
-	fsa8108_set_value(FSA8108_REG_COMPARATOR_34, FSA8108_VOL_DOWN_CMP, 
-		FSA8108_VOL_DOWN__CMP_SHIFT , 0x0F);		
-	int_type = i2c_smbus_read_word_data(client, FSA8108_REG_INT_1);		
-	process_int(int_type,info);	
-
 }
 
 static int fsa8108_i2c_probe(
@@ -666,21 +668,23 @@ static int fsa8108_i2c_probe(
 	int device_id = -1;	
 
 	pr_info("[fsa8108]earphone detection fsa8108_probe begin\n");	
+	
 	info = kzalloc(sizeof(struct fsa8108_info), GFP_KERNEL);
 	if(info == NULL){
 		pr_info("%s  allocate memory for info failed\n",__func__);
 	}
+	
 	g_fsa8108_info = info;
 	info->client = client;	
 	i2c_set_clientdata(client, info);
+	
 	mutex_init(&info->mutex);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		pr_err("%s: i2c check functionality error\n", __func__);
 		ret = -ENODEV;
 		goto check_funcionality_failed;
-	}
-	
+	}	
 	device_id = fsa8108_read_reg(FSA8108_REG_DEVICE_ID);
 	pr_info("%s: FSADEVICE_ID =%d \n",__func__,device_id);
 	if(device_id < 0){
@@ -726,7 +730,7 @@ static int fsa8108_i2c_probe(
 	//fsa8108_reset();
 	schedule_work(&info->reset_work);	
 
-	fsa8108_initialization(info);
+	process_int(i2c_smbus_read_word_data(client, FSA8108_REG_INT_1),info);
 
 	info->adc_client = s3c_adc_register(g_plat_dev, NULL, NULL, 0);
 	if (IS_ERR(info->adc_client)) {
@@ -755,8 +759,14 @@ static int fsa8108_i2c_probe(
 		dev_err(&client->dev,
 			"failed to enable wakeup src %d\n", ret);
 
+	init_timer(&info->detect_mic_adc_timer);
+	info->detect_mic_adc_timer.function = fsa8108_adc_timer_func;
+	info->detect_mic_adc_timer.data = (unsigned long)info;
+	info->detect_mic_adc_timer.expires = jiffies + msecs_to_jiffies(40);
+				
+#if __FSA8108_DEBUG__
 	fsa8108_create_attrs(&client->dev);
-	
+#endif	
 	return ret;
 
 err_switch_dev_register:
@@ -777,9 +787,9 @@ check_device_failed:
 static int fsa8108_i2c_remove(struct i2c_client *client)
 {
     struct fsa8108_info *info = i2c_get_clientdata(client);
-
+#if __FSA8108_DEBUG__
 	fsa8108_destroy_atts(&client->dev);	
-
+#endif
 	if (client->irq) {
 		disable_irq_wake(client->irq);
 		free_irq(client->irq, info);
