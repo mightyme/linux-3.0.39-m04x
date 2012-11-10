@@ -16,7 +16,7 @@
 #include <linux/wakelock.h>
 
 
-#define FW_VERSION     				0x10
+#define FW_VERSION     				0x11
 #define FLASH_ADDR_FW_VERSION   	0x3F
 #define MX_QM_DEVICE_ID     			'M'
 
@@ -55,9 +55,9 @@ enum mx_qm_reg {
 	QM_REG_STATE    	= 0xA4,
 	QM_REG_POSITION		= 0xA5,
 	QM_REG_DBGINFO		= 0xA6,
-	QM_REG_SIG		= 0xA7,
-	QM_REG_DELTA		= 0xA8,
-	QM_REG_KEY		= 0xA9,
+	
+	QM_REG_KEY			= 0xA9,
+	QM_REG_WAKEUP_CNT	= 0xAA,
         
 	QM_REG_LEDVERSION	= 0xF0,
 	

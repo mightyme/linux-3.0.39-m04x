@@ -578,8 +578,6 @@ exit:
 	return ret;
 }
 
-
-
 static ssize_t qm_show_property(struct device *dev,
                                       struct device_attribute *attr,
                                       char *buf);
@@ -603,6 +601,8 @@ static struct device_attribute qm_attrs[] = {
     QM_ATTR(version),
     QM_ATTR(led),
     QM_ATTR(update),
+    QM_ATTR(key_wakeup_count),
+    QM_ATTR(irq),
 };
 enum {
 	QM_STATUS,
@@ -613,6 +613,8 @@ enum {
 	QM_FWR_VER,
 	QM_LED,
 	QM_UPD,
+	QM_CNT,
+	QM_IRQ,
 };
 static ssize_t qm_show_property(struct device *dev,
                                       struct device_attribute *attr,
@@ -636,13 +638,11 @@ static ssize_t qm_show_property(struct device *dev,
 			u16 info[10]; 
 			memset(info,0,sizeof(info));
 			mx_qm_readdata(qm->client, QM_REG_DBGINFO,sizeof(info),info);
-			pr_info("ref = %.3d  %.3d  %.3d  %.3d  \n", info[0],info[1],info[2],info[3]);
-			pr_info("sig = %.3d  %.3d  %.3d  %.3d  \n", info[4],info[5],info[6],info[7]);
-			pr_info("delta = %.d\n", info[8]);
-			pr_info("pos = %.d\n", info[9] & 0xFF);
-			pr_info("dect = %.d\n", (info[9] >>8)& 0xFF);
-			
-			i += scnprintf(buf+i, PAGE_SIZE-i, "%d\n",mx_qm_readbyte(qm->client,QM_REG_POSITION));
+			i += scnprintf(buf+i, PAGE_SIZE-i, 
+				"ref = %.3d  %.3d  %.3d  %.3d  \nsig = %.3d  %.3d  %.3d  %.3d  \ndelta = %d \npos = %d \ndect = %d\n",
+				info[0],info[1],info[2],info[3],
+				info[4],info[5],info[6],info[7],
+				 info[8],(info[9] & 0xFF),((info[9] >>8)& 0xFF));
 		}
 		break;
 	case QM_STATUS:
@@ -660,7 +660,8 @@ static ssize_t qm_show_property(struct device *dev,
 		}
 		break;
 	case QM_FWR_VER:
-		i += scnprintf(buf+i, PAGE_SIZE-i, "ID = %d ,Ver.%d\n",mx_qm_readbyte(qm->client,QM_REG_DEVICE_ID),mx_qm_readbyte(qm->client,QM_REG_VERSION));
+		i += scnprintf(buf+i, PAGE_SIZE-i, "ID = %d ,Ver.%d\n",mx_qm_readbyte(qm->client,QM_REG_DEVICE_ID),
+			mx_qm_readbyte(qm->client,QM_REG_VERSION));
 		break;
 	case QM_RESET:
 		i += scnprintf(buf+i, PAGE_SIZE-i, "\n");
@@ -675,6 +676,12 @@ static ssize_t qm_show_property(struct device *dev,
 	case QM_UPD:
 		mx_qm_update(qm);
 		i += scnprintf(buf+i, PAGE_SIZE-i, "\n");
+		break;
+	case QM_CNT:
+		i += scnprintf(buf+i, PAGE_SIZE-i, "%d\n",mx_qm_readbyte(qm->client,QM_REG_WAKEUP_CNT));
+		break;
+	case QM_IRQ:
+		i += scnprintf(buf+i, PAGE_SIZE-i, "Error\n");
 		break;
 	default:
 		i += scnprintf(buf+i, PAGE_SIZE-i, "Error\n");
@@ -782,6 +789,19 @@ static ssize_t qm_store(struct device *dev,
 		break;
 	case QM_UPD:
 		mx_qm_update(qm);
+		ret = count;
+		break;
+	case QM_CNT:
+		ret = count;
+		break;
+	case QM_IRQ:
+		if (sscanf(buf, "%x\n", &value) == 1) {	
+			if( value )
+				enable_irq(qm->irq);
+			else
+				disable_irq(qm->irq);
+			pr_info("%s irq. \n", value?"enable":"disable");
+		}
 		ret = count;
 		break;
 	default:

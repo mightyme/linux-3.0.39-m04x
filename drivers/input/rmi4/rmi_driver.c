@@ -50,7 +50,7 @@
 #define __mdelay(t)	msleep(t)
 #endif
 
-#define	RESUME_RESET
+//#define	RESUME_RESET
 
 #define REGISTER_DEBUG 0
 

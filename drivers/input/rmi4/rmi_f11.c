@@ -1482,11 +1482,11 @@ static void set_noise_mitigation_by_vbus(struct f11_data *data)
 	dev_dbg(&rmi_dev->dev,  "VBUS gpio, value: %d.\n",value);
 	
 	if ( value ) { // USB Dectected
-		rmi_f11_disable_noise_mitigation(f11,false);		
+		//rmi_f11_disable_noise_mitigation(f11,false);		
 		rmi_f11_saturation_capacitance(f11,223);	
 	}
 	else	{
-		rmi_f11_disable_noise_mitigation(f11,true);	
+		//rmi_f11_disable_noise_mitigation(f11,true);	
 		rmi_f11_saturation_capacitance(f11,188);
 	}	
 }
@@ -1620,8 +1620,8 @@ static int rmi_f11_force_reportmode_reduced(struct rmi_function_container *fc)
 	u8 val,deltaxy[2];
 	int rc = 0;
 
-	deltaxy[0] = 2;
-	deltaxy[1] = 2;
+	deltaxy[0] = 1;
+	deltaxy[1] = 1;
 	
 	control_base_addr = fc->fd.control_base_addr;
 
@@ -1673,8 +1673,8 @@ static int rmi_f11_initialize(struct rmi_function_container *fc)
 
 	fc->data = f11;
 #if	RESUME_REZERO
-	//f11->rezero_on_resume = true;
-	f11->rezero_on_resume = false;// Send a reset to the sensor,so the rezero is not used.
+	f11->rezero_on_resume = true;
+	//f11->rezero_on_resume = false;// Send a reset to the sensor,so the rezero is not used.
 	f11->rezero_wait_ms = DEFAULT_REZERO_WAIT_MS;
 #endif
 	query_base_addr = fc->fd.query_base_addr;
