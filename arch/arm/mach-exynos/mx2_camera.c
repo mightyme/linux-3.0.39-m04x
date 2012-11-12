@@ -271,7 +271,8 @@ static int m6mo_set_sensor_power(int cam_id, bool enable)
 exit_regulator:
 	regulator_bulk_free(num_consumers, supplies);
 
-	msleep(10);
+	pr_info("%s(), Sleep for 30ms\n", __func__);
+	msleep(30);
 
 	return ret;
 }

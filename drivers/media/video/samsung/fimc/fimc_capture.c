@@ -2081,8 +2081,10 @@ int fimc_s_ctrl_capture(void *fh, struct v4l2_control *c)
 		fimc_is_set_zoom(ctrl, c);
 		break;
 	case V4L2_CID_CAMERA_RESET:
-		ctrl->cam->cam_power(0);
-		ctrl->cam->cam_power(1);
+		if (ctrl->cam->cam_power) {
+			ctrl->cam->cam_power(0);
+			ctrl->cam->cam_power(1);
+		}
 		if (fimc_cam_use)
 			ret = v4l2_subdev_call(ctrl->cam->sd, core, init, 0);
 		break;
