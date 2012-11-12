@@ -177,22 +177,22 @@ static int get_ip_packet_sz(struct io_device *iod, struct sk_buff *skb)
 	pkt_sz = ntohs(rx_ip_hdr.tot_len);
 	switch(rx_ip_hdr.protocol) {
 	case IPPROTO_IP:
-		pr_debug("IP dummy packet, sz:%d", pkt_sz);
+		MIF_DEBUG("IP dummy packet, sz:%d", pkt_sz);
 		break;
 	case IPPROTO_ICMP:
-		pr_debug("IP ICMP packet, sz:%d", pkt_sz);
+		MIF_DEBUG("IP ICMP packet, sz:%d", pkt_sz);
 		break;
 	case IPPROTO_IGMP:
-		pr_debug("IP IGMP packet, sz:%d", pkt_sz);
+		MIF_DEBUG("IP IGMP packet, sz:%d", pkt_sz);
 		break;
 	case IPPROTO_IPIP:
-		pr_debug("IP tunnel packet, sz:%d", pkt_sz);
+		MIF_DEBUG("IP tunnel packet, sz:%d", pkt_sz);
 		break;
 	case IPPROTO_TCP:
-		pr_debug("IP TCP packet, sz:%d", pkt_sz);
+		MIF_DEBUG("IP TCP packet, sz:%d", pkt_sz);
 		break;
 	case IPPROTO_UDP:
-		pr_debug("IP UDP packet, sz:%d", pkt_sz);
+		MIF_DEBUG("IP UDP packet, sz:%d", pkt_sz);
 		break;
 	default:
 		break;
@@ -279,9 +279,9 @@ static void hsic_net_data_handler(struct io_device *iod)
 		if (iod->atdebug)
 			iod->atdebugfunc(iod, skb->data, skb->len);
 		skb_reset_mac_header(skb);
-		netif_rx(skb);
-		vnet->stats.rx_packets++;
+		vnet->stats.rx_packets ++;
 		vnet->stats.rx_bytes += vnet->pkt_sz;
+		netif_rx(skb);
 		pr_debug("%s rx size=%d", __func__, vnet->pkt_sz);
 	} while(skb);
 
@@ -408,8 +408,8 @@ static int vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 		ret = NETDEV_TX_BUSY;
 	} else {
 		if(is_ip_packet) {
-			ndev->stats.tx_packets++;
-			ndev->stats.tx_bytes += data_len;
+			vnet->stats.tx_packets ++;
+			vnet->stats.tx_bytes += data_len;
 		}
 	}
 	ret = NETDEV_TX_OK;

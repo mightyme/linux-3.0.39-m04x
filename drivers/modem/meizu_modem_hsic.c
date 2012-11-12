@@ -229,7 +229,6 @@ static void usb_rx_retry_work(struct work_struct *work)
 	usb_rx_submit(usb_ld, pipe_data, GFP_ATOMIC);
 }
 
-
 static void usb_rx_complete(struct urb *urb)
 {
 	struct if_usb_devdata *pipe_data = urb->context;
