@@ -654,7 +654,7 @@ int meizu_ipc_init_io_device(struct io_device *iod)
 				iod->atdebug = 255;
 		else
 			iod->atdebug = 0;
-		iod->send_delay = 20;
+		iod->send_delay = 5000;
 		iod->ndev = alloc_netdev(sizeof(struct vnet), iod->name,
 			vnet_setup);
 		if (!iod->ndev) {
