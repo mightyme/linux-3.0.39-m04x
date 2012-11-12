@@ -190,7 +190,7 @@ static int lcd_init(struct mipi_dsim_lcd_device *mipi_dev)
 	CHECK_PANEL_RET(lcd_panel_sleep_out(lcd));
 	CHECK_PANEL_RET(lcd_panel_init_code(lcd));
 	CHECK_PANEL_RET(lcd_panel_display_on(lcd));
-	CHECK_PANEL_RET(lcd_panel_cabc_seq(lcd,true));
+	CHECK_PANEL_RET(lcd_panel_cabc_seq(lcd, false));
 	CHECK_PANEL_RET(lcd_panel_cabc_gradient(lcd));
 	CHECK_PANEL_RET(lcd_panel_set_ce_mode(lcd));
 

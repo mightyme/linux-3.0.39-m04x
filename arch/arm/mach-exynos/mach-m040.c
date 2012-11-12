@@ -397,7 +397,7 @@ static struct i2c_board_info __initdata i2c_devs4[] = {
 
 #if defined(CONFIG_LEDS_LM3530)
 static struct lm3530_platform_data lm3530_pd = {
-	.mode = LM3530_BL_MODE_PWM_MAN,
+	.mode = LM3530_BL_MODE_MANUAL,
 	.als_input_mode = LM3530_INPUT_AVRG,
 	.max_current = 0x4,
 	.pwm_pol_hi = false,
