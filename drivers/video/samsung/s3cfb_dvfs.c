@@ -103,20 +103,22 @@ static int lcd_dvfs_notify(struct notifier_block *nb,
 		struct s3cfb_dvfs_info *dvfsdev =
 			list_entry(nb, struct s3cfb_dvfs_info, dvfs_nb);
 		struct s3cfb_global *fbdev = dvfsdev->fbdev;
-#ifdef CONFIG_EXYNOS_DEV_PD
-		if (fbdev->system_state == POWER_OFF)
-			return NOTIFY_OK;
-		pm_runtime_get_sync(fbdev->dev);
-#endif
+
 		if(!dvfsdev->dynamic_freq_disable){
+#ifdef CONFIG_EXYNOS_DEV_PD
+			if (fbdev->system_state == POWER_OFF)
+				return NOTIFY_OK;
+			pm_runtime_get_sync(fbdev->dev);
+#endif
+
 			if (delayed_work_pending(&dvfsdev->dvfs_work))
 				cancel_delayed_work(&dvfsdev->dvfs_work);
 			queue_delayed_work(dvfsdev->fimd_dvfs, &dvfsdev->dvfs_work, HZ);
-		}
-		s3cfb_frame_adjust(fbdev, FB_DYNAMIC_HIGH_FREQ);
+			s3cfb_frame_adjust(fbdev, FB_DYNAMIC_HIGH_FREQ);
 #ifdef CONFIG_EXYNOS_DEV_PD
-		pm_runtime_put(fbdev->dev);
+			pm_runtime_put(fbdev->dev);
 #endif
+		}
 		break;
 	}
 	default:
@@ -180,7 +182,7 @@ int s3cfb_dvfs_init(struct s3cfb_global *fbdev)
 #endif
 #endif
 	s3cfb_dvfs->fbdev = fbdev;
-	s3cfb_dvfs->dynamic_freq_disable = 0;
+	s3cfb_dvfs->dynamic_freq_disable = 1;
 	fbdvfs = s3cfb_dvfs;
 	return 0;
 }
