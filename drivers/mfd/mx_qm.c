@@ -635,14 +635,15 @@ static ssize_t qm_show_property(struct device *dev,
 	switch(off){
 	case QM_POS:
 		{
-			u16 info[10]; 
+			u16 info[11]; 
 			memset(info,0,sizeof(info));
 			mx_qm_readdata(qm->client, QM_REG_DBGINFO,sizeof(info),info);
 			i += scnprintf(buf+i, PAGE_SIZE-i, 
-				"ref = %.3d  %.3d  %.3d  %.3d  \nsig = %.3d  %.3d  %.3d  %.3d  \ndelta = %d \npos = %d \ndect = %d\n",
+				"ref = %.3d  %.3d  %.3d  %.3d  \nsig = %.3d  %.3d  %.3d  %.3d  \ndelta0 = %d delta1 = %d \npos = %d \ndect = %d\n",
 				info[0],info[1],info[2],info[3],
 				info[4],info[5],info[6],info[7],
-				 info[8],(info[9] & 0xFF),((info[9] >>8)& 0xFF));
+				 (s16)info[8],(s16)info[9],
+				 (info[10] & 0xFF),((info[10] >>8)& 0xFF));
 		}
 		break;
 	case QM_STATUS:
@@ -660,8 +661,8 @@ static ssize_t qm_show_property(struct device *dev,
 		}
 		break;
 	case QM_FWR_VER:
-		i += scnprintf(buf+i, PAGE_SIZE-i, "ID = %d ,Ver.%d\n",mx_qm_readbyte(qm->client,QM_REG_DEVICE_ID),
-			mx_qm_readbyte(qm->client,QM_REG_VERSION));
+		i += scnprintf(buf+i, PAGE_SIZE-i, "ID = %c ,Ver.0x%X,LED Ver.%c\n",mx_qm_readbyte(qm->client,QM_REG_DEVICE_ID),
+			mx_qm_readbyte(qm->client,QM_REG_VERSION),qm->LedVer);
 		break;
 	case QM_RESET:
 		i += scnprintf(buf+i, PAGE_SIZE-i, "\n");
