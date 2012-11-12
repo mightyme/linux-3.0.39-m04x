@@ -919,8 +919,8 @@ static void modem_hsic_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 
 	/* cancel runtime start delayed works */
-	cancel_delayed_work_sync(&pm_data->hsic_pm_start);
-	cancel_delayed_work_sync(&ld->tx_delayed_work);
+	cancel_delayed_work(&pm_data->hsic_pm_start);
+	cancel_delayed_work(&ld->tx_delayed_work);
 
 	return;
 }
