@@ -222,6 +222,7 @@
 #define __FSA8108_DEBUG__ 				0
 #define EARPHONE_ADC_CAHNNEL 			3
 #define MIC_DETECT_NOPRESSED			200 //adc value when no key press
+#define WAKE_LOCK_TIME					2*HZ
 
 struct fsa8108_info {
 	struct i2c_client		*client;	
@@ -233,6 +234,7 @@ struct fsa8108_info {
 	struct s3c_adc_client	*adc_client;
 	struct work_struct    adc_read_work;
 	struct timer_list detect_mic_adc_timer;	
+	struct wake_lock det_wake_lock;
 	long jack_plug_time;
 };
 
@@ -452,6 +454,7 @@ static void fsa8108_report_key_event(int key_type,int updown)
 	input_report_key(g_fsa8108_info->input, key_type, updown);
 	input_sync(g_fsa8108_info->input);
 	switch_set_state(&switch_sendend,updown);
+	wake_lock_timeout(&g_fsa8108_info->det_wake_lock, WAKE_LOCK_TIME);
 }
 
 static void fsa8108_adc_read_func(struct work_struct *work)
@@ -763,7 +766,8 @@ static int fsa8108_i2c_probe(
 	info->detect_mic_adc_timer.function = fsa8108_adc_timer_func;
 	info->detect_mic_adc_timer.data = (unsigned long)info;
 	info->detect_mic_adc_timer.expires = jiffies + msecs_to_jiffies(40);
-				
+
+	wake_lock_init(&info->det_wake_lock, WAKE_LOCK_SUSPEND, "mx2_jack_det");
 #if __FSA8108_DEBUG__
 	fsa8108_create_attrs(&client->dev);
 #endif	
@@ -796,8 +800,8 @@ static int fsa8108_i2c_remove(struct i2c_client *client)
 	}
 
 	mutex_destroy(&info->mutex);
-	i2c_set_clientdata(client, NULL);
-	
+	i2c_set_clientdata(client, NULL);	
+	wake_lock_destroy(&info->det_wake_lock);
 	kfree(info);
 	
 	return 0;
