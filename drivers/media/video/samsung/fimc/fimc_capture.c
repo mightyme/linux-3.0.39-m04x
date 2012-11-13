@@ -904,12 +904,6 @@ static int fimc_init_mx_camera(struct fimc_control *ctrl)
 		pm_runtime_get_sync(&pdev->dev);
 #endif
 
-	ret = v4l2_subdev_call(cam->sd, core, s_power, 1);
-	if (ret) {
-		fimc_err("s_power failed: %d", ret);
-		goto error;
-	}
-
 #ifdef CONFIG_MX2_SERIAL_TYPE
 	cam_id = fimc_find_cam_id(ctrl);
 #else

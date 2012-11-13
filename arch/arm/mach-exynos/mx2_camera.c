@@ -217,7 +217,11 @@ static int m6mo_set_isp_power(bool enable)
 
 	if (enable) {
 		ret = regulator_bulk_enable(num_consumers, supplies);
-		if (ret) goto exit_regulator;
+		if (ret) {
+			pr_info("%s(), Power ON ISP failed!ret: %d\n",
+				__func__, ret);
+			goto exit_regulator;
+		}
 		
 		gpio_set_value(M040_ISP_RST, 1);
 		gpio_set_value(M040_ISP_YCVZ, 1);  /* we don't use Parallel, set this pin high */
@@ -225,7 +229,11 @@ static int m6mo_set_isp_power(bool enable)
 		gpio_set_value(M040_ISP_RST, 0);
 		
 		ret = regulator_bulk_disable(num_consumers, supplies);
-		if (ret) goto exit_regulator;
+		if (ret) {
+			pr_info("%s(), Power OFF ISP failed!ret: %d\n",
+				__func__, ret);
+			goto exit_regulator;
+		}
 		
 		gpio_set_value(M040_ISP_YCVZ, 0);  /* should set this pin low at last */
 	}
@@ -263,10 +271,21 @@ static int m6mo_set_sensor_power(int cam_id, bool enable)
 		return ret;
 	}
 
-	if (enable)
+	if (enable) {
 		ret = regulator_bulk_enable(num_consumers, supplies);
-	else	
+		if (ret) {
+			pr_info("%s(), Power ON Camera %d failed! ret: %d\n",
+				__func__, cam_id, ret);
+			goto exit_regulator;
+		}
+	} else {
 		ret = regulator_bulk_disable(num_consumers, supplies);
+		if (ret) {
+			pr_info("%s(), Power OFF Camera %d failed! ret: %d\n",
+				__func__, cam_id, ret);
+			goto exit_regulator;
+		}
+	}
 
 exit_regulator:
 	regulator_bulk_free(num_consumers, supplies);
