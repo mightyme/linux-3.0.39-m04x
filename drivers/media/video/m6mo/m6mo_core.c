@@ -754,9 +754,6 @@ static int m6mo_set_monitor_mode(struct v4l2_subdev *sd)
 	pr_info("%s(), set before change to monitor mode\n", __func__);
 	ret = m6mo_w8(sd, SPECIAL_MON_REG, SPECIAL_OFF);
 	CHECK_ERR(ret);
-	/* set capture normal mode */
-	ret = m6mo_w8(sd, CAP_MODE_REG, CAP_MODE_NORMAL);
-	CHECK_ERR(ret);
 
 	m6mo_prepare_wait(sd);
 
@@ -776,6 +773,10 @@ static int m6mo_set_monitor_mode(struct v4l2_subdev *sd)
 	}
 
 	if (i == retry) return -EINVAL;
+
+	/* set capture normal mode */
+	ret = m6mo_w8(sd, CAP_MODE_REG, CAP_MODE_NORMAL);
+	CHECK_ERR(ret);
 
 	state->mode = MONITOR_MODE;
 
