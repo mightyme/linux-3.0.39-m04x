@@ -1195,14 +1195,14 @@ int m6mo_set_power_clock(struct m6mo_state *state, bool enable)
 	}
 	
 	if (enable) {
-		ret = pdata->set_isp_power(true);
-		if (ret) {
-			pr_err("%s(), set ISP powr failed!\n", __func__);
-			return ret;
-		}
-
 		ret = pdata->clock_enable(&client->dev, true);
 		if (ret) return ret;
+
+		ret = pdata->set_isp_power(true);
+		if (ret) {
+			pdata->clock_enable(&client->dev, false);
+			return ret;
+		}
 	} else {
 		pdata->set_isp_power(false);
 		if (state->sensor_power)   
