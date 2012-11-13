@@ -29,25 +29,25 @@ static int wakeup_assist_keycode[] = {
 static unsigned long mx_wakeup_type;
 
 struct wakeup_assist_des assist_des[] = {
-	{MX_UNKNOW_WAKE, 		"MX_UNKNOW_WAKE"},
-	{MX_USB_WAKE, 			"MX_USB_WAKE"},
-	{MX_LOWBAT_WAKE, 		"MX_LOWBAT_WAKE"},
-	{MX_KEY_POWER_WAKE, 	"MX_KEY_POWER_WAKE"},
-	{MX_KEY_HOME_WAKE, 		"MX_KEY_HOME_WAKE"},
-	{MX_MODEM_WAKE, 		"MX_MODEM_WAKE"},
-	{MX_BLUETOOTH_WAKE, 	"MX_BLUETOOTH_WAKE"},
-	{MX_MODEM_RST_WAKE, 	"MX_MODEM_RST_WAKE"},
-	{MX_CHARG_WAKE,	 		"MX_CHARG_WAKE"},
-	{MX_ALARM_WAKE, 		"MX_ALARM_WAKE"},
-	{MX_TICK_WAKE, 			"MX_TICK_WAKE"},
-	{MX_I2S_WAKE, 			"MX_I2S_WAKE"},
-	{MX_SYSTIMER_WAKE, 		"MX_SYSTIMER_WAKE"},
-	{MX_WIFI_WAKE, 			"MX_WIFI_WAKE"},
-	{MX_IR_WAKE, 			"MX_IR_WAKE"},
-	{MX_USB_HOST_WAKE, 		"MX_USB_HOST_WAKE"},
-	{MX_MINUS_KEY_WAKE, 	"MX_MINUS_KEY_WAKE"},
-	{MX_PLUS_KEY_WAKE, 		"MX_PLUS_KEY_WAKE"},
-	{MX_MIC_WAKE, 			"MX_MIC_WAKE"},
+	{MX_UNKNOW_WAKE,	"MX_UNKNOW_WAKE"},
+	{MX_USB_WAKE,		"MX_USB_WAKE"},
+	{MX_LOWBAT_WAKE,	"MX_LOWBAT_WAKE"},
+	{MX_KEY_POWER_WAKE,	"MX_KEY_POWER_WAKE"},
+	{MX_KEY_HOME_WAKE,	"MX_KEY_HOME_WAKE"},
+	{MX_MODEM_WAKE,		"MX_MODEM_WAKE"},
+	{MX_BLUETOOTH_WAKE,	"MX_BLUETOOTH_WAKE"},
+	{MX_MODEM_RST_WAKE,	"MX_MODEM_RST_WAKE"},
+	{MX_CHARG_WAKE,		"MX_CHARG_WAKE"},
+	{MX_ALARM_WAKE,		"MX_ALARM_WAKE"},
+	{MX_TICK_WAKE,		"MX_TICK_WAKE"},
+	{MX_I2S_WAKE,		"MX_I2S_WAKE"},
+	{MX_SYSTIMER_WAKE,	"MX_SYSTIMER_WAKE"},
+	{MX_WIFI_WAKE,		"MX_WIFI_WAKE"},
+	{MX_IR_WAKE,		"MX_IR_WAKE"},
+	{MX_USB_HOST_WAKE,	"MX_USB_HOST_WAKE"},
+	{MX_MINUS_KEY_WAKE,	"MX_MINUS_KEY_WAKE"},
+	{MX_PLUS_KEY_WAKE,	"MX_PLUS_KEY_WAKE"},
+	{MX_MIC_WAKE,		"MX_MIC_WAKE"},
 };
 
 static unsigned long mx_get_wakeup_type(void)
@@ -57,9 +57,40 @@ static unsigned long mx_get_wakeup_type(void)
 
 unsigned long mx_set_wakeup_type(unsigned long mask)
 {
+	int i = 0, index = 0;
+	unsigned long tmp = mask;
+	int size = ARRAY_SIZE(assist_des);
+	
+	for(i = 1; i < size; i++) {
+		if ((tmp >> (i-1)) & 0x1) {
+			index = i;
+			break;
+		}
+	}	
+	
+	assist_des[index].wakeup_count++;
+	
 	return mask ? (mx_wakeup_type |= mask) :
 				  (mx_wakeup_type = mask);
 }
+
+static ssize_t wakeup_stats_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	int i = 0, len = 0;
+	int size = ARRAY_SIZE(assist_des);
+	
+	len = sprintf(buf, "Wakeup sources\t\tCount\n");
+	len += sprintf(buf + len, "------------------------------\n");
+
+	for (i = 0; i < size; i++)
+		len += sprintf(buf + len, "%-20s:\t%llu\n",
+			assist_des[i].name, assist_des[i].wakeup_count);
+
+	return len;
+}
+
+static DEVICE_ATTR(wakeup_stats, 0444, wakeup_stats_show, NULL);
 
 static void mx_show_wakeup_name(void)
 {
@@ -160,14 +191,21 @@ static int __devinit wakeup_assist_probe(struct platform_device *pdev)
 	__clear_bit(KEY_RESERVED, input_dev->keybit);
 
 	error = input_register_device(input_dev);
-	if (error) {
-		input_free_device(input_dev);
-		return error;
-	}
+	if (error)  
+		goto err_reg;
 
-	platform_set_drvdata(pdev, input_dev);
-
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+	error = device_create_file(&pdev->dev, &dev_attr_wakeup_stats);
+	if(error)
+		goto err_sys;
+#endif
+	platform_set_drvdata(pdev, input_dev);	
 	return 0;
+
+err_sys:
+	input_free_device(input_dev);
+err_reg:
+	return error;
 }
 
 static int __devexit wakeup_assist_remove(struct platform_device *pdev)
@@ -177,6 +215,9 @@ static int __devexit wakeup_assist_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	input_unregister_device(input_dev);
 	input_free_device(input_dev);
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+	device_remove_file(&pdev->dev, &dev_attr_wakeup_stats);
+#endif
 
 	return 0;
 }

@@ -58,6 +58,7 @@ typedef enum {
 struct wakeup_assist_des {
 	wake_type_t	type;
 	char		*name;
+	u64		wakeup_count;
 };
 
 extern unsigned long mx_set_wakeup_type(unsigned long);
