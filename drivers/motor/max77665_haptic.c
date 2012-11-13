@@ -52,7 +52,7 @@
 #define LSEN	(1<<7)	/* Low sys dac enable */
 #define LSDEN	(0<<7)
 #define LSEN_MASK	(1<<7)
-#define __CONFIG_DEBUG_HAPTIC__
+//#define __CONFIG_DEBUG_HAPTIC__
 
 struct haptic_data {
 	char *name;
@@ -63,6 +63,7 @@ struct haptic_data {
 	struct mutex haptic_mutex;
 	int max_timeout;
 	struct work_struct motor_work;
+	struct delayed_work disable_work;
 	struct workqueue_struct *motor_queue;
 	struct timed_output_dev tdev;
 	struct pwm_device *pwm;
@@ -165,7 +166,7 @@ try_again:
 	}
 #ifdef __CONFIG_DEBUG_HAPTIC__
 	max77665_show_regs(i2c);
-#endif
+#endif	
 	if(ret < 0 )
 		goto err;
 
@@ -181,6 +182,17 @@ static void motor_work_func(struct work_struct *work)
 
 	pr_info("write register to disable motor\n");
 	max77665_haptic_disable(chip->client);
+	
+	//max77665_haptic_on(chip, false);
+}
+
+static void motor_disable_work_func(struct work_struct *work)
+{
+	struct haptic_data *chip = container_of(work, struct haptic_data, disable_work.work);
+
+	pr_info("write register to disable motor from delayed work\n");
+	max77665_haptic_disable(chip->client);
+	
 	//max77665_haptic_on(chip, false);
 }
 
@@ -190,6 +202,11 @@ static enum hrtimer_restart motor_timer_func(struct hrtimer *timer)
 
 	pr_info("timer timeout schedule_work disable motor\n");
 	queue_work(chip->motor_queue, &chip->motor_work);
+	
+	if (delayed_work_pending(&chip->disable_work))
+		cancel_delayed_work(&chip->disable_work);
+	
+	schedule_delayed_work(&chip->disable_work,msecs_to_jiffies(100));
 	//schedule_work(&chip->motor_work);
 
 	return HRTIMER_NORESTART;
@@ -217,6 +234,10 @@ static void haptic_enable(struct timed_output_dev *tdev, int value)
 	pr_info("%s: vibration time = %d\n", __func__, g_vibrate_count++);
 	//max77665_haptic_on(chip, false);
 	hrtimer_cancel(&chip->timer);
+	
+	if (delayed_work_pending(&chip->disable_work))
+		cancel_delayed_work(&chip->disable_work);
+	
 	if (value > 0) {
 		value = min(value, chip->max_timeout);
 		hrtimer_start(&chip->timer, ktime_set(value/1000, (value%1000)*1000000),
@@ -257,6 +278,7 @@ static __devinit int max77665_haptic_probe(struct platform_device *pdev)
 
 	mutex_init(&chip->haptic_mutex);
 	INIT_WORK(&chip->motor_work, motor_work_func);
+	INIT_DELAYED_WORK(&chip->disable_work, motor_disable_work_func);
 	chip->motor_queue = create_singlethread_workqueue("motor");
 	chip->pwm = pwm_request(pdata->pwm_channel_id, "vibrator");
 	if (IS_ERR(chip->pwm)) {
@@ -310,6 +332,7 @@ static int __devexit max77665_haptic_remove(struct platform_device *pdev)
 	mutex_destroy(&chip->haptic_mutex);
 	platform_set_drvdata(pdev, NULL);
 	hrtimer_cancel(&chip->timer);
+	destroy_workqueue(&chip->motor_queue);
 	timed_output_dev_unregister(&chip->tdev);
 
 	if(chip)
