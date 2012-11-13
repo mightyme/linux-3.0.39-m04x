@@ -135,8 +135,9 @@
 struct gp2ap_data {
 	struct i2c_client *client;
 	unsigned int irq;
-	struct workqueue_struct *als_wq;
+	struct workqueue_struct *gp2ap_wq;
 	struct delayed_work als_dwork;
+	struct delayed_work ps_dwork;
 	struct input_dev *input_dev;
 	struct mutex lock;
 	struct miscdevice misc_device;

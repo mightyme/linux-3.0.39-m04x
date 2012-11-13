@@ -769,7 +769,6 @@ static ssize_t gp2ap_ReflectData_show(struct device *dev,
 		pr_err("%s: get ps data error!(ret = %d)\n", __func__, reg_data);
 		reg_data = -1;
 	}
-
 	return sprintf(buf, "%u\n", reg_data);
 }
 
@@ -928,7 +927,8 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
         int ret;
 	unsigned long light_lux =0;
 	bool gp2ap_reset_als = 0;
-	
+	u8 new_val = 0, old_val = 0, als_mask = 0x1 << 1;
+
 	ret = gp2ap_i2c_read_multibytes(client, REG_D0_LSB, buf, 2);
 	if (ret < 0) {
 		pr_err("%s()->%d:read REG_ALS_D0_LSB reg fail!\n",
@@ -955,25 +955,25 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 #ifdef CONFIG_MACH_M040
 	if(gp2ap->lowlight_mode){/*LOW LIGHT MODE*/
 		if(data1 * 100 <= data0 * 63){
-			alpha = 4348;
+			alpha = 7042;
 			beta = 0;
 		}else if(data1 * 100 <= data0 * 80){
-			alpha = 19660;
-			beta = 24310;
+			alpha = 32340;
+			beta = 40160;
 		}else if(data1 * 100 <= data0 * 98){
-			alpha = 1164;
-			beta = 1187;
+			alpha = 1162;
+			beta = 1186;
 		}else{
 			alpha = 0;
 			beta = 0;
 		}
 	}else{ /*HIGH LIGHT MODE*/
 		if(data1 * 100 <= data0 * 63){
-			alpha = 4348;
+			alpha = 7042;
 			beta = 0;
 		}else if(data1 * 100 <= data0 * 80){
-			alpha = 19660;
-			beta = 24310;
+			alpha = 32340;
+			beta = 40160;
 		}else if(data1 * 100 <= data0 * 98){
 			alpha = 170;
 			beta = 34;
@@ -1107,28 +1107,36 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 	if (gp2ap_reset_als) {
 		gp2ap_als_reset(gp2ap);
 	}
+
+	/*clear the interrupts*/	
+	ret = i2c_smbus_read_byte_data(gp2ap->client, REG_COMMAND1);
+	if(ret >= 0){
+		old_val= ret & 0xff;
+		new_val = (ret & ~ als_mask) | (old_val & als_mask); 
+		ret = i2c_smbus_write_byte_data(gp2ap->client,
+				REG_COMMAND1, new_val);
+	}
 }
 
 /*
  * gp2ap PS interrupt handler work function
  */
-static void gp2ap_ps_handler(struct gp2ap_data *gp2ap)
+static void gp2ap_ps_handler(struct work_struct *work)
 {
+	struct gp2ap_data *gp2ap = container_of((struct delayed_work*)work, 
+			struct gp2ap_data, ps_dwork);
 	struct i2c_client *client = gp2ap->client;
 	struct input_dev *idp = gp2ap->input_dev;
 	u8 command1 = 0;   /*command1 for write back*/
 	int ret, ps_data;
-
-	mutex_lock(&gp2ap->lock);
-
+	u8 new_val = 0, old_val = 0, ps_mask = 0x1 << 2;
+	
 	ret = gp2ap_i2c_read_byte(client, REG_COMMAND1, &command1);
 	if (ret < 0) {
 		pr_err("%s()->%d:read command1 reg fail!\n",
 			__func__, __LINE__);
-		mutex_unlock(&gp2ap->lock);
 		return;
 	}
-
 	ps_data = !(command1 & PS_DETECTION_MASK);
 
 	/* Reset the measure cycle and intval when switch between NEAR and FAR
@@ -1164,37 +1172,29 @@ static void gp2ap_ps_handler(struct gp2ap_data *gp2ap)
 			pr_info("%s():ps adc data is %d.\n", __func__, ps_debug_data);
 		}
 	}
-	mutex_unlock(&gp2ap->lock);
+	/*clear the interrupts*/	
+	ret = i2c_smbus_read_byte_data(gp2ap->client, REG_COMMAND1);
+	if(ret >= 0){
+		old_val= ret & 0xff;
+		new_val = (ret & ~ ps_mask) | (old_val & ps_mask); 
+		ret = i2c_smbus_write_byte_data(gp2ap->client,
+				REG_COMMAND1, new_val);
+	}
 }
 
 static irqreturn_t gp2ap_irq_handler(int irq, void *dev_id)
 {
 	struct gp2ap_data *gp2ap = (struct gp2ap_data  *)dev_id;
-	struct i2c_client *client = gp2ap->client;
 	int enabled_sensors = gp2ap->enabled_sensors;
-	int ret = 0;
-	u8 data;
-
-	/* Clear interrupts */
-	ret = gp2ap_i2c_read_byte(client, REG_COMMAND1, &data);
-	if (ret < 0) {
-		pr_err("%s: gp2ap_i2c_read_byte Failed\n", __func__);
-		return IRQ_NONE;
-	}
-	data &= (~ALS_INTERRUPT_MASK & ~PS_INTERRUPT_MASK);
-	ret = gp2ap_i2c_write_byte(client, REG_COMMAND1, data);
-	if (ret < 0) {
-		pr_err("%s: gp2ap_i2c_write_byte Failed!\n", __func__);
-		return IRQ_NONE;
-	}
 
 	if (enabled_sensors & ID_PS) {
 		pr_debug("%s: ********** ps ***********\n", __func__);
-		gp2ap_ps_handler(gp2ap);
+		queue_delayed_work(gp2ap->gp2ap_wq, &gp2ap->ps_dwork
+				, HZ/100);
 	} else {
 		pr_debug("%s: ********** als ***********\n", __func__);
 
-		queue_delayed_work(gp2ap->als_wq, &gp2ap->als_dwork, 
+		queue_delayed_work(gp2ap->gp2ap_wq, &gp2ap->als_dwork, 
 				msecs_to_jiffies(ALS_DELAYTIME));
 	}
 	return IRQ_HANDLED;
@@ -1448,8 +1448,10 @@ static int __devinit gp2ap_probe(struct i2c_client *client, const struct i2c_dev
 	}
 
 	mutex_init(&gp2ap->lock);
-	gp2ap->als_wq = create_singlethread_workqueue("gp2ap_als_wq");
+	gp2ap->gp2ap_wq = create_singlethread_workqueue("gp2ap_handler");
 	INIT_DELAYED_WORK(&gp2ap->als_dwork, gp2ap_als_dwork_func);
+	INIT_DELAYED_WORK(&gp2ap->ps_dwork, gp2ap_ps_handler);
+
 	gp2ap->debug = 0;
 	gp2ap->enabled_sensors = 0;
 	gp2ap->irq_wake_enabled = 0;
