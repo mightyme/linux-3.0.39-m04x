@@ -154,6 +154,8 @@ static struct usb_descriptor_header *ss_adb_descs[] = {
 	NULL,
 };
 
+static void adb_ready_callback(void);
+static void adb_closed_callback(void);
 
 /* temporary variable used between adb_open() and adb_gadget_bind() */
 static struct adb_dev *_adb_dev;
@@ -460,6 +462,9 @@ static int adb_open(struct inode *ip, struct file *fp)
 
 	/* clear the error latch */
 	_adb_dev->error = 0;
+
+	adb_ready_callback();
+
 #if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	check_adb_lock();
 #endif
@@ -469,6 +474,9 @@ static int adb_open(struct inode *ip, struct file *fp)
 static int adb_release(struct inode *ip, struct file *fp)
 {
 	printk(KERN_INFO "adb_release\n");
+
+	adb_closed_callback();
+
 	adb_unlock(&_adb_dev->open_excl);
 #if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	check_adb_lock();
