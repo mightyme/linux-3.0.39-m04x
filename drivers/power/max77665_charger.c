@@ -671,7 +671,8 @@ static __devinit int max77665_init(struct max77665_charger *charger)
 	}
 
 	/* disable muic ctrl */
-	ret = max77665_write_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_00, 0x24);
+	reg_data = 1<<5;
+	ret = max77665_update_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_00, reg_data, 0x1<<5);
 	if (unlikely(ret)) {
 		dev_err(charger->dev, "Failed to set MAX77665_CHG_REG_CHG_CNFG_00: %d\n", ret);
 		goto error;
