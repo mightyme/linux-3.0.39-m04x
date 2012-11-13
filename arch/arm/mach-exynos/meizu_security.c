@@ -88,7 +88,7 @@ int private_entry_write(int slot, __user char *in_buf)
 		goto out;
 
 	if(slot < 16)
-		pk = &write_rsa_pk;
+		pk = &factory_rsa_pk;
 	else
 		pk = &remote_rsa_pk;
 
@@ -132,7 +132,7 @@ static void init_device_sn(void)
 	deal_private_block(0, offset, PRIVATE_ENTRY_BLOCK_SIZE, private_entry_buf);
 	len = *(uint16_t *)(private_entry_buf + PRIVATE_ENTRY_SIG_SIZE);
 
-	if(!rsa_with_sha1_verify(data, len, &verify_rsa_pk, private_entry_buf)) {
+	if(!rsa_with_sha1_verify(data, len, &factory_rsa_pk, private_entry_buf)) {
 
 		memcpy(device_sn, data, len);
 
@@ -154,7 +154,7 @@ static void init_device_mac(void)
 	deal_private_block(0, offset, PRIVATE_ENTRY_BLOCK_SIZE, private_entry_buf);
 	len = 6;
 
-	if(!rsa_with_sha1_verify(data, len, &verify_rsa_pk, private_entry_buf)) {
+	if(!rsa_with_sha1_verify(data, len, &factory_rsa_pk, private_entry_buf)) {
 
 		memcpy(device_mac, data, len);
 
