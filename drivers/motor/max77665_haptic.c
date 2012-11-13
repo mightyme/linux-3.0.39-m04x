@@ -332,7 +332,7 @@ static int __devexit max77665_haptic_remove(struct platform_device *pdev)
 	mutex_destroy(&chip->haptic_mutex);
 	platform_set_drvdata(pdev, NULL);
 	hrtimer_cancel(&chip->timer);
-	destroy_workqueue(&chip->motor_queue);
+	destroy_workqueue(chip->motor_queue);
 	timed_output_dev_unregister(&chip->tdev);
 
 	if(chip)
