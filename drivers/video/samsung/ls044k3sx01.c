@@ -39,6 +39,8 @@ static struct ls044k3sx01_ce_mode lcd_mode_map[] = {
 	{"sathigh", 11},
 	{"ceoff", 12},
 };
+static int lcd_id = 0;
+module_param(lcd_id,int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static struct ls044k3sx01_info *g_lcd_info;
 static int write_to_lcd(struct ls044k3sx01_info *lcd,
@@ -180,6 +182,7 @@ static int lcd_read_id(struct mipi_dsim_lcd_device *mipi_dev)
 	write_to_lcd(lcd, ls044k3sx01_unlock); /*set password for ROnly*/
 	set_packet_size(lcd, 1); /* set return data size*/
 	lcd->id_code = read_data(lcd, 0xdc); /*read ID Code reg 0xda*/
+	lcd_id = lcd->id_code;
 	return 0;
 }
 
@@ -346,7 +349,6 @@ static int lcd_probe(struct mipi_dsim_lcd_device *dsim_dev)
 	if (err < 0) {
 		dev_err(lcd->dev, "Failed to create attr file cabc %d!\n", err);
 	}
-
 #endif
 
 	g_lcd_info = lcd;
