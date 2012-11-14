@@ -938,6 +938,8 @@ static int fimc_configure_mx_subdev(struct fimc_control *ctrl)
 	if (ctrl->cam->sd == NULL)
 		return -ENODEV;
 
+	pr_info("%s(), cam initialized %d(0:false)\n", __func__, ctrl->cam->initialized);
+
 	if (!ctrl->cam->initialized) {
 		ret = fimc_init_mx_camera(ctrl);
 		if (ret < 0) {

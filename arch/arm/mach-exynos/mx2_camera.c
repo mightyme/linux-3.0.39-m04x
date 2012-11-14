@@ -240,8 +240,8 @@ static int m6mo_set_isp_power(bool enable)
 
 exit_regulator:
 	regulator_bulk_free(num_consumers, supplies);
-
-	msleep(10);
+	//pr_info("%s(), Sleep for 5ms\n", __func__);
+	//msleep(5);
 
 	return ret;
 }
@@ -290,8 +290,8 @@ static int m6mo_set_sensor_power(int cam_id, bool enable)
 exit_regulator:
 	regulator_bulk_free(num_consumers, supplies);
 
-	pr_info("%s(), Sleep for 30ms\n", __func__);
-	msleep(30);
+	//pr_info("%s(), Sleep for 30ms\n", __func__);
+	//msleep(30);
 
 	return ret;
 }
@@ -308,6 +308,8 @@ static int m6mo_clock_enable(struct device *dev, bool enable)
 {
 	struct clk *fimc_clk, *clk;
 	int ret = 0;
+
+	pr_info("%s(), clock enable = %d\n", __func__, enable);
 
 	/* be able to handle clock on/off only with this clock */
 	fimc_clk = clk_get(&s3c_device_fimc0.dev, "fimc");
@@ -336,6 +338,9 @@ static int m6mo_clock_enable(struct device *dev, bool enable)
 
 exit_clkget_cam:
 	clk_put(fimc_clk);
+
+	pr_info("%s(), sleep for 8ms\n", __func__);
+	msleep(8);
 	
 	return ret;
 }

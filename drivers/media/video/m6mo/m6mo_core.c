@@ -1195,19 +1195,19 @@ int m6mo_set_power_clock(struct m6mo_state *state, bool enable)
 	}
 	
 	if (enable) {
-		ret = pdata->clock_enable(&client->dev, true);
-		if (ret) return ret;
-
 		ret = pdata->set_isp_power(true);
 		if (ret) {
-			pdata->clock_enable(&client->dev, false);
+			pr_err("%s(), set ISP powr failed!\n", __func__);
 			return ret;
 		}
+
+		ret = pdata->clock_enable(&client->dev, true);
+		if (ret) return ret;
 	} else {
+		pdata->clock_enable(&client->dev, false);
 		pdata->set_isp_power(false);
 		if (state->sensor_power)   
 			m6mo_set_sensor_power(state, false);
-		pdata->clock_enable(&client->dev, false);
 	}
 
 	pr_info("%s(), set power to %d successed!\n", __func__, enable);
@@ -1246,7 +1246,7 @@ static int m6mo_init(struct v4l2_subdev *sd, u32 cam_id)
 		pr_err("%s(), set sensor powr failed!\n", __func__);
 		return ret;
 	}
-	
+
 	m6mo_s_power(sd, 1);
 
 	/* run firmware first */
