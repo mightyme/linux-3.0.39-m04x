@@ -27,6 +27,7 @@ static int wakeup_assist_keycode[] = {
 
 #define WAKE_STR_LEN 256
 static unsigned long mx_wakeup_type;
+static u64 total_wakeup;
 
 struct wakeup_assist_des assist_des[] = {
 	{MX_UNKNOW_WAKE,	"MX_UNKNOW_WAKE"},
@@ -80,7 +81,8 @@ static ssize_t wakeup_stats_show(struct device *dev,
 	int i = 0, len = 0;
 	int size = ARRAY_SIZE(assist_des);
 	
-	len = sprintf(buf, "Wakeup sources\t\tCount\n");
+	len = sprintf(buf, "Total wakeup count is: %llu\n", total_wakeup);
+	len += sprintf(buf + len, "Wakeup sources\t\tCount\n");
 	len += sprintf(buf + len, "------------------------------\n");
 
 	for (i = 0; i < size; i++)
@@ -98,7 +100,9 @@ static void mx_show_wakeup_name(void)
 	char wakeup_str[WAKE_STR_LEN];
 	int size = ARRAY_SIZE(assist_des);
 	unsigned long type = mx_get_wakeup_type();
-	
+
+	total_wakeup++;
+		
 	memset(wakeup_str, 0, WAKE_STR_LEN);
 	len = sprintf(wakeup_str, "%s", "System wake up by ---> ");
 
