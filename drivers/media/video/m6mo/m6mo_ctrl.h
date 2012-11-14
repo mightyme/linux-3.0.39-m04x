@@ -146,10 +146,14 @@ enum m6mo_flash_mode {
 */
 enum m6mo_ev_mode {
 	M6MO_EV_MINUS_2	= 0,
-	M6MO_EV_MINUS_1	= 1,
-	M6MO_EV_DEFAULT	= 2,
-	M6MO_EV_PLUS_1	= 3,
-	M6MO_EV_PLUS_2	= 4,
+	M6MO_EV_MINUS_1_5= 1,
+	M6MO_EV_MINUS_1	= 2,
+	M6MO_EV_MINUS_0_5 =3,
+	M6MO_EV_DEFAULT	= 4,
+	M6MO_EV_PLUS_0_5	= 5,
+	M6MO_EV_PLUS_1	= 6,
+	M6MO_EV_PLUS_1_5	= 7,
+	M6MO_EV_PLUS_2	= 8,
 	M6MO_EV_MAX,
 };
 

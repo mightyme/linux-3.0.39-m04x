@@ -134,9 +134,13 @@ enum iso_sel {
 #define EV_BIAS_REG							0x0309
 enum ev_bias {
 	EV_M2 = 0x0a,
-	EV_M1 = 0x12,
+	EV_M_1_5 =	0x0F,
+	EV_M1 = 0x14,
+	EV_M_0_5 = 0x19,
 	EV_00 = 0x1e,
+	EV_P_0_5 = 0x23,
 	EV_P1 = 0x28,
+	EV_P_1_5 = 0x2D,
 	EV_P2 = 0x32,
 };
 

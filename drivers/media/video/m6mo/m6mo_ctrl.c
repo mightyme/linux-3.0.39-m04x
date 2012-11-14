@@ -50,9 +50,13 @@ static u8 m6mo_wb_regs[M6MO_WB_MAX] = {
 
 static u8 m6mo_brightness_regs[M6MO_EV_MAX] = {
 	[M6MO_EV_MINUS_2] = EV_M2,
+	[M6MO_EV_MINUS_1_5] = EV_M_1_5,
 	[M6MO_EV_MINUS_1] = EV_M1,
+	[M6MO_EV_MINUS_0_5] = EV_M_0_5,
 	[M6MO_EV_DEFAULT] = EV_00,
+	[M6MO_EV_PLUS_0_5] = EV_P_0_5,
 	[M6MO_EV_PLUS_1] = EV_P1,
+	[M6MO_EV_PLUS_1_5] = EV_P_1_5,
 	[M6MO_EV_PLUS_2] = EV_P2,
 };
 
@@ -760,6 +764,9 @@ static int m6mo_set_image_brightness(struct v4l2_subdev *sd,
 	CHECK_CTRL_VAL(m6mo_brightness_regs);
 	CHECK_USERSET(brightness);
 
+	pr_info("%s(), wirte 0x%x to register 0x%x\n", __func__,
+		m6mo_brightness_regs[ctrl->value], EV_BIAS_REG);
+
 	ret = m6mo_w8(sd, EV_BIAS_REG, m6mo_brightness_regs[ctrl->value]);
 	CHECK_ERR(ret);
 
@@ -859,6 +866,9 @@ static int m6mo_set_wdr(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
 	CHECK_CTRL_VAL(m6mo_wdr_regs);
 	CHECK_USERSET(wdr);
+
+	pr_info("%s(), set New WDR to %d, the last is %d", __func__,
+		ctrl->value, state->userset.wdr);
 
 	if (ctrl->value == M6MO_WDR_OFF)
 		ret = m6mo_w8(sd, PART_WDR_EN_REG, PART_WDR_OFF);
