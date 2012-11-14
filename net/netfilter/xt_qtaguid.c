@@ -1565,7 +1565,11 @@ static void account_for_uid(const struct sk_buff *skb,
 			 par->hooknum,
 			 el_dev->name,
 			 el_dev->type);
-
+        //fix double data usage bug     
+        if (par->hooknum == 0 && (strcmp(el_dev->name, "rmnet0")== 0 || strcmp(el_dev->name, "ppp0")== 0)) {
+            return;
+        }
+        
 		if_tag_stat_update(el_dev->name, uid,
 				skb->sk ? skb->sk : alternate_sk,
 				par->in ? IFS_RX : IFS_TX,
@@ -1589,7 +1593,7 @@ static bool qtaguid_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		 par->hooknum, skb, par->in, par->out, par->family);
 
 	atomic64_inc(&qtu_events.match_calls);
-	if (skb == NULL) {
+	if (skb == NULL || par->hooknum == 0) {
 		res = (info->match ^ info->invert) == 0;
 		goto ret_res;
 	}
