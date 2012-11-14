@@ -547,9 +547,9 @@ static void hsic_pm_runtime_start(struct work_struct *work)
 		MIF_DEBUG("rpm_status: %d\n", dev->power.runtime_status);
 		ppdev = dev->parent->parent;
 		usb_set_autosuspend_delay(usbdev, 200);
-		/*pm_runtime_forbid(dev);*/
+		pm_runtime_forbid(dev);
 		pm_runtime_allow(dev);
-		/*pm_runtime_forbid(ppdev);*/
+		pm_runtime_forbid(ppdev);
 		pm_runtime_allow(ppdev);
 		pm_data->resume_requested = false;
 		pm_data->resume_retry_cnt = 0;
