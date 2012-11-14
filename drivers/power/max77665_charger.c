@@ -493,9 +493,15 @@ static irqreturn_t max77665_charger_isr(int irq, void *dev_id)
 	int ret;
 	int chgin = 0;
 
+	pr_info("ENTER %s##################\n", __func__);
+	if (regulator_is_enabled(charger->reverse)) {
+		pr_info("usb host insert, dismiss this isr\n");
+		wake_unlock(&charger->wake_lock);
+		return IRQ_HANDLED;
+	}
+
 	wake_lock(&charger->wake_lock);
 
-	pr_info("ENTER %s##################\n", __func__);
 	ret =  max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK,
 			&prev_int_ok);
 	if (unlikely(ret < 0)) {
@@ -526,12 +532,6 @@ static irqreturn_t max77665_charger_isr(int irq, void *dev_id)
 
 	pr_info("-----%s %s\n", __func__, chgin ? "insert" : "remove");
 	
-	if (regulator_is_enabled(charger->reverse)) {
-		pr_info("usb host insert, dismiss this isr\n");
-		wake_unlock(&charger->wake_lock);
-		return IRQ_HANDLED;
-	}
-
 	if (charger->chgin != chgin) {
 		alarm_cancel(&charger->alarm);
 		if(chgin)
@@ -636,6 +636,13 @@ static __devinit int max77665_init(struct max77665_charger *charger)
 
 	reg_data = (min(MAX_AC_CURRENT, pdata->fast_charge_current) /CHG_CC_STEP);
 	ret = max77665_update_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_02, reg_data, 0x3f<<0);
+	if (unlikely(ret)) {
+		dev_err(charger->dev, "Failed to set MAX77665_CHG_REG_CHG_CNFG_02: %d\n", ret);
+		goto error;
+	}
+
+	reg_data = 1<<7;
+	ret = max77665_update_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_02, reg_data, 0x1<<7);
 	if (unlikely(ret)) {
 		dev_err(charger->dev, "Failed to set MAX77665_CHG_REG_CHG_CNFG_02: %d\n", ret);
 		goto error;
