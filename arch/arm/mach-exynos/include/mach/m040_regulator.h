@@ -774,7 +774,7 @@ static struct max77686_platform_data __initdata m040_max77686_info = {
 	.wakeup		= true,
 
 	.opmode_data = max77686_opmode_private_data,
-	.ramp_rate = MAX77686_RAMP_RATE_100MV,
+	.ramp_rate = MAX77686_RAMP_RATE_27MV,
 	.buck2_gpiodvs 	= true,
 	.buck3_gpiodvs 	= true,
 	.buck4_gpiodvs 	= true,
