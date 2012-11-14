@@ -339,8 +339,8 @@ static int m6mo_clock_enable(struct device *dev, bool enable)
 exit_clkget_cam:
 	clk_put(fimc_clk);
 
-	pr_info("%s(), sleep for 8ms\n", __func__);
-	msleep(8);
+	pr_info("%s(), sleep for 30ms\n", __func__);
+	msleep(30);
 	
 	return ret;
 }
