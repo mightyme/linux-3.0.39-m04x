@@ -188,7 +188,7 @@ static _mali_osk_errcode_t rendercore_subsystem_startup(mali_kernel_subsystem_id
  * the subsystems that extend ''rendercore'' must still call
  * mali_core_subsystem_cleanup() when they terminate.
  */
-static void rendercore_subsystem_terminate(mali_kernel_subsystem_identifier id)
+static __maybe_unused void rendercore_subsystem_terminate(mali_kernel_subsystem_identifier id)
 {
 	/* Catch double-terminate */
 	MALI_DEBUG_ASSERT_POINTER( rendercores_global_mutex );
