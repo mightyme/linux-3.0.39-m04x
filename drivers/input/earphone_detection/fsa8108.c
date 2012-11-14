@@ -420,7 +420,7 @@ static void fsa8108_mask_int(int onoff)
 		fsa8108_write_reg(FSA8108_REG_INT_MASK_1,0xF8);
 		fsa8108_write_reg(FSA8108_REG_INT_MASK_2,0xFF);
 	}else{
-		fsa8108_write_reg(FSA8108_REG_INT_MASK_1,0xD0);
+		fsa8108_write_reg(FSA8108_REG_INT_MASK_1,0xC0);
 		fsa8108_write_reg(FSA8108_REG_INT_MASK_2,0xC0);
 	}
 }
@@ -555,6 +555,16 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				fsa8108_report_key_event(KEY_HEADSETHOOK,KEY_EVENT_RELEASE);
 				
 				break;
+			case FSA8108_SEND_END_DOUBLE:
+				pr_info("%s OKOKOKOKOOOK DOUBLE\n",__func__);
+				fsa8108_report_key_event(KEY_HEADSETHOOK,KEY_EVENT_PRESS);
+				msleep(20);
+				fsa8108_report_key_event(KEY_HEADSETHOOK,KEY_EVENT_RELEASE);
+				msleep(200);
+				fsa8108_report_key_event(KEY_HEADSETHOOK,KEY_EVENT_PRESS);
+				msleep(20);
+				fsa8108_report_key_event(KEY_HEADSETHOOK,KEY_EVENT_RELEASE);
+				break;
 			default:
 				break;
 	    }
@@ -652,9 +662,10 @@ static void fsa8108_reset_work(struct work_struct *work)
 	fsa8108_write_reg(FSA8108_REG_RESET,1);
 	msleep(100);
 	fsa8108_write_reg(FSA8108_REG_RESET,0);
+
 	
 	/*** Set Timing parameters shorten long press time***/		
-	fsa8108_write_reg(FSA8108_REG_KEY_PRS_T,0);			
+	fsa8108_write_reg(FSA8108_REG_KEY_PRS_T,0);	
 	/*span insert time*/
 	//fsa8108_write_reg(FSA8108_REG_JDET_T,0xF2);
 	fsa8108_mask_int(1);/*mask key interrupts before plug in*/
