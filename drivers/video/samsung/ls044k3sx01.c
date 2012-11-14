@@ -190,7 +190,7 @@ static int lcd_init(struct mipi_dsim_lcd_device *mipi_dev)
 	CHECK_PANEL_RET(lcd_panel_sleep_out(lcd));
 	CHECK_PANEL_RET(lcd_panel_init_code(lcd));
 	CHECK_PANEL_RET(lcd_panel_display_on(lcd));
-	CHECK_PANEL_RET(lcd_panel_cabc_seq(lcd, false));
+	CHECK_PANEL_RET(lcd_panel_cabc_seq(lcd, lcd->cabc_en));
 	CHECK_PANEL_RET(lcd_panel_cabc_gradient(lcd));
 	CHECK_PANEL_RET(lcd_panel_set_ce_mode(lcd));
 
@@ -215,6 +215,7 @@ static int lcd_remove(struct mipi_dsim_lcd_device *mipi_dev)
 int lcd_cabc_opr(unsigned int brightness, unsigned int enable)
 {
 	CHECK_PANEL_RET(lcd_panel_cabc_seq(g_lcd_info , enable));
+	g_lcd_info->cabc_en = enable;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(lcd_cabc_opr);
@@ -328,6 +329,7 @@ static int lcd_probe(struct mipi_dsim_lcd_device *dsim_dev)
 
 	lcd->state = LCD_DISPLAY_POWER_OFF;
 	lcd->ce_mode = 0xff;
+	lcd->cabc_en = false;
 
 #ifdef LCD_TEST
 	err = device_create_file(lcd->dev, &dev_attr_sync);

@@ -20,6 +20,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/gpio.h>
 #include <linux/earlysuspend.h>
+#include <linux/delay.h>
 
 #define LM3530_LED_DEV "lcd-backlight"
 #define LM3530_NAME "lm3530-led"
@@ -241,7 +242,7 @@ static void lm3530_brightness_set(struct led_classdev *led_cdev,
 	struct lm3530_data *drvdata =
 	    container_of(led_cdev, struct lm3530_data, led_dev);
 
-	//pr_info("%s brt %d mode %d\n", __func__, brt_val, drvdata->mode);
+	/*pr_info("%s brt %d mode %d\n", __func__, brt_val, drvdata->mode);*/
 	mutex_lock(&drvdata->mutex_lock);
 	if (atomic_read(&drvdata->suspended)) {
 		drvdata->brightness = brt_val;
@@ -295,7 +296,7 @@ extern int lcd_cabc_opr(unsigned int brightness, unsigned int enable);
 static ssize_t lm3530_mode_set(struct device *dev, struct device_attribute
 				   *attr, const char *buf, size_t size)
 {
-	int err;
+	int err = 0;
 	struct i2c_client *client = container_of(
 					dev->parent, struct i2c_client, dev);
 	struct lm3530_data *drvdata = i2c_get_clientdata(client);
@@ -312,16 +313,20 @@ static ssize_t lm3530_mode_set(struct device *dev, struct device_attribute
 		case LM3530_BL_MODE_MANUAL:
 		case LM3530_BL_MODE_ALS:
 		case LM3530_BL_MODE_PWM:
-			lcd_cabc_opr(0xff, false);
+			err = lcd_cabc_opr(0xff, false);
 			break;
 		case LM3530_BL_MODE_PWM_MAN:
-			lcd_cabc_opr(0xff, true);
+			err = lcd_cabc_opr(0xff, true);
 			break;
 		default:
 			dev_err(dev, "unsupported mode\n");
 			break;
 	}
 
+	if (err != 0) {
+		dev_err(dev, "set mode fail!\n");
+		return 0;
+	}
 	drvdata->mode = mode;
 
 	err = lm3530_init_registers(drvdata);
@@ -370,6 +375,7 @@ static void lm3530_late_resume(struct early_suspend *h)
 	atomic_set(&drvdata->suspended, 0);
 	if (drvdata->brightness == 0)
 		drvdata->brightness = 2;
+
 	lm3530_brightness_set(&drvdata->led_dev, drvdata->brightness);
 }
 #endif
@@ -451,7 +457,7 @@ static int __devinit lm3530_probe(struct i2c_client *client,
 	atomic_set(&drvdata->suspended, 0);
 	drvdata->early_suspend.suspend = lm3530_early_suspend;
 	drvdata->early_suspend.resume = lm3530_late_resume;
-	drvdata->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB-5;
+	drvdata->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN-5;
 	register_early_suspend(&drvdata->early_suspend);
 	drvdata->initialised = true;
 #endif

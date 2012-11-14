@@ -102,6 +102,7 @@ struct ls044k3sx01_info {
 	enum lcd_state state;
 	int ce_mode;
 	int id_code;
+	int cabc_en;
 };
 
 static const struct ls044k3sx01_param ls044k3sx01_slpout_seq[] = {
