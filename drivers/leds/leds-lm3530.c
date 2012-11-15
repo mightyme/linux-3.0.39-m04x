@@ -204,7 +204,7 @@ static int lm3530_init_registers(struct lm3530_data *drvdata)
 	reg_val[2] = brt_ramp;		/* LM3530_BRT_RAMP_RATE */
 	reg_val[3] = 0x00;		/* LM3530_ALS_ZONE_REG */
 	reg_val[4] = als_imp_sel;	/* LM3530_ALS_IMP_SELECT */
-	reg_val[5] = brightness;	/* LM3530_BRT_CTRL_REG */
+	reg_val[5] = brightness >> 1;	/* LM3530_BRT_CTRL_REG */
 	reg_val[6] = LM3530_DEF_ZB_0;	/* LM3530_ALS_ZB0_REG */
 	reg_val[7] = LM3530_DEF_ZB_1;	/* LM3530_ALS_ZB1_REG */
 	reg_val[8] = LM3530_DEF_ZB_2;	/* LM3530_ALS_ZB2_REG */
@@ -242,7 +242,7 @@ static void lm3530_brightness_set(struct led_classdev *led_cdev,
 	struct lm3530_data *drvdata =
 	    container_of(led_cdev, struct lm3530_data, led_dev);
 
-	/*pr_info("%s brt %d mode %d\n", __func__, brt_val, drvdata->mode);*/
+	/*pr_info("set brt %d mode %d\n", brt_val, drvdata->mode);*/
 	mutex_lock(&drvdata->mutex_lock);
 	if (atomic_read(&drvdata->suspended)) {
 		drvdata->brightness = brt_val;
@@ -371,12 +371,21 @@ static void lm3530_early_suspend(struct early_suspend *h)
 static void lm3530_late_resume(struct early_suspend *h)
 {
 	struct lm3530_data *drvdata = container_of(h, struct lm3530_data, early_suspend);
+	int err = 0;
 
+	mutex_lock(&drvdata->mutex_lock);
 	atomic_set(&drvdata->suspended, 0);
 	if (drvdata->brightness == 0)
-		drvdata->brightness = 2;
-
-	lm3530_brightness_set(&drvdata->led_dev, drvdata->brightness);
+		goto out;
+	if (!drvdata->enable) {
+		err = lm3530_init_registers(drvdata);
+		if (err) {
+			dev_err(&drvdata->client->dev,
+					"Register Init failed: %d\n", err);
+		}
+	}
+out:
+	mutex_unlock(&drvdata->mutex_lock);
 }
 #endif
 static int __devinit lm3530_probe(struct i2c_client *client,
@@ -480,6 +489,9 @@ static int __devexit lm3530_remove(struct i2c_client *client)
 {
 	struct lm3530_data *drvdata = i2c_get_clientdata(client);
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	unregister_early_suspend(&drvdata->early_suspend);
+#endif
 	device_remove_file(drvdata->led_dev.dev, &dev_attr_mode);
 
 	if (drvdata->enable)
