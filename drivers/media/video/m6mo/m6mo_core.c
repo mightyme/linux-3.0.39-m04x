@@ -1190,7 +1190,8 @@ int m6mo_set_power_clock(struct m6mo_state *state, bool enable)
 	int ret = 0;
 	
 	if (state->isp_power == enable) {
-		pr_err("%s(), ISP has already been powered on!\n", __func__);
+		pr_err("%s(), ISP Power has already been set to %d!\n",
+			__func__, enable);
 		return -EBUSY;
 	}
 	
@@ -1203,7 +1204,9 @@ int m6mo_set_power_clock(struct m6mo_state *state, bool enable)
 
 		ret = pdata->clock_enable(&client->dev, true);
 		if (ret) return ret;
+		state->isp_power = enable;	
 	} else {
+		state->isp_power = enable;
 		pdata->clock_enable(&client->dev, false);
 		pdata->set_isp_power(false);
 		if (state->sensor_power)   
@@ -1211,7 +1214,6 @@ int m6mo_set_power_clock(struct m6mo_state *state, bool enable)
 	}
 
 	pr_info("%s(), set power to %d successed!\n", __func__, enable);
-	state->isp_power = enable;
 
 	return ret;
 }
