@@ -746,7 +746,6 @@ static void rmi_f11_abs_pos_report(struct f11_2d_sensor *sensor,
 	}
 #endif
 
-
 #ifdef ABS_MT_PRESSURE
 	input_report_abs(sensor->input, ABS_MT_PRESSURE, z);
 	if(z)
@@ -759,9 +758,6 @@ static void rmi_f11_abs_pos_report(struct f11_2d_sensor *sensor,
 		input_report_abs(sensor->input, ABS_MT_TOUCH_MAJOR, w_max);
 		input_report_abs(sensor->input, ABS_MT_TOUCH_MINOR, w_min);
 	}
-#else
-	input_report_abs(sensor->input, ABS_MT_TOUCH_MAJOR, w_max);
-	input_report_abs(sensor->input, ABS_MT_TOUCH_MINOR, w_min);
 #endif
 	input_report_abs(sensor->input, ABS_MT_ORIENTATION, orient);
 	input_report_abs(sensor->input, ABS_MT_POSITION_X, x);
@@ -779,7 +775,7 @@ static void rmi_f11_abs_pos_report(struct f11_2d_sensor *sensor,
 	sensor->finger_tracker[n_finger] = finger_state;
 
 	if(touch_debug)
-		printk(KERN_INFO"touch point %d:%d:%d, timestampe=%llu us, %llu\n", x, y,z,ktime_to_us(ktime_sub(ktime_get(),time_last)), ktime_to_us(ktime_get()));
+		printk(KERN_INFO"touch point %d:%d:%d:%d:%d:%d:%d, timestampe=%llu us, %llu\n", x, y,z,orient,w_max,w_min,n_finger,ktime_to_us(ktime_sub(ktime_get(),time_last)), ktime_to_us(ktime_get()));
 	time_last = ktime_get();
 }
 
@@ -2304,7 +2300,7 @@ exit:
 #ifdef	VBUS_IRQ_EN
 	set_noise_mitigation_by_vbus(data);
 #endif
-	set_rmi_force_cal_delaywork(data,true);
+	//set_rmi_force_cal_delaywork(data,true);
 
 #ifdef F11_REPORTMODE_REDUCED	
 	if (!data->rezero_on_resume)
@@ -2326,7 +2322,7 @@ static int rmi_f11_suspund(struct rmi_function_container *fc)
 
 	dev_dbg(&fc->dev, "Suspend...\n");
 
-	set_rmi_force_cal_delaywork(data,false);
+	//set_rmi_force_cal_delaywork(data,false);
 	
 	return retval;
 }
