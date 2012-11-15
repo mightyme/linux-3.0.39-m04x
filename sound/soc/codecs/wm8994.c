@@ -330,7 +330,7 @@ static int check_clk_sys(struct snd_soc_dapm_widget *source,
 //------------------------------------------------
 static const char *playback_path_name[] = { "None",
 									"Speaker  Nomal","Headphone  Nomal","Receiver  Nomal","Spk_Hp Nomal",
-									"Speaker incall","Headset incall","Receiver incall","Spk_Hs incall","Headphone incall","Spk_Hp incall",,
+									"Speaker incall","Headset incall","Receiver incall","Spk_Hs incall","Headphone incall","Spk_Hp incall",
 									"Speaker ringtone","Headphone ringtone","Receiver ringtone","Spk_Hp ringtone",
 									"BT Nomal","BT incall","BT ringtone","BT VoIP",
 									"Speaker VoIP","Headset VoIP","Receiver VoIP","Spk_Hs VoIP","Headphone VoIP","Spk_Hp VoIP",
