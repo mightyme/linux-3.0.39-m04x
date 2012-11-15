@@ -184,6 +184,7 @@ enum _playback_path {
 		PLAYBACK_SPK_TEST, // 27
 		PLAYBACK_REC_ECHO_TEST,
 		PLAYBACK_SPK_ECHO_TEST, // 29
+		PLAYBACK_ANSWER_INCALL,
 };
 enum _capture_path {
 		CAPTURE_NONE = 0,//default

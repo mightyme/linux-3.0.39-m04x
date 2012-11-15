@@ -150,7 +150,7 @@ static int wm8994_write(struct snd_soc_codec *codec, unsigned int reg,
 	BUG_ON(reg > WM8994_MAX_REGISTER);
 	
 	dev_dbg(codec->dev, "0x%x = 0x%x\n", reg, value);
-	//printk("wm8994_write:R:0x%.4X D:0x%.4X\n", reg, value);
+	// printk("wm8994_write:R:0x%.4X D:0x%.4X\n", reg, value);
 	
 #if 1
 	ret = wm8994_reg_write(codec->control_data, reg, value);
@@ -330,12 +330,12 @@ static int check_clk_sys(struct snd_soc_dapm_widget *source,
 //------------------------------------------------
 static const char *playback_path_name[] = { "None",
 									"Speaker  Nomal","Headphone  Nomal","Receiver  Nomal","Spk_Hp Nomal",
-									"Speaker incall","Headset incall","Receiver incall","Spk_Hs incall","Headphone incall","Spk_Hp incall",
+									"Speaker incall","Headset incall","Receiver incall","Spk_Hs incall","Headphone incall","Spk_Hp incall",,
 									"Speaker ringtone","Headphone ringtone","Receiver ringtone","Spk_Hp ringtone",
 									"BT Nomal","BT incall","BT ringtone","BT VoIP",
 									"Speaker VoIP","Headset VoIP","Receiver VoIP","Spk_Hs VoIP","Headphone VoIP","Spk_Hp VoIP",
 
-									"Microphone Test", "Receiver Test", "Speaker Test", "Receiver echo Test", "Speaker echo Test",
+									"Microphone Test", "Receiver Test", "Speaker Test", "Receiver echo Test", "Speaker echo Test",  "Answer incall",
 									};
 static const char *capture_path_name[] = { "None","Main_Mic Nomal","Sencond_Mic Nomal","Hand_Mic Nomal",
 									"Main_Mic incall","Sencond_Mic incall","Hand_Mic incall",
