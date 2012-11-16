@@ -490,7 +490,7 @@ static int mx_qm_update(struct mx_qm_data *mx)
 	else		{
 		dev_err(&mx->client->dev,"This version is not support \n");
 		ret = -EINVAL;
-		goto err_exit;
+		goto exit;
 	}
 	
 	ret = request_firmware(&fw, fw_name,  &mx->client->dev);
@@ -910,36 +910,34 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 	mx_qm_wakeup(data,true);
 	/* Identify the mx_qm chip */
 	if (!mx_qm_identify(data))
-	{		
+	{
+		struct device *parent = client->adapter->dev.parent;
+		struct i2c_gpio_platform_data *pi2cdata;
+
+		pi2cdata = parent->platform_data;
+
+		gpio_free(pi2cdata->sda_pin);
+		gpio_free(pi2cdata->scl_pin);
+		
+		//#define  M040_SCL_TOUCHPAD  EXYNOS4_GPY2(0)
+		//#define  M040_SDA_TOUCHPAD  EXYNOS4_GPY1(3)
+
+		pi2cdata->scl_pin = EXYNOS4_GPY2(0);
+		pi2cdata->sda_pin = EXYNOS4_GPY1(3);
+		
+		gpio_request(pi2cdata->sda_pin, "sda");
+		gpio_request(pi2cdata->scl_pin, "scl");
+		msleep(5);	
+		
+		if (!mx_qm_identify(data))
 		{
-			struct device *parent = client->adapter->dev.parent;
-			struct i2c_gpio_platform_data *pi2cdata;
-
-			pi2cdata = parent->platform_data;
-
-			gpio_free(pi2cdata->sda_pin);
-			gpio_free(pi2cdata->scl_pin);
-			
-			//#define  M040_SCL_TOUCHPAD  EXYNOS4_GPY2(0)
-			//#define  M040_SDA_TOUCHPAD  EXYNOS4_GPY1(3)
-
-			pi2cdata->scl_pin = EXYNOS4_GPY2(0);
-			pi2cdata->sda_pin = EXYNOS4_GPY1(3);
-			
-			gpio_request(pi2cdata->sda_pin, "sda");
-			gpio_request(pi2cdata->scl_pin, "scl");
-			msleep(5);	
-			
-			if (!mx_qm_identify(data))
-			{
-				err = -ENODEV;	
-				goto err_free_mem;					
-			}
-			else
-			{
-				pr_info("mx_qm:This is an old PCB !!!\n");
-			}
-		}	
+			err = -ENODEV;	
+			goto err_free_mem;					
+		}
+		else
+		{
+			pr_info("mx_qm:This is an old PCB !!!\n");
+		}
 	}
 	
 	qm_create_attrs(&client->dev);
