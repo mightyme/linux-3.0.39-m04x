@@ -419,12 +419,14 @@ static int gp2ap_set_debug_mode(struct gp2ap_data *gp2ap, int current_status)
 	return 0;
 }
 
+#if 0
 /* The initial status is far */
 static void gp2ap_ps_report_far(struct input_dev *idp)
 {
 	input_report_abs(idp, ABS_PS, PS_FAR);
 	input_sync(idp);
 }
+#endif
 
 static u16 gp2ap_get_ps_data(struct gp2ap_data *gp2ap)
 {
@@ -446,7 +448,9 @@ static u16 gp2ap_get_ps_data(struct gp2ap_data *gp2ap)
 static int gp2ap_start_work(struct gp2ap_data *gp2ap, int enabled_sensors)
 {
 	int ret = 0;
-
+	u8 buf[2] = {0};
+	int ps_data = 0;
+	
 	if (enabled_sensors & ID_PS) {
 		enable_irq(gp2ap->irq);   /*enable irq first*/
 		ret = gp2ap_set_ps_irq_mode(gp2ap);
@@ -456,9 +460,21 @@ static int gp2ap_start_work(struct gp2ap_data *gp2ap, int enabled_sensors)
 				__func__, __LINE__);
 			return ret;
 		}
-		/* Init it as FAR when start, this is required for the phone call. */
-		gp2ap_ps_report_far(gp2ap->input_dev);
-		gp2ap->ps_data = PS_FAR;
+		msleep(10);
+		ret = gp2ap_i2c_read_multibytes(gp2ap->client, REG_D2_LSB, buf, 2);
+		if (ret < 0) {
+			pr_err("%s()->%d:read REG_ALS_D2_LSB reg fail!\n",
+				__func__, __LINE__);
+		} else {
+			ps_data = (buf[1] << 8) | buf[0];
+		}
+		if (ps_data <= gp2ap->ps_far_threshold)
+			ps_data = PS_FAR;
+		if (ps_data >= gp2ap->ps_near_threshold)
+			ps_data = PS_NEAR;
+		input_report_abs(gp2ap->input_dev, ABS_PS, ps_data);
+		input_sync(gp2ap->input_dev);
+		gp2ap->ps_data = ps_data;
 	} else if (enabled_sensors & ID_ALS) {
 		gp2ap->current_range = __ALS_RANGE_X8;
 		gp2ap->current_intval_time = __INTVAL_TIME_0;
@@ -505,10 +521,16 @@ static int gp2ap_set_enable(struct gp2ap_data *gp2ap,
 
 	/*now we get new enabled sensors mask*/
 	to_be_enabled_sensors = old_enabled_sensors = gp2ap->enabled_sensors;
-	if (enable)
+	if (enable) {
 		to_be_enabled_sensors |= sensor_id;
-	else
+	} else {
 		to_be_enabled_sensors &= ~sensor_id;
+	}
+	
+	if (!enable && (sensor_id == ID_PS)) {
+		input_report_abs(gp2ap->input_dev, ABS_PS, PS_UNKNOW);
+		input_sync(gp2ap->input_dev);
+	}
 
 	pr_info("%s(): old enabled_sensors is %d, new is %d.\n", __func__,
 		old_enabled_sensors, to_be_enabled_sensors);
@@ -533,7 +555,6 @@ static int gp2ap_set_enable(struct gp2ap_data *gp2ap,
 		gp2ap_stop_work(gp2ap);
 	}
 
-	gp2ap->sensor_id = sensor_id;
 	if (to_be_enabled_sensors) {
 		ret = gp2ap_start_work(gp2ap, to_be_enabled_sensors);
 		if (ret < 0)
@@ -913,6 +934,17 @@ static void gp2ap_als_reset(struct gp2ap_data *gp2ap)
 }
 
 /*
+ *  enable the sensor delayed work function
+ */
+static void gp2ap_enable_handler(struct work_struct *work)
+{
+	struct gp2ap_data *gp2ap = container_of((struct delayed_work*)work,
+			struct gp2ap_data, enable_work);
+
+	gp2ap_set_enable(gp2ap, gp2ap->sensor_id, gp2ap->enable);
+}
+
+/*
  * gp2ap ALS delayed work function
  */
 static void gp2ap_als_dwork_func(struct work_struct *work)
@@ -1127,8 +1159,8 @@ static void gp2ap_ps_handler(struct work_struct *work)
 			struct gp2ap_data, ps_dwork);
 	struct i2c_client *client = gp2ap->client;
 	struct input_dev *idp = gp2ap->input_dev;
-	u8 command1 = 0;   /*command1 for write back*/
-	int ret, ps_data;
+	int ret, ps_data = 0;
+	u8 buf[2] = {0}, command1 = 0;
 	u8 new_val = 0, old_val = 0, ps_mask = 0x1 << 2;
 	
 	ret = gp2ap_i2c_read_byte(client, REG_COMMAND1, &command1);
@@ -1137,41 +1169,32 @@ static void gp2ap_ps_handler(struct work_struct *work)
 			__func__, __LINE__);
 		return;
 	}
-	ps_data = !(command1 & PS_DETECTION_MASK);
 
-	/* Reset the measure cycle and intval when switch between NEAR and FAR
-	 *
-	 * Note: Must power off before resetting, otherwise, the chip will not
-	 * function as expected.
-	 */
+	ret = gp2ap_i2c_read_multibytes(client, REG_D2_LSB, buf, 2);
+	if (ret < 0) {
+		pr_err("%s()->%d:read REG_ALS_D2_LSB reg fail!\n",
+			__func__, __LINE__);
+	} else {
+		ps_data = (buf[1] << 8) | buf[0];
+	}
+	if (ps_data <= gp2ap->ps_far_threshold) 
+		ps_data = PS_FAR;
+	if (ps_data >= gp2ap->ps_near_threshold) 
+		ps_data = PS_NEAR;
+	
 	if (gp2ap->ps_data != ps_data) {
 		gp2ap_power_down(gp2ap);
-		/* Only report for the changes */
 		input_report_abs(idp, ABS_PS, ps_data);
 		input_sync(idp);
 		gp2ap->ps_data = ps_data;
 		gp2ap_set_ps_irq_mode(gp2ap);
-
-		if (is_far(ps_data))
-			pr_info("*************far*************\n");
+	
+		if (ps_data == PS_FAR) 
+			pr_info("**************far************\n");
 		else
-			pr_info("*************near*************\n");
+			pr_info("**************near***********\n");
 	}
-
-	/*if user debug, to read ps data*/
-	if (gp2ap->debug) {
-		u8 buf[2];
-		int ps_debug_data;
-
-		ret = gp2ap_i2c_read_multibytes(client, REG_D2_LSB, buf, 2);
-		if (ret < 0) {
-			pr_err("%s()->%d:read REG_ALS_D2_LSB reg fail!\n",
-				__func__, __LINE__);
-		} else {
-			ps_debug_data = buf[1] * 256 + buf[0];
-			pr_info("%s():ps adc data is %d.\n", __func__, ps_debug_data);
-		}
-	}
+	
 	/*clear the interrupts*/	
 	ret = i2c_smbus_read_byte_data(gp2ap->client, REG_COMMAND1);
 	if(ret >= 0){
@@ -1280,21 +1303,20 @@ static long gp2ap_misc_ioctl_int(struct file *file, unsigned int cmd, unsigned l
 	switch (cmd) {
 	case GP2AP_IOCTL_SET_ALS_ENABLE:
 	case GP2AP_IOCTL_SET_PS_ENABLE:
-		ret = copy_from_user(&enable, (void __user *)arg, sizeof(int));
+		ret = copy_from_user(&gp2ap->enable, (void __user *)arg, sizeof(int));
 		if (ret) {
 			pr_err("%s()->%d:copy enable operation error!\n",
 				__func__, __LINE__);
 			return -EINVAL;
 		}
 
-		sensor_id = (cmd == GP2AP_IOCTL_SET_ALS_ENABLE) ? ID_ALS : ID_PS;
-		gp2ap_set_enable(gp2ap, sensor_id, enable);
-
+		gp2ap->sensor_id = (cmd == GP2AP_IOCTL_SET_ALS_ENABLE) ? ID_ALS : ID_PS;
+		queue_delayed_work(gp2ap->gp2ap_wq, &gp2ap->enable_work, 0);
 		break;
 	case GP2AP_IOCTL_GET_ALS_ENABLE:
 	case GP2AP_IOCTL_GET_PS_ENABLE:
 		sensor_id = (cmd == GP2AP_IOCTL_GET_ALS_ENABLE) ? ID_ALS : ID_PS;
-		enable = !!(gp2ap->enabled_sensors & sensor_id);
+		gp2ap->enable = !!(gp2ap->enabled_sensors & sensor_id);
 
 		ret = copy_to_user((void __user *)arg, &enable, sizeof(int));
 		if (ret) {
@@ -1451,6 +1473,7 @@ static int __devinit gp2ap_probe(struct i2c_client *client, const struct i2c_dev
 	gp2ap->gp2ap_wq = create_singlethread_workqueue("gp2ap_handler");
 	INIT_DELAYED_WORK(&gp2ap->als_dwork, gp2ap_als_dwork_func);
 	INIT_DELAYED_WORK(&gp2ap->ps_dwork, gp2ap_ps_handler);
+	INIT_DELAYED_WORK(&gp2ap->enable_work, gp2ap_enable_handler);
 
 	gp2ap->debug = 0;
 	gp2ap->enabled_sensors = 0;
@@ -1471,9 +1494,6 @@ static int __devinit gp2ap_probe(struct i2c_client *client, const struct i2c_dev
 	gp2ap->ps_near_threshold = PS_CALIB_TO_NEAR(gp2ap->ps_calib_value);
 	gp2ap->ps_far_threshold = PS_NEAR_TO_FAR(gp2ap->ps_near_threshold);
 	atomic_set(&gp2ap->opened, 0);
-	/* Report an initial status as FAR */
-	gp2ap_ps_report_far(gp2ap->input_dev);
-	gp2ap->ps_data = PS_FAR;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	gp2ap->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 1;

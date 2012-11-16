@@ -119,9 +119,9 @@
 #define I2C_RETRY_DELAY 2
 #define I2C_RETRIES	10
 
-#define PS_FAR 1
-#define PS_NEAR 0
-#define is_far(status) ((status) == PS_FAR)
+#define PS_NEAR   1 
+#define PS_FAR    2 
+#define PS_UNKNOW -1 
 
 #define PROXIMITY_CALIB_FILE "/data/calibration/proximity_calibration"
 
@@ -138,6 +138,8 @@ struct gp2ap_data {
 	struct workqueue_struct *gp2ap_wq;
 	struct delayed_work als_dwork;
 	struct delayed_work ps_dwork;
+	struct delayed_work enable_work;
+//	struct work_struct enable_work; 
 	struct input_dev *input_dev;
 	struct mutex lock;
 	struct miscdevice misc_device;
@@ -166,6 +168,7 @@ struct gp2ap_data {
 
 	struct mutex ioctl_lock;
 	struct mutex i2c_lock;
+	int enable;
 };
 #endif
 
