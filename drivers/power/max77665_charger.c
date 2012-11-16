@@ -27,14 +27,14 @@
 #include <linux/android_alarm.h>
 #include <mach/usb-detect.h>
 #include <linux/workqueue.h>
+#include <plat/adc.h>
 
 #define MAX_AC_CURRENT         1000 
-#define MAX_INPUT_CURRENT      900
-#define MIN_CHGIN_CURRENT      400   
+#define CHGIN_USB_CURRENT      450
 #define TEMP_CHECK_DELAY       (120 * HZ) 
 #define WAKE_ALARM_INT         (120) 
-
-#define CURRENT_INCREMENT_STEP 60    /*mA*/ 
+#define CURRENT_INCREMENT_STEP 100    /*mA*/
+#define CURRENT_DEDUCE_STEP    150   /*mA*/
 #define COMPLETE_TIMEOUT       200   /*ms*/ 
 #define MA_TO_UA               1000  
 
@@ -66,6 +66,7 @@ struct max77665_charger
 	struct delayed_work poll_dwork;
 	struct workqueue_struct *ad_curr;
 	struct delayed_work ad_work;
+	struct work_struct chgin_work;
 	struct regulator *ps;
 	struct regulator *reverse;
 	struct mutex mutex_t;
@@ -95,6 +96,8 @@ struct max77665_charger
 
 	struct alarm alarm;
 	bool done;
+	bool adc_flag;
+	struct s3c_adc_client *adc;
 };
 static BLOCKING_NOTIFIER_HEAD(max77665_charger_chain_head);
 
@@ -199,12 +202,28 @@ static void charger_bat_alarm(struct alarm *alarm)
 	set_alarm(chg, WAKE_ALARM_INT);
 }
 
+#define CHG_ADC_CHANNEL 2
+static int adc_is_available(struct max77665_charger *charger)
+{
+	int adc_value = 0;
+
+	msleep(100);
+	adc_value = s3c_adc_read(charger->adc, CHG_ADC_CHANNEL);
+	pr_info("adc_value is %d\n", adc_value);
+	if (adc_value > 1024) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
 static int max77665_adjust_current(struct max77665_charger *charger,
 		int chgin_ilim)
 {
-	int ret, ad_current;
+	int ret = 0, ad_current;
 	unsigned long expire;
-	u8 int_ok;
+	u8 int_ok = 0;
+	int MAX_INPUT_CURRENT = charger->chgin_ilim_ac; 
 	struct i2c_client *i2c = charger->iodev->i2c;
 
 	expire = msecs_to_jiffies(COMPLETE_TIMEOUT);
@@ -220,6 +239,7 @@ static int max77665_adjust_current(struct max77665_charger *charger,
 			return ret;
 		}
 		pr_info("waiting.................\n");
+
 		
 		init_completion(&charger->byp_complete);
 		ret = wait_for_completion_timeout(&charger->byp_complete, expire);
@@ -241,11 +261,9 @@ static int max77665_adjust_current(struct max77665_charger *charger,
 				msleep(20);
 				ret = max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK,
 						&int_ok);
-				if (int_ok == 0x1d) { 
+				if (int_ok == 0x1d) {
 					do{
-						ad_current -= CURRENT_INCREMENT_STEP;
-						if (ad_current <= charger->chgin_ilim_usb)
-							break;
+						ad_current -= CURRENT_DEDUCE_STEP;
 						regulator_set_current_limit(charger->ps,
 								ad_current * MA_TO_UA,
 								(ad_current*MA_TO_UA + 
@@ -253,11 +271,15 @@ static int max77665_adjust_current(struct max77665_charger *charger,
 						ret = max77665_read_reg(i2c, 
 								MAX77665_CHG_REG_CHG_INT_OK,
 								&int_ok);
+						if (ad_current <= CHGIN_USB_CURRENT)
+							break;
 					} while (int_ok != 0x5d);
-				}
+					break;
+				 }
+			} else if (charger->adc_flag == true) {
 				break;
 			} else {
-				pr_info("the current=%d ok!\n", ad_current);
+				pr_info("%d,ok!\n", ad_current);
 			}
 		}
 	}
@@ -274,7 +296,7 @@ static int max77665_charger_types(struct max77665_charger *charger)
 	switch (cable_status) {
 	case CABLE_TYPE_USB:
 	case CABLE_TYPE_AC:	
-	chgin_ilim = MIN_CHGIN_CURRENT;
+	chgin_ilim = charger->chgin_ilim_usb;
 		if (false == charger-> done) {
 			pr_info("we want to adjust the input current now\n");
 			max77665_adjust_current(charger, chgin_ilim);
@@ -289,6 +311,7 @@ static int max77665_charger_types(struct max77665_charger *charger)
 	}
 	return 0;
 }
+
 
 static void max77665_work_func(struct work_struct *work)
 {
@@ -324,16 +347,19 @@ static void max77665_work_func(struct work_struct *work)
 
 			max77665_read_reg(charger->iodev->muic, MAX77665_MUIC_REG_STATUS2, &reg_data);
 			pr_info("#############usb end detect (0x%02x)\n", reg_data);
-			if ((reg_data & 0x07) == 0x01) {
-				cable_status = CABLE_TYPE_USB;
-				charger->usb_attach(true);
+			if (reg_data == 0x00) { 
+				cable_status = CABLE_TYPE_NONE;
 			} else {
-				cable_status = CABLE_TYPE_AC;
+				if ((reg_data & 0x07) == 0x01) {
+					cable_status = CABLE_TYPE_USB;
+				} else 
+					cable_status = CABLE_TYPE_AC;
 			}
 		} while(0);
 #endif
 	} else {
 		charger->done = false;
+		charger->adc_flag = false;
 		regulator_set_current_limit(charger->ps, 
 				charger->chgin_ilim_usb * MA_TO_UA, 
 				MAX_AC_CURRENT * MA_TO_UA);
@@ -341,23 +367,25 @@ static void max77665_work_func(struct work_struct *work)
 	}
 
 	charger->cable_status = cable_status;
+
+	power_supply_changed(&charger->psy_ac);
+	power_supply_changed(&charger->psy_usb);
+
 	max77665_charger_types(charger);
 	
 	if (delayed_work_pending(&charger->poll_dwork))
 		cancel_delayed_work(&charger->poll_dwork);
 	schedule_delayed_work_on(0, &charger->poll_dwork, 0);
 
-	power_supply_changed(&charger->psy_ac);
-	power_supply_changed(&charger->psy_usb);
-
-	if (cable_status != CABLE_TYPE_USB) {
+	if (cable_status == CABLE_TYPE_USB) {
+		charger->usb_attach(true);	
+		max77665_charger_notifier_call_chain(1);
+	} else {
 		msleep(500);
 		if (charger->usb_attach)
 			charger->usb_attach(false);
 		max77665_charger_notifier_call_chain(0);
-	} else
-		max77665_charger_notifier_call_chain(1);
-
+	}
 	wake_unlock(&charger->wake_lock);
 
 #if defined(CONFIG_MX_RECOVERY_KERNEL)
@@ -472,34 +500,35 @@ static void max77665_second_adjust_current(struct work_struct *work)
 
 	do{
 		now_cur = regulator_get_current_limit(charger->ps);
-		if(now_cur <= charger->chgin_ilim_usb * 1000)
-			return;
-
+		
 		pr_info("%s:now_cur = %d\n",__func__, now_cur);
 		regulator_set_current_limit(charger->ps, 
 				now_cur - CURRENT_INCREMENT_STEP * 1000, now_cur);
-
+		
+		if (now_cur <= CHGIN_USB_CURRENT * MA_TO_UA)
+			return;
 		ret = max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK, &int_ok);
 	} while (int_ok != 0x5d);
 	
 	return;
 }
 
-static irqreturn_t max77665_charger_isr(int irq, void *dev_id)
+static void max77665_chgin_irq_handler(struct work_struct *work)
 {
-	struct max77665_charger *charger = dev_id;
+	struct max77665_charger *charger = container_of(work,
+			struct max77665_charger, chgin_work);
 	struct i2c_client *i2c = charger->iodev->i2c;
 	u8 int_ok, prev_int_ok;
 	int ret;
-	int chgin = 0;
+	int chgin = 0, now_current = 0;
+	int adc_value = 0;
 
 	pr_info("ENTER %s##################\n", __func__);
 	if (regulator_is_enabled(charger->reverse)) {
 		pr_info("usb host insert, dismiss this isr\n");
-		wake_unlock(&charger->wake_lock);
-		return IRQ_HANDLED;
+		return;
 	}
-
+	
 	wake_lock(&charger->wake_lock);
 
 	ret =  max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK,
@@ -507,7 +536,6 @@ static irqreturn_t max77665_charger_isr(int irq, void *dev_id)
 	if (unlikely(ret < 0)) {
 		pr_err("Failed to read MAX77665_CHG_REG_CHG_INT: %d\n", ret);
 		wake_unlock(&charger->wake_lock);
-		return IRQ_HANDLED;
 	}
 	msleep(20);
 	ret =  max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK,
@@ -515,14 +543,12 @@ static irqreturn_t max77665_charger_isr(int irq, void *dev_id)
 	if (unlikely(ret < 0)) {
 		pr_err("Failed to read MAX77665_CHG_REG_CHG_INT: %d\n", ret);
 		wake_unlock(&charger->wake_lock);
-		return IRQ_HANDLED;
 	}
 	if ((charger->irq_reg == int_ok) && (prev_int_ok != int_ok)) {
 		pr_info("%s:irq debounced(0x%x, 0x%x, 0x%x),return\n",
 				__func__, charger->irq_reg,
 				prev_int_ok, int_ok);
 		wake_unlock(&charger->wake_lock);
-		return IRQ_HANDLED;
 	} else {
 		chgin = !!(int_ok & 0x40);
 	}
@@ -531,6 +557,30 @@ static irqreturn_t max77665_charger_isr(int irq, void *dev_id)
 	charger->irq_reg = int_ok;
 
 	pr_info("-----%s %s\n", __func__, chgin ? "insert" : "remove");
+	
+	if ((!chgin) && (charger->cable_status == CABLE_TYPE_USB) 
+			&& (adc_is_available(charger))) {
+
+		charger->adc_flag = true; 
+		
+		now_current = regulator_get_current_limit(charger->ps);
+		do {
+			now_current -= CURRENT_DEDUCE_STEP*MA_TO_UA;
+
+			pr_info("adc_is_available, now_current= %d \n", now_current);
+			regulator_set_current_limit(charger->ps, 
+					now_current,
+					now_current + CURRENT_INCREMENT_STEP*MA_TO_UA);
+			max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK,
+					&int_ok);
+			msleep(50);
+			adc_value = s3c_adc_read(charger->adc, CHG_ADC_CHANNEL);
+		
+			if ((int_ok == 0X5d) && (adc_value >= 2150))
+				break;
+		} while (now_current > CHGIN_USB_CURRENT * MA_TO_UA);
+		return;
+	}
 	
 	if (charger->chgin != chgin) {
 		alarm_cancel(&charger->alarm);
@@ -542,13 +592,20 @@ static irqreturn_t max77665_charger_isr(int irq, void *dev_id)
 	
 		if (delayed_work_pending(&charger->dwork))
 			cancel_delayed_work(&charger->dwork);
-		
-		schedule_delayed_work(&charger->dwork, HZ/2);
+			
+		schedule_delayed_work(&charger->dwork, HZ/4);
 	} else {
 		pr_info("unstable charger isr, dismiss this isr\n");
 		msleep(2000);
 		wake_unlock(&charger->wake_lock);
 	}
+}
+
+static irqreturn_t max77665_charger_isr(int irq, void *dev_id)
+{
+	struct max77665_charger *charger = dev_id;
+	
+	schedule_work_on(0, &charger->chgin_work);
 	return IRQ_HANDLED;
 }
 
@@ -711,6 +768,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	charger->chgin_ilim_ac = pdata->chgin_ilim_ac;
 	charger->chr_pin = pdata->charger_pin;
 	charger->done = false;
+	charger->adc_flag = false;
 
 	init_completion(&charger->byp_complete);
 	mutex_init(&charger->mutex_t);
@@ -723,6 +781,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 
 	charger->ad_curr = create_singlethread_workqueue("max77665_sed_ad_curr");
 	INIT_DELAYED_WORK(&charger->ad_work,max77665_second_adjust_current);
+	INIT_WORK(&charger->chgin_work, max77665_chgin_irq_handler);
 
 	charger->ps = regulator_get(charger->dev, pdata->supply);
 	if (IS_ERR(charger->ps)) {
@@ -738,6 +797,13 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 		goto err_put0;
 	}
 
+	charger->adc = s3c_adc_register(pdev, NULL, NULL, 0);
+	if (IS_ERR(charger->adc)) {
+		dev_err(&pdev->dev, "cannot register adc\n");
+		ret = PTR_ERR(charger->adc);
+		goto err_put;
+	}
+
 	charger->psy_charger.name = "charger";
 	charger->psy_charger.type = POWER_SUPPLY_TYPE_BATTERY;
 	charger->psy_charger.properties = max77665_charger_props,
@@ -746,7 +812,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	ret = power_supply_register(&pdev->dev, &charger->psy_charger);
 	if (unlikely(ret != 0)) {
 		dev_err(&pdev->dev, "Failed to power_supply_register psy_charger: %d\n", ret);
-		goto err_put;
+		goto err_adc_unregister;
 	}
 
 	charger->psy_usb.name = "usb";
@@ -822,6 +888,8 @@ err_unregister1:
 	power_supply_unregister(&charger->psy_usb);
 err_unregister0:	
 	power_supply_unregister(&charger->psy_charger);
+err_adc_unregister:
+	s3c_adc_release(charger->adc);
 err_put:
 	regulator_put(charger->reverse);
 err_put0:
