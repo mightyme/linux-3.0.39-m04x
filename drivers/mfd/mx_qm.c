@@ -31,7 +31,6 @@
 #include <linux/firmware.h>
 #include	<linux/mx_qm.h>
 
-#define QM_MX_FW_6K 	"qm/qm_mx_led6k.bin"
 #define QM_MX_FW 		"qm/qm_mx_led.bin"
 
 #define 	RESET_COLD	1
@@ -485,14 +484,18 @@ static int mx_qm_update(struct mx_qm_data *mx)
 	mx->BVer = boot_ver;
 	
 	dev_info(&mx->client->dev,"bootloader revision %d.%d\n", ((boot_ver>>4)&0x0F),(boot_ver&0x0F));
-	if( boot_ver > 3 )
+	if( boot_ver > 3 )	{
 		fw_name = QM_MX_FW;	
-	else
-		fw_name = QM_MX_FW_6K;
+	}
+	else		{
+		dev_err(&mx->client->dev,"This version is not support \n");
+		ret = -EINVAL;
+		goto err_exit;
+	}
 	
 	ret = request_firmware(&fw, fw_name,  &mx->client->dev);
 	if (ret) {
-		printk(KERN_ERR "Failed to load firmware \"%s\"\n", fw_name);
+		dev_err(&mx->client->dev,"Failed to load firmware \"%s\"\n", fw_name);
 		goto err_exit;
 	}
 
