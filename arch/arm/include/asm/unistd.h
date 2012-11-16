@@ -414,10 +414,11 @@
 #define __ARM_NR_set_tls		(__ARM_NR_BASE+5)
 
 #if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
-#define __ARM_NR_machine_verify		(__ARM_NR_BASE+105)
 #define __ARM_NR_set_machine_info	(__ARM_NR_BASE+101)
 #define __ARM_NR_get_recovery_key	(__ARM_NR_BASE+102)
 #define __ARM_NR_do_private_entry (__ARM_NR_BASE+103)
+#define __ARM_NR_do_system_data (__ARM_NR_BASE+104)
+#define __ARM_NR_machine_verify		(__ARM_NR_BASE+105)
 #endif
 /*
  * *NOTE*: This is a ghost syscall private to the kernel.  Only the

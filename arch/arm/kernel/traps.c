@@ -669,6 +669,36 @@ out:
 	return err;
 }
 
+enum {
+	SYSTEM_READ,
+	SYSTEM_WRITE
+};
+
+extern int system_data_func(int cmd , __user char *buf, int size);
+
+static int do_system_data(int cmd , __user char *buf, int size)
+{
+	int err = 0;
+	pr_info("%s %d %d\n", __func__, cmd, size);
+	mutex_lock(&private_entry_mutex);
+
+	switch(cmd) {
+		case SYSTEM_READ:
+		case SYSTEM_WRITE:
+			if (system_data_func(cmd, buf, size)) {
+				err =   -EFAULT;
+				goto out;
+			}
+			break;
+		default:
+			err = -EINVAL;
+			goto out;
+	}
+
+out:
+	mutex_unlock(&private_entry_mutex);
+	return err;
+}
 #endif//CONFIG_MX_SERIAL_TYPE
 /*
  * Handle all unrecognised system calls.
@@ -812,6 +842,11 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 					(__user int)regs->ARM_r1, 
 					(__user char *)regs->ARM_r2, 
 					(__user char *)regs->ARM_r3);
+		break;
+	case NR(do_system_data):
+		return do_system_data((__user int)regs->ARM_r0,
+					(__user char *)regs->ARM_r1,
+					(__user int)regs->ARM_r2); 
 		break;
 #endif
 	default:

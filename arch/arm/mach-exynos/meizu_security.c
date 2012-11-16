@@ -19,6 +19,7 @@
 #include <linux/random.h>
 #include <linux/rsa.h>
 #include <linux/rsa_pubkey.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 
 extern int deal_private_block(int write, unsigned offset , long len, void *buffer);
@@ -112,6 +113,42 @@ int private_entry_write(int slot, __user char *in_buf)
 		goto out;
 
 out:
+	pr_info("%s rtn code %d\n", __func__, err);
+	return err;
+}
+
+int system_data_func(int cmd , __user char *buf, int size)
+{
+	int offset = BASE_PRIVATE_ENTRY_OFFSET + MAX_PRIVATE_ENTRY * PRIVATE_ENTRY_BLOCK_SIZE;
+	int err = -EINVAL;
+	char *tmp_buf = NULL;
+
+	if(size > 4096)
+		goto out;
+	if(!buf)
+		goto out;
+
+	tmp_buf = kzalloc(size, GFP_KERNEL);
+	if(!tmp_buf) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	err = copy_from_user(tmp_buf, buf, size);
+	if (err)
+		goto out;
+
+	err = deal_private_block(cmd, offset, size, tmp_buf);
+	if (err)
+		goto out;
+
+	err = copy_to_user(buf, tmp_buf, size);
+	if (err)
+		goto out;
+
+out:
+	if(tmp_buf)
+		kfree(tmp_buf);
 	pr_info("%s rtn code %d\n", __func__, err);
 	return err;
 }
