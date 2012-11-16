@@ -146,6 +146,9 @@ enum ev_bias {
 
 #define SCENE_EV_REG					0x031e /* 16bit */
 
+/* light info */
+#define INFO_LIGHT_REG	(0x0334)
+
 /*
   * category 0x06 register
 */

@@ -87,6 +87,11 @@
 #define V4L2_CID_CAMERA_WAKEUP_PREVIEW (V4L2_CID_PRIVATE_BASE + 300)
 #define V4L2_CID_CAMERA_CAPTURE_FORMAT (V4L2_CID_PRIVATE_BASE + 301)
 
+/*
+* From this we can know whether light on is needed
+*/
+#define V4L2_CID_CAMERA_LIGHT_INFO (V4L2_CID_PRIVATE_BASE + 302)
+
 /* 
   * for VIDIOC_G_EXT_CTRLS and VIDIOC_S_EXT_CTRLS, from offset 0x9000 
 */

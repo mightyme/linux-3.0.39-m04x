@@ -1121,6 +1121,16 @@ static int m6mo_s_capture_size(struct v4l2_subdev *sd, struct v4l2_control *ctrl
 	return m6mo_set_capture_size(sd, &fmt);
 }
 
+/*
+* For light info, from which we can know whether light on is needed.
+*/
+static int m6mo_get_light_info(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	m6mo_r8(sd, INFO_LIGHT_REG, &ctrl->value);
+	pr_info("%s(), reg value is %d\n", __func__, ctrl->value);
+	return ctrl->value;
+}
+
 /*************************************************/
 /***********  exif information functions  ****************/
 /*************************************************/
@@ -1362,6 +1372,10 @@ int m6mo_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	case V4L2_CID_CAMERA_EXIF_ISOV:
 		pr_info("LEGACY %s(), ctrl->id is 0x%x\n", __func__, ctrl->id);
 		ret = m6mo_get_exif_iso(sd, ctrl);
+		break;
+
+	case V4L2_CID_CAMERA_LIGHT_INFO:
+		ret = m6mo_get_light_info(sd, ctrl);
 		break;
 		
 	default:
