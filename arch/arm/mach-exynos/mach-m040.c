@@ -313,7 +313,7 @@ static struct regulator_init_data wm8958_ldo2_data = {
 };
 
 #if defined(CONFIG_SWITCH_GPIO)
-static struct gpio_switch_platform_data m040_earphone_pd = {
+static struct gpio_switch_platform_data m040_earphone_pd_gpio = {
 	.name = "h2w",
 	.gpio = M040_HDETEC_IRQ,
 	.active_level = 0,
@@ -322,7 +322,7 @@ static struct gpio_switch_platform_data m040_earphone_pd = {
 static struct platform_device m040_switch_gpio = {
 	.name = "switch-gpio",
 	.dev = {
-		.platform_data = &m040_earphone_pd,
+		.platform_data = &m040_earphone_pd_gpio,
 	},
 	.id = -1,
 };

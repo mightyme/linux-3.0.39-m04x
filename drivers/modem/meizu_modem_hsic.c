@@ -93,7 +93,7 @@ static void usb_set_autosuspend_delay(struct usb_device *usbdev, int delay)
 	pm_runtime_set_autosuspend_delay(&usbdev->dev, delay);
 }
 
-static int start_ipc(struct link_device *ld, struct io_device *iod)
+static int hsic_start_channel(struct link_device *ld, struct io_device *iod)
 {
 	int err = 0;
 	struct usb_link_device *usb_ld = to_usb_link_device(ld);
@@ -133,7 +133,7 @@ exit:
 	return err;
 }
 
-static int usb_init_communication(struct link_device *ld,
+static int hsic_init_channel(struct link_device *ld,
 			struct io_device *iod)
 {
 	struct task_struct *task = get_current();
@@ -141,7 +141,7 @@ static int usb_init_communication(struct link_device *ld,
 
 	MIF_DEBUG("%d:%s\n", task->pid, get_task_comm(str, task));
 
-	start_ipc(ld, iod);
+	hsic_start_channel(ld, iod);
 
 	return 0;
 }
@@ -613,6 +613,10 @@ static void hsic_pm_runtime_work(struct work_struct *work)
 	usb_mark_last_busy(usbdev);
 
 retry:
+	if (!pm_data->usb_ld->if_usb_connected)
+		return;
+	if (pm_data->usb_ld->ld.com_state == COM_NONE)
+		return;
 	switch (dev->power.runtime_status) {
 	case RPM_ACTIVE:
 		pm_data->resume_retry_cnt = 0;
@@ -1111,7 +1115,7 @@ static struct usb_device_id modem_hsic_usb_ids[] = {
 };
 MODULE_DEVICE_TABLE(usb, modem_hsic_usb_ids);
 
-static struct usb_driver if_usb_driver = {
+static struct usb_driver modem_hsic_driver = {
 	.name                 = "cdc_modem",
 	.probe                = modem_hsic_probe,
 	.disconnect           = modem_hsic_disconnect,
@@ -1159,7 +1163,7 @@ static int modem_hsic_init(struct link_device *ld)
 		}
 	}
 
-	ret = usb_register(&if_usb_driver);
+	ret = usb_register(&modem_hsic_driver);
 	if (ret) {
 		MIF_ERR("usb_register_driver() fail : %d\n", ret);
 		return ret;
@@ -1261,7 +1265,7 @@ struct link_device *hsic_create_link_device(void *data)
 	ld = &usb_ld->ld;
 
 	ld->name = "hsic";
-	ld->init_comm = usb_init_communication;
+	ld->init_comm = hsic_init_channel;
 	ld->terminate_comm = hsic_close_channel;
 	ld->send = hsic_send;
 	ld->com_state = COM_NONE;
@@ -1299,6 +1303,6 @@ err:
 
 static void __exit modem_hsic_exit(void)
 {
-	usb_deregister(&if_usb_driver);
+	usb_deregister(&modem_hsic_driver);
 }
 
