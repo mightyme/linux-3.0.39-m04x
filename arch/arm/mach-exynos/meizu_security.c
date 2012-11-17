@@ -78,6 +78,48 @@ int private_entry_write_prepare(int slot, __user char *random_buf)
 	return err;
 }
 
+#ifdef CONFIG_MX_RECOVERY_KERNEL
+int private_entry_write(int slot, __user char *in_buf)
+{
+	int offset = slot_to_offset(slot);
+	const int data_len = PRIVATE_ENTRY_BLOCK_SIZE - PRIVATE_ENTRY_SIG_SIZE;
+	struct RSAPublicKey *pk;
+	int err = -EINVAL;
+
+	if(offset < 0)
+		goto out;
+
+	if(slot < 16) {
+		pk = &factory_rsa_pk;
+		err = copy_from_user(private_entry_buf, in_buf, PRIVATE_ENTRY_BLOCK_SIZE);
+		if (err)
+			goto out;
+
+		err = rsa_with_sha1_verify(private_entry_random, sizeof(private_entry_random),
+				pk, private_entry_buf);
+		if (err) {
+			pr_info("RSA verify failed\n");
+			goto out;
+		}
+
+		memmove(private_entry_buf, private_entry_buf + PRIVATE_ENTRY_SIG_SIZE, data_len);
+
+		memset(private_entry_buf + data_len,  0, PRIVATE_ENTRY_SIG_SIZE);
+	} else {
+		err = copy_from_user(private_entry_buf, in_buf, PRIVATE_ENTRY_BLOCK_SIZE);
+		if (err)
+			goto out;
+	}
+
+	err = deal_private_block(1, offset, data_len, private_entry_buf);
+	if (err)
+		goto out;
+
+out:
+	pr_info("%s rtn code %d\n", __func__, err);
+	return err;
+}
+#else
 int private_entry_write(int slot, __user char *in_buf)
 {
 	int offset = slot_to_offset(slot);
@@ -116,6 +158,7 @@ out:
 	pr_info("%s rtn code %d\n", __func__, err);
 	return err;
 }
+#endif
 
 int system_data_func(int cmd , __user char *buf, int size)
 {
