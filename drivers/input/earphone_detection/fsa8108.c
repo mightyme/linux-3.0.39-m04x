@@ -669,6 +669,7 @@ static void fsa8108_reset_work(struct work_struct *work)
 	/*span insert time*/
 	//fsa8108_write_reg(FSA8108_REG_JDET_T,0xF2);
 	fsa8108_mask_int(1);/*mask key interrupts before plug in*/
+	process_int(i2c_smbus_read_word_data(g_fsa8108_info->client, FSA8108_REG_INT_1),g_fsa8108_info);
 }
 
 static int fsa8108_i2c_probe(
@@ -716,6 +717,13 @@ static int fsa8108_i2c_probe(
 
 	info->input->name = "mx-earphone-keypad";
 
+	init_timer(&info->detect_mic_adc_timer);
+	info->detect_mic_adc_timer.function = fsa8108_adc_timer_func;
+	info->detect_mic_adc_timer.data = (unsigned long)info;
+	info->detect_mic_adc_timer.expires = jiffies + msecs_to_jiffies(40);
+
+	wake_lock_init(&info->det_wake_lock, WAKE_LOCK_SUSPEND, "mx2_jack_det");
+	
 	for (i = 0 ; i < sizeof(fsa8108_jack_keycode)/sizeof(int); i++)
 		input_set_capability(info->input, EV_KEY, fsa8108_jack_keycode[i]);
 	
@@ -744,8 +752,6 @@ static int fsa8108_i2c_probe(
 	//fsa8108_reset();
 	schedule_work(&info->reset_work);	
 
-	process_int(i2c_smbus_read_word_data(client, FSA8108_REG_INT_1),info);
-
 	info->adc_client = s3c_adc_register(g_plat_dev, NULL, NULL, 0);
 	if (IS_ERR(info->adc_client)) {
 		pr_err("[fsa8108] cannot register adc\n");
@@ -772,13 +778,7 @@ static int fsa8108_i2c_probe(
 	if (ret < 0)
 		dev_err(&client->dev,
 			"failed to enable wakeup src %d\n", ret);
-
-	init_timer(&info->detect_mic_adc_timer);
-	info->detect_mic_adc_timer.function = fsa8108_adc_timer_func;
-	info->detect_mic_adc_timer.data = (unsigned long)info;
-	info->detect_mic_adc_timer.expires = jiffies + msecs_to_jiffies(40);
-
-	wake_lock_init(&info->det_wake_lock, WAKE_LOCK_SUSPEND, "mx2_jack_det");
+	
 #if __FSA8108_DEBUG__
 	fsa8108_create_attrs(&client->dev);
 #endif	
