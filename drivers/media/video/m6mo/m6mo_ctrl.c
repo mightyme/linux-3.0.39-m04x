@@ -825,7 +825,7 @@ static int m6mo_set_focus_mode(struct v4l2_subdev *sd, struct v4l2_control *ctrl
 
 static int m6mo_set_zoom_level(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	int zoom_pos, ret = 0;
+	int ret = 0;
 	struct m6mo_state *state = to_state(sd);
 
 	CHECK_USERSET(zoom_level);
@@ -1093,7 +1093,6 @@ static int m6mo_set_colorbar(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
 static int m6mo_s_cap_format(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct m6mo_state *state = to_state(sd);
 	struct v4l2_mbus_framefmt fmt;
 
 	switch (ctrl->value) {
@@ -1112,7 +1111,6 @@ static int m6mo_s_cap_format(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
 static int m6mo_s_capture_size(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct m6mo_state *state = to_state(sd);
 	struct v4l2_mbus_framefmt fmt;
 	
 	fmt.width = (ctrl->value >> 16) & 0xffff;

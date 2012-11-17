@@ -1142,15 +1142,7 @@ static int m6mo_s_stream(struct v4l2_subdev *sd, int enable)
 		return m6mo_stream_off(sd);
 }
 
-static int m6mo_fps_to_sensor_step(int fps)
-{
-	if (fps > 15)
-		return EVP_MODE_30FPS;
-	else if (fps > 0)
-		return EVP_MODE_15FPS;
-	else 
-		return EVP_MODE_AUTO;
-}
+/*Remove m6mo_fps_to_sensor_step() as we don't use it any more*/
 
 static int m6mo_s_parm(struct v4l2_subdev *sd, 
 	struct v4l2_streamparm *param)

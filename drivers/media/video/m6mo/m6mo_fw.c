@@ -59,7 +59,7 @@ static void m6mo_factory_test_success(void)
 {
 	int onoff = 0;
 
-	pr_debug("%s()", __func__);
+	pr_info("%s()\n", __func__);
 
 	/*we don't return in factory test mode*/
 	while (1) {
@@ -71,7 +71,7 @@ static void m6mo_factory_test_success(void)
 
 static void m6mo_factory_test_fail(void)
 {
-	pr_debug("%s()", __func__);
+	pr_err("%s()\n", __func__);
 	
 	mx_set_factory_test_led(0);
 }
