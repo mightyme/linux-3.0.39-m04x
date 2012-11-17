@@ -335,7 +335,7 @@ static ssize_t lm3530_mode_set(struct device *dev, struct device_attribute
 		return err;
 	}
 
-	return sizeof(drvdata->mode);
+	return size;
 }
 
 static DEVICE_ATTR(mode, 0644, NULL, lm3530_mode_set);

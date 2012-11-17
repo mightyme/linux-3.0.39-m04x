@@ -19,6 +19,11 @@
 		return ret;}\
 } while(0);
 
+#define CHECK_LCD_NULL() do {\
+	if (g_lcd_info == NULL)\
+		return 0;\
+}while(0);
+
 struct ls044k3sx01_ce_mode {
 	const char *mode;
 	int mode_val;
@@ -217,6 +222,7 @@ static int lcd_remove(struct mipi_dsim_lcd_device *mipi_dev)
 }
 int lcd_cabc_opr(unsigned int brightness, unsigned int enable)
 {
+	CHECK_LCD_NULL(); 
 	CHECK_PANEL_RET(lcd_panel_cabc_seq(g_lcd_info , enable));
 	g_lcd_info->cabc_en = enable;
 	return 0;
@@ -226,6 +232,7 @@ EXPORT_SYMBOL_GPL(lcd_cabc_opr);
 #ifdef LCD_TEST
 int lcd_cabc_set_brightness(unsigned int brightness)
 {
+	CHECK_LCD_NULL(); 
 	CHECK_PANEL_RET(lcd_panel_set_brightness(g_lcd_info , brightness));
 	return 0;
 }
