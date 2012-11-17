@@ -927,7 +927,6 @@ static void max77665_shutdown(struct platform_device *pdev)
 	struct max77665_charger *charger = platform_get_drvdata(pdev);
 	if(regulator_is_enabled(charger->reverse))
 		regulator_disable(charger->reverse);
-	regulator_put(charger->reverse);
 }
 
 #ifdef CONFIG_PM
