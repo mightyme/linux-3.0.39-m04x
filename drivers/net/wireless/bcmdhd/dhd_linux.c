@@ -478,6 +478,9 @@ static int dhd_toe_set(dhd_info_t *dhd, int idx, uint32 toe_ol);
 static int dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
                              wl_event_msg_t *event_ptr, void **data_ptr);
 
+#ifdef MEIZU_POWER
+static dhd_info_t *g_dhd = NULL;
+#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP)
 static int dhd_sleep_pm_callback(struct notifier_block *nfb, unsigned long action, void *ignored)
 {
@@ -497,6 +500,25 @@ static int dhd_sleep_pm_callback(struct notifier_block *nfb, unsigned long actio
 		break;
 	}
 	smp_mb();
+#endif
+#ifdef MEIZU_POWER
+	do {
+		if(action == PM_SUSPEND_PREPARE && g_dhd) {
+			dhd_pub_t *dhdp = &g_dhd->pub;
+			if (dhdp && dhdp->up && dhdp->power_mode != PM_MAX) {
+				int power_mode = PM_MAX;
+				pr_info("%s: set wifi into PM_MAX\n", __func__);
+				ret = dhd_wl_ioctl_cmd(dhdp, WLC_SET_PM, (char *)&power_mode,
+						sizeof(power_mode), TRUE, 0);
+				if (unlikely(ret < 0))
+					pr_err("%s: dhd_wl_ioctl_cmd failed\n", __func__);
+				else {
+					/* Maybe need to wait about 20 ms for wifi lock release*/
+					msleep_interruptible(25);
+				}
+			}
+		}
+	} while(0);
 #endif
 	return ret;
 }
@@ -546,8 +568,10 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 			/* Kernel suspended */
 			DHD_ERROR(("%s: force extra Suspend setting\n", __FUNCTION__));
 
+#ifndef MEIZU_POWER
 			dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode,
 			                 sizeof(power_mode), TRUE, 0);
+#endif
 
 			/* Enable packet filter, only allow unicast packet to send up */
 			dhd_set_packet_filter(1, dhd);
@@ -2779,6 +2803,10 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	register_pm_notifier(&dhd_sleep_pm_notifier);
 #endif /*  (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP) */
 
+#ifdef MEIZU_POWER
+	g_dhd = dhd;
+#endif
+
 #if defined(CONFIG_HAS_EARLYSUSPEND) && defined(DHD_USE_EARLYSUSPEND)
 	dhd->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 20;
 	dhd->early_suspend.suspend = dhd_early_suspend;
@@ -3814,6 +3842,9 @@ dhd_free(dhd_pub_t *dhdp)
 		dhd = (dhd_info_t *)dhdp->info;
 		if (dhd)
 			MFREE(dhd->pub.osh, dhd, sizeof(*dhd));
+#ifdef MEIZU_POWER
+		g_dhd = NULL;
+#endif
 	}
 }
 

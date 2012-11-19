@@ -54,6 +54,8 @@ const struct mx_qm_reg_data init_regs[] = {
 //	{LED_REG_CUR2, 0x00},
 //	{LED_REG_CUR3, 0x00},
 //	{LED_REG_CUR4, 0x00},		
+	{QM_REG_QM_DET_TH, 0x08},
+//	{QM_REG_QM_BURST, 0x40},
 	{},
 };
 
@@ -490,7 +492,7 @@ static int mx_qm_update(struct mx_qm_data *mx)
 	else		{
 		dev_err(&mx->client->dev,"This version is not support \n");
 		ret = -EINVAL;
-		goto exit;
+		goto err_exit10;
 	}
 	
 	ret = request_firmware(&fw, fw_name,  &mx->client->dev);
@@ -555,8 +557,8 @@ static int mx_qm_update(struct mx_qm_data *mx)
 
 	}
 	
-//ok_exit:
 	dev_info(&mx->client->dev, "Update completed. \n");
+	release_firmware(fw);
 	goto exit;
 	
 err_exit:	

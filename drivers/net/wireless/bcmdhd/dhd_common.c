@@ -297,6 +297,13 @@ dhd_wl_ioctl(dhd_pub_t *dhd_pub, int ifindex, wl_ioctl_t *ioc, void *buf, int le
 {
 	int ret;
 
+#ifdef MEIZU_POWER
+	do {
+		if(ioc->cmd == WLC_SET_PM) {
+			dhd_pub->power_mode = *(int *)ioc->buf;
+		}
+	} while(0);
+#endif
 	dhd_os_proto_block(dhd_pub);
 
 	ret = dhd_prot_ioctl(dhd_pub, ifindex, ioc, buf, len);

@@ -235,6 +235,9 @@ typedef struct dhd_pub {
 #ifdef WLMEDIA_HTSF
 	uint8 htsfdlystat_sz; /* Size of delay stats, max 255B */
 #endif
+#ifdef MEIZU_POWER
+	int power_mode;
+#endif
 } dhd_pub_t;
 
 typedef struct dhd_cmn {

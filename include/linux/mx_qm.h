@@ -55,6 +55,9 @@ enum mx_qm_reg {
 	QM_REG_STATE    	= 0xA4,
 	QM_REG_POSITION		= 0xA5,
 	QM_REG_DBGINFO		= 0xA6,
+	QM_REG_QM_DET_TH 	= 0xA7,
+	QM_REG_QM_BURST 		= 0xA8,
+        
 	
 	QM_REG_KEY			= 0xA9,
 	QM_REG_WAKEUP_CNT	= 0xAA,
