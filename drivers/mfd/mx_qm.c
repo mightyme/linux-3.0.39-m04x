@@ -607,6 +607,7 @@ static struct device_attribute qm_attrs[] = {
     QM_ATTR(led),
     QM_ATTR(update),
     QM_ATTR(key_wakeup_count),
+    QM_ATTR(key_wakeup_type),
     QM_ATTR(irq),
 };
 enum {
@@ -619,6 +620,7 @@ enum {
 	QM_LED,
 	QM_UPD,
 	QM_CNT,
+	QM_WAKEUP_TYPE,
 	QM_IRQ,
 };
 static ssize_t qm_show_property(struct device *dev,
@@ -685,6 +687,9 @@ static ssize_t qm_show_property(struct device *dev,
 		break;
 	case QM_CNT:
 		i += scnprintf(buf+i, PAGE_SIZE-i, "%d\n",mx_qm_readbyte(qm->client,QM_REG_WAKEUP_CNT));
+		break;
+	case QM_WAKEUP_TYPE:
+		i += scnprintf(buf+i, PAGE_SIZE-i, "%d\n",mx_qm_readbyte(qm->client,QM_REG_WAKEUP_TYPE));
 		break;
 	case QM_IRQ:
 		i += scnprintf(buf+i, PAGE_SIZE-i, "Error\n");
@@ -798,6 +803,26 @@ static ssize_t qm_store(struct device *dev,
 		ret = count;
 		break;
 	case QM_CNT:
+		ret = count;
+		break;
+	case QM_WAKEUP_TYPE:
+		if (sscanf(buf, "%d\n", &value) == 1) {	
+			int ret;
+			dev_info(dev, "V:0x%.2X \n", value);
+			if( value < 2 )
+			{
+				ret = mx_qm_writebyte(qm->client,QM_REG_WAKEUP_TYPE,value);
+				if (ret < 0)
+					pr_err("mx_qm_writebyte error at %d line\n", __LINE__);
+			}		
+			else
+			{
+				pr_err("Invalid argument\n");
+			}
+		}
+		else {			
+			pr_err("%s(): failed !!!\n", __func__);
+		}
 		ret = count;
 		break;
 	case QM_IRQ:
