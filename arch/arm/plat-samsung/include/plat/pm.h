@@ -57,6 +57,7 @@ typedef enum {
 
 struct wakeup_assist_des {
 	wake_type_t	type;
+	int		keycode;
 	char		*name;
 	u64		wakeup_count;
 };
