@@ -137,28 +137,12 @@ struct es305b_platform_data {
 
 struct es305b_config_data {
 	unsigned int data_len;
-	unsigned int mode_num;
-	unsigned char *cmd_data;  /* [mode][cmd_len][cmds..] */
+	unsigned int *cmd_data[];  /* [mode][cmd_len][cmds..] */
 };
 
 enum es305b_config_mode {
 	ES305B_CONFIG_FULL,
 	ES305B_CONFIG_VP
-};
-
-enum ES305B_PATHID {
-	ES305B_PATH_SUSPEND = -1,
-	ES305B_PATH_INITIAL = 0,
-	ES305B_PATH_RECIVER_NB,
-	ES305B_PATH_HEADPHONE_NB,
-	ES305B_PATH_SPEAKER_NB,
-	ES305B_PATH_RECIVER_WB,
-	ES305B_PATH_HEADPHONE_WB,
-	ES305B_PATH_SPEAKER_WB,
-	ES305B_PATH_HAC_NB,
-	ES305B_PATH_TTY_NB,
-	ES305B_PATH_BT,
-	ES305B_PATH_MAX
 };
 
 enum ES305B_NS_STATES {
@@ -183,6 +167,7 @@ enum ES305B_MODE {
 	ES305B_BYPASS_A2C,
 	ES305B_LASTMODE,
 	ES305B_INVALID,
+	ES305B_PATH_MAX
 };
 
 enum es305b_status {
@@ -222,11 +207,13 @@ struct es305b_img {
 #define ES305B_SET_PARAM	   _IOW(ES305B_IOCTL_MAGIC, 4, struct es305b_config_data *)
 #define ES305B_SYNC_CMD _IO(ES305B_IOCTL_MAGIC, 9)
 #define ES305B_SLEEP_CMD _IO(ES305B_IOCTL_MAGIC, 11)
-#define ES305B_RESET_CMD _IO(ES305B_IOCTL_MAGIC, 12)
-#define ES305B_WAKEUP_CMD _IO(ES305B_IOCTL_MAGIC, 13)
-#define ES305B_MDELAY _IOW(ES305B_IOCTL_MAGIC, 14, unsigned int)
-#define ES305B_READ_FAIL_COUNT _IOR(ES305B_IOCTL_MAGIC, 15, unsigned int *)
-#define ES305B_READ_SYNC_DONE _IOR(ES305B_IOCTL_MAGIC, 16, bool *)
+#define ES305B_HWRESET_CMD _IO(ES305B_IOCTL_MAGIC, 12)
+#define ES305B_COLDRESET_CMD _IO(ES305B_IOCTL_MAGIC, 13)
+#define ES305B_SWRESET_CMD _IO(ES305B_IOCTL_MAGIC, 14)
+#define ES305B_WAKEUP_CMD _IO(ES305B_IOCTL_MAGIC, 15)
+#define ES305B_MDELAY _IOW(ES305B_IOCTL_MAGIC, 16, unsigned int)
+#define ES305B_READ_FAIL_COUNT _IOR(ES305B_IOCTL_MAGIC, 17, unsigned int *)
+#define ES305B_READ_SYNC_DONE _IOR(ES305B_IOCTL_MAGIC, 18, bool *)
 
 extern int es305b_setmode(int mode);
 
