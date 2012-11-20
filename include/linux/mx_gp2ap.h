@@ -139,7 +139,6 @@ struct gp2ap_data {
 	struct delayed_work als_dwork;
 	struct delayed_work ps_dwork;
 	struct delayed_work enable_work;
-//	struct work_struct enable_work; 
 	struct input_dev *input_dev;
 	struct mutex lock;
 	struct miscdevice misc_device;

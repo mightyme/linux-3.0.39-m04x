@@ -1299,7 +1299,7 @@ static long gp2ap_misc_ioctl_int(struct file *file, unsigned int cmd, unsigned l
 {
 	int ret, enable, sensor_id;
 	struct gp2ap_data *gp2ap = (struct gp2ap_data *)file->private_data;
-
+	
 	switch (cmd) {
 	case GP2AP_IOCTL_SET_ALS_ENABLE:
 	case GP2AP_IOCTL_SET_PS_ENABLE:
@@ -1311,7 +1311,7 @@ static long gp2ap_misc_ioctl_int(struct file *file, unsigned int cmd, unsigned l
 		}
 
 		gp2ap->sensor_id = (cmd == GP2AP_IOCTL_SET_ALS_ENABLE) ? ID_ALS : ID_PS;
-		queue_delayed_work(gp2ap->gp2ap_wq, &gp2ap->enable_work, 0);
+		queue_delayed_work(gp2ap->gp2ap_wq, &gp2ap->enable_work, HZ/100);
 		break;
 	case GP2AP_IOCTL_GET_ALS_ENABLE:
 	case GP2AP_IOCTL_GET_PS_ENABLE:
@@ -1328,7 +1328,6 @@ static long gp2ap_misc_ioctl_int(struct file *file, unsigned int cmd, unsigned l
 	default:
 		return -EINVAL;
 	}
-
 	return 0;
 }
 
