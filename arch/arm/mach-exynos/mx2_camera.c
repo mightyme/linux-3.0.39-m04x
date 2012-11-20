@@ -222,7 +222,7 @@ static int m6mo_set_isp_power(bool enable)
 				__func__, ret);
 			goto exit_regulator;
 		}
-		
+		msleep(2);
 		gpio_set_value(M040_ISP_RST, 1);
 		gpio_set_value(M040_ISP_YCVZ, 1);  /* we don't use Parallel, set this pin high */
 	} else { 
