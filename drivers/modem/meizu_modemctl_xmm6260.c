@@ -257,10 +257,12 @@ static int xmm6260_on(struct modem_ctl *mc)
 	gpio_set_value(mc->gpio_reset_req_n, 1);
 	mdelay(2);
 	gpio_set_value(mc->gpio_cp_on, 1);
-	mdelay(1);
+	udelay(80);
 	gpio_set_value(mc->gpio_cp_on, 0);
+#ifndef CONFIG_MX_RECOVERY_KERNEL
 	if (mc->gpio_revers_bias_restore)
 		mc->gpio_revers_bias_restore();
+#endif
 
 	return 0;
 }
@@ -320,8 +322,6 @@ static int xmm6260_renum(struct modem_ctl *mc)
 
 static int xmm6260_reset(struct modem_ctl *mc)
 {
-	struct completion done;
-
 	MIF_INFO("xmm6260_reset()\n");
 	if (!mc->gpio_cp_reset || !mc->gpio_reset_req_n)
 		return -ENXIO;
@@ -332,18 +332,21 @@ static int xmm6260_reset(struct modem_ctl *mc)
 #ifndef CONFIG_MX_RECOVERY_KERNEL
 	s5p_ehci_power(0);
 	modem_set_active_state(0);
-#endif
 	msleep(100);
 	mc->cp_flag =0;
+#endif
 	xmm6260_on(mc);
 #ifndef CONFIG_MX_RECOVERY_KERNEL
-	init_completion(&done);
-	mc->l2_done = &done;
-	wait_for_completion_timeout(&done, 20*HZ);
-	mc->l2_done = NULL;
+	do {
+		DECLARE_COMPLETION_ONSTACK(done);
+		init_completion(&done);
+		mc->l2_done = &done;
+		wait_for_completion_timeout(&done, 20*HZ);
+		mc->l2_done = NULL;
+	} while(0);
 	s5p_ehci_power(1);
-#endif
 	mc->enum_done = 1;
+#endif
 	modem_wake_lock_timeout(mc, 5*HZ);
 
 	return 0;
@@ -557,15 +560,15 @@ int xmm6260_init_modemctl_device(struct modem_ctl *mc,
 	global_mc   = mc;
 	mc->l2_done = NULL;
 
-	mc->gpio_cp_on               = pdata->gpio_cp_on;
-	mc->gpio_cp_reset            = pdata->gpio_cp_reset;
-	mc->gpio_sim_detect          = pdata->gpio_sim_detect;
-	mc->gpio_cp_dump_int         = pdata->gpio_cp_dump_int;
-	mc->gpio_host_active         = pdata->gpio_host_active;
-	mc->gpio_reset_req_n         = pdata->gpio_reset_req_n;
-	mc->gpio_cp_reset_int        = pdata->gpio_cp_reset_int;
-	mc->gpio_hostwake       = pdata->gpio_hostwake;
-	mc->gpio_slavewake      = pdata->gpio_slavewake;
+	mc->gpio_cp_on        = pdata->gpio_cp_on;        
+	mc->gpio_cp_reset     = pdata->gpio_cp_reset;     
+	mc->gpio_hostwake     = pdata->gpio_hostwake;     
+	mc->gpio_slavewake    = pdata->gpio_slavewake;    
+	mc->gpio_sim_detect   = pdata->gpio_sim_detect;   
+	mc->gpio_cp_dump_int  = pdata->gpio_cp_dump_int;  
+	mc->gpio_host_active  = pdata->gpio_host_active;  
+	mc->gpio_reset_req_n  = pdata->gpio_reset_req_n;  
+	mc->gpio_cp_reset_int = pdata->gpio_cp_reset_int; 
 
 	mc->gpio_revers_bias_clear   = pdata->gpio_revers_bias_clear;
 	mc->gpio_revers_bias_restore = pdata->gpio_revers_bias_restore;
@@ -606,8 +609,8 @@ int xmm6260_init_modemctl_device(struct modem_ctl *mc,
 	if (mc->gpio_cp_reset_int) {
 		mc->irq_modem_reset = gpio_to_irq(mc->gpio_cp_reset_int);
 		ret = request_threaded_irq(mc->irq_modem_reset, NULL,
-				modem_cpreset_irq, IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-				"CP_RESET_INT", mc);
+			modem_cpreset_irq, IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+			"CP_RESET_INT", mc);
 		if (ret) {
 			pr_err("Failed register gpio_cp_reset_int irq(%d)!\n",
 					mc->irq_modem_reset);

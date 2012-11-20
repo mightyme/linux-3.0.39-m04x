@@ -93,8 +93,8 @@ static struct modem_data umts_modem_data_m030 = {
 	.gpio_cp_reset_int        = GPIO_MODEM_RESET_INT,
 	.gpio_cp_dump_int         = GPIO_MODEM_DUMP_INT,
 	.gpio_sim_detect          = M030_INT16_SIMDETECT,
-	.gpio_hostwake       = GPIO_HOST_WAKEUP,
-	.gpio_slavewake      = GPIO_SLAVE_WAKEUP,
+	.gpio_hostwake            = GPIO_HOST_WAKEUP,
+	.gpio_slavewake           = GPIO_SLAVE_WAKEUP,
 	.modem_type               = IMC_XMM6260,
 	.link_types               = LINKTYPE(LINKDEV_HSIC),
 	.modem_net                = UMTS_NETWORK,
@@ -193,6 +193,7 @@ static void umts_modem_cfg_gpio(void)
 			       "RESET_REQ_N", err);
 		}
 		gpio_direction_output(gpio_reset_req_n, 0);
+		s3c_gpio_setpull(gpio_reset_req_n, S3C_GPIO_PULL_NONE);
 	}
 
 	if (gpio_cp_on) {
@@ -202,6 +203,7 @@ static void umts_modem_cfg_gpio(void)
 			       "CP_ON", err);
 		}
 		gpio_direction_output(gpio_cp_on, 0);
+		s3c_gpio_setpull(gpio_cp_on, S3C_GPIO_PULL_NONE);
 	}
 
 	if (gpio_cp_rst) {
@@ -211,7 +213,7 @@ static void umts_modem_cfg_gpio(void)
 			       "CP_RST", err);
 		}
 		gpio_direction_output(gpio_cp_rst, 0);
-		s3c_gpio_setpull(gpio_cp_rst, S3C_GPIO_PULL_UP);
+		s3c_gpio_setpull(gpio_cp_rst, S3C_GPIO_PULL_NONE);
 	}
 
 	if (gpio_cp_reset_int) {

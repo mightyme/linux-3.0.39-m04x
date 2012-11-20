@@ -230,6 +230,14 @@ static void print_active_locks(int type)
 				print_expired = false;
 		}
 	}
+#ifdef CONFIG_MEIZU_MODEM
+#ifndef CONFIG_MX_RECOVERY_KERNEL
+	do {
+		extern int modem_hsic_rpm_status(void);
+		modem_hsic_rpm_status();
+	} while(0);
+#endif
+#endif
 }
 
 static long has_wake_lock_locked(int type)
