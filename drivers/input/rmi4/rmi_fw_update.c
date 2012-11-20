@@ -58,7 +58,7 @@ struct image_header {
 	unsigned char bootloader_version;
 	u8 product_id[RMI_PRODUCT_ID_LENGTH + 1];
 	unsigned char product_info[PRODUCT_INFO_SIZE];
-	unsigned char customer_cfg_id[CUSTOMER_CFG_ID_SIZE];
+	unsigned char customer_cfg_id[CUSTOMER_CFG_ID_SIZE+1];
 };
 
 static u32 extract_u32(const u8 *ptr)
@@ -93,9 +93,12 @@ MODULE_PARM_DESC(param, "Force reflash of RMI4 devices");
 /* If this parameter is not NULL, we'll use that name for the firmware image,
  * instead of getting it from the F01 queries.
  */
-static char *img_name = "M040-TPK";
-module_param(img_name, charp, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(param, "Name of the RMI4 firmware image");
+static char *tpk_img_name = "M040-TPK";
+static char *wintek_img_name = "s3202_ver5";
+module_param(tpk_img_name, charp, S_IRUGO);
+MODULE_PARM_DESC(param, "Name of the TPK RMI4 firmware image");
+module_param(wintek_img_name, charp, S_IRUGO );
+MODULE_PARM_DESC(param, "Name of the Wintek RMI4 firmware image");
 
 #define RMI4_IMAGE_FILE_REV1_OFFSET 30
 #define RMI4_IMAGE_FILE_REV2_OFFSET 31
@@ -115,6 +118,7 @@ static void extract_header(const u8 *data, int pos, struct image_header *header)
 	       PRODUCT_INFO_SIZE);
 	memcpy(header->customer_cfg_id, &data[pos + CUSTOMER_CFG_ID_OFFSET],
 	       CUSTOMER_CFG_ID_SIZE);
+	header->customer_cfg_id[CUSTOMER_CFG_ID_SIZE] = 0;
 }
 
 static int rescan_pdt(struct reflash_data *data)
@@ -230,6 +234,7 @@ static int read_f01_queries(struct reflash_data *data)
 {
 	int retval;
 	u16 addr = data->f01_pdt->query_base_addr;
+	struct rmi_device_platform_data *pdata = to_rmi_platform_data(data->rmi_dev);
 
 	retval = rmi_read_block(data->rmi_dev, addr, data->f01_queries.regs,
 				ARRAY_SIZE(data->f01_queries.regs));
@@ -254,6 +259,15 @@ static int read_f01_queries(struct reflash_data *data)
 			data->f01_queries.productinfo_1,
 			data->f01_queries.productinfo_2);
 
+	if( strcmp(tpk_img_name,data->product_id) == 0)	{
+		dev_info(&data->rmi_dev->dev, "Manufacturer TPK\n");
+		pdata->manufacturer_id = MANUFACTURER_TPK;
+	}
+	else	{
+		dev_info(&data->rmi_dev->dev, "Manufacturer Wintek\n");
+		pdata->manufacturer_id = MANUFACTURER_WINTEK;
+	}
+	
 	return 0;
 }
 
@@ -574,7 +588,6 @@ static void reflash_firmware(struct reflash_data *data)
 
 /* Returns false if the firmware should not be reflashed.
  */
- #if 0
 static bool go_nogo(struct reflash_data *data, struct image_header *header)
 {
 	union f01_device_status device_status;
@@ -594,19 +607,22 @@ static bool go_nogo(struct reflash_data *data, struct image_header *header)
 
 	return device_status.flash_prog || force;
 }
-#else
-static bool go_nogo(struct reflash_data *data, struct image_header *header)
+ 
+static bool go_nogo_tpk(struct reflash_data *data, struct image_header *header)
 {
 	union f01_device_status device_status;
 	int retval;
 	
 	int nid = simple_strtoul(&header->customer_cfg_id[1],NULL,10);
 	int mid = simple_strtoul(&data->Customer_Cfg_id[1],NULL,10);
-
+		
+	dev_info(&data->rmi_dev->dev, "FW product ID %s.\n",
+		data->Customer_Cfg_id);
 	if (data->Customer_Cfg_id[0] !=  header->customer_cfg_id [0] 
 		||nid > mid) {
 		dev_info(&data->rmi_dev->dev,
-			 "FW product ID(%s) is older than image product ID(%s).\n",data->Customer_Cfg_id,header->customer_cfg_id);
+			 "FW product ID(%s) is older than image product ID(%s).\n",
+			 data->Customer_Cfg_id,header->customer_cfg_id);
 		return true;
 	}
 
@@ -617,7 +633,6 @@ static bool go_nogo(struct reflash_data *data, struct image_header *header)
 
 	return device_status.flash_prog || force;
 }
-#endif
 
 void rmi4_fw_update(struct rmi_device *rmi_dev,
 		struct pdt_entry *f01_pdt, struct pdt_entry *f34_pdt)
@@ -637,6 +652,7 @@ void rmi4_fw_update(struct rmi_device *rmi_dev,
 		.f01_pdt = f01_pdt,
 		.f34_pdt = f34_pdt,
 	};
+	struct rmi_device_platform_data *pdata = to_rmi_platform_data(rmi_dev);
 
 	dev_info(&rmi_dev->dev, "%s called.\n", __func__);
 #ifdef	DEBUG
@@ -667,8 +683,22 @@ void rmi4_fw_update(struct rmi_device *rmi_dev,
 			retval);
 		return;
 	}
-	snprintf(firmware_name, sizeof(firmware_name), "rmi4/%s.img",
-			img_name ? img_name : (char*)data.product_id);
+	
+	if( pdata->manufacturer_id == MANUFACTURER_TPK)	{
+		snprintf(firmware_name, sizeof(firmware_name), "rmi4/%s.img",
+			tpk_img_name ? tpk_img_name : (char*)data.product_id);	
+	}
+	else	if( pdata->manufacturer_id == MANUFACTURER_WINTEK)
+	{
+		snprintf(firmware_name, sizeof(firmware_name), "rmi4/%s.img",
+			wintek_img_name ? wintek_img_name : (char*)data.product_id);	
+		return;
+	}
+	else{
+		dev_err(&rmi_dev->dev, "Unknown manufacturer.\n");
+		return;
+	}
+	
 	dev_info(&rmi_dev->dev, "Requesting %s.\n", firmware_name);
 	retval = request_firmware(&fw_entry, firmware_name, &rmi_dev->dev);
 	if (retval != 0) {
@@ -701,7 +731,12 @@ void rmi4_fw_update(struct rmi_device *rmi_dev,
 		data.config_data = fw_entry->data + F34_FW_IMAGE_OFFSET +
 			header.image_size;
 
-	if (go_nogo(&data, &header)) {
+	if( pdata->manufacturer_id == MANUFACTURER_TPK)
+		retval = go_nogo_tpk(&data, &header);
+	else
+		retval = go_nogo(&data, &header);
+
+	if (retval) {
 		dev_info(&rmi_dev->dev, "reflash firmware.\n");
 		reflash_firmware(&data);
 		reset_device(&data);

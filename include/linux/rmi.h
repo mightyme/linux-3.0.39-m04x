@@ -39,6 +39,14 @@
 #endif
 
 
+/* manufacturer id
+ */
+enum rmi_manufacturer_id {
+	MANUFACTURER_TPK 		= 0,
+	MANUFACTURER_WINTEK 	= 1,
+	MANUFACTURER_UNKNOWN 	= 2,
+};
+
 /* Permissions for sysfs attributes.  Since the permissions policy will change
  * on a global basis in the future, rather than edit all sysfs attrs everywhere
  * in the driver (and risk screwing that up in the process), we use this handy
@@ -152,6 +160,7 @@ struct rmi_device_platform_data {
 	int (*gpio_config)(void *gpio_data, bool configure);
 
 	int reset_delay_ms;
+	int manufacturer_id;
 
 	struct rmi_device_platform_data_spi spi_data;
 

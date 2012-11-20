@@ -583,13 +583,10 @@ struct f11_data {
 #endif
 	struct f11_2d_sensor sensors[F11_MAX_NUM_OF_SENSORS];
 	struct rmi_device  *rmi_dev;
-	struct delayed_work fcal_work;
-	int fcal_work_cnt;
 #ifdef	VBUS_IRQ_EN
 	int vbus_irq;
 	bool vbus_irq_enable;
 #endif
-
 };
 
 enum finger_state_values {
@@ -603,7 +600,6 @@ static int rmi_f11_saturation_capacitance(struct f11_data *data,u16 value);
 static int rmi_f11_disable_noise_mitigation(struct f11_data *data,bool enable);
 static int rmi_f11_force_calibration(struct f11_data *data);
 static int _turn_on_calibration(struct f11_data *data,int bOnOff);
-static void rmi_force_cal_func(struct work_struct *work);
 
 /* ctrl sysfs files */
 show_store_union_struct_prototype(reporting_mode)
@@ -1473,6 +1469,9 @@ static void set_noise_mitigation_by_vbus(struct f11_data *data)
 	struct rmi_device *rmi_dev = f11->rmi_dev;
 	struct rmi_device_platform_data *pdata = to_rmi_platform_data(rmi_dev);
 
+	if( pdata->manufacturer_id != MANUFACTURER_TPK)
+		return;
+	
 	value = gpio_get_value(pdata->vbus_gpio) ;
 	
 	dev_dbg(&rmi_dev->dev,  "VBUS gpio, value: %d.\n",value);
@@ -1615,6 +1614,10 @@ static int rmi_f11_force_reportmode_reduced(struct rmi_function_container *fc)
 	u16 control_base_addr;
 	u8 val,deltaxy[2];
 	int rc = 0;
+	struct rmi_device_platform_data *pdata = to_rmi_platform_data(rmi_dev);	
+
+	if( pdata->manufacturer_id != MANUFACTURER_TPK)
+		return rc;
 
 	deltaxy[0] = 1;
 	deltaxy[1] = 1;
@@ -1746,8 +1749,6 @@ static int rmi_f11_initialize(struct rmi_function_container *fc)
 	}
 
 	f11->rmi_dev = rmi_dev;
-
-	INIT_DELAYED_WORK(&f11->fcal_work,rmi_force_cal_func);
 	
 #ifdef	VBUS_IRQ_EN
 	set_noise_mitigation_by_vbus(f11);
@@ -1866,6 +1867,10 @@ static int _turn_on_calibration(struct f11_data *data,int bOnOff)
 	u8 val = 0x00,i;
 	int ret;
 	u8 fingers = 0;
+	struct rmi_device_platform_data *pdata = to_rmi_platform_data(rmi_dev);
+
+	if( pdata->manufacturer_id != MANUFACTURER_TPK)
+		return 0;
 
 	// Enable/Disable Energy Ratio Relaxation
 	ret = rmi_read(rmi_dev,REG_F54_ANALOG_CTRL00,&val);//0x20
@@ -1971,48 +1976,6 @@ static struct attribute *mxt_attrs[] = {
 static const struct attribute_group mxt_attr_group = {
 	.attrs = mxt_attrs,
 };
-
-static void rmi_force_cal_func(struct work_struct *work)
-{	
-	struct f11_data * data =
-		container_of(work, struct f11_data, fcal_work.work);
-	
-	dev_info(&data->rmi_dev->dev, "fcal count %d\n",data->fcal_work_cnt);
-
-	if ( rmi_f11_getfingers(&data->sensors[0]) )
-	{
-		data->fcal_work_cnt = 0;
-		return;
-	}
-
-
-	rmi_f11_force_calibration(data);
-
-	if( data->fcal_work_cnt > 0 )
-	{
-		schedule_delayed_work(&data->fcal_work, (HZ/8));
-		data->fcal_work_cnt --;
-	}
-}
-
-static void set_rmi_force_cal_delaywork(struct f11_data *data,bool enable)
-{	
-	dev_dbg(&data->rmi_dev->dev, "set force calibration %d\n",enable);
-	
-	if( !enable )
-	{
-		data->fcal_work_cnt = 0;
-		cancel_delayed_work_sync(&data->fcal_work);
-		return;
-	}
-	
-	if ( rmi_f11_getfingers(&data->sensors[0]) )
-		data->fcal_work_cnt = 0;
-	else
-		data->fcal_work_cnt = 2;
-	
-	schedule_delayed_work(&data->fcal_work, (HZ/8));
-}
 
 static int rmi_f11_register_devices(struct rmi_function_container *fc)
 {
@@ -2300,7 +2263,6 @@ exit:
 #ifdef	VBUS_IRQ_EN
 	set_noise_mitigation_by_vbus(data);
 #endif
-	//set_rmi_force_cal_delaywork(data,true);
 
 #ifdef F11_REPORTMODE_REDUCED	
 	if (!data->rezero_on_resume)
@@ -2317,12 +2279,9 @@ exit:
 
 static int rmi_f11_suspund(struct rmi_function_container *fc)
 {
-	struct f11_data *data = fc->data;
 	int retval = 0;
 
 	dev_dbg(&fc->dev, "Suspend...\n");
-
-	//set_rmi_force_cal_delaywork(data,false);
 	
 	return retval;
 }
@@ -2344,7 +2303,6 @@ static void rmi_f11_remove(struct rmi_function_container *fc)
 #ifdef	VBUS_IRQ_EN
 	disable_vbus_irq(fc);
 #endif
-	set_rmi_force_cal_delaywork(f11,false);
 
 	rmi_f11_free_devices(fc);
 
