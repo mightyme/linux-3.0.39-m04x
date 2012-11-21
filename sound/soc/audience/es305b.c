@@ -716,12 +716,9 @@ static ssize_t es305b_store(struct device *dev,
 	case ES305B_NR_CMD:
 		if (sscanf(buf, "%x %x", &reg, &value) == 2) {
 			es305b_send_cmd(reg);
-			es305b_get_cmd();
 			es305b_send_cmd(value);
-			es305b_get_cmd();
 		} else if (sscanf(buf, "%x\n", &value) == 1) {
 			es305b_send_cmd(value);
-			es305b_get_cmd();
 		} else
 			AUD_ERR("failed > 2!!!\n");
 		ret = count;
