@@ -800,9 +800,9 @@ static int m6mo_set_capture_mode(struct v4l2_subdev *sd)
 	
 	for (i = 0; i < retry; i++) {
 		ret = wait_for_completion_interruptible_timeout(&state->completion, 
-			msecs_to_jiffies(2000));
+			msecs_to_jiffies(5000));
 		if (ret <= 0) {
-			pr_err("%s: timeout in %u ms\n", __func__, 2000);
+			pr_err("%s: timeout in %u ms\n", __func__, 5000);
 			return -ETIME;
 		}
 

@@ -1417,6 +1417,7 @@ int m6mo_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		ret = m6mo_set_iso(sd, ctrl);
 		break;
 	case V4L2_CID_CAMERA_WDR:
+		pr_info("%s(), set WDR to %d\n", __func__, ctrl->value);
 		ret = m6mo_set_wdr(sd, ctrl);
 		break;
 	case V4L2_CID_CAMERA_FLASH_MODE:
