@@ -837,6 +837,9 @@ static __devinit int max77686_pmic_probe(struct platform_device *pdev)
 	struct i2c_client *i2c;
 	int i, ret, size;
 	u8 data = 0;
+#ifdef CONFIG_MACH_M040
+	u8 ldo4 = 0, ldo18 = 0;
+#endif
 
 	pr_debug("%s\n", __func__);
 
@@ -945,7 +948,6 @@ static __devinit int max77686_pmic_probe(struct platform_device *pdev)
 				   max77686->buck4_vol[i]);
 	}
 
-
 	for (i = 0; i < pdata->num_regulators; i++) {
 		const struct voltage_map_desc *desc;
 		int id = pdata->regulators[i].id;
@@ -971,6 +973,20 @@ static __devinit int max77686_pmic_probe(struct platform_device *pdev)
 		}
 	}
 
+#ifdef CONFIG_MACH_M040
+	/* For The F cking fsa8108
+	 * LDO4, LDO18 Both off first,
+	 * LDO18 first on then LDO4 on.
+	 */ 
+	max77686_read_reg(i2c, MAX77686_REG_LDO4CTRL1, &ldo4);
+	max77686_write_reg(i2c, MAX77686_REG_LDO4CTRL1, ldo4 & 0x3F);
+	max77686_read_reg(i2c, MAX77686_REG_LDO18CTRL1, &ldo18);
+	max77686_write_reg(i2c, MAX77686_REG_LDO18CTRL1, ldo18 & 0x3F);
+	mdelay(5);
+
+	max77686_write_reg(i2c, MAX77686_REG_LDO18CTRL1, ldo18);	
+	max77686_write_reg(i2c, MAX77686_REG_LDO4CTRL1, ldo4);
+#endif
 	/* enable Low jitter mode to enhance gps clock */
 	max77686_update_reg(i2c, MAX77686_REG_32KHZ, 0x08, 0x08);
 
