@@ -39,6 +39,7 @@
 //#define	VERIFY_CRC
 
 static volatile int is_update = false;
+static int key_wakeup_type = 0;
 
 struct mx_qm_reg_data {
 	unsigned char addr;
@@ -377,6 +378,7 @@ static void mx_qm_reset(struct mx_qm_data *mx,int m)
 		msg[1] = 1;			
 		mx_qm_write(mx->client,2,msg);
 	}
+	key_wakeup_type = 0;
 	dev_info(&mx->client->dev, "%s reset. \n", m?"cold":"soft");
 }
 
@@ -689,7 +691,7 @@ static ssize_t qm_show_property(struct device *dev,
 		i += scnprintf(buf+i, PAGE_SIZE-i, "%d\n",mx_qm_readbyte(qm->client,QM_REG_WAKEUP_CNT));
 		break;
 	case QM_WAKEUP_TYPE:
-		i += scnprintf(buf+i, PAGE_SIZE-i, "%d\n",mx_qm_readbyte(qm->client,QM_REG_WAKEUP_TYPE));
+		i += scnprintf(buf+i, PAGE_SIZE-i, "%d\n",key_wakeup_type);
 		break;
 	case QM_IRQ:
 		i += scnprintf(buf+i, PAGE_SIZE-i, "Error\n");
@@ -814,6 +816,8 @@ static ssize_t qm_store(struct device *dev,
 				ret = mx_qm_writebyte(qm->client,QM_REG_WAKEUP_TYPE,value);
 				if (ret < 0)
 					pr_err("mx_qm_writebyte error at %d line\n", __LINE__);
+				else
+					key_wakeup_type = value;
 			}		
 			else
 			{
