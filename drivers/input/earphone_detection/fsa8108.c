@@ -510,10 +510,7 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				pr_err("%s 3pole connect",__func__);
 				info->cur_jack_type = FSA_HEADSET_3POLE;
 				fsa8108_mask_int(1);
-				msleep(1000);
-				
-				if(info->cur_jack_type != FSA_HEADSET_3POLE)
-					break;
+
 				fsa8108_LDO_output(0);
 				switch_set_state(&switch_jack_detection, FSA_HEADSET_3POLE);
 				break;
