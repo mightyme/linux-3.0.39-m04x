@@ -338,7 +338,7 @@ static void max77665_work_func(struct work_struct *work)
 	}
 
 	charger->cable_status = cable_status;
-
+	
 	power_supply_changed(&charger->psy_ac);
 	power_supply_changed(&charger->psy_usb);
 
@@ -612,6 +612,15 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 			
 		schedule_delayed_work(&charger->dwork, HZ/4);
 	} else {
+		if ((charger->cable_status == CABLE_TYPE_USB)
+				&& (charger->adc_flag == true)) {
+			charger->done = false;
+			charger->adc_flag = false;
+			if (!charger->chgin)
+				charger->cable_status = CABLE_TYPE_NONE;
+			power_supply_changed(&charger->psy_ac);
+			power_supply_changed(&charger->psy_usb);
+		}
 		pr_info("unstable charger isr, dismiss this isr\n");
 		msleep(2000);
 		wake_unlock(&charger->wake_lock);
