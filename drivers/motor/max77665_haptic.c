@@ -70,7 +70,11 @@ struct haptic_data {
 	u16 duty;
 	u16 period;
 };
+
+#ifdef __CONFIG_DEBUG_HAPTIC__
 int g_vibrate_count = 0;
+#endif
+
 #ifndef CONFIG_MACH_M040
 /* this function is useless when external pwm is applied*/
 static int haptic_clk_on(struct device *dev, bool en)
@@ -158,11 +162,16 @@ try_again:
 	}
 	ret = max77665_read_reg(i2c,MAX77665_HAPTIC_REG_CONFIG2, &val);
 	if(val & HAPTIC_CONF2_MEN_MASK){
+		
+#ifdef __CONFIG_DEBUG_HAPTIC__
 		pr_info("func %s :enabled error should be disabled now\n", __func__);
+#endif
 		goto try_again;
 	}
 	else{
+#ifdef __CONFIG_DEBUG_HAPTIC__
 		pr_info("func %s :disabled\n", __func__);
+#endif
 	}
 #ifdef __CONFIG_DEBUG_HAPTIC__
 	max77665_show_regs(i2c);
@@ -179,8 +188,10 @@ err:
 static void motor_work_func(struct work_struct *work)
 {
 	struct haptic_data *chip = container_of(work, struct haptic_data, motor_work);
-
+	
+#ifdef __CONFIG_DEBUG_HAPTIC__
 	pr_info("write register to disable motor\n");
+#endif
 	max77665_haptic_disable(chip->client);
 	
 	//max77665_haptic_on(chip, false);
@@ -190,7 +201,9 @@ static void motor_disable_work_func(struct work_struct *work)
 {
 	struct haptic_data *chip = container_of(work, struct haptic_data, disable_work.work);
 
+#ifdef __CONFIG_DEBUG_HAPTIC__
 	pr_info("write register to disable motor from delayed work\n");
+#endif
 	max77665_haptic_disable(chip->client);
 	
 	//max77665_haptic_on(chip, false);
@@ -200,7 +213,9 @@ static enum hrtimer_restart motor_timer_func(struct hrtimer *timer)
 {
 	struct haptic_data *chip = container_of(timer, struct haptic_data, timer);
 
+#ifdef __CONFIG_DEBUG_HAPTIC__
 	pr_info("timer timeout schedule_work disable motor\n");
+#endif
 	queue_work(chip->motor_queue, &chip->motor_work);
 	
 	if (delayed_work_pending(&chip->disable_work))
@@ -231,7 +246,11 @@ static void haptic_enable(struct timed_output_dev *tdev, int value)
 		container_of(tdev, struct haptic_data, tdev);
 
 	mutex_lock(&chip->haptic_mutex);
+	
+#ifdef __CONFIG_DEBUG_HAPTIC__
 	pr_info("%s: vibration time = %d\n", __func__, g_vibrate_count++);
+#endif
+
 	//max77665_haptic_on(chip, false);
 	hrtimer_cancel(&chip->timer);
 	
@@ -243,7 +262,9 @@ static void haptic_enable(struct timed_output_dev *tdev, int value)
 		hrtimer_start(&chip->timer, ktime_set(value/1000, (value%1000)*1000000),
 						HRTIMER_MODE_REL);
 	} 
+#ifdef __CONFIG_DEBUG_HAPTIC__
 	pr_info("%s: process: %s, time: %d ms\n", __func__, current->comm, value);
+#endif
 	max77665_haptic_on(chip, !!value);
 
 	mutex_unlock(&chip->haptic_mutex);
