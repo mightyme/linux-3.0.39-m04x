@@ -41,7 +41,7 @@ ump_descriptor_mapping * ump_descriptor_mapping_create(int init_entries, int max
 		map->table = descriptor_table_alloc(init_entries);
 		if (NULL != map->table)
 		{
-			map->lock = _mali_osk_lock_init(_MALI_OSK_LOCKFLAG_NONINTERRUPTABLE | _MALI_OSK_LOCKFLAG_READERWRITER, 0 , 0);
+			map->lock = _mali_osk_lock_init(_MALI_OSK_LOCKFLAG_NONINTERRUPTABLE /*| _MALI_OSK_LOCKFLAG_READERWRITER*/, 0 , 0);
 			if ( NULL != map->lock )
 			{
 				_mali_osk_set_nonatomic_bit(0, map->table->usage); /* reserve bit 0 to prevent NULL/zero logic to kick in */
