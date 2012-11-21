@@ -53,7 +53,15 @@ static irqreturn_t mx_qm_irq_handler(int irq, void *dev_id)
 	struct input_dev *input = touch->input_key;
 
 	touch->keys_press = !(gpio_get_value(qm->gpio_irq));
-	qm_touch_report_key( input,KEY_HOME,touch->keys_press );	
+	if( touch->early_suspend_flag && touch->keys_press)
+	{
+		qm_touch_report_key( input,KEY_HOME,1 );	
+		qm_touch_report_key( input,KEY_HOME,0 );	
+	}
+	else
+	{
+		qm_touch_report_key( input,KEY_HOME,touch->keys_press );	
+	}
 	
 	pr_debug("%s:Key is %s.\n",__func__,touch->keys_press?"Pressed":"Released");		
 	
