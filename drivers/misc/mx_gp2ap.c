@@ -314,7 +314,7 @@ static void get_ps_thresholds(struct gp2ap_data *gp2ap)
 static int gp2ap_set_ps_mode(struct gp2ap_data *gp2ap, int mode)
 {
 	int ret;
-	int ps_status = gp2ap->ps_data;
+	int ps_status = gp2ap->ps_data ? (gp2ap->ps_data - 1) : 0;
 	u8 buf[4];
 
 	pr_debug("%s: PS: %s, Measure cycles: %x, Measure Intval: %x\n",
