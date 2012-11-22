@@ -682,6 +682,7 @@ retry:
 			break;
 		}
 		if (!pm_data->usb_ld->if_usb_connected) {
+			modem_notify_event(MODEM_EVENT_DISCONN);
 			wake_unlock(&pm_data->rpm_wake);
 			return;
 		}
@@ -689,13 +690,14 @@ retry:
 		if (ret < 0) {
 			MIF_ERR("resume error(%d)\n", ret);
 			if (!pm_data->usb_ld->if_usb_connected) {
+				modem_notify_event(MODEM_EVENT_DISCONN);
 				wake_unlock(&pm_data->rpm_wake);
 				return;
 			}
 			/* force to go runtime idle before retry resume */
 			if (dev->power.timer_expires == 0 &&
 						!dev->power.request_pending) {
-				MIF_DEBUG("run time idle\n");
+				MIF_ERR("run time idle\n");
 				pm_runtime_idle(dev);
 			}
 		}
