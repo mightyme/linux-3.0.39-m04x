@@ -28,7 +28,7 @@
 
 
 #if defined(CONFIG_MACH_M040)
-#define	VOL_NORMAL_SPK				(0x39+0)							//0dB 0dB = 0x39
+#define	VOL_NORMAL_SPK				(0x39+4)							//0dB 0dB = 0x39
 #else
 #define	VOL_NORMAL_SPK				(0x39+4)							//4dB 0dB = 0x39
 #endif

@@ -152,37 +152,37 @@ void SetEQBase(struct snd_soc_codec *codec,int mMode)
 
 #else
 			snd_soc_update_bits(codec,WM8994_AIF1_DAC1_EQ_GAINS_1, WM8994_AIF1DAC1_EQ_B1_GAIN_MASK,0<<WM8994_AIF1DAC1_EQ_B1_GAIN_SHIFT);// -12db
-			snd_soc_update_bits(codec,WM8994_AIF1_DAC1_EQ_GAINS_1, WM8994_AIF1DAC1_EQ_B2_GAIN_MASK,3<<WM8994_AIF1DAC1_EQ_B2_GAIN_SHIFT);// -9dB
-			snd_soc_update_bits(codec,WM8994_AIF1_DAC1_EQ_GAINS_1, WM8994_AIF1DAC1_EQ_B3_GAIN_MASK,13<<WM8994_AIF1DAC1_EQ_B3_GAIN_SHIFT);// 1dB
-			snd_soc_update_bits(codec,WM8994_AIF1_DAC1_EQ_GAINS_2, WM8994_AIF1DAC1_EQ_B4_GAIN_MASK,13<<WM8994_AIF1DAC1_EQ_B4_GAIN_SHIFT);// 1dB
+			snd_soc_update_bits(codec,WM8994_AIF1_DAC1_EQ_GAINS_1, WM8994_AIF1DAC1_EQ_B2_GAIN_MASK,6<<WM8994_AIF1DAC1_EQ_B2_GAIN_SHIFT);// -7dB
+			snd_soc_update_bits(codec,WM8994_AIF1_DAC1_EQ_GAINS_1, WM8994_AIF1DAC1_EQ_B3_GAIN_MASK,7<<WM8994_AIF1DAC1_EQ_B3_GAIN_SHIFT);// -6dB
+			snd_soc_update_bits(codec,WM8994_AIF1_DAC1_EQ_GAINS_2, WM8994_AIF1DAC1_EQ_B4_GAIN_MASK,14<<WM8994_AIF1DAC1_EQ_B4_GAIN_SHIFT);// 2dB
 			snd_soc_update_bits(codec,WM8994_AIF1_DAC1_EQ_GAINS_2, WM8994_AIF1DAC1_EQ_B5_GAIN_MASK,12<<WM8994_AIF1DAC1_EQ_B5_GAIN_SHIFT);// 0dB
 
 			// 200
-			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_1_A, 0x0FD2);
-			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_1_B, 0x0400);
-			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_1_PG, 0x00D8);
+			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_1_A, 0x0F8D);
+			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_1_B, 0x0401);
+			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_1_PG, 0x01CC);
 
 			// 400 - 2
-			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_2_A, 0x1E08);
+			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_2_A, 0x1E02);
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_2_B, 0xF1EE);
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_2_C, 0x040B);
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_2_PG, 0x07A4);
 
 			// 800 - 2
-			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_3_A, 0x1B8f);
-			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_3_B, 0xF390);
-			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_3_C, 0x040B);
-			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_3_PG, 0x0E1C);
+			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_3_A, 0x1F37);
+			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_3_B, 0xF0AB);
+			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_3_C, 0x040C);
+			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_3_PG, 0x02A5);
 
 			// 2400 - 2
-			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_4_A, 0x1666);
-			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_4_B, 0xF67F);
-			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_4_C, 0x040A);
-			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_4_PG, 0x19BA);
+			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_4_A, 0x1DD3);
+			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_4_B, 0xF1EE);
+			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_4_C, 0x040B);
+			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_4_PG, 0x07A4);
 
 			// 6900
-			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_5_A, 0x08C0);
-			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_5_B, 0x0630);
+			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_5_A, 0x0564);
+			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_5_B, 0x0559);
 			snd_soc_write(codec,WM8994_AIF1_DAC1_EQ_BAND_5_PG, 0x4000);
 #endif
 			// DRC
