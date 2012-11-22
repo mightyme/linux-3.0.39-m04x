@@ -46,18 +46,7 @@
 #define PS_CALIB_TO_NEAR(calib)	((calib) + (PS_NEAR_THRESHOLD - PS_CALIB_VALUE))
 #define PS_NEAR_TO_FAR(near) ((near) - (PS_NEAR_THRESHOLD - PS_FAR_THRESHOLD))
 
-#define PS_FAR_MEASURE_CYCLE	MEASURE_CYCLE_8	/* when the barrier is far, 16 is tested without no ambient disturbance problem */
-#define PS_FAR_INTVAL_TIME	INTVAL_TIME_8 /* 16: 3mA, 8: 5mA, 4: 9mA, 0: 28mA */
-
-#define PS_NEAR_MEASURE_CYCLE	MEASURE_CYCLE_0		/* 28ms */
-#define PS_NEAR_INTVAL_TIME	INTVAL_TIME_16		/* 3mA */
-
-/*110mA, PS, 327.hHz, not reset*/
-#define reg4_data(intval) ((u8)((intval) | LED_CURRENT_110 | INT_SETTING_PS | LED_FREQUENCY_327K))
-
 static u16 read_ps_calibvalue(struct gp2ap_data *gp2ap);
-static u8 ps_intval[2] = {PS_NEAR_INTVAL_TIME, PS_FAR_INTVAL_TIME};
-static u8 ps_measure_cycles[2] = {PS_NEAR_MEASURE_CYCLE, PS_FAR_MEASURE_CYCLE};
 static atomic_t gp2ap_als_start = ATOMIC_INIT(0);
 
 #define __ALS_RANGE_X2   0 
@@ -314,17 +303,11 @@ static void get_ps_thresholds(struct gp2ap_data *gp2ap)
 static int gp2ap_set_ps_mode(struct gp2ap_data *gp2ap, int mode)
 {
 	int ret;
-	int ps_status = gp2ap->ps_data ? (gp2ap->ps_data - 1) : 0;
 	u8 buf[4];
 
-	pr_debug("%s: PS: %s, Measure cycles: %x, Measure Intval: %x\n",
-		__func__, ps_status ? "FAR" : "NEAR",
-		ps_measure_cycles[ps_status], ps_intval[ps_status]);
-
-	buf[0] = ps_measure_cycles[ps_status];
+	buf[0] = MEASURE_CYCLE_4;
 	buf[1] = INT_TYPE_PULSE | PS_RESOLUTION_10 | PS_RANGE_X4;
-	buf[2] = reg4_data(ps_intval[ps_status]);
-
+	buf[2] = INTVAL_TIME_16 | LED_CURRENT_110 | INT_SETTING_PS | LED_FREQUENCY_327K; 
 	ret = gp2ap_i2c_write_multibytes(gp2ap->client, REG_COMMAND2, buf, 3);
 	if (ret < 0) {
 		pr_err("%s()->%d: gp2ap_i2c_write_multibytes fail!\n", __func__, __LINE__);
@@ -367,24 +350,6 @@ static int gp2ap_set_ps_mode(struct gp2ap_data *gp2ap, int mode)
 		msleep_interruptible(50);
 	}
 #endif
-
-	return 0;
-}
-
-static int gp2ap_set_ps_irq_mode(struct gp2ap_data *gp2ap)
-{
-	gp2ap_set_ps_mode(gp2ap, PS_IRQ_MODE);
-
-	return 0;
-}
-
-static int gp2ap_set_ps_powerdown_mode(struct gp2ap_data *gp2ap, int current_status)
-{
-	/* Note: Auto shutdown mode only measure one time, measure cycles and
-	 * intval doesn't take effect
-	 */
-	gp2ap_set_ps_mode(gp2ap, PS_SHUTDOWN_MODE);
-
 	return 0;
 }
 
@@ -392,11 +357,10 @@ static int gp2ap_set_debug_mode(struct gp2ap_data *gp2ap, int current_status)
 {
 	int ret;
 	u8 buf[4];
-	int ps_status = gp2ap->ps_data;
 
-	buf[0] = ps_measure_cycles[ps_status];
+	buf[0] = MEASURE_CYCLE_4;
 	buf[1] = PS_RESOLUTION_10 | PS_RANGE_X4;
-	buf[2] = reg4_data(ps_intval[ps_status]);
+	buf[2] = INTVAL_TIME_16 | LED_CURRENT_110 | INT_SETTING_PS | LED_FREQUENCY_327K; 
 
 	ret = gp2ap_i2c_write_multibytes(gp2ap->client, REG_COMMAND2, buf, 3);
 	if (ret < 0) {
@@ -453,7 +417,7 @@ static int gp2ap_start_work(struct gp2ap_data *gp2ap, int enabled_sensors)
 	
 	if (enabled_sensors & ID_PS) {
 		enable_irq(gp2ap->irq);   /*enable irq first*/
-		ret = gp2ap_set_ps_irq_mode(gp2ap);
+		ret = gp2ap_set_ps_mode(gp2ap, PS_IRQ_MODE);
 		if (ret < 0) {
 			disable_irq_nosync(gp2ap->irq);
 			pr_err("%s()->%d:set gp2ap ps irq mode fail !\n",
@@ -744,7 +708,7 @@ static ssize_t gp2ap_ps_debug_data_show(struct device *dev,
 	}
 	on_value = rbuf[1] * 256 + rbuf[0];
 
-	ret = gp2ap_set_ps_powerdown_mode(gp2ap, ps_pre_status);
+	ret = gp2ap_set_ps_mode(gp2ap, PS_SHUTDOWN_MODE);
 	if (ret < 0) {
 		pr_err("%s()->%d:gp2ap_set_powerdown_mode fail!\n",
 			__func__, __LINE__);
@@ -783,7 +747,7 @@ static ssize_t gp2ap_ReflectData_show(struct device *dev,
 	struct gp2ap_data *gp2ap = i2c_get_clientdata(client);
 	u16 reg_data = 0;
 
-	gp2ap_set_ps_powerdown_mode(gp2ap, PS_FAR);
+	gp2ap_set_ps_mode(gp2ap, PS_SHUTDOWN_MODE);
 
 	reg_data = gp2ap_get_ps_data(gp2ap);
 	if (reg_data < 0) {
@@ -959,7 +923,15 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
         int ret;
 	unsigned long light_lux =0;
 	bool gp2ap_reset_als = 0;
-	u8 new_val = 0, old_val = 0, als_mask = 0x1 << 1;
+	u8 command1 = 0;
+
+	/*read REG_COMMAND1(0x00) to clear interrupts*/
+	ret = gp2ap_i2c_read_byte(client, REG_COMMAND1, &command1);
+	if (ret < 0) {
+		pr_err("%s()->%d:read command1 reg fail!\n",
+			__func__, __LINE__);
+		return;
+	}
 
 	ret = gp2ap_i2c_read_multibytes(client, REG_D0_LSB, buf, 2);
 	if (ret < 0) {
@@ -1139,15 +1111,6 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 	if (gp2ap_reset_als) {
 		gp2ap_als_reset(gp2ap);
 	}
-
-	/*clear the interrupts*/	
-	ret = i2c_smbus_read_byte_data(gp2ap->client, REG_COMMAND1);
-	if(ret >= 0){
-		old_val= ret & 0xff;
-		new_val = (ret & ~ als_mask) | (old_val & als_mask); 
-		ret = i2c_smbus_write_byte_data(gp2ap->client,
-				REG_COMMAND1, new_val);
-	}
 }
 
 /*
@@ -1161,8 +1124,8 @@ static void gp2ap_ps_handler(struct work_struct *work)
 	struct input_dev *idp = gp2ap->input_dev;
 	int ret, ps_data = 0;
 	u8 buf[2] = {0}, command1 = 0;
-	u8 new_val = 0, old_val = 0, ps_mask = 0x1 << 2;
-	
+
+	/*read REG_COMMAND1(0x00) to clear interrupts*/
 	ret = gp2ap_i2c_read_byte(client, REG_COMMAND1, &command1);
 	if (ret < 0) {
 		pr_err("%s()->%d:read command1 reg fail!\n",
@@ -1183,25 +1146,14 @@ static void gp2ap_ps_handler(struct work_struct *work)
 		ps_data = PS_NEAR;
 	
 	if (gp2ap->ps_data != ps_data) {
-		gp2ap_power_down(gp2ap);
 		input_report_abs(idp, ABS_PS, ps_data);
 		input_sync(idp);
 		gp2ap->ps_data = ps_data;
-		gp2ap_set_ps_irq_mode(gp2ap);
 	
 		if (ps_data == PS_FAR) 
 			pr_info("**************far************\n");
 		else
 			pr_info("**************near***********\n");
-	}
-	
-	/*clear the interrupts*/	
-	ret = i2c_smbus_read_byte_data(gp2ap->client, REG_COMMAND1);
-	if(ret >= 0){
-		old_val= ret & 0xff;
-		new_val = (ret & ~ ps_mask) | (old_val & ps_mask); 
-		ret = i2c_smbus_write_byte_data(gp2ap->client,
-				REG_COMMAND1, new_val);
 	}
 }
 
