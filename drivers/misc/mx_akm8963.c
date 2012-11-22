@@ -44,6 +44,7 @@ struct akm8963_data {
 	atomic_t reserve_open_flag;
 	wait_queue_head_t open_wq;
 	u8 asa[3];
+	int test_flag;
 };
 
 struct s_xyz{
@@ -524,8 +525,7 @@ static long akmd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return ret;
 }
 
-static int akm_self_test(struct akm8963_data *s_akm, int test_flag,
-	       	struct s_xyz* akm_sxyz)
+static int akm_self_test(struct akm8963_data *s_akm, struct s_xyz* akm_sxyz)
 {
 	int err = 0;
 	u8 buf[2], sbuf[1], s_data[6];
@@ -572,29 +572,31 @@ static int akm_self_test(struct akm8963_data *s_akm, int test_flag,
 
 	/*pr_info("%s: self test x = %d, y = %d, z = %d\n",__func__, x, y, z);*/
 	if ((x >= -200) && (x <= 200))
-		pr_info("%s: x passed self test, expect -200<=x<=200\n",__func__);
+		pr_info("%s: x passed self test, expect -200<=%d<=200\n",__func__, x);
 	else
-		pr_info("%s: x failed self test, expect -200<=x<=200\n",__func__);
+		pr_info("%s: x failed self test, expect -200<=%d<=200\n",__func__, x);
 	if ((y >= -200) && (y <= 200))
-		pr_info("%s: y passed self test, expect -200<=y<=200\n",__func__);
+		pr_info("%s: y passed self test, expect -200<=%d<=200\n",__func__, y);
 	else
-		pr_info("%s: y failed self test, expect -200<=y<=200\n",__func__);
+		pr_info("%s: y failed self test, expect -200<=%d<=200\n",__func__, y);
 	if ((z >= -3200) && (z <= -800))
-		pr_info("%s: z passed self test, expect -3200<=z<=-800\n",__func__);
+		pr_info("%s: z passed self test, expect -3200<=%d<=-800\n",__func__, z);
 	else
-		pr_info("%s: z failed self test, expect -3200<=z<=-800\n",__func__);
+		pr_info("%s: z failed self test, expect -3200<=%d<=-800\n",__func__, z);
 
 	if (((x >= -200) && (x <= 200)) && ((y >= -200) && (y <= 200)) &&
-	    ((z >= -3200) && (z <= -800)))
-		test_flag = 1;
-
+	    ((z >= -3200) && (z <= -800))) {
+		s_akm->test_flag = 1;
+	} else {
+		s_akm->test_flag = 0;
+	}
 	akm_sxyz->x = x;
 	akm_sxyz->y = y;
 	akm_sxyz->z = z;
 
 	pr_debug("akm_sx = %d, akm_sy = %d, akm_sz = %d\n",akm_sxyz->x, akm_sxyz->y, akm_sxyz->z);
 	
-	return err; 
+	return s_akm->test_flag; 
 
 }
 
@@ -678,14 +680,13 @@ static ssize_t akm_name_show(struct device *dev, struct device_attribute *attr, 
 
 static ssize_t akm_self_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	int ret = 0, test_flag = 0;
+	int ret = 0;
 	struct s_xyz sxyz = {0,};
 	struct akm8963_data *s_akm = dev_get_drvdata(dev);
 
-	ret = akm_self_test(s_akm, test_flag, &sxyz);
+	ret = akm_self_test(s_akm, &sxyz);
 	
-	ret = sprintf(buf,"%d, %d, %d, %d\n", test_flag, sxyz.x,sxyz.y,sxyz.z);
-
+	ret = sprintf(buf,"%d,%d, %d, %d\n",ret,sxyz.x,sxyz.y,sxyz.z);
 	return ret; 	
 
 }
@@ -843,6 +844,7 @@ static int __devinit akm8963_probe(struct i2c_client *client, const struct i2c_d
 
 	i2c_set_clientdata(client, akm);
 	akm->client = client;
+	akm->test_flag = 0;
 	
 	/* Check connection */
 	err = AKECS_CheckDevice(akm);
