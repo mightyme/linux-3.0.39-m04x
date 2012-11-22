@@ -94,7 +94,7 @@ MODULE_PARM_DESC(param, "Force reflash of RMI4 devices");
  * instead of getting it from the F01 queries.
  */
 static char *tpk_img_name = "M040-TPK";
-static char *wintek_img_name = "s3202_ver5";
+static char *wintek_img_name = "M040-WTK";
 module_param(tpk_img_name, charp, S_IRUGO);
 MODULE_PARM_DESC(param, "Name of the TPK RMI4 firmware image");
 module_param(wintek_img_name, charp, S_IRUGO );
@@ -608,7 +608,7 @@ static bool go_nogo(struct reflash_data *data, struct image_header *header)
 	return device_status.flash_prog || force;
 }
  
-static bool go_nogo_tpk(struct reflash_data *data, struct image_header *header)
+static bool go_nogo_mx(struct reflash_data *data, struct image_header *header)
 {
 	union f01_device_status device_status;
 	int retval;
@@ -692,7 +692,6 @@ void rmi4_fw_update(struct rmi_device *rmi_dev,
 	{
 		snprintf(firmware_name, sizeof(firmware_name), "rmi4/%s.img",
 			wintek_img_name ? wintek_img_name : (char*)data.product_id);	
-		return;
 	}
 	else{
 		dev_err(&rmi_dev->dev, "Unknown manufacturer.\n");
@@ -731,8 +730,9 @@ void rmi4_fw_update(struct rmi_device *rmi_dev,
 		data.config_data = fw_entry->data + F34_FW_IMAGE_OFFSET +
 			header.image_size;
 
-	if( pdata->manufacturer_id == MANUFACTURER_TPK)
-		retval = go_nogo_tpk(&data, &header);
+	if(( pdata->manufacturer_id == MANUFACTURER_TPK) 
+		|| ( pdata->manufacturer_id == MANUFACTURER_WINTEK))
+		retval = go_nogo_mx(&data, &header);
 	else
 		retval = go_nogo(&data, &header);
 
