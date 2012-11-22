@@ -176,7 +176,6 @@ struct mhl_platform_data {
 	void (*vbus_present)(bool on);
 #endif
 	/*****data compatible with sii9234_platform data end****/
-	struct regulator *mhl_logic_regulator;
 	struct i2c_client *mhl_tx_client;
 	struct i2c_client *tpi_client;
 	struct i2c_client *hdmi_rx_client;

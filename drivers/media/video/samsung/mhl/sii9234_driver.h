@@ -556,6 +556,7 @@ struct sii9234_data {
 #ifdef __CONFIG_TMDS_OFFON_WORKAROUND__
 	bool tmds_state;
 #endif
+	struct mutex  mutex_lock;
 };
 
 #ifdef __MHL_NEW_CBUS_MSC_CMD__

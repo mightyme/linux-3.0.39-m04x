@@ -42,48 +42,33 @@
 #ifdef CONFIG_MHL_DRIVER
 static int mx2_mhl_power_on(struct mhl_platform_data *pdata, int enable)
 {
-	struct regulator *vdd12mhl_regulator;
-	struct regulator *vdd12mhl_gpio_regulator;
+	struct regulator_bulk_data supplies[3] = {
+		{"vdd_ldo26", },
+		{"vdd_ldo20", },
+		{"MHL_1.2V",},
+	};
+	int num_consumers = ARRAY_SIZE(supplies);
 	int ret;
 
-	pdata->mhl_logic_regulator = regulator_get(NULL, "vdd_ldo26");
-	if (!pdata->mhl_logic_regulator) {
-		MHLPRINTK("regulator_get failed");
-		return -1;
-	}
-	vdd12mhl_regulator = regulator_get(NULL, "vdd_ldo20");
-	if (!vdd12mhl_regulator) {
-		MHLPRINTK("regulator_get failed");
-		regulator_put(pdata->mhl_logic_regulator);
-		return -1;
-	}
-	vdd12mhl_gpio_regulator = regulator_get(NULL, "MHL_1.2V");
-	if (!vdd12mhl_gpio_regulator) {
-		regulator_put(pdata->mhl_logic_regulator);
-		regulator_put(vdd12mhl_regulator);
-		MHLPRINTK("regulator_get failed");
-		return -1;
+	ret = regulator_bulk_get(NULL, num_consumers, supplies);
+	if (ret) {
+		MHLPRINTK("regulator_bulk_get failed!\n");
+		return ret;
 	}
 
 	if (enable) {
-		ret = regulator_enable(pdata->mhl_logic_regulator);
-		ret = regulator_enable(vdd12mhl_regulator);
-		ret = regulator_enable(vdd12mhl_gpio_regulator);
+		ret = regulator_bulk_enable(num_consumers, supplies);
 	} else {
-		ret = regulator_disable(pdata->mhl_logic_regulator);
-		ret = regulator_disable(vdd12mhl_regulator);
-		ret = regulator_disable(vdd12mhl_gpio_regulator);
+		ret = regulator_bulk_disable(num_consumers, supplies);
 	}
-	regulator_put(pdata->mhl_logic_regulator);
-	regulator_put(vdd12mhl_regulator);
-	regulator_put(vdd12mhl_gpio_regulator);
 
-	if (ret < 0) {
+	if (ret < 0)
 		MHLPRINTK("regulator_%sable failed\n", enable ? "en" : "dis");
-		return ret;
-	}
-	MHLPRINTK("regulator_%sable\n", enable ? "en" : "dis");
-	return 0;
+	else 
+		MHLPRINTK("regulator_%sable\n", enable ? "en" : "dis");
+
+	regulator_bulk_free(num_consumers, supplies);
+	return ret;
 }
 
 static int mx2_mhl_reset(struct mhl_platform_data *pdata)
@@ -170,52 +155,32 @@ static struct i2c_board_info i2c_devs8[] = {
 #if defined(CONFIG_VIDEO_TVOUT)
 static int mx2_tvout_enable_power( int on)
 {
+	struct regulator_bulk_data supplies[2] = {
+		{"HDMI_1.0V", },
+		{"vdd_ldo19", },
+	};
+	int num_consumers = ARRAY_SIZE(supplies);
 	int ret = 0;
-	struct regulator *hdmi_18_v = NULL;
-	struct regulator *hdmi_10_v = NULL;
 
-	printk("%s:[%s]\n", __func__, on?"ON":"OFF");
+	pr_info("%s:[%s]\n", __func__, on?"ON":"OFF");
 
-	hdmi_10_v = regulator_get(NULL, "HDMI_1.0V");
-	if (!hdmi_10_v) {
-		pr_err("regulator_get failed\n");
-		goto ret_on_err0;
-	}
-	hdmi_18_v = regulator_get(NULL, "vdd_ldo19");
-	if (!hdmi_18_v) {
-		pr_err("regulator_get failed\n");
-		goto ret_on_err1;
+	ret = regulator_bulk_get(NULL, num_consumers, supplies);
+	if (ret) {
+		pr_err("%s, regulator_bulk_get failed!\n", __func__);
+		return ret;
 	}
 
-	if(on){
-		ret = regulator_enable(hdmi_10_v);
-		if (ret != 0) {
-			pr_err("regulator_enable failed.\n");
-			goto ret_on_err2;
-		}
-		ret = regulator_enable(hdmi_18_v);
-		if (ret != 0) {
-			pr_err("regulator_enable failed.\n");
-			goto ret_on_err2;
-		}
-	}else{
-		ret = regulator_disable(hdmi_10_v);
-		if (ret != 0) {
-			pr_err("regulator_disable failed.\n");
-			goto ret_on_err2;
+	if (on)
+		ret = regulator_bulk_enable(num_consumers, supplies);
+	else
+		ret = regulator_bulk_disable(num_consumers, supplies);
 
-		}
-		ret = regulator_disable(hdmi_18_v);
-		if (ret != 0) {
-			pr_err("regulator_disable failed.\n");
-			goto ret_on_err2;
-		}
+	if (ret != 0) {
+		pr_err("regulator_%sable failed.\n", on ? "en" : "dis");
 	}
-ret_on_err2:
-	regulator_put(hdmi_10_v);
-ret_on_err1:
-	regulator_put(hdmi_18_v);
-ret_on_err0:
+
+	regulator_bulk_free(num_consumers, supplies);
+
 	return ret;
 }
 static struct s5p_platform_tvout __initdata mx2_tvout_data={

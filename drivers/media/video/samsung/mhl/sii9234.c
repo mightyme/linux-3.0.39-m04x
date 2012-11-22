@@ -313,9 +313,11 @@ u8 mhl_onoff_ex(bool onoff)
 		return 2;
 	}
 
+	sii9234_mutex_lock(&sii9234->mhl_status_lock);
 	if (sii9234->pdata->power_state == onoff) {
 		pr_info("sii9234: mhl_onoff_ex: mhl already %s\n",
 			onoff ? "on" : "off");
+		sii9234_mutex_unlock(&sii9234->mhl_status_lock);
 		return 2;
 	}
 
@@ -331,6 +333,7 @@ u8 mhl_onoff_ex(bool onoff)
 		if (sii9234->pdata->hw_reset)
 			sii9234->pdata->hw_reset(sii9234->pdata);
 		goto_d3();
+		sii9234_mutex_unlock(&sii9234->mhl_status_lock);
 		return 2;
 	} else {
 		sii9234_cancel_callback();
@@ -342,6 +345,7 @@ u8 mhl_onoff_ex(bool onoff)
 //		mhl_hpd_handler(false);
 #endif
 	}
+	sii9234_mutex_unlock(&sii9234->mhl_status_lock);
 	return sii9234->rgnd;
 }
 EXPORT_SYMBOL(mhl_onoff_ex);
@@ -3791,6 +3795,7 @@ static int __devinit sii9234_mhl_tx_i2c_real_probe(struct i2c_client *client)
 	init_waitqueue_head(&sii9234->wq);
 	mutex_init(&sii9234->lock);
 	mutex_init(&sii9234->cbus_lock);
+	mutex_init(&sii9234->mhl_status_lock);
 
 #ifdef __SII9234_MUTEX_DEBUG__
 	g_mutex_cnt = 0;
