@@ -66,16 +66,19 @@ static int write_to_lcd(struct ls044k3sx01_info *lcd,
 
 static int lcd_panel_init_code(struct ls044k3sx01_info *lcd)
 {
-	pr_info("LCD ID Code %d\n", lcd->id_code);
-	switch (lcd->id_code) {
+	pr_info("LCD ID Code %d\n", lcd_id);
+	switch (lcd_id) {
 		case 0:
 			return write_to_lcd(lcd, ls044k3sx01_init_seq);
 		break;
 		case 1:
 			return write_to_lcd(lcd, ls044k3sx01_init_seq_1);
 		break;
+		case 4:
+			return write_to_lcd(lcd, ls044k3sx01_init_seq_0_4);
+		break;
 		default:
-			pr_debug("ID Code(%d) Error! use default gamma settings.\n", lcd->id_code);
+			pr_debug("ID Code(%d) Error! use default gamma settings.\n", lcd_id);
 			return 0;
 		break;
 	}
