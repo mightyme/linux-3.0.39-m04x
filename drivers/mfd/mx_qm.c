@@ -311,14 +311,14 @@ static bool __devinit mx_qm_identify(struct mx_qm_data *mx)
 	id = mx_qm_readbyte(client, QM_REG_DEVICE_ID);
 	if (id != MX_QM_DEVICE_ID) {
 		dev_err(&client->dev, "ID %d not supported\n", id);
-		return false;
+		goto upd_ext;
 	}
 
 	/* Read firmware version */
 	ver = mx_qm_readbyte(client, QM_REG_VERSION);
 	if (ver < 0) {
 		dev_err(&client->dev, "could not read the firmware version\n");
-		return false;
+		goto upd_ext;
 	}
 
 	img_ver = mx_qm_getimgfwversion(mx);
@@ -328,8 +328,16 @@ static bool __devinit mx_qm_identify(struct mx_qm_data *mx)
 	if( ver != img_ver)
 	{
 		dev_info(&client->dev, "Old firmware version %d.%d , img ver %d.%d,need be update\n", ((ver>>4)&0x0F),(ver&0x0F), ((img_ver>>4)&0x0F),(img_ver&0x0F));
+upd_ext:		
 		mx_qm_update(mx);
 		mx_qm_wakeup(mx,true);
+		
+		/* Read Chip ID */
+		id = mx_qm_readbyte(client, QM_REG_DEVICE_ID);
+		if (id != MX_QM_DEVICE_ID) {
+			dev_err(&client->dev, "ID %d not supported\n", id);
+			return false;
+		}
 		
 		/* Read firmware version again*/
 		ver = mx_qm_readbyte(client, QM_REG_VERSION);
