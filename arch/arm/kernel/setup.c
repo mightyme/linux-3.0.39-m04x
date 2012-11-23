@@ -902,6 +902,24 @@ static struct machine_desc * __init setup_machine_tags(unsigned int nr)
 	return mdesc;
 }
 
+#ifdef CONFIG_MX_ENG_KERNEL
+static char uboot_machine_name[16];
+static int __init machine_name_setup(char *args)
+{
+	int error = 0;
+	
+	strncpy(uboot_machine_name, args, sizeof(uboot_machine_name)-1);
+	
+	if (strlen(uboot_machine_name))
+		machine_name = uboot_machine_name;
+
+	pr_info("%s machine_name:%s\n", __func__, machine_name);
+
+	return error;
+}
+__setup("machinename=", machine_name_setup);
+#endif
+
 void __init setup_arch(char **cmdline_p)
 {
 	struct machine_desc *mdesc;
