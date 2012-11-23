@@ -664,7 +664,7 @@ static ssize_t qm_show_property(struct device *dev,
 		}
 		break;
 	case QM_STATUS:
-		i += scnprintf(buf+i, PAGE_SIZE-i, "%d\n",mx_qm_readbyte(qm->client,QM_REG_STATUS));
+		//i += scnprintf(buf+i, PAGE_SIZE-i, "%d\n",mx_qm_readbyte(qm->client,QM_REG_STATUS));
 		break;
 	case QM_CMD:
 		{
@@ -737,7 +737,9 @@ static ssize_t qm_store(struct device *dev,
 		break;
 	case QM_STATUS:
 		if (sscanf(buf, "%d\n", &value) == 1) {	
-			
+			ret = mx_qm_writebyte(qm->client,QM_REG_STATUS,value);
+			if (ret < 0)
+				pr_err("mx_qm_writebyte error at %d line\n", __LINE__);			
 		}
 		ret = count;
 		break;
