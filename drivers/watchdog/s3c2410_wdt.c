@@ -39,6 +39,7 @@
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
 #include <linux/err.h>
+#include <linux/sysrq.h>
 
 #include <mach/map.h>
 
@@ -242,6 +243,9 @@ static irqreturn_t s3c2410wdt_irq(int irqno, void *param)
 
 	/* Clear the interrupt */
 	__raw_writel(0xff, wdt_base + S3C2410_WTCLRINT);
+
+	/* Print backtrace of all cpus. */
+	handle_sysrq('l');
 
 	return IRQ_HANDLED;
 }
