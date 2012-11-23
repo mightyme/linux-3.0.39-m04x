@@ -51,16 +51,22 @@ static irqreturn_t mx_qm_irq_handler(int irq, void *dev_id)
 	struct mx_qm_touch *touch = dev_id;
 	struct mx_qm_data *qm = touch->data;
 	struct input_dev *input = touch->input_key;
+	u8 bpress;
 
-	touch->keys_press = !(gpio_get_value(qm->gpio_irq));
-	if( touch->early_suspend_flag && touch->keys_press)
+	bpress = !(gpio_get_value(qm->gpio_irq));
+	if( touch->early_suspend_flag && bpress)
 	{
 		qm_touch_report_key( input,KEY_HOME,1 );	
 		qm_touch_report_key( input,KEY_HOME,0 );	
+		touch->keys_press = 0;
 	}
 	else
 	{
-		qm_touch_report_key( input,KEY_HOME,touch->keys_press );	
+		if( touch->keys_press != bpress)
+		{
+			qm_touch_report_key( input,KEY_HOME,bpress );	
+			touch->keys_press = bpress;
+		}
 	}
 	
 	pr_debug("%s:Key is %s.\n",__func__,touch->keys_press?"Pressed":"Released");		
@@ -77,7 +83,6 @@ static irqreturn_t mx_qm_irq_handler(int irq, void *dev_id)
 
 	touch->early_suspend_flag = true;
 	mx->i2c_writebyte(mx->client, QM_REG_STATUS,QM_STATE_SLEEP);
-
 }
  
  static void mx_qm_touch_late_resume(struct early_suspend *h)
