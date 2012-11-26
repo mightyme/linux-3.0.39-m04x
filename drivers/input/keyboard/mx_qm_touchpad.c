@@ -131,7 +131,8 @@ static int __devinit mx_qm_touch_probe(struct platform_device *pdev)
 	 input_key->name = "mx-touch-keypad";
 	 input_key->dev.parent = &client->dev;
 	 input_key->id.bustype = BUS_I2C;
- 
+	 input_key->id.vendor = 0x1111;
+	
 	 __set_bit(EV_KEY, input_key->evbit);
 	 __set_bit(KEY_HOME, input_key->keybit);
 	input_set_drvdata(input_key, data);
