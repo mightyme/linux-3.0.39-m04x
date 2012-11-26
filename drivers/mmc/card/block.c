@@ -390,7 +390,7 @@ int deal_private_block(int write, unsigned offset , long len, void *buffer)
 	sector_t index;
 	void *p = buffer;
 
-	pr_info("%s offset %u\n", __func__, offset);
+	pr_debug("%s offset %u\n", __func__, offset);
 	if(offset % MMC_BLOCK_SIZE)
 		return -EINVAL;
 
@@ -405,10 +405,10 @@ int deal_private_block(int write, unsigned offset , long len, void *buffer)
 		
 		ret = deal_private_block_internal(write, index, size, p);
 		if(ret) {
-			pr_info("%s (%ld) error %d\n", __func__, len, ret);
+			pr_err("%s (%ld) error %d\n", __func__, len, ret);
 			break;
 		}
-		pr_info("%s index %llu remain %ld pointer %p\n", __func__, index, len, p);
+		pr_debug("%s index %llu remain %ld pointer %p\n", __func__, index, len, p);
 
 		len -= MMC_BLOCK_SIZE;
 		index++;

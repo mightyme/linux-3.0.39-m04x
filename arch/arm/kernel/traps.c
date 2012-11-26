@@ -679,7 +679,7 @@ extern int system_data_func(int cmd , __user char *buf, int size);
 static int do_system_data(int cmd , __user char *buf, int size)
 {
 	int err = 0;
-	pr_info("%s %d %d\n", __func__, cmd, size);
+	pr_debug("%s %d %d\n", __func__, cmd, size);
 	mutex_lock(&private_entry_mutex);
 
 	switch(cmd) {
