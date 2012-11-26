@@ -55,6 +55,7 @@ const struct mx_qm_reg_data init_regs[] = {
 //	{LED_REG_CUR2, 0x00},
 //	{LED_REG_CUR3, 0x00},
 //	{LED_REG_CUR4, 0x00},		
+	{QM_REG_MASK_POS, 0x08},
 	{QM_REG_QM_DET_TH, 0x08},
 //	{QM_REG_QM_BURST, 0x40},
 	{},
