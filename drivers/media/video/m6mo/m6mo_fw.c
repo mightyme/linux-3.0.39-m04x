@@ -313,7 +313,11 @@ static int m6mo_get_checksum(struct v4l2_subdev *sd)
 			}
 		}
 
-		if (i == loop) return -EINVAL;
+		if (i == loop) {
+			pr_err("%s(), get checksum failed at %d retries\n",
+				__func__, loop);
+			return -EINVAL;
+		}
 		
 		/* next iteration */
 		chk_addr += set_size;
@@ -367,7 +371,7 @@ static int m6mo_update_firmware(struct v4l2_subdev *sd,
 	if (ret) goto exit_update;
 	
 	if((ret = m6mo_get_checksum(sd))) {
-		pr_err("%s: get checksum fail, checksum = 0x%04x\n", 
+		pr_err("%s: get checksum fail, checksum = %d\n",
 			__func__, ret);
 		ret = -EINVAL;
 		goto exit_update;
@@ -485,7 +489,7 @@ static bool m6mo_get_update_decision(struct v4l2_subdev *sd, const struct firmwa
 	/* if checksum fail means the firmware is not integrity */
 	ret = m6mo_get_checksum(sd);
 	if (ret) {
-		pr_err("%s:do checksum error, checksum is 0x%x\n", 
+		pr_err("%s:do checksum error, checksum is %d\n",
 			__func__, ret);
 		decision = true;
 		goto exit_decision;
