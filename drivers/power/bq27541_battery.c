@@ -513,7 +513,6 @@ static int __devinit bq27541_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WORD_DATA))
 		return -EIO;
-
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
@@ -542,7 +541,10 @@ static int __devinit bq27541_probe(struct i2c_client *client,
 		dev_err(&client->dev, "failed: power supply register\n");
 		goto err_free;
 	}
-
+	
+#ifdef CONFIG_MX_RECOVERY_KERNEL
+	mdelay(10);
+#endif
 	/* initialize fuel gauge registers */
 	ret = i2c_smbus_write_word_data(client, bq27541CMD_AR_LSB,
 						AVERAGE_DISCHARGE_CURRENT_MA);
