@@ -111,6 +111,9 @@ static int m032_factory_bat_get_property(struct power_supply *ps,
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = 21;
 		break;
+	case POWER_SUPPLY_PROP_STATUS:
+		val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+		break;
 	default:
 		return -EINVAL;
 	}
