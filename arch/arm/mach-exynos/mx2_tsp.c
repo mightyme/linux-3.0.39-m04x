@@ -90,6 +90,7 @@ static struct rmi_device_platform_data rmi4_platformdata = {
 	.sensor_name     = "m040 touch",
 	.attn_gpio       = M040_TOUCH_IRQ,      
 	.vbus_gpio       = M040_USB_IRQ,     
+	.reset_gpio       = M040_TOUCH_RESET,     
 	.attn_polarity   = RMI_ATTN_ACTIVE_LOW, 
 	.level_triggered = true,         
 	.gpio_data = &rmi4_gpiodata,
