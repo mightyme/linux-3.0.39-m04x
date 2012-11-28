@@ -341,7 +341,20 @@ static int __devinit rmi_i2c_probe(struct i2c_client *client,
 	error = rmi_set_page(rmi_phys, 0);
 	if (error) {
 		dev_err(&client->dev, "Failed to set page select to 0.\n");
-		goto err_data;
+		
+		if (pdata->reset_gpio) {
+			dev_err(&client->dev, "reset...\n");
+			gpio_set_value(pdata->reset_gpio,0);
+			msleep(10);
+			gpio_set_value(pdata->reset_gpio,1);
+			msleep(10);
+		}
+		
+		error = rmi_set_page(rmi_phys, 0);
+		if (error) {
+			dev_err(&client->dev, "Failed to set page select to 0.\n");
+			goto err_data;
+		}
 	}
 
 	error = rmi_register_phys_device(rmi_phys);
