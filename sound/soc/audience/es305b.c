@@ -835,10 +835,11 @@ static long es305b_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		mdelay(100);
 		rc = es305b_execute_cmdmsg((A200_msg_Sync << 16) | A200_msg_Sync_Polling);
 		if (rc < 0) {
+			sync_done = 0;
 			AUD_DBG("%s: sync command error %d", __func__, rc);
 		} else {
-			AUD_DBG("%s: sync command ok", __func__);
 			sync_done = 1;
+			AUD_DBG("%s: sync command ok", __func__);
 		}
 		break;
 	case ES305B_READ_SYNC_DONE:
