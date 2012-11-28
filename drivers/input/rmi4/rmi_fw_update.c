@@ -693,7 +693,6 @@ void rmi4_fw_update(struct rmi_device *rmi_dev,
 	{
 		snprintf(firmware_name, sizeof(firmware_name), "rmi4/%s.img",
 			wintek_img_name ? wintek_img_name : (char*)data.product_id);	
-		return;
 	}
 	else{
 		dev_err(&rmi_dev->dev, "Unknown manufacturer.\n");
