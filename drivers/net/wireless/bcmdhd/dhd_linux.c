@@ -1769,6 +1769,12 @@ dhd_dpc_thread(void *data)
 	tsk_ctl_t *tsk = (tsk_ctl_t *)data;
 	dhd_info_t *dhd = (dhd_info_t *)tsk->parent;
 
+#ifdef MEIZU_FIX
+	const int wake_limit = 10000;
+	static int wake_count = 0;
+	static unsigned long wake_jiffies = 0;
+#endif
+
 	/* This thread doesn't need any user-level access,
 	 * so get rid of all our resources
 	 */
@@ -1785,6 +1791,11 @@ dhd_dpc_thread(void *data)
 	/*  signal: thread has started */
 	complete(&tsk->completed);
 
+#ifdef MEIZU_FIX
+	wake_jiffies = jiffies;
+	wake_count = 0;
+#endif
+
 	/* Run until signal received */
 	while (1) {
 		if (down_interruptible(&tsk->sema) == 0) {
@@ -1797,6 +1808,19 @@ dhd_dpc_thread(void *data)
 			/* Call bus dpc unless it indicated down (then clean stop) */
 			if (dhd->pub.busstate != DHD_BUS_DOWN) {
 				if (dhd_bus_dpc(dhd->pub.bus)) {
+#ifdef MEIZU_FIX
+					do {
+						wake_count++;
+						if(wake_count > wake_limit) {
+							if(!time_after(jiffies, wake_jiffies + HZ)) {
+								pr_info("wake frequency too high (%lu)\n", jiffies - wake_jiffies);
+								msleep(50);
+							}
+							wake_jiffies = jiffies;
+							wake_count = 0;
+						}
+					} while(0);
+#endif
 					up(&tsk->sema);
 				}
 				else {
