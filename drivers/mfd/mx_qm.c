@@ -65,10 +65,10 @@ const struct mx_qm_reg_data init_regs[] = {
 static struct mfd_cell mx_qm_devs[] = {
 	{ .name = "mx-qm-touch", .id = 0 },
 	{ .name = "mx-qm-led", .id = 1 },
-	{ .name = "mx-qm-led", .id = 2 },
-	{ .name = "mx-qm-led", .id = 3 },
-	{ .name = "mx-qm-led", .id = 4 },
-	{ .name = "mx-qm-led", .id = 5 },
+//	{ .name = "mx-qm-led", .id = 2 },
+//	{ .name = "mx-qm-led", .id = 3 },
+//	{ .name = "mx-qm-led", .id = 4 },
+//	{ .name = "mx-qm-led", .id = 5 },
 //	{ .name = "mx-qm-led", .id = 6 },
 };
 
@@ -1040,6 +1040,7 @@ static int mx_qm_resume(struct device *dev)
 
 	return 0;
 }
+
 #else
 #define mx_qm_suspend	NULL
 #define mx_qm_resume		NULL
@@ -1069,6 +1070,15 @@ static int __devexit mx_qm_remove(struct i2c_client *client)
 	return 0;
 }
 
+void mx_qm_shutdown(struct i2c_client *client)
+{
+	int ret = 0;
+
+	ret = mx_qm_writebyte(client,QM_REG_STATUS,QM_STATE_SHUTDOWN);
+	if (ret < 0)
+		pr_err("mx_qm_writebyte error at %d line\n", __LINE__);
+}
+
 static const struct i2c_device_id mx_qm_id[] = {
 	{ "mx_qm", 0 },
 	{ },
@@ -1084,6 +1094,7 @@ static struct i2c_driver mx_qm_driver = {
 	.id_table	= mx_qm_id,
 	.probe		= mx_qm_probe,
 	.remove		= __devexit_p(mx_qm_remove),
+	.shutdown	= mx_qm_shutdown,
 };
 
 static int __init mx_qm_init(void)

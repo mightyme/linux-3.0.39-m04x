@@ -79,6 +79,7 @@ enum mx_qm_state {
 	QM_STATE_NORMAL = 1,
 	QM_STATE_RAW = 2,
 	QM_STATE_IDLE = 3,
+        QM_STATE_SHUTDOWN = 4,
 
 	QM_STATE_MAX,
 };

@@ -41,6 +41,7 @@
 #define	DEVICE_STATE_IDLE		(0)
 #define	DEVICE_STATE_NORMAL	(1)
 #define	DEVICE_STATE_SLEEP	(2)
+#define	DEVICE_STATE_SHUTDOWN	(3)
 
 #define	GET_MODE(x)	((x>>8)&0x0F)
 //////////////////////////////////////////////////////////////////
@@ -80,7 +81,7 @@ struct mx_qm_led {
 static int gSlope = 0;
 static int gPWM = 0;
  
- static int bu26507_set_led_current(struct led_classdev *led_cdev, int cur)
+ static int mx_qm_set_led_current(struct led_classdev *led_cdev, int cur)
  {
 	 struct mx_qm_led *led =
 			 container_of(led_cdev, struct mx_qm_led, led_cdev);
@@ -98,12 +99,14 @@ static int gPWM = 0;
 	return ret;
 }
  
-static int bu26507_set_led_pwm(struct led_classdev *led_cdev, int pwm)
+static int mx_qm_set_led_pwm(struct led_classdev *led_cdev, int pwm)
 {
 	struct mx_qm_led *led =
 		 container_of(led_cdev, struct mx_qm_led, led_cdev);
 	struct mx_qm_data *mx = led->data;
 	int ret = 0;
+	
+	gPWM = pwm;
 
 	//pwm = pwm *63 /100;
 
@@ -117,12 +120,14 @@ static int bu26507_set_led_pwm(struct led_classdev *led_cdev, int pwm)
 	return ret;
 }
  
-static int bu26507_set_led_slope(struct led_classdev *led_cdev, int enable)
+static int mx_qm_set_led_slope(struct led_classdev *led_cdev, int enable)
 {
 	struct mx_qm_led *led =
 		 container_of(led_cdev, struct mx_qm_led, led_cdev);
 	struct mx_qm_data *mx = led->data;
 	int ret = 0;
+
+	 gSlope = !!enable;
 
 	pr_debug("%s: enable  = 0x%X\n", __func__,enable); 
 
@@ -131,98 +136,7 @@ static int bu26507_set_led_slope(struct led_classdev *led_cdev, int enable)
 	ret = mx->i2c_writebyte(mx->client,LED_REG_SLOPE,enable);	  
 
 	return ret;
-}
- 
-static int tca6507_set_led_current(struct led_classdev *led_cdev, int value)
-{
-	struct mx_qm_led *led =
-		  container_of(led_cdev, struct mx_qm_led, led_cdev);
-	struct mx_qm_data *mx = led->data;
-	int ret = 0;
-	pr_debug("%s:current = %d id = %d\n",__func__,value,led->id);
-
-	if( value )
-	{		
-		ret = mx->i2c_writebyte(mx->client,(LED_REG_CUR0+led->id),DEVICE_MODE_ON_PWM0);	
-	}
-	else
-	{
-		ret = mx->i2c_writebyte(mx->client,(LED_REG_CUR0+led->id),DEVICE_MODE_OFF);	
-	}
-		
-	pr_debug("%s:id = %d (0x%.2X)\n",__func__,led->id,led->id);
-
-	return ret;
-}
-  
-static int tca6507_set_led_pwm(struct led_classdev *led_cdev, int value)
-{
-  struct mx_qm_led *led =
-		  container_of(led_cdev, struct mx_qm_led, led_cdev);
-  struct mx_qm_data *mx = led->data;
-  int ret = 0;
-  unsigned char data;
-
-  value = value *255 /100;
-  
-  data = (value & 0xF0) |((value >> 4) & 0xF);	  
-  pr_debug("%s:pwm = 0x%.2X\n",__func__,data);
-  
-  ret = mx->i2c_writebyte(mx->client,LED_REG_PWM,data);	 
-
-  return ret;
-}
-  
-static int tca6507_set_led_slope(struct led_classdev *led_cdev, int enable)
-{
-	struct mx_qm_led *led =container_of(led_cdev, struct mx_qm_led, led_cdev);
-	struct mx_qm_data *mx = led->data;
-	int ret = 0;
-
-	pr_debug("%s:enable = %d\n",__func__,enable);
-
-	ret = mx->i2c_writebyte(mx->client,LED_REG_SLOPE,enable);	  
-
-	return ret;
-}
-  
-static int mx_qm_set_led_current(struct led_classdev *led_cdev, int value)
-{
-	 struct mx_qm_led *led =container_of(led_cdev, struct mx_qm_led, led_cdev);
-	 struct mx_qm_data *mx = led->data;
-	 
-	if( mx->LedVer == LED_VERSION1)
-		return tca6507_set_led_current(led_cdev,value);
-	else
-		return bu26507_set_led_current(led_cdev,value);
-}
-
-  
-static int mx_qm_set_led_pwm(struct led_classdev *led_cdev, int value)
-{
-	 struct mx_qm_led *led =container_of(led_cdev, struct mx_qm_led, led_cdev);
-	 struct mx_qm_data *mx = led->data;
-
-	 gPWM = value;
-	if( mx->LedVer == LED_VERSION1)
-		return tca6507_set_led_pwm(led_cdev,value);
-	else
-		return bu26507_set_led_pwm(led_cdev,value);
-}
-  
-static int mx_qm_set_led_slope(struct led_classdev *led_cdev, int enable)
-{
-	 struct mx_qm_led *led =container_of(led_cdev, struct mx_qm_led, led_cdev);
-	 struct mx_qm_data *mx = led->data;
-
-	 gSlope = !!enable;
-	 
-	if( mx->LedVer == LED_VERSION1)
-		return tca6507_set_led_slope(led_cdev,enable);
-	else
-		return bu26507_set_led_slope(led_cdev,enable);
-}
-
+}  
 
 static int mx_qm_set_led_mode(struct led_classdev *led_cdev, int mode)
 {
@@ -309,6 +223,10 @@ static int mx_qm_set_led_state(struct led_classdev *led_cdev, int state)
 			
 		case DEVICE_STATE_SLEEP:
 			mx_state  = QM_STATE_SLEEP;
+			break;
+			
+		case DEVICE_STATE_SHUTDOWN:
+			mx_state  = QM_STATE_SHUTDOWN;
 			break;
 
 		default:
@@ -464,16 +382,6 @@ static int __devexit mx_qm_led_remove(struct platform_device *pdev)
  
 	 return 0;
 }
-
-void mx_qm_led_shutdown(struct platform_device *pdev)
-{
-	struct mx_qm_led *led = platform_get_drvdata(pdev);
-	
-	if( led->id == 0)
-		led->led_cdev.brightness_set(&led->led_cdev,((MODE_PWM<<8) | LED_OFF));
-	
-	led->led_cdev.brightness_set(&led->led_cdev,LED_OFF);
-}
  
 const struct platform_device_id mx_qm_id[] = {
 	 { "mx-qm-led",0 },
@@ -488,7 +396,6 @@ static struct platform_driver mx_qm_led_driver = {
 	 .probe  = mx_qm_led_probe,
 	 .remove = __devexit_p(mx_qm_led_remove),
 	 .id_table = mx_qm_id,
-	 .shutdown	= mx_qm_led_shutdown,
 };
  
 static int __init mx_qm_led_init(void)
