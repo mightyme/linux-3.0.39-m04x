@@ -86,7 +86,7 @@ static unsigned int exynos_getspeed(unsigned int cpu)
 	rate = clk_get_rate(cpu_clk) / 1000;
 	clk_put(cpu_clk);
 
-#if 1	//just for test	
+#if 0	//just for test	
 	if (rate > 1600*1000)
 		rate = 1600*1000;
 #endif
