@@ -1482,7 +1482,7 @@ static void set_noise_mitigation_by_vbus(struct f11_data *data)
 	}
 	else	{
 		//rmi_f11_disable_noise_mitigation(f11,true);	
-		rmi_f11_saturation_capacitance(f11,250);//208
+		rmi_f11_saturation_capacitance(f11,260);//208
 	}	
 }
 
