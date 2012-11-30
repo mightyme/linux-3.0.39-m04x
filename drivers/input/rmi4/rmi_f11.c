@@ -1478,11 +1478,11 @@ static void set_noise_mitigation_by_vbus(struct f11_data *data)
 	
 	if ( value ) { // USB Dectected
 		//rmi_f11_disable_noise_mitigation(f11,false);		
-		rmi_f11_saturation_capacitance(f11,258);//223
+		rmi_f11_saturation_capacitance(f11,288);//223
 	}
 	else	{
 		//rmi_f11_disable_noise_mitigation(f11,true);	
-		rmi_f11_saturation_capacitance(f11,238);//208
+		rmi_f11_saturation_capacitance(f11,250);//208
 	}	
 }
 
