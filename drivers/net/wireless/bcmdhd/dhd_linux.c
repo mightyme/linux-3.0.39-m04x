@@ -1762,18 +1762,29 @@ static void dhd_watchdog(ulong data)
 	dhd_os_sdunlock(&dhd->pub);
 }
 
+#ifdef MEIZU_FIX
+const int wake_limit_count = 5000;
+static volatile int wake_count = 0;
+static volatile int wake_limit_enable = 0;
+static volatile unsigned long wake_jiffies = 0;
+
+void set_wifi_wake_limit(int enable)
+{
+	pr_info("!!!%s %d\n", __func__, enable);
+	if(enable) {
+		wake_count = 0;
+		wake_jiffies = jiffies;
+	}
+	wake_limit_enable = !!enable;
+}
+#endif
+
 #ifdef DHDTHREAD
 static int
 dhd_dpc_thread(void *data)
 {
 	tsk_ctl_t *tsk = (tsk_ctl_t *)data;
 	dhd_info_t *dhd = (dhd_info_t *)tsk->parent;
-
-#ifdef MEIZU_FIX
-	const int wake_limit = 10000;
-	static int wake_count = 0;
-	static unsigned long wake_jiffies = 0;
-#endif
 
 	/* This thread doesn't need any user-level access,
 	 * so get rid of all our resources
@@ -1791,11 +1802,6 @@ dhd_dpc_thread(void *data)
 	/*  signal: thread has started */
 	complete(&tsk->completed);
 
-#ifdef MEIZU_FIX
-	wake_jiffies = jiffies;
-	wake_count = 0;
-#endif
-
 	/* Run until signal received */
 	while (1) {
 		if (down_interruptible(&tsk->sema) == 0) {
@@ -1809,17 +1815,18 @@ dhd_dpc_thread(void *data)
 			if (dhd->pub.busstate != DHD_BUS_DOWN) {
 				if (dhd_bus_dpc(dhd->pub.bus)) {
 #ifdef MEIZU_FIX
-					do {
+					if(wake_limit_enable) {
 						wake_count++;
-						if(wake_count > wake_limit) {
-							if(!time_after(jiffies, wake_jiffies + HZ)) {
-								pr_info("wake frequency too high (%lu)\n", jiffies - wake_jiffies);
-								msleep(50);
+						if(wake_count > wake_limit_count) {
+							unsigned long jiffies_now = jiffies;
+							if(!time_after(jiffies_now, wake_jiffies + HZ)) {
+								pr_info("wake frequency too high (%lu)\n", jiffies_now - wake_jiffies);
+								msleep(500);
 							}
-							wake_jiffies = jiffies;
 							wake_count = 0;
+							wake_jiffies = jiffies_now;
 						}
-					} while(0);
+					}
 #endif
 					up(&tsk->sema);
 				}

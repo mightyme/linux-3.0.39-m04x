@@ -367,6 +367,10 @@ static int wl_android_get_p2p_dev_addr(struct net_device *ndev, char *command, i
 	return bytes_written;
 }
 
+#ifdef MEIZU_FIX
+extern void set_wifi_wake_limit(int enable);
+#endif
+
 /**
  * Global function definitions (declared in wl_android.h)
  */
@@ -383,6 +387,9 @@ int wl_android_wifi_on(struct net_device *dev)
 
 	dhd_net_if_lock(dev);
 	if (!g_wifi_on) {
+#ifdef MEIZU_FIX
+		set_wifi_wake_limit(TRUE);
+#endif
 		dhd_customer_gpio_wlan_ctrl(WLAN_RESET_ON);
 		sdioh_start(NULL, 0);
 		ret = dhd_dev_reset(dev, FALSE);
@@ -391,6 +398,10 @@ int wl_android_wifi_on(struct net_device *dev)
 			if (dhd_dev_init_ioctl(dev) < 0)
 				ret = -EFAULT;
 		}
+#ifdef MEIZU_FIX
+		if(!ret)
+			set_wifi_wake_limit(FALSE);
+#endif
 		g_wifi_on = 1;
 	}
 	dhd_net_if_unlock(dev);
