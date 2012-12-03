@@ -1767,13 +1767,15 @@ const int wake_limit_count = 5000;
 static volatile int wake_count = 0;
 static volatile int wake_limit_enable = 0;
 static volatile unsigned long wake_jiffies = 0;
+static volatile unsigned long wake_limit_start = 0;
 
 void set_wifi_wake_limit(int enable)
 {
-	pr_info("!!!%s %d\n", __func__, enable);
+	pr_info("!!!%s %d %lu\n", __func__, enable, jiffies);
 	if(enable) {
 		wake_count = 0;
 		wake_jiffies = jiffies;
+		wake_limit_start = wake_jiffies;
 	}
 	wake_limit_enable = !!enable;
 }
@@ -1822,9 +1824,14 @@ dhd_dpc_thread(void *data)
 							if(!time_after(jiffies_now, wake_jiffies + HZ)) {
 								pr_info("wake frequency too high (%lu)\n", jiffies_now - wake_jiffies);
 								msleep(500);
+								wake_limit_start = jiffies;
 							}
 							wake_count = 0;
 							wake_jiffies = jiffies_now;
+						} else if(time_after(jiffies, wake_limit_start + HZ * 5)) {
+							pr_info("we are waiting too long to disable wake limit (%d)\n", wake_count);
+							msleep(1000);
+							wake_limit_start = jiffies;
 						}
 					}
 #endif
