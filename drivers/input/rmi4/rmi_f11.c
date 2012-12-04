@@ -29,7 +29,7 @@
 #include <linux/gpio.h>
 
 #define VBUS_IRQ_EN (1)
-#define F11_REPORTMODE_REDUCED	(1)	// 000:Continuous, when finger present  001: Reduced reporting mode		
+//#define F11_REPORTMODE_REDUCED	(1)	// 000:Continuous, when finger present  001: Reduced reporting mode		
 #define RESUME_REZERO (1 && defined(CONFIG_PM))
 #if RESUME_REZERO
 #include <linux/delay.h>
@@ -1478,11 +1478,11 @@ static void set_noise_mitigation_by_vbus(struct f11_data *data)
 	
 	if ( value ) { // USB Dectected
 		//rmi_f11_disable_noise_mitigation(f11,false);		
-		rmi_f11_saturation_capacitance(f11,288);//223
+		rmi_f11_saturation_capacitance(f11,230);//223
 	}
 	else	{
 		//rmi_f11_disable_noise_mitigation(f11,true);	
-		rmi_f11_saturation_capacitance(f11,260);//208
+		rmi_f11_saturation_capacitance(f11,200);//208
 	}	
 }
 
