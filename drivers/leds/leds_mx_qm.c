@@ -147,7 +147,7 @@ static int mx_qm_set_led_mode(struct led_classdev *led_cdev, int mode)
 	unsigned char * pLedarr;
 	unsigned char Ledsize;
 	
-	pr_info("%s:%d\n",__func__,mode);
+	dev_dbg(led_cdev->dev, "%d\n",mode);
 
 	//ret = mx->i2c_writebyte(mx->client,LED_REG_LEDMAUTO,mode);
 	
@@ -250,7 +250,7 @@ static void mx_qm_led_brightness_set(struct led_classdev *led_cdev,
 	int mode;
 	int data;
 
-	dev_info(led_cdev->dev, "value = 0x%.4X \n",value);
+	dev_dbg(led_cdev->dev, "value = 0x%.4X \n",value);
 
 	mode = GET_MODE(value);
 	data = value & 0xFF; 
