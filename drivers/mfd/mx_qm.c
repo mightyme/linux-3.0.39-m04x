@@ -891,8 +891,7 @@ static void qm_destroy_atts(struct device * dev)
 			 container_of(h, struct mx_qm_data, early_suspend);
 
 	//mx_qm_reset(mx,0);// Soft reset sensor
-	//if( mx_qm_readbyte(mx->client,QM_REG_POSITION) == 0x00)
-	//	mx_qm_recalibration(mx);// ReCalibration sensor
+	mx_qm_recalibration(mx);// ReCalibration sensor
  }
  
  static void mx_qm_late_resume(struct early_suspend *h)
