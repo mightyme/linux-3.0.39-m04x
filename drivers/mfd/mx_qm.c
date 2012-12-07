@@ -56,7 +56,7 @@ const struct mx_qm_reg_data init_regs[] = {
 //	{LED_REG_CUR3, 0x00},
 //	{LED_REG_CUR4, 0x00},		
 	{QM_REG_MASK_POS, 0x08},
-	{QM_REG_QM_DET_TH, 0x0A},
+	{QM_REG_QM_DET_TH, 0x08},
 //	{QM_REG_QM_BURST, 0x40},
 	{},
 };
@@ -1042,7 +1042,7 @@ static int mx_qm_resume(struct device *dev)
 
 #else
 #define mx_qm_suspend	NULL
-#define mx_qm_resume		NULL
+#define mx_qm_resume	NULL
 #endif /* CONFIG_PM */
 
 const struct dev_pm_ops mx_qm_pm = {
