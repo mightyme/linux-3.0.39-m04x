@@ -31,6 +31,7 @@
 
 #define MAX_AC_CURRENT         1000 
 #define CHGIN_USB_CURRENT      450
+#define CHGIN_USB_SED_CURRENT  700
 #define TEMP_CHECK_DELAY       (120 * HZ) 
 #define WAKE_ALARM_INT         (120) 
 #define CURRENT_INCREMENT_STEP 100    /*mA*/
@@ -92,7 +93,6 @@ struct max77665_charger
 	int chgin_ilim_ac;	/* 60mA ~ 2.58A */
 	int (*usb_attach) (bool);
 	int irq_reg;
-
 	struct alarm alarm;
 	bool done;
 	bool adc_flag;
@@ -472,15 +472,15 @@ static void max77665_second_adjust_current(struct work_struct *work)
 	do{
 		now_cur = regulator_get_current_limit(charger->ps);
 		
-		pr_info("%s:now_cur = %d\n",__func__, now_cur);
+		pr_info("%s: %d\n",__func__, now_cur);
+		if (now_cur < CHGIN_USB_CURRENT * MA_TO_UA)
+			break;
 		regulator_set_current_limit(charger->ps, 
 				now_cur - CURRENT_INCREMENT_STEP*MA_TO_UA,
 				now_cur);
-		
+		msleep(100);	
 		ret = max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK, 
 				&int_ok);
-		if (now_cur < CHGIN_USB_CURRENT * MA_TO_UA)
-			break;
 	} while (int_ok != 0x5d);
 	if (now_cur < CHGIN_USB_CURRENT * MA_TO_UA) {
 		msleep(100);
@@ -505,7 +505,6 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 	u8 int_ok, prev_int_ok;
 	int ret;
 	int chgin = 0, now_current = 0;
-	int adc_value = 0;
 
 	pr_info("ENTER %s##################\n", __func__);
 	if (regulator_is_enabled(charger->reverse)) {
@@ -544,39 +543,18 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 	
 	if ((!chgin) && (charger->cable_status == CABLE_TYPE_USB) 
 			&& (adc_is_available(charger))) {
-		charger->chgin = chgin;		
-		charger->adc_flag = true; 
-		
-		now_current = regulator_get_current_limit(charger->ps);
-		do {
-			now_current -= CURRENT_INCREMENT_STEP*MA_TO_UA;
-		
-			pr_info("adc_is_available, now_current= %d \n", now_current);
-			regulator_set_current_limit(charger->ps, 
-					now_current,
-					now_current + CURRENT_INCREMENT_STEP*MA_TO_UA);
-			max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK,
-					&int_ok);
-			msleep(50);
-			adc_value = s3c_adc_read(charger->adc, CHG_ADC_CHANNEL);
-		
-			if ((int_ok == 0X5d) && (adc_value >= 2048))
-				break;
-		} while (now_current > CHGIN_USB_CURRENT * MA_TO_UA);
-		
-		if (now_current < CHGIN_USB_CURRENT * MA_TO_UA) {
-			msleep(100);
-			max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK,
-							&int_ok);
-			if (int_ok!= 0x5d) {
-				charger->done = false;
-				charger->adc_flag = false;
-				charger->cable_status = CABLE_TYPE_NONE;
-				power_supply_changed(&charger->psy_usb);
-				power_supply_changed(&charger->psy_ac);
-			}
+		if (charger->adc_flag == true) {
+			pr_info("USB:The sedcond decrease current\n");
+			regulator_set_current_limit(charger->ps,
+					CHGIN_USB_CURRENT * MA_TO_UA,
+					MAX_AC_CURRENT * MA_TO_UA);	
+		} else {
+			pr_info("USB:The first decrease current\n");
+			charger->adc_flag = true; 
+			regulator_set_current_limit(charger->ps,
+					CHGIN_USB_SED_CURRENT * MA_TO_UA,
+					MAX_AC_CURRENT * MA_TO_UA);	
 		}
-		return;
 	}
 	if ((!chgin) && (charger->cable_status == CABLE_TYPE_AC)
 			&& (adc_is_available(charger))) {
@@ -590,10 +568,10 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 				regulator_set_current_limit(charger->ps,
 						now_current,
 						now_current + CURRENT_INCREMENT_STEP*MA_TO_UA);
-				msleep(20);
+				msleep(100);
 				max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK,
 						&int_ok);
-				pr_info("########now_current = %d\n", now_current);
+				pr_info("TYPE_AC: %d\n", now_current);
 				if (int_ok == 0X5d)
 					break;
 			} while (now_current > CHGIN_USB_CURRENT * MA_TO_UA);
@@ -641,7 +619,7 @@ static irqreturn_t max77665_bypass_irq(int irq, void *dev_id)
 	struct max77665_charger *charger = dev_id;
 	struct i2c_client *i2c = charger->iodev->i2c;
 	u8 reg_data = 0, bypass_flag, int_ok;
-	int ret;
+	int ret, now_current;
 
 	wake_lock(&charger->wake_lock);
 
@@ -663,7 +641,14 @@ static irqreturn_t max77665_bypass_irq(int irq, void *dev_id)
 	switch(bypass_flag){
 	case MAX77665_BYP_DTLS3: /*VCHGINLIM*/
 		pr_info("################## MAX77665_BYP_DTLS3:\n");
-		complete(&charger->byp_complete);
+		if (charger->done == true) {
+			now_current = regulator_get_current_limit(charger->ps);
+			regulator_set_current_limit(charger->ps,
+					now_current-CURRENT_INCREMENT_STEP*MA_TO_UA,
+					now_current);
+		} else {
+			complete(&charger->byp_complete);
+		}
 		break;
 	case 0:
 		pr_info("######################BYPASS OK!\n");
@@ -903,7 +888,6 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "max77665: failed to request BYPASS IRQ %d\n", charger->chgin_irq);
 		goto err_unregister2;
 	}
-	
 	return 0;
 
 err_unregister2:
