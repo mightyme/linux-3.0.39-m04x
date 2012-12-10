@@ -851,7 +851,6 @@ static struct v4l2_subdev *fimc_get_cam_subdev(const char *module_name)
 	struct device_driver *drv;
 	struct device *dev = NULL;
 	struct v4l2_subdev *sd = NULL;
-	int ret;
 
 	drv = driver_find(module_name, &i2c_bus_type);
 	if (!drv)  {

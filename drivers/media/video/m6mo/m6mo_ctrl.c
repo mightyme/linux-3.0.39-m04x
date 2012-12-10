@@ -814,6 +814,8 @@ static int m6mo_set_focus_mode(struct v4l2_subdev *sd, struct v4l2_control *ctrl
 		return -EINVAL;
 
 	ret = m6mo_w8(sd, AF_WINDOW_REG, m6mo_af_window_regs[ctrl->value]);
+	pr_info("%s(), ctrl->value %d, write %d to reg\n",
+		__func__, ctrl->value, m6mo_af_window_regs[ctrl->value]);
 	CHECK_ERR(ret);
 	ret = m6mo_w8(sd, AF_SCAN_MODE_REG, m6mo_af_scan_mode_regs[ctrl->value]);
 	CHECK_ERR(ret);
