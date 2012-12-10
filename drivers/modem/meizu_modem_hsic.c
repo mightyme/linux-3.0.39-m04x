@@ -699,6 +699,7 @@ retry:
 						!dev->power.request_pending) {
 				MIF_ERR("run time idle\n");
 				pm_runtime_idle(dev);
+				modem_notify_event(MODEM_EVENT_DISCONN);
 			}
 		}
 		wake_unlock(&pm_data->rpm_wake);
