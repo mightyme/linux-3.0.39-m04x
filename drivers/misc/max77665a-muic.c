@@ -297,11 +297,45 @@ void max77665_muic_shutdown(struct device *dev)
 	return ;
 }
 
+#ifdef CONFIG_PM
+static int max77665_muic_suspend(struct device *dev)
+{
+	struct max77665_muic_info *info = dev_get_drvdata(dev);
+	int ret;
+	u8 ctrl1 = 0;
+	
+	ret = max77665_read_reg(info->muic, MAX77665_MUIC_REG_CTRL1,
+			&ctrl1);
+	ctrl1 &= 0xc0;
+	ret = max77665_write_reg(info->muic, MAX77665_MUIC_REG_CTRL1, ctrl1);
+	return ret;
+}
+
+static int max77665_muic_resume(struct device *dev)
+{
+	struct max77665_muic_info *info = dev_get_drvdata(dev);
+	int ret;
+	u8 ctrl1 = 0;
+
+	ret = max77665_read_reg(info->muic, MAX77665_MUIC_REG_CTRL1,
+			&ctrl1);
+	ctrl1 |= 0x09;
+	ret = max77665_write_reg(info->muic, MAX77665_MUIC_REG_CTRL1, ctrl1);
+	return ret;
+}
+
+static const struct dev_pm_ops max77665_pm_ops = {
+	.suspend        = max77665_muic_suspend,
+	.resume		= max77665_muic_resume,
+};
+#endif
+
 static struct platform_driver max77665_muic_driver = {
 	.driver		= {
 		.name	= DEV_NAME,
 		.owner	= THIS_MODULE,
 		.shutdown = max77665_muic_shutdown,
+		.pm       =  &max77665_pm_ops,
 	},
 	.probe		= max77665_muic_probe,
 	.remove		= __devexit_p(max77665_muic_remove),
