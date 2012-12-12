@@ -67,12 +67,21 @@
 #define MAX_NAME_LENGTH 256
 
 static int touch_debug= 0;
+static int touch_adjust= 0;
 
 static ssize_t f11_touch_debug_store(struct device *dev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count);
 
 static ssize_t f11_touch_debug_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf);
+
+static ssize_t f11_touch_adjust_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count);
+
+static ssize_t f11_touch_adjust_show(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf);
 
@@ -180,7 +189,8 @@ static struct device_attribute attrs[] = {
 	__ATTR(rezero, RMI_WO_ATTR, rmi_show_error, f11_rezero_store),	
 	__ATTR(regw, RMI_WO_ATTR, rmi_show_error, f11_reg_store),
 	__ATTR(regr, RMI_RW_ATTR, f11_reg_show_all, f11_reg_show),
-	__ATTR(touch_debug, RMI_RW_ATTR, f11_touch_debug_show, f11_touch_debug_store)
+	__ATTR(touch_debug, RMI_RW_ATTR, f11_touch_debug_show, f11_touch_debug_store),
+	__ATTR(touch_adjust, RMI_RW_ATTR, f11_touch_adjust_show, f11_touch_adjust_store)
 };
 
 
@@ -597,8 +607,8 @@ enum finger_state_values {
 };
 
 static int rmi_f11_saturation_capacitance(struct f11_data *data,u16 value);
-static int rmi_f11_disable_noise_mitigation(struct f11_data *data,bool enable);
-static int rmi_f11_force_calibration(struct f11_data *data);
+//static int rmi_f11_disable_noise_mitigation(struct f11_data *data,bool enable);
+//static int rmi_f11_force_calibration(struct f11_data *data);
 static int _turn_on_calibration(struct f11_data *data,int bOnOff);
 
 /* ctrl sysfs files */
@@ -1464,7 +1474,7 @@ static void f11_set_abs_params(struct rmi_function_container *fc, int index)
 #ifdef	VBUS_IRQ_EN
 static void set_noise_mitigation_by_vbus(struct f11_data *data)
 {
-	int value;
+	int value,cap_val;
 	struct f11_data *f11 = data;
 	struct rmi_device *rmi_dev = f11->rmi_dev;
 	struct rmi_device_platform_data *pdata = to_rmi_platform_data(rmi_dev);
@@ -1472,17 +1482,22 @@ static void set_noise_mitigation_by_vbus(struct f11_data *data)
 	if( pdata->manufacturer_id != MANUFACTURER_TPK)
 		return;
 	
+	if(touch_adjust)
+		cap_val = 180;
+	else
+		cap_val = 220;
+	
 	value = gpio_get_value(pdata->vbus_gpio) ;
 	
 	dev_dbg(&rmi_dev->dev,  "VBUS gpio, value: %d.\n",value);
 	
 	if ( value ) { // USB Dectected
 		//rmi_f11_disable_noise_mitigation(f11,false);		
-		rmi_f11_saturation_capacitance(f11,230);//223
+		rmi_f11_saturation_capacitance(f11,cap_val+30);//223
 	}
 	else	{
 		//rmi_f11_disable_noise_mitigation(f11,true);	
-		rmi_f11_saturation_capacitance(f11,190);//208
+		rmi_f11_saturation_capacitance(f11,cap_val);//208
 	}	
 }
 
@@ -1814,6 +1829,7 @@ static int rmi_f11_saturation_capacitance(struct f11_data *data,u16 value)
 	return ret;
 }
 
+/*
 static int rmi_f11_disable_noise_mitigation(struct f11_data *data,bool enable)
 {
 	struct rmi_device *rmi_dev =data->rmi_dev;
@@ -1858,6 +1874,7 @@ static int rmi_f11_force_calibration(struct f11_data *data)
 	
 	return ret;
 }
+*/
 
 
 static int _turn_on_calibration(struct f11_data *data,int bOnOff)
@@ -2377,6 +2394,40 @@ static ssize_t f11_touch_debug_show(struct device *dev,
 	data = fc->data;
 	
 	return sprintf(buf,"%d\n", touch_debug);;
+}
+
+static ssize_t f11_touch_adjust_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct rmi_function_container *fc = NULL;
+	struct f11_data *data;	
+	int value;
+
+	fc = to_rmi_function_container(dev);
+	data = fc->data;
+	
+	if (sscanf(buf, "%d ", &value) != 1)
+		return -EINVAL;
+
+	dev_info(dev, "factory setting  = %d\n", value);
+	touch_adjust = !!value;
+	set_noise_mitigation_by_vbus(data);
+
+	return count;
+}
+
+static ssize_t f11_touch_adjust_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct rmi_function_container *fc = NULL;
+	struct f11_data *data;	
+	
+	fc = to_rmi_function_container(dev);
+	data = fc->data;
+	
+	return sprintf(buf,"%d\n", touch_adjust);;
 }
 
 

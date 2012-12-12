@@ -112,7 +112,10 @@ union f54_ad_query {
 
 		u8 f54_ad_query9;
 		u8 f54_ad_query10;
-		u8 f54_ad_query11;
+
+		/* query 11 */
+		u8 f54_ad_query11_b0__6:7;
+		u8 has_query_15:1;
 
 		/* query 12 */
 		u8 number_of_sensing_frequencies:4;
@@ -168,10 +171,10 @@ union f54_ad_control_2 {
 union f54_ad_control_3 {
 	/* control 3 */
 	struct {
-		u8 pixel_touch_threshold;
+		u16 pixel_touch_threshold;
 	} __attribute__((__packed__));
 	struct {
-		u8 regs[1];
+		u8 regs[2];
 		u16 address;
 	} __attribute__((__packed__));
 };

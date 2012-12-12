@@ -61,6 +61,7 @@ enum mx_qm_reg {
 	QM_REG_KEY			= 0xA9,
 	QM_REG_WAKEUP_CNT	= 0xAA,
 	QM_REG_WAKEUP_TYPE	= 0xAB,
+	QM_REG_QM_MASK_TH 	= 0xAC,
         
 	QM_REG_LEDVERSION	= 0xF0,
 
