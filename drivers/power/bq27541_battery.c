@@ -77,6 +77,8 @@ struct bat_info {
 	int abnormal_temp_cnt;
 	int recover_temp_cnt;
 	bool batt_is_low;
+	int temp_debug;
+	int volt_debug;
 };
 
 struct bq27541_chip {
@@ -175,6 +177,32 @@ static enum power_supply_property bq27541_battery_props[] = {
 	POWER_SUPPLY_PROP_ENERGY_NOW,
 	POWER_SUPPLY_PROP_CHARGE_TYPE
 };
+
+static int bq27541_set_property(struct power_supply *psy,
+			    enum power_supply_property psp,
+			    const union power_supply_propval *val)
+{
+	struct bq27541_chip *chip = container_of(psy, struct bq27541_chip, fuelgauge);
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_TEMP:
+		if(val->intval){
+			chip->bat_info.temp = val->intval;
+			chip->bat_info.temp_debug = 1;
+		}else
+			chip->bat_info.temp_debug = 0;
+		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		if(val->intval){
+			chip->bat_info.voltage_now = val->intval;
+			chip->bat_info.volt_debug = 1;
+		}else
+			chip->bat_info.volt_debug = 0;
+	default:
+		break;
+	}
+	return 0;
+}
 
 static int bq27541_get_property(struct power_supply *psy,
 			    enum power_supply_property psp,
@@ -348,9 +376,10 @@ static void check_battery_temp(struct bq27541_chip *chip)
 
 	temp = ((int)(short)ret) - 2731;
 	bq27541_debug(chip, "battery temp %d\n", temp);
-	chip->bat_info.temp = temp;
+	if(!chip->bat_info.temp_debug)
+		chip->bat_info.temp = temp;
 
-	if(temp > HIGH_BLOCK_TEMP || temp < LOW_BLOCK_TEMP) {
+	if(chip->bat_info.temp > HIGH_BLOCK_TEMP || chip->bat_info.temp < LOW_BLOCK_TEMP) {
 		if(info->health == POWER_SUPPLY_HEALTH_GOOD)
 			if(info->abnormal_temp_cnt < CHECK_CNT)
 				info->abnormal_temp_cnt += 1;
@@ -384,7 +413,8 @@ static void get_battery_info(struct bq27541_chip *chip)
 	if (ret >= 0) {
 		data = (short)ret;
 		bq27541_debug(chip, "POWER_SUPPLY_PROP_VOLTAGE_NOW = %dmV\n", data);
-		chip->bat_info.voltage_now = data*1000;
+		if(!chip->bat_info.volt_debug)
+			chip->bat_info.voltage_now = data*1000;
 		if(chip->bat_info.voltage_now >= NORMAL_VOLTAGE_VAL) {
 			chip->bat_info.batt_is_low = false;
 		} else if(chip->bat_info.voltage_now <= LOW_VOLTAGE_VAL) {
@@ -542,6 +572,7 @@ static int __devinit bq27541_probe(struct i2c_client *client,
 	chip->fuelgauge.name		= "fuelgauge";
 	chip->fuelgauge.type		= POWER_SUPPLY_TYPE_BATTERY;
 	chip->fuelgauge.get_property= bq27541_get_property;
+	chip->fuelgauge.set_property= bq27541_set_property;
 	chip->fuelgauge.properties	= bq27541_battery_props;
 	chip->fuelgauge.num_properties	= ARRAY_SIZE(bq27541_battery_props);
 
