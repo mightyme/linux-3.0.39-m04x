@@ -28,6 +28,7 @@
 #include <mach/usb-detect.h>
 #include <linux/workqueue.h>
 #include <plat/adc.h>
+#include <linux/bq27541-private.h>
 
 #define MAX_AC_CURRENT         1000 
 #define CHGIN_USB_CURRENT      450
@@ -97,6 +98,7 @@ struct max77665_charger
 	bool done;
 	bool adc_flag;
 	struct s3c_adc_client *adc;
+	bool BATTERY;
 };
 static BLOCKING_NOTIFIER_HEAD(max77665_charger_chain_head);
 
@@ -138,6 +140,10 @@ static int max77665_usb_get_property(struct power_supply *psy,
 
 	/* Set enable=1 only if the AC charger is connected */
 	val->intval = (charger->cable_status == CABLE_TYPE_USB);
+
+	/*if it has no battery, set it's none*/
+	if (!charger->BATTERY)
+		val->intval = CABLE_TYPE_NONE;
 	
 	return 0;
 }
@@ -154,6 +160,10 @@ static int max77665_ac_get_property(struct power_supply *psy,
 	/* Set enable=1 only if the AC charger is connected */
 	val->intval = (charger->cable_status == CABLE_TYPE_AC);
 	
+	/*if it has no battery, set it's none*/
+	if (!charger->BATTERY)
+		val->intval = CABLE_TYPE_NONE;
+
 	return 0;
 }
 
@@ -342,11 +352,13 @@ static void max77665_work_func(struct work_struct *work)
 	power_supply_changed(&charger->psy_ac);
 	power_supply_changed(&charger->psy_usb);
 
-	max77665_charger_types(charger);
-	
-	if (delayed_work_pending(&charger->poll_dwork))
-		cancel_delayed_work(&charger->poll_dwork);
-	schedule_delayed_work_on(0, &charger->poll_dwork, 0);
+	if (charger->BATTERY) {
+		max77665_charger_types(charger);
+		
+		if (delayed_work_pending(&charger->poll_dwork))
+			cancel_delayed_work(&charger->poll_dwork);
+		schedule_delayed_work_on(0, &charger->poll_dwork, 0);
+	}
 
 	if (cable_status == CABLE_TYPE_USB) {
 		charger->usb_attach(true);	
@@ -535,49 +547,49 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 	} else {
 		chgin = !!(int_ok & 0x40);
 	}
-	
+
 	max77665_reg_dump(charger);
 	charger->irq_reg = int_ok;
 	
 	pr_info("-----%s %s\n", __func__, chgin ? "insert" : "remove");
-	
-	if ((!chgin) && (charger->cable_status == CABLE_TYPE_USB) 
-			&& (adc_is_available(charger))) {
-		if (charger->adc_flag == true) {
-			pr_info("USB:The sedcond decrease current\n");
-			regulator_set_current_limit(charger->ps,
-					CHGIN_USB_CURRENT * MA_TO_UA,
-					MAX_AC_CURRENT * MA_TO_UA);	
-		} else {
-			pr_info("USB:The first decrease current\n");
-			charger->adc_flag = true; 
-			regulator_set_current_limit(charger->ps,
-					CHGIN_USB_SED_CURRENT * MA_TO_UA,
-					MAX_AC_CURRENT * MA_TO_UA);	
+	if (charger->BATTERY) {	
+		if ((!chgin) && (charger->cable_status == CABLE_TYPE_USB) 
+				&& (adc_is_available(charger))) {
+			if (charger->adc_flag == true) {
+				pr_info("USB:The sedcond decrease current\n");
+				regulator_set_current_limit(charger->ps,
+						CHGIN_USB_CURRENT * MA_TO_UA,
+						MAX_AC_CURRENT * MA_TO_UA);	
+			} else {
+				pr_info("USB:The first decrease current\n");
+				charger->adc_flag = true; 
+				regulator_set_current_limit(charger->ps,
+						CHGIN_USB_SED_CURRENT * MA_TO_UA,
+						MAX_AC_CURRENT * MA_TO_UA);	
+			}
+		}
+		if ((!chgin) && (charger->cable_status == CABLE_TYPE_AC)
+				&& (adc_is_available(charger))) {
+			charger->adc_flag = true;
+			msleep(50);
+			if (charger->done == true) {
+				pr_info("adjust current done\n");
+				now_current = regulator_get_current_limit(charger->ps);
+				do{
+					now_current -= CURRENT_INCREMENT_STEP * MA_TO_UA;
+					regulator_set_current_limit(charger->ps,
+							now_current,
+							now_current + CURRENT_INCREMENT_STEP*MA_TO_UA);
+					msleep(100);
+					max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK,
+							&int_ok);
+					pr_info("TYPE_AC: %d\n", now_current);
+					if (int_ok == 0X5d)
+						break;
+				} while (now_current > CHGIN_USB_CURRENT * MA_TO_UA);
+			}			
 		}
 	}
-	if ((!chgin) && (charger->cable_status == CABLE_TYPE_AC)
-			&& (adc_is_available(charger))) {
-		charger->adc_flag = true;
-		msleep(50);
-		if (charger->done == true) {
-			pr_info("adjust current done\n");
-			now_current = regulator_get_current_limit(charger->ps);
-			do{
-				now_current -= CURRENT_INCREMENT_STEP * MA_TO_UA;
-				regulator_set_current_limit(charger->ps,
-						now_current,
-						now_current + CURRENT_INCREMENT_STEP*MA_TO_UA);
-				msleep(100);
-				max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK,
-						&int_ok);
-				pr_info("TYPE_AC: %d\n", now_current);
-				if (int_ok == 0X5d)
-					break;
-			} while (now_current > CHGIN_USB_CURRENT * MA_TO_UA);
-		}			
-	}
-	
 	if (charger->chgin != chgin) {
 		alarm_cancel(&charger->alarm);
 		if(chgin)
@@ -763,6 +775,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	struct max77665_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct max77665_platform_data *pdata = dev_get_platdata(iodev->dev);	
 	struct max77665_charger *charger;
+	struct power_supply *fuelgauge_ps;
 	u8 reg_data;
 	int ret = EINVAL;
 
@@ -780,6 +793,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	charger->chr_pin = pdata->charger_pin;
 	charger->done = false;
 	charger->adc_flag = false;
+	charger->BATTERY = true;
 
 	init_completion(&charger->byp_complete);
 	mutex_init(&charger->mutex_t);
@@ -812,6 +826,12 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "cannot register adc\n");
 		ret = PTR_ERR(charger->adc);
 		goto err_put;
+	}
+
+	fuelgauge_ps = power_supply_get_by_name("fuelgauge");
+	if (!fuelgauge_ps) {
+		pr_info("sorry, you should has battery\n");
+		charger->BATTERY = false;
 	}
 
 	charger->psy_charger.name = "charger";
@@ -861,7 +881,8 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 		pr_err("Failed to read MAX77665_CHG_REG_CHG_INT: %d\n", ret);
 	else {
 		if (!(regulator_is_enabled(charger->reverse)) 
-				&& (reg_data & 0x40)) {	// CHGIN
+				&& (reg_data & 0x40) //CHGIN
+				&& (charger->BATTERY)) {
 			charger->chgin = true;
 			if (is_charging_mode()) {
 				charger->cable_status = CABLE_TYPE_USB;
