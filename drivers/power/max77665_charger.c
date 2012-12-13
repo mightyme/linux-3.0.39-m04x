@@ -39,6 +39,15 @@
 #define COMPLETE_TIMEOUT       200   /*ms*/ 
 #define MA_TO_UA               1000  
 
+#define BATTERY_TEMP_0		0
+#define BATTERY_TEMP_5		50
+#define BATTERY_TEMP_10		100
+#define BATTERY_TEMP_15		150
+#define BATTERY_TEMP_5CURRENT	180
+#define BATTERY_TEMP_10CURRENT	300
+#define BATTERY_TEMP_15CURRENT	500
+#define BATTERY_TEMP_4VOLTAGE   4000
+
 #define MAX77665_CHGIN_DTLS       0x60 
 #define MAX77665_CHGIN_DTLS_SHIFT 5    
 #define MAX77665_CHG_DTLS         0x0F 
@@ -99,6 +108,8 @@ struct max77665_charger
 	bool adc_flag;
 	struct s3c_adc_client *adc;
 	bool BATTERY;
+	bool battery_abnormal;
+	int battery_current;
 };
 static BLOCKING_NOTIFIER_HEAD(max77665_charger_chain_head);
 
@@ -225,6 +236,47 @@ static int adc_is_available(struct max77665_charger *charger)
 	}
 }
 
+static void max77665_battery_temp_abnormal(struct max77665_charger *charger)
+{
+	struct power_supply *fuelgauge_ps
+		= power_supply_get_by_name("fuelgauge");
+	union power_supply_propval val;
+	int battery_temp = 0, battery_voltage = 0;
+
+	if (fuelgauge_ps)
+		if(fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_TEMP, &val) == 0) 
+			battery_temp = val.intval;
+	if (fuelgauge_ps)
+		if(fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_VOLTAGE_NOW, &val) == 0) 
+			battery_voltage = val.intval;
+
+	if (battery_temp < BATTERY_TEMP_15) {
+		if (((battery_temp < BATTERY_TEMP_10) 
+			&& (battery_voltage >= BATTERY_TEMP_4VOLTAGE * MA_TO_UA))
+				|| ((battery_temp < BATTERY_TEMP_5)
+					&& (battery_temp >= BATTERY_TEMP_0))) {
+			charger->battery_current = BATTERY_TEMP_5CURRENT;
+		} else if ((battery_temp < BATTERY_TEMP_10) 
+				&& (battery_temp >= BATTERY_TEMP_5)) {
+			charger->battery_current = BATTERY_TEMP_10CURRENT;
+		} else if ((battery_temp < BATTERY_TEMP_15)
+				&& (battery_temp >= BATTERY_TEMP_10)) {
+			charger->battery_current = BATTERY_TEMP_15CURRENT;
+		}
+		charger->battery_abnormal = true;
+	} else {
+		charger->battery_abnormal = false;
+	}
+	
+	if (charger->battery_abnormal) {
+		if (!regulator_is_enabled(charger->ps)) 
+			regulator_enable(charger->ps);
+		regulator_set_current_limit(charger->ps,
+				charger->battery_current * MA_TO_UA,
+				MAX_AC_CURRENT * MA_TO_UA);
+	}
+}
+
 static int max77665_adjust_current(struct max77665_charger *charger,
 		int chgin_ilim)
 {
@@ -275,11 +327,14 @@ static int max77665_charger_types(struct max77665_charger *charger)
 	
 	if (!regulator_is_enabled(charger->ps))
 		regulator_enable(charger->ps);
+
+	max77665_battery_temp_abnormal(charger);
 	switch (cable_status) {
 	case CABLE_TYPE_USB:
 	case CABLE_TYPE_AC:	
-	chgin_ilim = charger->chgin_ilim_usb;
-		if (false == charger-> done) {
+		chgin_ilim = charger->chgin_ilim_usb;
+		if ((false == charger-> done) &&
+				(!charger->battery_abnormal)) {
 			pr_info("we want to adjust the input current now\n");
 			max77665_adjust_current(charger, chgin_ilim);
 			charger->done = true;
@@ -384,7 +439,7 @@ static void max77665_work_func(struct work_struct *work)
 #endif
 	mutex_unlock(&charger->mutex_t);
 }
-
+	
 static void max77665_poll_work_func(struct work_struct *work)
 {
 	struct max77665_charger *charger =
@@ -398,6 +453,13 @@ static void max77665_poll_work_func(struct work_struct *work)
 	if (fuelgauge_ps)
 		if(fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_HEALTH, &val) == 0)
 			battery_health = val.intval;
+	
+	max77665_battery_temp_abnormal(charger);
+	if (charger->battery_abnormal) {
+		charger->done = false;
+	} else {
+		max77665_charger_types(charger);
+	}
 
 	if (charger->chg_status == CHG_STATUS_FAST ||
 			charger->chg_status == CHG_STATUS_RECHG) {
@@ -425,10 +487,8 @@ static void max77665_poll_work_func(struct work_struct *work)
 					int soc = 100;
 					if(fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_CAPACITY, &val) == 0)
 						soc = val.intval;
-					if(soc <= 98) {
-						regulator_enable(charger->ps);
+					if(soc <= 98) 
 						charger->chg_status = CHG_STATUS_RECHG;
-					}
 				}
 			} else {
 				pr_info("----------battery healthy good, enable charging\n");
@@ -794,6 +854,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	charger->done = false;
 	charger->adc_flag = false;
 	charger->BATTERY = true;
+	charger->battery_abnormal = false;
 
 	init_completion(&charger->byp_complete);
 	mutex_init(&charger->mutex_t);
@@ -813,7 +874,8 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 				PTR_ERR(charger->ps));
 		goto err_free;
 	}
-	
+	regulator_enable(charger->ps);
+
 	charger->reverse = regulator_get(NULL, "reverse");
 	if (IS_ERR(charger->reverse)) {
 		dev_err(&pdev->dev, "Failed to regulator_get reverse: %ld\n",
@@ -833,7 +895,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 		pr_info("sorry, you should has battery\n");
 		charger->BATTERY = false;
 	}
-
+	
 	charger->psy_charger.name = "charger";
 	charger->psy_charger.type = POWER_SUPPLY_TYPE_BATTERY;
 	charger->psy_charger.properties = max77665_charger_props,
