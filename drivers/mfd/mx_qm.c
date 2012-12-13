@@ -57,7 +57,7 @@ const struct mx_qm_reg_data init_regs[] = {
 //	{LED_REG_CUR4, 0x00},		
 	{QM_REG_MASK_POS, 0x08},
 	{QM_REG_QM_DET_TH, 0x08},
-	{QM_REG_QM_MASK_TH, 0x0A},
+	{QM_REG_QM_MASK_TH, 0x0C},
 //	{QM_REG_QM_BURST, 0x40},
 	{},
 };
@@ -587,7 +587,8 @@ exit:
 	is_update = false;
 
 	/*initial registers*/
-	mx_qm_init_registers(mx);
+	if(!ret)
+		mx_qm_init_registers(mx);
 	
 	enable_irq(mx->irq);
 	
@@ -979,7 +980,7 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 		}
 		else
 		{
-			pr_info("mx_qm:This is an old PCB !!!\n");
+			pr_info("mx_qm:old hardware version!!!\n");
 		}
 	}
 	
