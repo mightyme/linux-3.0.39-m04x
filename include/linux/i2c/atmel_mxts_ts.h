@@ -34,11 +34,13 @@
 #define MXT224_ID	0x80
 #define MXT224E_ID	0x81
 #define MXT224S_ID	0x82
+#define MXT336S_ID	0x82
 #define MXT1386_ID	0xA0
 
 /* Bootoader IDs */
 #define MXT_BOOTLOADER_ID_224		0x0A
 #define MXT_BOOTLOADER_ID_224E		0x06
+#define MXT_BOOTLOADER_ID_336		0x06
 #define MXT_BOOTLOADER_ID_1386		0x01
 #define MXT_BOOTLOADER_ID_1386E		0x10
 

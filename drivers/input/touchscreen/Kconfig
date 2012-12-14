@@ -770,5 +770,17 @@ config TOUCHSCREEN_MXT224S
 	  To compile this driver as a module, choose M here: the
 	  module will be called mxt224s_ts.
 
+config TOUCHSCREEN_MXT336S
+	tristate "MXT336S based touchscreens"
+	depends on I2C
+	help
+	  Say Y here if you have a MXT336S based touchscreen
+	  controller.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mxt336s_ts.
+
 
 endif

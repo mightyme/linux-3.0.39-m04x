@@ -27,6 +27,9 @@
 #include <linux/rmi.h>
 #include "rmi_driver.h"
 #include <linux/gpio.h>
+#include <linux/input/mt.h>
+
+#define TYPE_B_PROTOCOL
 
 #define VBUS_IRQ_EN (1)
 //#define F11_REPORTMODE_REDUCED	(1)	// 000:Continuous, when finger present  001: Reduced reporting mode		
@@ -692,6 +695,10 @@ static void rmi_f11_abs_pos_report(struct f11_2d_sensor *sensor,
 	if (prev_state && !finger_state) {
 		/* this is a release */
 		x = y = z = w_max = w_min = orient = 0;
+#ifdef TYPE_B_PROTOCOL	
+	input_mt_report_slot_state(sensor->input,MT_TOOL_FINGER, 0);
+	return;
+#endif	
 	} else if (!prev_state && !finger_state) {
 		/* nothing to report */
 		return;
@@ -753,6 +760,11 @@ static void rmi_f11_abs_pos_report(struct f11_2d_sensor *sensor,
 	}
 #endif
 
+#ifdef TYPE_B_PROTOCOL		
+	input_mt_slot(sensor->input, n_finger);		
+	input_mt_report_slot_state(sensor->input,MT_TOOL_FINGER, finger_state != 0);
+#endif
+
 #ifdef ABS_MT_PRESSURE
 	input_report_abs(sensor->input, ABS_MT_PRESSURE, z);
 	if(z)
@@ -776,9 +788,11 @@ static void rmi_f11_abs_pos_report(struct f11_2d_sensor *sensor,
 				 get_tool_type(sensor, finger_state));
 	}
 #endif
-
+	
+#ifndef TYPE_B_PROTOCOL		
 	/* MT sync between fingers */
 	input_mt_sync(sensor->input);
+#endif
 	sensor->finger_tracker[n_finger] = finger_state;
 
 	if(touch_debug)
@@ -1472,6 +1486,11 @@ static void f11_set_abs_params(struct rmi_function_container *fc, int index)
 		input_set_abs_params(input, ABS_MT_TOOL_TYPE,
 				     0, MT_TOOL_MAX, 0, 0);
 #endif
+
+#ifdef TYPE_B_PROTOCOL
+	input_mt_init_slots(input,sensor->nbr_fingers);//sensor->sens_query.number_of_fingers
+#endif
+
 }
 
 

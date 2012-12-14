@@ -1041,7 +1041,7 @@ static int mxt_check_reg_init(struct mxt_data *data)
 		if (!mxt_object_writable(object->type))
 			continue;
 
-              printk(": object->type = %d, object->size = %d\n", object->type, object->size);
+              //printk(": object->type = %d, object->size = %d\n", object->type, object->size);
 
 		for (j = 0; j < object->size; j++) {
 			config_offset = index + j;
@@ -1159,7 +1159,7 @@ static int mxt_get_object_table(struct mxt_data *data)
 	for (i = 0; i < data->info.object_num; i++) {
 		struct mxt_object *object = data->object_table + i;
 
-              printk(": i = %d\n", i);
+              //printk(": i = %d\n", i);
 
 		reg = MXT_OBJECT_START + MXT_OBJECT_SIZE * i;
 		error = mxt_read_object_table(data->client, reg, buf);
@@ -2723,20 +2723,6 @@ static int __devinit mxt_probe(struct i2c_client *client,
 	error = mxt_initialize(data);
 	if (error)
 		goto err_reset_gpio_req;
-
-#ifdef	CONFIG_MX_DEV_KERNEL
-#ifdef	CONFIG_RMI4_I2C     
-		if(1)
-		{
-			mxt_make_highchg(data);
-			mxt_make_highchg(data);
-			mxt_make_highchg(data);
-			mxt_make_highchg(data);
-			mxt_stop(data);
-			goto err_reset_gpio_req;
-		}
-#endif
-#endif
 
 	data->atmel_wq = create_singlethread_workqueue("atmel_wq");
 	if (!data->atmel_wq) {
