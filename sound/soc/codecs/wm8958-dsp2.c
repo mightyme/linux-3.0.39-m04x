@@ -211,14 +211,14 @@ static void wm8958_dsp_start_mbc(struct snd_soc_codec *codec, int path)
 		struct wm8958_mbc_cfg *cfg
 			= &pdata->mbc_cfgs[wm8994->mbc_cfg];
 
-		for (i = 0; i < ARRAY_SIZE(cfg->coeff_regs); i++)
+		for (i = 0; i < ARRAY_SIZE(cfg->coeff_regs); i++) {
 			snd_soc_write(codec, i + WM8958_MBC_BAND_1_K_1,
-				      cfg->coeff_regs[i]);
-
-		for (i = 0; i < ARRAY_SIZE(cfg->cutoff_regs); i++)
-			snd_soc_write(codec,
-				      i + WM8958_MBC_BAND_2_LOWER_CUTOFF_C1_1,
-				      cfg->cutoff_regs[i]);
+					  cfg->coeff_regs[i]);
+		}
+		for (i = 0; i < ARRAY_SIZE(cfg->cutoff_regs); i++) {
+			snd_soc_write(codec, i + WM8958_MBC_BAND_2_LOWER_CUTOFF_C1_1,
+					  cfg->cutoff_regs[i]);
+		}
 	}
 
 	/* Run the DSP */

@@ -134,7 +134,7 @@ static int mx_wm8958_aif1_hw_params(struct snd_pcm_substream *substream,
 	} else {
 #endif
 		ret = snd_soc_dai_set_pll(codec_dai, WM8994_FLL1, WM8994_FLL_SRC_MCLK1,
-						WM8994_FREQ_24000000, rclk);
+						WM8994_FREQ_24000000, rclk * 2);
 		if (ret < 0)
 			return ret;
 #ifdef CONFIG_MACH_M030
