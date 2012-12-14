@@ -758,18 +758,18 @@ static void rmi_f11_abs_pos_report(struct f11_2d_sensor *sensor,
 	if(z)
 	{
 		input_report_abs(sensor->input, ABS_MT_TOUCH_MAJOR, w_max?w_max:1);
-		input_report_abs(sensor->input, ABS_MT_TOUCH_MINOR, w_min);		
+		//input_report_abs(sensor->input, ABS_MT_TOUCH_MINOR, w_min);		
 	}
 	else
 	{
 		input_report_abs(sensor->input, ABS_MT_TOUCH_MAJOR, w_max);
-		input_report_abs(sensor->input, ABS_MT_TOUCH_MINOR, w_min);
+		//input_report_abs(sensor->input, ABS_MT_TOUCH_MINOR, w_min);
 	}
 #endif
-	input_report_abs(sensor->input, ABS_MT_ORIENTATION, orient);
+	//input_report_abs(sensor->input, ABS_MT_ORIENTATION, orient);
 	input_report_abs(sensor->input, ABS_MT_POSITION_X, x);
 	input_report_abs(sensor->input, ABS_MT_POSITION_Y, y);
-	input_report_abs(sensor->input, ABS_MT_TRACKING_ID, n_finger);
+//	input_report_abs(sensor->input, ABS_MT_TRACKING_ID, n_finger);
 #ifdef	CONFIG_RMI4_F11_PEN
 	if (sensor->sens_query.query9.has_pen) {
 		input_report_abs(sensor->input, ABS_MT_TOOL_TYPE,
@@ -2145,6 +2145,7 @@ static int rmi_f11_register_devices(struct rmi_function_container *fc)
 			input_dev_booster->phys = "rmi_f11/input0";
 
 			set_bit(EV_KEY, input_dev_booster->evbit);
+			set_bit(EV_ABS, input_dev_booster->evbit);
 			set_bit(BTN_TOUCH, input_dev_booster->keybit);
 
 			rc = input_register_device(input_dev_booster);
