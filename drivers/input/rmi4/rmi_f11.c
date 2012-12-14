@@ -581,6 +581,7 @@ struct f11_2d_sensor {
 	char input_phys[MAX_NAME_LENGTH];
 	struct input_dev *input;
 	struct input_dev *mouse_input;
+	struct input_dev *booster_input;
 };
 
 struct f11_data {
@@ -844,9 +845,12 @@ static void rmi_f11_finger_handler(struct f11_2d_sensor *sensor)
 	}
 	
 	if (sensor->input)
-	{
-		input_report_key(sensor->input, BTN_TOUCH, finger_pressed_count);
 		input_sync(sensor->input);
+	
+	if (sensor->booster_input)
+	{
+		input_report_key(sensor->booster_input, BTN_TOUCH, finger_pressed_count);
+		input_sync(sensor->booster_input);
 	}
 }
 
@@ -2000,6 +2004,7 @@ static int rmi_f11_register_devices(struct rmi_function_container *fc)
 	struct f11_data *f11 = fc->data;
 	struct input_dev *input_dev;
 	struct input_dev *input_dev_mouse;
+	struct input_dev *input_dev_booster;
 	int sensors_itertd = 0;
 	int i;
 	int rc;
@@ -2033,7 +2038,7 @@ static int rmi_f11_register_devices(struct rmi_function_container *fc)
 		set_bit(EV_SYN, input_dev->evbit);
 		set_bit(EV_KEY, input_dev->evbit);
 		set_bit(EV_ABS, input_dev->evbit);
-		set_bit(BTN_TOUCH, input_dev->keybit);		
+		//set_bit(BTN_TOUCH, input_dev->keybit);		
 #ifdef INPUT_PROP_DIRECT
 		set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
 #endif
@@ -2126,6 +2131,29 @@ static int rmi_f11_register_devices(struct rmi_function_container *fc)
 			set_bit(BTN_RIGHT, input_dev_mouse->keybit);
 		}
 
+
+		if(1){
+			/*create input device for mouse events  */
+			input_dev_booster = input_allocate_device();
+			if (!input_dev_booster) {
+				rc = -ENOMEM;
+				goto error_unregister;
+			}
+
+			f11->sensors[i].booster_input = input_dev_booster;
+			input_dev_booster->name = "rmi_booster";
+			input_dev_booster->phys = "rmi_f11/input0";
+
+			set_bit(EV_KEY, input_dev_booster->evbit);
+			set_bit(BTN_TOUCH, input_dev_booster->keybit);
+
+			rc = input_register_device(input_dev_booster);
+			if (rc < 0) {
+				input_free_device(input_dev_booster);
+				f11->sensors[i].booster_input = NULL;
+				goto error_unregister;
+			}
+		}
 	}
 
 	return 0;
@@ -2138,6 +2166,11 @@ error_unregister:
 				input_unregister_device(
 				   f11->sensors[sensors_itertd].mouse_input);
 				f11->sensors[sensors_itertd].mouse_input = NULL;
+			}
+			if (f11->sensors[sensors_itertd].booster_input) {
+				input_unregister_device(
+				   f11->sensors[sensors_itertd].booster_input);
+				f11->sensors[sensors_itertd].booster_input = NULL;
 			}
 			input_unregister_device(f11->sensors[i].input);
 			f11->sensors[i].input = NULL;
@@ -2159,6 +2192,8 @@ static void rmi_f11_free_devices(struct rmi_function_container *fc)
 		if (f11->sensors[i].sens_query.has_rel &&
 				f11->sensors[i].mouse_input)
 			input_unregister_device(f11->sensors[i].mouse_input);
+		if (f11->sensors[i].booster_input)
+			input_unregister_device(f11->sensors[i].booster_input);
 	}
 }
 
