@@ -35,7 +35,6 @@
 #include <linux/regulator/consumer.h>
 #include <plat/gpio-cfg.h>
 #include <plat/devs.h>
-#include <mach/gpio-m040.h>
 
 #define DEV_NAME	"max77665-muic"
 
@@ -298,33 +297,11 @@ void max77665_muic_shutdown(struct device *dev)
 	return ;
 }
 
-#ifdef CONFIG_PM
-static int max77665_muic_suspend(struct device *dev)
-{
-	gpio_set_value(M040_USB_SELECT, 1);
-	pr_info("%s##############\n", __func__);
-	return 0;
-}
-
-static int max77665_muic_resume(struct device *dev)
-{
-	gpio_set_value(M040_USB_SELECT, 0);
-	pr_info("%s##############\n", __func__);
-	return 0;
-}
-
-static const struct dev_pm_ops max77665_pm_ops = {
-	.suspend        = max77665_muic_suspend,
-	.resume		= max77665_muic_resume,
-};
-#endif
-
 static struct platform_driver max77665_muic_driver = {
 	.driver		= {
 		.name	= DEV_NAME,
 		.owner	= THIS_MODULE,
 		.shutdown = max77665_muic_shutdown,
-		.pm       =  &max77665_pm_ops,
 	},
 	.probe		= max77665_muic_probe,
 	.remove		= __devexit_p(max77665_muic_remove),
