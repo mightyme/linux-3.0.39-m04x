@@ -235,7 +235,7 @@ struct fsa8108_info {
 	struct work_struct    adc_read_work;
 	struct timer_list detect_mic_adc_timer;	
 	struct wake_lock det_wake_lock;
-	long jack_plug_time;
+	unsigned long jack_plug_timeout;
 };
 
 static struct switch_dev switch_jack_detection = {
@@ -520,7 +520,7 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				info->cur_jack_type = FSA_HEADSET_4POLE;			
 				switch_set_state(&switch_jack_detection, FSA_HEADSET_4POLE);				
 				fsa8108_mask_int(0);/*recover key interrupts after 4pole connect*/
-				info->jack_plug_time = jiffies;
+				info->jack_plug_timeout = jiffies +2*HZ ;
 				break;
 				
 			case FSA8108_PLUG_DISCONNECT:
@@ -532,7 +532,7 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				break;		
 				
 			case FSA8108_SEND_END_LONG:  //TBD
-				if(jiffies - info->jack_plug_time < msecs_to_jiffies(2000))
+				if(time_before(jiffies,info->jack_plug_timeout))
 					break;/*deglitch for plug-in triggered key press event*/
 				
 				pr_info("%s OKOKOKOKOOOK__LONG PRESSED\n",__func__);				
@@ -542,7 +542,7 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				break;	
 				
 			case FSA8108_SEND_END_PRESS:
-				if(jiffies - info->jack_plug_time < msecs_to_jiffies(2000))
+				if(time_before(jiffies,info->jack_plug_timeout))
 					break;
 				
 				pr_info("%s OKOKOKOKOOOK PRESSED\n",__func__);
@@ -570,7 +570,7 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 	{
 	    switch(val2){
 			case FSA8108_VOL_UP_LONG_P: 
-				if(jiffies - info->jack_plug_time < msecs_to_jiffies(2000))
+				if(time_before(jiffies,info->jack_plug_timeout))
 					break;
 				
 				pr_info("%s volumn ++++++LONG_PRESSED\n",__func__);				
@@ -578,7 +578,7 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				break;
 				
 			case FSA8108_VOL_UP_LONG_R: 
-				if(jiffies - info->jack_plug_time < msecs_to_jiffies(2000))
+				if(time_before(jiffies,info->jack_plug_timeout))
 					break;
 				
 				pr_info("%s volumn ++++++LONG_RELEASED\n",__func__);
@@ -586,7 +586,7 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				break;
 				
 			case FSA8108_VOL_DOWN_LONG_P:
-				if(jiffies - info->jack_plug_time < msecs_to_jiffies(2000))
+				if(time_before(jiffies,info->jack_plug_timeout))
 					break;
 				
 				pr_info("%s volumn ------LONG_PRESSED\n",__func__);				
@@ -594,7 +594,7 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				break;
 				
 			case FSA8108_VOL_DOWN_LOGN_R: 
-				if(jiffies - info->jack_plug_time < msecs_to_jiffies(2000))
+				if(time_before(jiffies,info->jack_plug_timeout))
 					break;
 				
 				pr_err("%s volumn ------LONG_RELEASE\n",__func__);
@@ -602,7 +602,7 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				break;	
 				
 			case FSA8108_VOL_UP:
-				if(jiffies - info->jack_plug_time < msecs_to_jiffies(2000))
+				if(time_before(jiffies,info->jack_plug_timeout))
 					break;
 				
 				pr_info("%s volumn ++++++ PRESSED\n",__func__);
@@ -612,7 +612,7 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				break;
 				
 			case FSA8108_VOL_DOWN:
-				if(jiffies - info->jack_plug_time < msecs_to_jiffies(2000))
+				if(time_before(jiffies,info->jack_plug_timeout))
 					break;
 				
 				pr_info("%s volumn ------ PRESSED\n",__func__);
