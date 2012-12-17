@@ -696,7 +696,9 @@ static void rmi_f11_abs_pos_report(struct f11_2d_sensor *sensor,
 		/* this is a release */
 		x = y = z = w_max = w_min = orient = 0;
 #ifdef TYPE_B_PROTOCOL	
+	input_mt_slot(sensor->input, n_finger);	
 	input_mt_report_slot_state(sensor->input,MT_TOOL_FINGER, 0);
+	sensor->finger_tracker[n_finger] = finger_state;
 	return;
 #endif	
 	} else if (!prev_state && !finger_state) {
@@ -1473,9 +1475,11 @@ static void f11_set_abs_params(struct rmi_function_container *fc, int index)
 			0, DEFAULT_MAX_ABS_MT_TOUCH, 0, 0);
 	input_set_abs_params(input, ABS_MT_ORIENTATION,
 			0, DEFAULT_MAX_ABS_MT_ORIENTATION, 0, 0);
+#ifndef TYPE_B_PROTOCOL
 	input_set_abs_params(input, ABS_MT_TRACKING_ID,
 			DEFAULT_MIN_ABS_MT_TRACKING_ID,
 			DEFAULT_MAX_ABS_MT_TRACKING_ID, 0, 0);
+#endif
 	/* TODO get max_x_pos (and y) from control registers. */
 	input_set_abs_params(input, ABS_MT_POSITION_X,
 			x_min, x_max, 0, 0);
