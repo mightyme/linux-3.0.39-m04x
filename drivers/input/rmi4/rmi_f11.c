@@ -29,8 +29,6 @@
 #include <linux/gpio.h>
 #include <linux/input/mt.h>
 
-#define CONFIG_TYPE_B_PROTOCOL
-
 #define VBUS_IRQ_EN (1)
 //#define F11_REPORTMODE_REDUCED	(1)	// 000:Continuous, when finger present  001: Reduced reporting mode		
 #define RESUME_REZERO (1 && defined(CONFIG_PM))
