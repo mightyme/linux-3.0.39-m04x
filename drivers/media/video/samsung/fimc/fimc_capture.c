@@ -2596,6 +2596,11 @@ int fimc_streamoff_capture(void *fh)
 		return -ENODEV;
 	}
 
+	if (FIMC_STREAMOFF == ctrl->status) {
+		pr_warn("%s(), !!!fimc already OFF!!!\n", __func__);
+		return 0;
+	}
+
 	ctrl->status = FIMC_READY_OFF;
 
 	fimc_stop_capture(ctrl);
