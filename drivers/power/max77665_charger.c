@@ -354,7 +354,8 @@ static void max77665_work_func(struct work_struct *work)
 	struct max77665_charger *charger =
 		container_of(work, struct max77665_charger, dwork.work);
 	enum cable_status_t cable_status = CABLE_TYPE_NONE;
-
+	u8 reg_data;
+	
 	mutex_lock(&charger->mutex_t);
 	
 	if (charger->chgin) {
@@ -375,16 +376,25 @@ static void max77665_work_func(struct work_struct *work)
 		}
 #else
 		do {
-			u8 reg_data;
 			max77665_read_reg(charger->iodev->muic, MAX77665_MUIC_REG_CDETCTRL1, &reg_data);
 			max77665_write_reg(charger->iodev->muic, MAX77665_MUIC_REG_CDETCTRL1, reg_data | 0x02);
 			pr_info("#############usb start detect\n");
 			msleep(500);
-
 			max77665_read_reg(charger->iodev->muic, MAX77665_MUIC_REG_STATUS2, &reg_data);
 			pr_info("#############usb end detect (0x%02x)\n", reg_data);
-			if (reg_data == 0x00) { 
-				cable_status = CABLE_TYPE_NONE;
+			if ((reg_data & 0x08) == 0x08) {
+				pr_info("running######\n");
+				msleep(500);
+				max77665_read_reg(charger->iodev->muic, MAX77665_MUIC_REG_STATUS2, &reg_data);
+				if ((reg_data & 0x08) == 0x08) {
+					pr_info("the muic error\n");
+					cable_status = CABLE_TYPE_USB;
+				} else {
+					if ((reg_data & 0x07) == 0x01) {
+						cable_status = CABLE_TYPE_USB;
+					} else 
+						cable_status = CABLE_TYPE_AC;
+				}
 			} else {
 				if ((reg_data & 0x07) == 0x01) {
 					cable_status = CABLE_TYPE_USB;
@@ -655,8 +665,9 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 		if(chgin)
 			set_alarm(charger, WAKE_ALARM_INT);
 		charger->chgin = chgin;		
+		pr_info("charger->chgin = %d\n", charger->chgin);
 		charger->chg_status = CHG_STATUS_FAST;
-	
+			
 		if (delayed_work_pending(&charger->dwork))
 			cancel_delayed_work(&charger->dwork);
 			
