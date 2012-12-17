@@ -29,7 +29,7 @@
 #include <linux/gpio.h>
 #include <linux/input/mt.h>
 
-#define TYPE_B_PROTOCOL
+#define CONFIG_TYPE_B_PROTOCOL
 
 #define VBUS_IRQ_EN (1)
 //#define F11_REPORTMODE_REDUCED	(1)	// 000:Continuous, when finger present  001: Reduced reporting mode		
@@ -695,7 +695,7 @@ static void rmi_f11_abs_pos_report(struct f11_2d_sensor *sensor,
 	if (prev_state && !finger_state) {
 		/* this is a release */
 		x = y = z = w_max = w_min = orient = 0;
-#ifdef TYPE_B_PROTOCOL	
+#ifdef CONFIG_TYPE_B_PROTOCOL	
 	input_mt_slot(sensor->input, n_finger);	
 	input_mt_report_slot_state(sensor->input,MT_TOOL_FINGER, 0);
 	sensor->finger_tracker[n_finger] = finger_state;
@@ -762,7 +762,7 @@ static void rmi_f11_abs_pos_report(struct f11_2d_sensor *sensor,
 	}
 #endif
 
-#ifdef TYPE_B_PROTOCOL		
+#ifdef CONFIG_TYPE_B_PROTOCOL		
 	input_mt_slot(sensor->input, n_finger);		
 	input_mt_report_slot_state(sensor->input,MT_TOOL_FINGER, finger_state != 0);
 #endif
@@ -791,7 +791,7 @@ static void rmi_f11_abs_pos_report(struct f11_2d_sensor *sensor,
 	}
 #endif
 	
-#ifndef TYPE_B_PROTOCOL		
+#ifndef CONFIG_TYPE_B_PROTOCOL		
 	/* MT sync between fingers */
 	input_mt_sync(sensor->input);
 #endif
@@ -1475,7 +1475,7 @@ static void f11_set_abs_params(struct rmi_function_container *fc, int index)
 			0, DEFAULT_MAX_ABS_MT_TOUCH, 0, 0);
 	input_set_abs_params(input, ABS_MT_ORIENTATION,
 			0, DEFAULT_MAX_ABS_MT_ORIENTATION, 0, 0);
-#ifndef TYPE_B_PROTOCOL
+#ifndef CONFIG_TYPE_B_PROTOCOL
 	input_set_abs_params(input, ABS_MT_TRACKING_ID,
 			DEFAULT_MIN_ABS_MT_TRACKING_ID,
 			DEFAULT_MAX_ABS_MT_TRACKING_ID, 0, 0);
@@ -1491,7 +1491,7 @@ static void f11_set_abs_params(struct rmi_function_container *fc, int index)
 				     0, MT_TOOL_MAX, 0, 0);
 #endif
 
-#ifdef TYPE_B_PROTOCOL
+#ifdef CONFIG_TYPE_B_PROTOCOL
 	input_mt_init_slots(input,sensor->nbr_fingers);//sensor->sens_query.number_of_fingers
 #endif
 
