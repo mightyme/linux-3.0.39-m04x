@@ -120,7 +120,7 @@ config RMI4_F11
 	  To compile this driver as a module, choose M here: the
 	  module will be called rmi-f11.
 	  
-config CONFIG_TYPE_B_PROTOCOL
+config TYPE_B_PROTOCOL
 	bool "Protocol Type B Support"
 	depends on RMI4_F11
 	help
