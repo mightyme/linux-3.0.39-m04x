@@ -147,7 +147,7 @@ static bool qm_filter_filter(struct input_handle *handle, unsigned int type, uns
 	case ABS_MT_POSITION_Y:
 		global_data->position_y= value;
 		break;
-	case SYN_MT_REPORT:
+	case SYN_REPORT:
 		if(qm_filter_in_rect(global_data, global_data->position_x, global_data->position_y))
 			global_data->touch_time = ktime_get();
 		break;
@@ -160,7 +160,7 @@ static bool qm_filter_filter(struct input_handle *handle, unsigned int type, uns
 static bool  qm_filter_match(struct input_handler *handler, struct input_dev *dev)
 {
 	/* Synaptics touchscreens is valid*/
-	if (test_bit(EV_ABS, dev->evbit) && test_bit(BTN_TOUCH, dev->keybit))
+	if (test_bit(EV_ABS, dev->evbit) && test_bit(ABS_MT_POSITION_X, dev->absbit))
 		return true;
 
 	/*meizu touchpads is valid*/
@@ -239,7 +239,7 @@ static const struct input_device_id qm_filter_ids[] = {
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT | INPUT_DEVICE_ID_MATCH_KEYBIT,
 		.evbit = { BIT_MASK(EV_ABS) },
-		.keybit = {[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
+		.absbit = {[BIT_WORD(ABS_MT_POSITION_X)] = BIT_MASK(ABS_MT_POSITION_X) },
 	},
 	{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT | INPUT_DEVICE_ID_MATCH_KEYBIT,
