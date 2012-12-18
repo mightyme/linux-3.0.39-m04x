@@ -295,10 +295,15 @@ static void recv_data_handler_work(struct work_struct *work)
 	
 	switch (iod->io_typ) {
 	case IODEV_TTY:
-		hsic_tty_data_handler(iod);
+		mutex_lock(&iod->op_mutex);
+		if (iod->tty)
+			hsic_tty_data_handler(iod);
+		mutex_unlock(&iod->op_mutex);
 		break;
 	case IODEV_NET:
+		mutex_lock(&iod->op_mutex);
 		hsic_net_data_handler(iod);
+		mutex_unlock(&iod->op_mutex);
 		break;
 	default:
 		MIF_ERR("wrong io_type : %d\n", iod->io_typ);
@@ -456,10 +461,9 @@ static int modem_tty_open(struct tty_struct *tty, struct file *f)
 	iod = get_iod_with_channel(&modemctl->commons, tty->index);
 	commons = &iod->mc->commons;
 
+	mutex_lock(&iod->op_mutex);
 	tty->driver_data = iod;
 	iod->tty = tty;
-
-	mutex_lock(&iod->op_mutex);
 	atomic_inc(&iod->opened);
 	mutex_unlock(&iod->op_mutex);
 	tty->low_latency = 1;
@@ -482,9 +486,12 @@ static int modem_tty_open(struct tty_struct *tty, struct file *f)
 static void modem_tty_close(struct tty_struct *tty, struct file *f)
 {
 	struct io_device *iod = tty->driver_data;
-	struct mif_common *commons = &iod->mc->commons;
+	struct mif_common *commons;
 	struct link_device *ld;
 
+	if(!iod)
+		return;
+	commons = &iod->mc->commons;
 	mutex_lock(&iod->op_mutex);
 	atomic_dec(&iod->opened);
 	if (atomic_read(&iod->opened) == 0) {
@@ -497,6 +504,7 @@ static void modem_tty_close(struct tty_struct *tty, struct file *f)
 		flush_delayed_work(&iod->rx_work);
 		MIF_INFO("close iod = %s\n", iod->name);
 		tty->driver_data = NULL;
+		iod->tty = NULL;
 		list_for_each_entry(ld, &commons->link_dev_list, list) {
 			if (IS_CONNECTED(iod, ld) && ld->terminate_comm)
 				ld->terminate_comm(ld, iod);
@@ -516,10 +524,15 @@ static int
 modem_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
 	struct io_device *iod = tty->driver_data;
-	struct link_device *ld = get_current_link(iod);
+	struct link_device *ld;
 	struct sk_buff *skb;
-	int err;
 	size_t tx_size;
+	int err;
+
+	if (!iod)
+		return -ENODEV;
+
+	ld = get_current_link(iod);
 
 	skb = alloc_skb(count, GFP_ATOMIC);
 	if (!skb) {
@@ -561,6 +574,9 @@ modem_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
 static void modem_tty_throttle(struct tty_struct *tty)
 {
 	struct io_device *iod = tty->driver_data;
+	
+	if (!iod)
+		return;
 
 	skb_queue_purge(&iod->rx_q);
 }
