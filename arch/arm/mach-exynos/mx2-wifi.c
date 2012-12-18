@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/sysfs.h>
+#include <linux/wakelock.h>
 
 #include <asm/mach-types.h>
 
@@ -32,6 +33,7 @@ static int bt_rst;
 static int wl_power;
 static int bt_power;
 static int wl_cs;
+static struct wake_lock wifi_wake_lock;
 static DEFINE_MUTEX(wifi_mutex);
 
 
@@ -145,6 +147,7 @@ extern void reset_firmware_type(void);
 void wifi_card_set_power(int onoff)
 {
 	pr_info("## %s: %s power\n", __func__, onoff?"enable":"disable");
+	wake_lock_timeout(&wifi_wake_lock, msecs_to_jiffies(5 * 1000));
 	if(onoff) {
 		//wlan power:output ,1
 		s3c_gpio_cfgpin(wl_power, S3C_GPIO_OUTPUT);
@@ -168,13 +171,13 @@ static int wlan_power_en(int onoff)
 	if (gpio_get_value(wl_cs)) {
 		WARN(1, "WL_WIFICS is HI\n");
 	} else {
-		//msleep(2 * 1000);
 		/* must be mmc card detected pin low */
 		if (onoff) {
 			wifi_card_set_power(1);
 			msleep(200);
 		} else {
 			wifi_card_set_power(0);
+			msleep(500);
 		}
 	}
 	return 0;
@@ -398,6 +401,7 @@ static int __init mx2_wifi_init(void)
 {
 	int ret;
 
+	wake_lock_init(&wifi_wake_lock, WAKE_LOCK_SUSPEND, "wifi_ctrl_wake_lock");
 
 	wl_host_wake= EXYNOS4_GPX1(4);
 	bt_rst		= EXYNOS4_GPF0(3);
