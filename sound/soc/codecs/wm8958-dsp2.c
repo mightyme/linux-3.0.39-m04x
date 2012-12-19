@@ -206,7 +206,13 @@ static void wm8958_dsp_start_mbc(struct snd_soc_codec *codec, int path)
 	snd_soc_update_bits(codec, WM8958_DSP2_PROGRAM,
 			    WM8958_DSP2_ENA, WM8958_DSP2_ENA);
 
+	snd_soc_write(codec, 0x0A08, 0x007B);
+	snd_soc_write(codec, 0x0A09, 0x0007);
+	snd_soc_write(codec, 0x0A0A, 0x0073);
+
 	/* If we've got user supplied MBC settings use them */
+
+#if 0
 	if (pdata && pdata->num_mbc_cfgs) {
 		struct wm8958_mbc_cfg *cfg
 			= &pdata->mbc_cfgs[wm8994->mbc_cfg];
@@ -220,6 +226,7 @@ static void wm8958_dsp_start_mbc(struct snd_soc_codec *codec, int path)
 					  cfg->cutoff_regs[i]);
 		}
 	}
+#endif
 
 	/* Run the DSP */
 	snd_soc_write(codec, WM8958_DSP2_EXECCONTROL,
@@ -398,7 +405,7 @@ static void wm8958_dsp_apply(struct snd_soc_codec *codec, int path, int start)
 			return;
 
 		snd_soc_update_bits(codec, WM8958_DSP2_CONFIG,
-				    WM8958_MBC_ENA, 0);	
+				    WM8958_MBC_ENA, 0);
 		snd_soc_write(codec, WM8958_DSP2_EXECCONTROL,
 			      WM8958_DSP2_STOP);
 		snd_soc_update_bits(codec, WM8958_DSP2_PROGRAM,
@@ -899,7 +906,7 @@ static void wm8958_mbc_loaded(const struct firmware *fw, void *context)
 		dev_err(codec->dev, " fw=%p!\n",  fw);
 		return;
 	}
-	
+
 	if (wm8958_dsp2_fw(codec, "MBC", fw, true) != 0)
 		return;
 

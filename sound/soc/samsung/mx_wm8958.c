@@ -134,7 +134,7 @@ static int mx_wm8958_aif1_hw_params(struct snd_pcm_substream *substream,
 	} else {
 #endif
 		ret = snd_soc_dai_set_pll(codec_dai, WM8994_FLL1, WM8994_FLL_SRC_MCLK1,
-						WM8994_FREQ_24000000, rclk * 2);
+						WM8994_FREQ_24000000, rclk);
 		if (ret < 0)
 			return ret;
 #ifdef CONFIG_MACH_M030
@@ -150,12 +150,12 @@ static int mx_wm8958_aif1_hw_params(struct snd_pcm_substream *substream,
 					rclk, 0);
 	if (ret < 0)
 		return ret;
-	
+
 	ret = snd_soc_dai_set_sysclk(cpu_dai, SAMSUNG_I2S_CDCLK,//RCLK supply to codec, set RFS
 					rfs, SND_SOC_CLOCK_OUT);
 	if (ret < 0)
 		return ret;
-	
+
 	ret = snd_soc_dai_set_clkdiv(cpu_dai, SAMSUNG_I2S_DIV_BCLK, bfs);//set BFS
 	if (ret < 0)
 		return ret;
@@ -306,7 +306,7 @@ static int mx_wm8958_aif2_hw_params(struct snd_pcm_substream *substream,
 #ifdef CONFIG_MACH_M030
 	}
 #endif
-		
+
 	if (ret < 0)
 		return ret;
 #else
@@ -358,8 +358,8 @@ static struct snd_soc_dai_link mx_dai[] = {
 		.platform_name = "samsung-audio",
 		.codec_name = "wm8994-codec",
 		.ops = &mx_wm8958_aif2_ops,
-		.init = mx_wm8958_aif2_hw_init,		
-	},	
+		.init = mx_wm8958_aif2_hw_init,
+	},
 };
 
 static struct snd_soc_card meizu_mx = {
@@ -401,7 +401,7 @@ static int __devinit mx_audio_probe(struct platform_device *pdev)
 		platform_device_put(mx_snd_device);
 	}
 
-	
+
 	printk("%s--\n", __func__);
 	return ret;
 }
@@ -414,7 +414,7 @@ static int __devexit mx_audio_remove(struct platform_device *pdev)
 
 static struct platform_driver mx_audio_driver={
 	.probe = mx_audio_probe,
-	.remove = mx_audio_remove,	
+	.remove = mx_audio_remove,
 	.driver		= {
 		.name	= "mx-audio",
 		.owner	= THIS_MODULE,
@@ -424,9 +424,9 @@ static struct platform_driver mx_audio_driver={
 static int __init mx_audio_init(void)
 {
 	int ret;
-	
+
 	printk("%s++\n", __func__);
-	
+
 	ret = platform_driver_register(&mx_audio_driver);
 	if (ret)
 		return -ENOMEM;
