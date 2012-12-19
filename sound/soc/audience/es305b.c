@@ -727,8 +727,8 @@ static ssize_t es305b_store(struct device *dev,
 	case ES305B_NR_BT:
 		if (sscanf(buf, "%x\n", &value) == 1) {
 			es305b->nr_bt = !!value;
-			if(es305b->mode != ES305B_INCALL_BT)
-				es305b_setmode(ES305B_INCALL_BT);
+			// if(es305b->mode != ES305B_INCALL_BT)
+				// es305b_setmode(ES305B_INCALL_BT);
 			dev_info(es305b->dev, "update nr for bt %s \n", es305b->nr_bt ? "On" : "off");
 		}
 		ret = count;
