@@ -36,6 +36,20 @@
 #include <plat/cpu.h>
 #endif
 
+#if defined(CONFIG_FB_MX_MIPI_LCD) || defined(CONFIG_FB_MX2_MIPI_LCD)
+#if defined(CONFIG_MACH_M040)
+#if defined(CONFIG_MX_UNICOM_KERNEL)
+	#include "mx2_unicom_logo.h"
+	#define LOGO_BACKGROUND_COLOR		0x00ffffff
+#else
+	#include "mx2_logo.h"
+	#define LOGO_BACKGROUND_COLOR		0x00000000
+#endif
+#else
+	#include "mx_logo.h"
+	#define LOGO_BACKGROUND_COLOR		0x00000000
+#endif
+
 #define NOT_DEFAULT_WINDOW 99
 #define CMA_REGION_FIMD 	"fimd"
 #ifdef CONFIG_EXYNOS4_CONTENT_PATH_PROTECTION
@@ -57,12 +71,6 @@ int s3cfb_draw_logo(struct fb_info *fb)
 #ifdef CONFIG_FB_S5P_SPLASH_SCREEN
 	struct fb_fix_screeninfo *fix = &fb->fix;
 	struct fb_var_screeninfo *var = &fb->var;
-#if defined(CONFIG_FB_MX_MIPI_LCD) || defined(CONFIG_FB_MX2_MIPI_LCD)
-#if defined(CONFIG_MACH_M040)
-	#include "mx2_logo.h"
-#else
-	#include "mx_logo.h"
-#endif
 
 	u32 height = var->yres;
 	u32 width = var->xres;
@@ -76,18 +84,32 @@ int s3cfb_draw_logo(struct fb_info *fb)
 	pr_debug("%s: draw mx logo:base=0x%x, yres=%d, xres=%d, height=%d, width=%d\n", __func__, (int)screen_base, var->yres, var->xres, var->height, var->width);
 
 	/* Clear the whole screen */
-	memset(screen_base, 0x00, (height * width) * 4);
+	for (i = 0; i < (height * width) * 4; i+=4) 
+		*(int*)(screen_base+i) = LOGO_BACKGROUND_COLOR;
 
 #ifdef CONFIG_MX_RECOVERY_KERNEL
 	if(!is_display_logo())
 		return 0;
 #endif
+
 	screen_xbase = screen_base + Y_MEIZUMX_LOGO_START * line;
+#if defined(CONFIG_MX_UNICOM_KERNEL)
+	for (i = Y_MEIZUMX_LOGO_START; i < Y_MEIZUMX_LOGO_START + MEIZUMX_LOGO_HEIGHT; i++) {
+		for (j = X_MEIZUMX_LOGO_START; j < X_MEIZUMX_LOGO_START + MEIZUMX_LOGO_WIDTH; j++) {
+			memset(screen_xbase + (j << 2) + 3, 0x00, 1);
+			memset(screen_xbase + (j << 2) + 2, boot_logo_grey_bmp[pixel_index++], 1);
+			memset(screen_xbase + (j << 2) + 1, boot_logo_grey_bmp[pixel_index++], 1);
+			memset(screen_xbase + (j << 2) + 0, boot_logo_grey_bmp[pixel_index++], 1);
+		}
+		screen_xbase += line;
+	}
+#else
 	for (i = Y_MEIZUMX_LOGO_START; i < Y_MEIZUMX_LOGO_START + MEIZUMX_LOGO_HEIGHT; i++) {
 		for (j = X_MEIZUMX_LOGO_START; j < X_MEIZUMX_LOGO_START + MEIZUMX_LOGO_WIDTH; j++)
 			memset(screen_xbase + (j << 2), boot_logo_grey_bmp[pixel_index++], 3);
 		screen_xbase += line;
 	}
+#endif
 #else //CONFIG_FB_S5P_M9X_LCD
 	u32 height = var->yres / 3;
 	u32 line = fix->line_length;
