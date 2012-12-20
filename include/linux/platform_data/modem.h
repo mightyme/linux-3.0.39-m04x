@@ -22,6 +22,16 @@ enum modem_t {
 	DUMMY,
 };
 
+#define  MODEM_CONNECT_FLAG     0x0001
+#define  MODEM_RESET_FLAG       0x0002
+#define  MODEM_CRASH_FLAG       0x0004
+#define  MODEM_DUMP_FLAG        0x0008
+#define  MODEM_DISCONNECT_FLAG  0x0010
+#define  MODEM_SIM_DETECT_FLAG  0x0020
+#define  MODEM_INIT_ON_FLAG     0x0040
+
+#define  MODEM_EVENT_MASK       0x007E
+
 enum MODEM_EVENT_TYPE {
 	MODEM_EVENT_POWEROFF,
 	MODEM_EVENT_RESET,
@@ -167,15 +177,6 @@ struct modem_data {
 	bool use_handover;
 
 };
-
-#define  MODEM_CONNECT_FLAG     0x0001
-#define  MODEM_RESET_FLAG       0x0002
-#define  MODEM_CRASH_FLAG       0x0004
-#define  MODEM_DUMP_FLAG        0x0008
-#define  MODEM_DISCONNECT_FLAG  0x0010
-#define  MODEM_SIM_DETECT_FLAG  0x0020
-#define  MODEM_INIT_ON_FLAG     0x0040
-#define  MODEM_EVENT_MASK       0x007E
 
 #define  MC_SUCCESS       0
 #define  MC_HOST_HIGH     1

@@ -311,8 +311,10 @@ static int hsic_send(struct link_device *ld, struct io_device *iod,
 	struct usb_link_device *usb_ld = to_usb_link_device(ld);
 	struct link_pm_data *pm_data = usb_ld->link_pm_data;
 
-	if (usb_ld->ld.com_state != COM_ONLINE)
+	if (usb_ld->ld.com_state != COM_ONLINE) {
+		modem_notify_event(MODEM_EVENT_DISCONN); 
 		return -ENODEV;
+	}
 
 	if (iod->send_delay && (iod->io_typ == IODEV_NET) \
 			&& (1400 == skb->len))
@@ -952,6 +954,8 @@ static void modem_hsic_disconnect(struct usb_interface *intf)
 	/* cancel runtime start delayed works */
 	cancel_delayed_work(&pm_data->hsic_pm_start);
 	cancel_delayed_work(&ld->tx_delayed_work);
+		
+	modem_notify_event(MODEM_EVENT_DISCONN); 
 
 	return;
 }

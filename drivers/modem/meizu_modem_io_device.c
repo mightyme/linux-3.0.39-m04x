@@ -529,8 +529,10 @@ modem_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
 	size_t tx_size;
 	int err;
 
-	if (!iod)
+	if (!iod) {
+		pr_info("%s iod -ENODEV!\n", __func__);
 		return -ENODEV;
+	}
 
 	ld = get_current_link(iod);
 
@@ -559,6 +561,7 @@ modem_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
 
 	err = ld->send(ld, iod, skb);
 	if (err < 0) {
+		pr_info("%s ld send error:%d!\n", __func__, err);
 		dev_kfree_skb_any(skb);
 		return err;
 	}
