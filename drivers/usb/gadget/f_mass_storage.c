@@ -300,7 +300,6 @@
 
 #include "gadget_chips.h"
 
-
 /*------------------------------------------------------------------------*/
 
 #define FSG_DRIVER_DESC		"Mass Storage Function"
@@ -315,6 +314,8 @@ static const char fsg_string_interface[] = "Mass Storage";
 
 #include "storage_common.c"
 
+#define STORAGE_OPEN  2 
+#define STORAGE_CLOSE 3 
 /*-------------------------------------------------------------------------*/
 
 struct fsg_dev;
@@ -3217,6 +3218,12 @@ fsg_add(struct usb_composite_dev *cdev, struct usb_configuration *c,
 
 /************************* Module parameters *************************/
 
+#ifdef CONFIG_USB_GADGET
+extern int usb_gadget_notifier_call_chain(unsigned long val);
+#else
+static int usb_gadget_notifier_call_chain(unsigned long val) {return 0;}
+#endif
+
 struct fsg_module_parameters {
 	char		*file[FSG_MAX_LUNS];
 	int		ro[FSG_MAX_LUNS];
@@ -3325,10 +3332,16 @@ static void fsg_adjust_wake_lock(struct fsg_common *common)
 			}
 		}
 		spin_unlock_irq(&common->lock);
-		if (ums_active)
+		if (ums_active) {
+			pr_info("usb mass function open\n");
+			usb_gadget_notifier_call_chain(STORAGE_OPEN);
 			fsg_wake_lock();
-		else
+		}
+		else {
+			pr_info("usb mass function close\n");
+			usb_gadget_notifier_call_chain(STORAGE_CLOSE);
 			fsg_wake_unlock();
+		}
 	}
 }
 static void fsg_wake_lock(void)

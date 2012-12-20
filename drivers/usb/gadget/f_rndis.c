@@ -43,6 +43,9 @@ static void rndis_wake_unlock(void);
 static struct wake_lock rndis_wakelock;
 #endif
 #endif
+
+#define RNDIS_OPEN  4 
+#define RNDIS_CLOSE 5 
 /*
  * This function is an RNDIS Ethernet port -- a Microsoft protocol that's
  * been promoted instead of the standard CDC Ethernet.  The published RNDIS
@@ -656,6 +659,11 @@ static void rndis_disable(struct usb_function *f)
 }
 
 /*-------------------------------------------------------------------------*/
+#ifdef CONFIG_USB_GADGET
+extern int usb_gadget_notifier_call_chain(unsigned long val);
+#else
+static int usb_gadget_notifier_call_chain(unsigned long val) {return 0;}
+#endif
 
 /*
  * This isn't quite the same mechanism as CDC Ethernet, since the
@@ -669,11 +677,11 @@ static void rndis_open(struct gether *geth)
 	struct f_rndis		*rndis = func_to_rndis(&geth->func);
 	struct usb_composite_dev *cdev = geth->func.config->cdev;
 
-	DBG(cdev, "%s\n", __func__);
-
+	pr_info("rndis function open\n");
 	rndis_set_param_medium(rndis->config, NDIS_MEDIUM_802_3,
 				bitrate(cdev->gadget) / 100);
 	rndis_signal_connect(rndis->config);
+	usb_gadget_notifier_call_chain(RNDIS_OPEN);
 #if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	rndis_wake_lock();
 #endif
@@ -684,7 +692,8 @@ static void rndis_close(struct gether *geth)
 	struct f_rndis		*rndis = func_to_rndis(&geth->func);
 
 	DBG(geth->func.config->cdev, "%s\n", __func__);
-
+	pr_info("rndis function close\n");
+	usb_gadget_notifier_call_chain(RNDIS_CLOSE);
 	rndis_set_param_medium(rndis->config, NDIS_MEDIUM_802_3, 0);
 	rndis_signal_disconnect(rndis->config);
 #if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)

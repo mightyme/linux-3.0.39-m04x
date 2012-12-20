@@ -32,6 +32,8 @@
 #include <asm/mach-types.h>
 
 #define ADB_BULK_BUFFER_SIZE           4096
+#define ADB_OPEN  1 
+#define ADB_CLOSE 0 
 
 /* number of tx requests to allocate */
 #define TX_REQ_MAX 4
@@ -156,6 +158,30 @@ static struct usb_descriptor_header *ss_adb_descs[] = {
 
 static void adb_ready_callback(void);
 static void adb_closed_callback(void);
+
+/*---------------------usb notifier------------------*/
+static BLOCKING_NOTIFIER_HEAD(usb_gadget_chain_head);
+
+int register_usb_gadget_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&usb_gadget_chain_head, nb);
+}
+EXPORT_SYMBOL_GPL(register_usb_gadget_notifier);
+
+int unregister_usb_gadget_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&usb_gadget_chain_head, nb);
+}
+EXPORT_SYMBOL_GPL(unregister_usb_gadget_notifier);
+
+int usb_gadget_notifier_call_chain(unsigned long val)
+{
+	return (blocking_notifier_call_chain(&usb_gadget_chain_head, val, NULL)
+			== NOTIFY_BAD) ? -EINVAL : 0;
+}
+EXPORT_SYMBOL_GPL(usb_gadget_notifier_call_chain);
+
+/*------------------------------------------------------*/
 
 /* temporary variable used between adb_open() and adb_gadget_bind() */
 static struct adb_dev *_adb_dev;
@@ -464,7 +490,7 @@ static int adb_open(struct inode *ip, struct file *fp)
 	_adb_dev->error = 0;
 
 	adb_ready_callback();
-
+	usb_gadget_notifier_call_chain(ADB_OPEN);
 #if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	check_adb_lock();
 #endif
@@ -476,7 +502,7 @@ static int adb_release(struct inode *ip, struct file *fp)
 	printk(KERN_INFO "adb_release\n");
 
 	adb_closed_callback();
-
+	usb_gadget_notifier_call_chain(ADB_CLOSE);
 	adb_unlock(&_adb_dev->open_excl);
 #if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
 	check_adb_lock();
@@ -679,6 +705,7 @@ extern int register_max77665_charger_notifier(struct notifier_block *nb);
 #else
 static int register_max77665_charger_notifier(struct notifier_block *nb){return 0;}
 #endif
+
 static int register_charger_notifier(struct notifier_block *nb)
 {
 	if(machine_is_m030())
@@ -691,10 +718,11 @@ static void check_adb_lock(void)
 {
 	mutex_lock(&lock_mutex);
 #ifdef CONFIG_WAKELOCK
-	if(charger_status && atomic_read(&_adb_dev->open_excl) != 0)
+	if(charger_status && atomic_read(&_adb_dev->open_excl) != 0) {
 		wake_lock(&adb_wake_lock);
-	else
+	} else {
 		wake_unlock(&adb_wake_lock);
+	}
 #endif
 	mutex_unlock(&lock_mutex);
 }
@@ -717,6 +745,8 @@ static void adb_wake_lock_init(void)
 	wake_lock_init(&adb_wake_lock, WAKE_LOCK_SUSPEND, "adb_lock");
 #endif
 	mutex_init(&lock_mutex);
+
 	register_charger_notifier(&charger_notifier);
+
 }
 #endif//CONFIG_MX_SERIAL_TYPE

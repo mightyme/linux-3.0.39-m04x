@@ -30,22 +30,22 @@
 #include <plat/adc.h>
 #include <linux/bq27541-private.h>
 
-#define MAX_AC_CURRENT         1000 
-#define CHGIN_USB_CURRENT      450
-#define CHGIN_USB_SED_CURRENT  700
-#define TEMP_CHECK_DELAY       (120 * HZ) 
-#define WAKE_ALARM_INT         (120) 
-#define CURRENT_INCREMENT_STEP 100    /*mA*/
-#define COMPLETE_TIMEOUT       200   /*ms*/ 
-#define MA_TO_UA               1000  
+#define MAX_AC_CURRENT          1000  
+#define CHGIN_USB_CURRENT	450
+#define TEMP_CHECK_DELAY        (120*HZ) 
+#define WAKE_ALARM_INT          (120) 
+#define CURRENT_INCREMENT_STEP  100   /*mA*/ 
+#define COMPLETE_TIMEOUT        200   /*ms*/ 
+#define MA_TO_UA                1000  
 
-#define BATTERY_TEMP_0		0
-#define BATTERY_TEMP_5		50
-#define BATTERY_TEMP_10		100
-#define BATTERY_TEMP_15		150
-#define BATTERY_TEMP_5CURRENT	180
-#define BATTERY_TEMP_10CURRENT	300
-#define BATTERY_TEMP_15CURRENT	500
+#define BATTERY_TEMP_0		0   /*0oC*/
+#define BATTERY_TEMP_5		50  /*5oC*/
+#define BATTERY_TEMP_10		100 /*10oC*/
+#define BATTERY_TEMP_15		150 /*15oC*/
+#define BATTERY_TEMP_45		450 /*45oC*/
+#define BATTERY_TEMP_5CURRENT	180 /*0.1C*/
+#define BATTERY_TEMP_10CURRENT	300 
+#define BATTERY_TEMP_15CURRENT	500 
 #define BATTERY_TEMP_4VOLTAGE   4000
 
 #define MAX77665_CHGIN_DTLS       0x60 
@@ -60,6 +60,13 @@
 #define MAX77665_BYP_OK_SHIFT     0    
 #define MAX77665_CHGIN_OK         0x40 
 #define MAX77665_CHGIN_OK_SHIFT   6    
+
+#define ADB_CLOSE	0
+#define ADB_OPEN	1
+#define STORAGE_OPEN	2
+#define STORAGE_CLOSE	3
+#define	RNDIS_OPEN	4
+#define	RNDIS_CLOSE	5
 
 struct max77665_charger
 {
@@ -108,9 +115,30 @@ struct max77665_charger
 	bool adc_flag;
 	struct s3c_adc_client *adc;
 	bool BATTERY;
-	bool battery_abnormal;
 	int battery_current;
+	int battery_health;
+	struct notifier_block usb_notifer;
+	bool adb_open;
+	bool storage_open;
+	bool rndis_open;
 };
+
+enum {
+ 	BATTERY_HEALTH_UNKNOW = 0,
+ 	BATTERY_HEALTH_GOOD,
+ 	BATTERY_HEALTH_LOW1,
+ 	BATTERY_HEALTH_LOW2,
+  	BATTERY_HEALTH_LOW3,
+	BATTERY_HEALTH_OVERHEAT,
+	BATTERY_HEALTH_COLD,
+};
+
+#ifdef CONFIG_USB_GADGET 
+extern int register_usb_gadget_notifier(struct notifier_block *nb);
+#else
+static int register_usb_gadget_notifier(struct notifier_block *nb) {return 0;}
+#endif
+
 static BLOCKING_NOTIFIER_HEAD(max77665_charger_chain_head);
 
 int register_max77665_charger_notifier(struct notifier_block *nb)
@@ -236,45 +264,54 @@ static int adc_is_available(struct max77665_charger *charger)
 	}
 }
 
-static void max77665_battery_temp_abnormal(struct max77665_charger *charger)
+static void max77665_usb_charger(struct max77665_charger *charger)
+{
+	if (!regulator_is_enabled(charger->ps))
+		regulator_enable(charger->ps);
+
+	regulator_set_current_limit(charger->ps, CHGIN_USB_CURRENT * MA_TO_UA,
+			MAX_AC_CURRENT * MA_TO_UA);
+}
+
+static int max77665_battery_temp_status(struct max77665_charger *charger)
 {
 	struct power_supply *fuelgauge_ps
 		= power_supply_get_by_name("fuelgauge");
 	union power_supply_propval val;
 	int battery_temp = 0, battery_voltage = 0;
-
-	if (fuelgauge_ps)
+	
+	if (fuelgauge_ps) {
 		if(fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_TEMP, &val) == 0) 
 			battery_temp = val.intval;
-	if (fuelgauge_ps)
+		else
+			return  BATTERY_HEALTH_UNKNOW;
 		if(fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_VOLTAGE_NOW, &val) == 0) 
 			battery_voltage = val.intval;
-
-	if (battery_temp < BATTERY_TEMP_15) {
-		if (((battery_temp < BATTERY_TEMP_10) 
-			&& (battery_voltage >= BATTERY_TEMP_4VOLTAGE * MA_TO_UA))
-				|| ((battery_temp < BATTERY_TEMP_5)
-					&& (battery_temp >= BATTERY_TEMP_0))) {
+		else 
+			return BATTERY_HEALTH_UNKNOW;
+		
+		if (battery_temp < BATTERY_TEMP_0) {
+			return BATTERY_HEALTH_COLD;
+		} else if (battery_temp > BATTERY_TEMP_45) {
+			return BATTERY_HEALTH_OVERHEAT;
+		} else if (battery_temp < BATTERY_TEMP_5) {
 			charger->battery_current = BATTERY_TEMP_5CURRENT;
-		} else if ((battery_temp < BATTERY_TEMP_10) 
-				&& (battery_temp >= BATTERY_TEMP_5)) {
-			charger->battery_current = BATTERY_TEMP_10CURRENT;
-		} else if ((battery_temp < BATTERY_TEMP_15)
-				&& (battery_temp >= BATTERY_TEMP_10)) {
+			return BATTERY_HEALTH_LOW3;
+		} else if (battery_temp < BATTERY_TEMP_10) {
+			if (battery_voltage > BATTERY_TEMP_4VOLTAGE * MA_TO_UA) {
+				charger->battery_current = BATTERY_TEMP_5CURRENT;
+				return BATTERY_HEALTH_LOW3;
+			} else {
+				charger->battery_current = BATTERY_TEMP_10CURRENT;
+				return BATTERY_HEALTH_LOW2;
+			}
+		} else if (battery_temp < BATTERY_TEMP_15) {
 			charger->battery_current = BATTERY_TEMP_15CURRENT;
-		}
-		charger->battery_abnormal = true;
-	} else {
-		charger->battery_abnormal = false;
-	}
-	
-	if (charger->battery_abnormal) {
-		if (!regulator_is_enabled(charger->ps)) 
-			regulator_enable(charger->ps);
-		regulator_set_current_limit(charger->ps,
-				charger->battery_current * MA_TO_UA,
-				MAX_AC_CURRENT * MA_TO_UA);
-	}
+			return BATTERY_HEALTH_LOW1;
+		} else 
+			return BATTERY_HEALTH_GOOD;
+	} 
+	return BATTERY_HEALTH_UNKNOW;
 }
 
 static int max77665_adjust_current(struct max77665_charger *charger,
@@ -324,27 +361,44 @@ static int max77665_charger_types(struct max77665_charger *charger)
 {
 	enum cable_status_t cable_status = charger->cable_status;
 	int chgin_ilim = 0;
-	
+	int battery_status;
+
 	if (!regulator_is_enabled(charger->ps))
 		regulator_enable(charger->ps);
-
-	max77665_battery_temp_abnormal(charger);
-	switch (cable_status) {
-	case CABLE_TYPE_USB:
-	case CABLE_TYPE_AC:	
-		chgin_ilim = charger->chgin_ilim_usb;
-		if ((false == charger-> done) &&
-				(!charger->battery_abnormal)) {
-			pr_info("we want to adjust the input current now\n");
-			max77665_adjust_current(charger, chgin_ilim);
-			charger->done = true;
-		} else {
-			pr_info("we have adjusted already\n");
+	
+	battery_status = max77665_battery_temp_status(charger);
+	if (battery_status == BATTERY_HEALTH_LOW1
+			|| battery_status == BATTERY_HEALTH_LOW2
+			|| battery_status == BATTERY_HEALTH_LOW3) {
+		charger->done = false;
+		regulator_set_current_limit(charger->ps,
+				charger->battery_current * MA_TO_UA,
+				MAX_AC_CURRENT * MA_TO_UA);
+	} else {
+		switch (cable_status) {
+		case CABLE_TYPE_USB:
+		case CABLE_TYPE_AC:	
+			chgin_ilim = charger->chgin_ilim_usb;
+			if (false == charger-> done) {
+				pr_info("we want to adjust the input current now\n");
+				if (charger->cable_status == CABLE_TYPE_USB) {
+					if (charger->adb_open || charger->storage_open
+							|| charger->rndis_open) 
+						max77665_usb_charger(charger);
+					else 
+						max77665_adjust_current(charger, chgin_ilim);
+				} else {
+					max77665_adjust_current(charger, chgin_ilim);
+				}
+				charger->done = true;
+			} else {
+				pr_info("we have adjusted already\n");
+			}
+			break;
+		default:
+			chgin_ilim = 0;
+			break;
 		}
-		break;
-	default:
-		chgin_ilim = 0;
-		break;
 	}
 	return 0;
 }
@@ -354,8 +408,7 @@ static void max77665_work_func(struct work_struct *work)
 	struct max77665_charger *charger =
 		container_of(work, struct max77665_charger, dwork.work);
 	enum cable_status_t cable_status = CABLE_TYPE_NONE;
-	u8 reg_data;
-	
+
 	mutex_lock(&charger->mutex_t);
 	
 	if (charger->chgin) {
@@ -376,18 +429,27 @@ static void max77665_work_func(struct work_struct *work)
 		}
 #else
 		do {
+			u8 reg_data;
 			max77665_read_reg(charger->iodev->muic, MAX77665_MUIC_REG_CDETCTRL1, &reg_data);
 			max77665_write_reg(charger->iodev->muic, MAX77665_MUIC_REG_CDETCTRL1, reg_data | 0x02);
 			pr_info("#############usb start detect\n");
 			msleep(500);
+
 			max77665_read_reg(charger->iodev->muic, MAX77665_MUIC_REG_STATUS2, &reg_data);
 			pr_info("#############usb end detect (0x%02x)\n", reg_data);
-			if ((reg_data & 0x08) == 0x08) {
-				pr_info("running######\n");
+			if (reg_data & 0x08) {
+				pr_info("wait, running#####\n");
+				max77665_read_reg(charger->iodev->muic, MAX77665_MUIC_REG_CDETCTRL1, 
+						&reg_data);
+				max77665_write_reg(charger->iodev->muic, MAX77665_MUIC_REG_CDETCTRL1,
+						reg_data | 0x02);
+				pr_info("#############usb start detect again\n");
 				msleep(500);
-				max77665_read_reg(charger->iodev->muic, MAX77665_MUIC_REG_STATUS2, &reg_data);
-				if ((reg_data & 0x08) == 0x08) {
-					pr_info("the muic error\n");
+				max77665_read_reg(charger->iodev->muic, MAX77665_MUIC_REG_STATUS2, 
+						&reg_data);
+				pr_info("#############usb end detect (0x%02x)\n", reg_data);
+				if (reg_data & 0x08) {
+					pr_info("muic detect usb is error\n");
 					cable_status = CABLE_TYPE_USB;
 				} else {
 					if ((reg_data & 0x07) == 0x01) {
@@ -397,18 +459,15 @@ static void max77665_work_func(struct work_struct *work)
 				}
 			} else {
 				if ((reg_data & 0x07) == 0x01) {
-					cable_status = CABLE_TYPE_USB;
-				} else 
-					cable_status = CABLE_TYPE_AC;
+						cable_status = CABLE_TYPE_USB;
+					} else 
+						cable_status = CABLE_TYPE_AC;
 			}
 		} while(0);
 #endif
 	} else {
 		charger->done = false;
 		charger->adc_flag = false;
-		regulator_set_current_limit(charger->ps, 
-				charger->chgin_ilim_usb * MA_TO_UA, 
-				MAX_AC_CURRENT * MA_TO_UA);
 		cable_status = CABLE_TYPE_NONE;
 	}
 
@@ -457,19 +516,10 @@ static void max77665_poll_work_func(struct work_struct *work)
 	struct power_supply *fuelgauge_ps
 		= power_supply_get_by_name("fuelgauge");
 	union power_supply_propval val;
-	int battery_health = POWER_SUPPLY_HEALTH_GOOD;
+	int battery_health = BATTERY_HEALTH_UNKNOW;
 
 	mutex_lock(&charger->mutex_t);
-	if (fuelgauge_ps)
-		if(fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_HEALTH, &val) == 0)
-			battery_health = val.intval;
-	
-	max77665_battery_temp_abnormal(charger);
-	if (charger->battery_abnormal) {
-		charger->done = false;
-	} else {
-		max77665_charger_types(charger);
-	}
+	battery_health = max77665_battery_temp_status(charger);
 
 	if (charger->chg_status == CHG_STATUS_FAST ||
 			charger->chg_status == CHG_STATUS_RECHG) {
@@ -482,16 +532,22 @@ static void max77665_poll_work_func(struct work_struct *work)
 			}
 		}
 	}
-
 	if ( charger->cable_status == CABLE_TYPE_USB ||
 			charger->cable_status == CABLE_TYPE_AC) {
 
-		if(battery_health != POWER_SUPPLY_HEALTH_GOOD) {
+		if (battery_health == BATTERY_HEALTH_COLD 
+				|| battery_health == BATTERY_HEALTH_OVERHEAT 
+				|| battery_health == BATTERY_HEALTH_UNKNOW) {
+			pr_info("----------battery unhealthy, disable charging\n");
 			if (regulator_is_enabled(charger->ps)) {
-				pr_info("----------battery unhealthy, disable charging\n");
 				regulator_disable(charger->ps);
 			}
 		} else {
+			if (charger->battery_health != battery_health) {
+				if (!regulator_is_enabled(charger->ps))
+					regulator_enable(charger->ps);
+				max77665_charger_types(charger);
+			}
 			if (regulator_is_enabled(charger->ps)) {
 				if (charger->chg_status == CHG_STATUS_DONE && fuelgauge_ps) {
 					int soc = 100;
@@ -511,6 +567,8 @@ static void max77665_poll_work_func(struct work_struct *work)
 			pr_info("--------------charger remove, disable charging\n");
 		}
 	}
+	pr_debug("###########the current = %d\n",regulator_get_current_limit(charger->ps));
+	charger->battery_health = battery_health;
 	mutex_unlock(&charger->mutex_t);
 }
 
@@ -623,25 +681,8 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 	
 	pr_info("-----%s %s\n", __func__, chgin ? "insert" : "remove");
 	if (charger->BATTERY) {	
-		if ((!chgin) && (charger->cable_status == CABLE_TYPE_USB) 
-				&& (adc_is_available(charger))) {
-			if (charger->adc_flag == true) {
-				pr_info("USB:The sedcond decrease current\n");
-				regulator_set_current_limit(charger->ps,
-						CHGIN_USB_CURRENT * MA_TO_UA,
-						MAX_AC_CURRENT * MA_TO_UA);	
-			} else {
-				pr_info("USB:The first decrease current\n");
-				charger->adc_flag = true; 
-				regulator_set_current_limit(charger->ps,
-						CHGIN_USB_SED_CURRENT * MA_TO_UA,
-						MAX_AC_CURRENT * MA_TO_UA);	
-			}
-		}
-		if ((!chgin) && (charger->cable_status == CABLE_TYPE_AC)
-				&& (adc_is_available(charger))) {
+		if ((!chgin) && (adc_is_available(charger))) {
 			charger->adc_flag = true;
-			msleep(50);
 			if (charger->done == true) {
 				pr_info("adjust current done\n");
 				now_current = regulator_get_current_limit(charger->ps);
@@ -653,7 +694,8 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 					msleep(100);
 					max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK,
 							&int_ok);
-					pr_info("TYPE_AC: %d\n", now_current);
+					pr_info("TYPE %d current %d\n", charger->cable_status,
+							now_current);
 					if (int_ok == 0X5d)
 						break;
 				} while (now_current > CHGIN_USB_CURRENT * MA_TO_UA);
@@ -664,24 +706,14 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 		alarm_cancel(&charger->alarm);
 		if(chgin)
 			set_alarm(charger, WAKE_ALARM_INT);
-		charger->chgin = chgin;		
-		pr_info("charger->chgin = %d\n", charger->chgin);
+		charger->chgin = chgin;	
 		charger->chg_status = CHG_STATUS_FAST;
-			
+	
 		if (delayed_work_pending(&charger->dwork))
 			cancel_delayed_work(&charger->dwork);
 			
 		schedule_delayed_work(&charger->dwork, HZ/4);
 	} else {
-		if ((charger->cable_status == CABLE_TYPE_USB)
-				&& (charger->adc_flag == true)) {
-			charger->done = false;
-			charger->adc_flag = false;
-			if (!charger->chgin)
-				charger->cable_status = CABLE_TYPE_NONE;
-			power_supply_changed(&charger->psy_ac);
-			power_supply_changed(&charger->psy_usb);
-		}
 		pr_info("unstable charger isr, dismiss this isr\n");
 		msleep(2000);
 		wake_unlock(&charger->wake_lock);
@@ -691,7 +723,6 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 static irqreturn_t max77665_charger_isr(int irq, void *dev_id)
 {
 	struct max77665_charger *charger = dev_id;
-	
 	schedule_work_on(0, &charger->chgin_work);
 	return IRQ_HANDLED;
 }
@@ -841,6 +872,77 @@ error:
 	return ret;
 }
 
+static int max77665_charger_event(struct notifier_block *this, unsigned long event,
+		void *ptr)
+{
+	struct max77665_charger *charger = container_of(this,
+			struct max77665_charger, usb_notifer);
+	
+	int battery_status;
+	battery_status = max77665_battery_temp_status(charger);
+	if (battery_status == BATTERY_HEALTH_GOOD) {
+		switch (event) {
+		case ADB_CLOSE:
+			pr_info("adb close##########\n");
+			charger->adb_open = false;
+			if (charger->storage_open || charger->rndis_open) 
+				charger->done = true;
+			else 
+				charger->done = false;
+			max77665_charger_types(charger);
+			break;
+		case ADB_OPEN:
+			pr_info("adb open##########\n");
+			if (charger->cable_status == CABLE_TYPE_USB) 
+				max77665_usb_charger(charger);
+			charger->done = false;
+			charger->adb_open = true;
+			break;
+		case STORAGE_OPEN:
+			pr_info("usb mass storage open######\n");
+			max77665_usb_charger(charger);
+			charger->storage_open = true;
+			charger->done = false;
+			break;
+		case STORAGE_CLOSE:
+			pr_info("usb mass stroage close######\n");
+			if (!charger->storage_open)
+				break;
+			charger->storage_open = false;
+			if (charger->adb_open || charger->rndis_open) {
+				if (charger->chgin)  
+					max77665_usb_charger(charger);
+			} else {
+				charger->done = false;
+				max77665_charger_types(charger);
+			}
+			break;
+		case RNDIS_OPEN:
+			pr_info("rndis open#######\n");
+			max77665_usb_charger(charger);
+			charger->done = false;
+			charger->rndis_open = true;
+			break;
+		case RNDIS_CLOSE:
+			pr_info("rndis close########\n");
+			charger->rndis_open = false;
+			if (charger->adb_open || charger->storage_open) {
+				charger->done = true;
+			} else {
+				charger->done = false;
+				max77665_charger_types(charger);
+			}
+			break;
+		default:
+			break;
+		}
+	}
+	pr_info("usb related,current:%d, event:%ld, chgin:%d\n",
+			regulator_get_current_limit(charger->ps)
+			, event, charger->chgin);
+	return event;
+}
+
 static __devinit int max77665_charger_probe(struct platform_device *pdev)
 {
 	struct max77665_dev *iodev = dev_get_drvdata(pdev->dev.parent);
@@ -849,7 +951,6 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	struct power_supply *fuelgauge_ps;
 	u8 reg_data;
 	int ret = EINVAL;
-
 	charger = kzalloc(sizeof(struct max77665_charger), GFP_KERNEL);
 	if (unlikely(!charger))
 		return -ENOMEM;
@@ -865,8 +966,12 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	charger->done = false;
 	charger->adc_flag = false;
 	charger->BATTERY = true;
-	charger->battery_abnormal = false;
-
+	charger->adb_open = false;
+	charger->storage_open = false;
+	charger->rndis_open = false;
+	charger->usb_notifer.notifier_call = max77665_charger_event;
+	register_usb_gadget_notifier(&charger->usb_notifer);
+	
 	init_completion(&charger->byp_complete);
 	mutex_init(&charger->mutex_t);
 	wake_lock_init(&charger->wake_lock, WAKE_LOCK_SUSPEND, pdata->name);
@@ -906,7 +1011,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 		pr_info("sorry, you should has battery\n");
 		charger->BATTERY = false;
 	}
-	
+
 	charger->psy_charger.name = "charger";
 	charger->psy_charger.type = POWER_SUPPLY_TYPE_BATTERY;
 	charger->psy_charger.properties = max77665_charger_props,
