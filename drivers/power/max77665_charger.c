@@ -121,6 +121,7 @@ struct max77665_charger
 	bool adb_open;
 	bool storage_open;
 	bool rndis_open;
+	int count;
 };
 
 enum {
@@ -289,7 +290,7 @@ static int max77665_battery_temp_status(struct max77665_charger *charger)
 			battery_voltage = val.intval;
 		else 
 			return BATTERY_HEALTH_UNKNOW;
-		
+
 		if (battery_temp < BATTERY_TEMP_0) {
 			return BATTERY_HEALTH_COLD;
 		} else if (battery_temp > BATTERY_TEMP_45) {
@@ -349,10 +350,15 @@ static int max77665_adjust_current(struct max77665_charger *charger,
 			}
 			break;
 		}
-		if (charger->adc_flag == true)
+		if (charger->adc_flag) {
+			pr_info("adc flag %d\n", charger->adc_flag);
 			break;
-		if (!adc_is_available(charger))
+		}
+		if (!adc_is_available(charger)) {
+			pr_info("adc available %d\n",adc_is_available(charger));
+			charger->count ++;
 			break;
+		}
 	}
 	return ret;
 }
@@ -390,7 +396,11 @@ static int max77665_charger_types(struct max77665_charger *charger)
 				} else {
 					max77665_adjust_current(charger, chgin_ilim);
 				}
-				charger->done = true;
+				if (charger->count > 0) {
+					charger->done = false;
+					charger->count = 0;
+				} else 
+					charger->done = true;
 			} else {
 				pr_info("we have adjusted already\n");
 			}
@@ -468,6 +478,10 @@ static void max77665_work_func(struct work_struct *work)
 	} else {
 		charger->done = false;
 		charger->adc_flag = false;
+		charger->count = 0;
+		regulator_set_current_limit(charger->ps,
+				charger->chgin_ilim_usb * MA_TO_UA,
+				MAX_AC_CURRENT * MA_TO_UA);
 		cable_status = CABLE_TYPE_NONE;
 	}
 
@@ -683,23 +697,19 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 	if (charger->BATTERY) {	
 		if ((!chgin) && (adc_is_available(charger))) {
 			charger->adc_flag = true;
-			if (charger->done == true) {
-				pr_info("adjust current done\n");
-				now_current = regulator_get_current_limit(charger->ps);
-				do{
-					now_current -= CURRENT_INCREMENT_STEP * MA_TO_UA;
-					regulator_set_current_limit(charger->ps,
-							now_current,
-							now_current + CURRENT_INCREMENT_STEP*MA_TO_UA);
-					msleep(100);
-					max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK,
-							&int_ok);
-					pr_info("TYPE %d current %d\n", charger->cable_status,
-							now_current);
-					if (int_ok == 0X5d)
-						break;
-				} while (now_current > CHGIN_USB_CURRENT * MA_TO_UA);
-			}			
+			now_current = regulator_get_current_limit(charger->ps);
+			do{
+				now_current -= CURRENT_INCREMENT_STEP * MA_TO_UA;
+				regulator_set_current_limit(charger->ps,
+						now_current,
+						now_current + CURRENT_INCREMENT_STEP*MA_TO_UA);
+				msleep(100);
+				max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK,
+						&int_ok);
+				pr_info("current %d\n", now_current);
+				if (int_ok == 0X5d)
+					break;
+			} while (now_current > CHGIN_USB_CURRENT * MA_TO_UA);
 		}
 	}
 	if (charger->chgin != chgin) {
