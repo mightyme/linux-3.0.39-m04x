@@ -54,7 +54,7 @@
 #endif
 
 #define _CMD_FIFO_USED_
-
+#define ENABLE_DIAG_IOCTLS
 #define ES305B_24M_SOC_FW "es305b_24m_soc_fw.bin"
 
 static int es305b_i2c_read(struct i2c_client *client,
@@ -556,10 +556,10 @@ int es305b_execute_cmdmsg(unsigned int msg)
 			AUD_DBG("Execute_cmd OK, %08x", msg);
 			break;
 		} else if (msgbuf[2] == 0xff && msgbuf[3] == 0xff) {
-			AUD_ERR("illegal cmd %08x, %x, %x, %x, %x\n", msg, chkbuf[0], chkbuf[1], chkbuf[2], chkbuf[3] );
+			AUD_ERR("illegal cmd %08x, %x, %x, %x, %x\n", msg, chkbuf[0], chkbuf[1], chkbuf[2], chkbuf[3]);
 			ret = -EINVAL;
 			continue;
-		} else if ( msgbuf[2] == 0x00 && msgbuf[3] == 0x00 ) {
+		} else if (msgbuf[2] == 0x00 && msgbuf[3] == 0x00) {
 			AUD_DBG("not ready (%d retries), %x, %x, %x, %x\n", \
 				retries, chkbuf[0], chkbuf[1], chkbuf[2], chkbuf[3]);
 			ret = -EBUSY;
@@ -795,19 +795,169 @@ static void es305b_destroy_atts(struct device * dev)
 		device_remove_file(dev, &es305b_attrs[i]);
 }
 
+static ssize_t es305b_bootup_init(struct file *file, struct es305bimg *img)
+{
+	struct es305bimg *fw = file->private_data;
+	int ret = 0;
+	short cmds;
+
+	if (img->img_size > ES305B_MAX_FW_SIZE) {
+		pr_err("%s: invalid es305b image size %d\n", __func__,
+			img->img_size);
+		return -EINVAL;
+	}
+
+	fw->buf = kmalloc(img->img_size, GFP_KERNEL);
+	if (!fw->buf) {
+		pr_err("%s: out of memory\n", __func__);
+		return -ENOMEM;
+	}
+	fw->img_size = img->img_size;
+	if (copy_from_user(fw->buf, img->buf, img->img_size)) {
+		pr_err("%s: copy from user failed\n", __func__);
+		kfree(fw->buf);
+		return -EFAULT;
+	}
+
+#ifdef	CONFIG_REGULATOR_AUDIO_CRYSTAL
+	/* Enable A1026 clock */
+	regulator_enable(a1026_ps);
+	mdelay(100);
+#endif
+
+	es305b_wakeup();
+
+	es305b_hardware_reset();
+
+	cmds = be16_to_cpu(ES305B_MSG_BOOT);
+	ret = es305b_i2c_write(es305b->client, sizeof(cmds), &cmds);
+	if (ret) {
+		AUD_ERR("failed to es305b_i2c_write\n");
+		goto error_fw;
+	}
+
+	mdelay(1);
+	ret = es305b_i2c_read(es305b->client, sizeof(cmds), &cmds);
+	if (ret) {
+		AUD_ERR("failed to es305b_i2c_read\n");
+		goto error_fw;
+	}
+	if (ES305B_MSG_BOOT_ACK != cmds) {
+		AUD_ERR("not a boot-mode ack, cmds = 0x%x\n", cmds);
+		goto error_fw;
+	}
+#ifdef _CMD_FIFO_USED_
+{
+	cmds = RETRY_CNT;
+	while (cmds--) {
+		int remaining;
+		const u8 *index;
+
+		/* Download firmware to device*/
+		remaining = fw->img_size / ES305B_CMD_FIFO_DEPTH;
+		index = fw->buf;
+
+		AUD_INFO("ES305B: starting to load firmware ...\n");
+		for (; remaining > 0; remaining--, index += ES305B_CMD_FIFO_DEPTH) {
+			ret = es305b_i2c_write(es305b->client, ES305B_CMD_FIFO_DEPTH, index);
+			if (ret < 0)
+				break;
+		}
+
+		if (ret >= 0 && fw->img_size % ES305B_CMD_FIFO_DEPTH)
+			ret = es305b_i2c_write(es305b->client, fw->img_size % ES305B_CMD_FIFO_DEPTH, index);
+
+		if (ret == 0) {
+			msleep(120); /* Delay time before issue a Sync Cmd */
+			ret = es305b_execute_cmdmsg((A200_msg_Sync << 16) | A200_msg_Sync_Polling);
+			if (ret < 0) {
+				AUD_ERR("failed to es305b_i2c_write\n");
+				continue;
+			}
+
+			break;
+		}
+
+#ifdef DEBUG
+	for (i = 0; i < size; i++) {
+		if ( !(i & 0x3)) printk("\n");
+		printk("%.2X ", ack_buf[i]);
+	}
+	printk("\n");
+#endif
+		AUD_ERR("firmware load error %d (%d retries left)\n", ret, cmds);
+	}
+
+	if (ret < 0)
+		AUD_ERR("failed to load firmware \n");
+	else
+		AUD_INFO("firmware load successfully \n");
+
+}
+#else
+	ret = es305b_i2c_write(es305b->client, fw->size, fw->data);
+	if (ret) {
+		AUD_ERR("failed to es305b_i2c_write at %d line\n", __LINE__);
+		goto error_fw;
+	}
+#endif
+	/* waiting es305b initialize done */
+	msleep(120);
+
+	ret = es305b_setmode(ES305B_SUSPEND);
+	if (!ret)
+
+error_fw:
+
+	kfree(fw->buf);
+	return ret;
+}
+
+#if defined(ENABLE_DIAG_IOCTLS)
+static int exe_cmd_in_file(unsigned char *incmd)
+{
+	int rc = 0;
+	int i = 0;
+	unsigned int cmd_msg = 0;
+	unsigned char tmp = 0;
+
+	for (i = 0; i < 4; i++) {
+		tmp = *(incmd + i);
+		cmd_msg |= (unsigned int)tmp;
+		if (i != 3)
+			cmd_msg = cmd_msg << 8;
+	}
+	rc = es305b_execute_cmdmsg(cmd_msg);
+	if (rc < 0)
+		pr_err("%s: cmd %08x error %d\n", __func__, cmd_msg, rc);
+
+	return rc;
+}
+#endif
+
 static long es305b_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	int *config_data = NULL;
+	struct es305bimg img;
 	struct es305b_config_data param;
+#if defined(ENABLE_DIAG_IOCTLS)
+	char msg[4];
+#endif
 	int i = 0;
 	int rc = 0;
 
-	unsigned int pathid;
-	int ns_state;
+	unsigned int mode;
 	unsigned int dtime;
 
 	switch (cmd) {
+	case ES305B_BOOTUP_INIT:
+		img.buf = 0;
+		img.img_size = 0;
+		if (copy_from_user(&img, argp, sizeof(img)))
+			return -EFAULT;
+		rc = es305b_bootup_init(file, &img);
+		break;
 	case ES305B_HWRESET_CMD:
 		AUD_DBG("%s ES305B_HWRESET_CMD \n", __func__);
 		es305b_hardware_reset();
@@ -830,25 +980,6 @@ static long es305b_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		es305b_wakeup();
 		break;
 
-	case ES305B_SYNC_CMD:
-		AUD_DBG("%s ES305B_SEND_SYNC \n", __func__);
-		mdelay(100);
-		rc = es305b_execute_cmdmsg((A200_msg_Sync << 16) | A200_msg_Sync_Polling);
-		if (rc < 0) {
-			sync_done = 0;
-			AUD_DBG("%s: sync command error %d", __func__, rc);
-		} else {
-			sync_done = 1;
-			AUD_DBG("%s: sync command ok", __func__);
-		}
-		break;
-	case ES305B_READ_SYNC_DONE:
-		AUD_DBG("%s ES305B_READ_SYNC_DONE\n", __func__);
-		if (copy_to_user(argp, &sync_done, sizeof(sync_done))) {
-			return -EFAULT;
-		}
-		break;
-
 	case ES305B_MDELAY:
 		AUD_DBG("%s ES305B_MDELAY\n", __func__);
 		if (copy_from_user(&dtime, argp, sizeof(dtime))) {
@@ -860,11 +991,11 @@ static long es305b_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case ES305B_SET_CONFIG:
 		AUD_DBG("%s ES305B_SET_CONFIG \n", __func__);
-		if (copy_from_user(&pathid, argp, sizeof(unsigned int))) {
+		if (copy_from_user(&mode, argp, sizeof(unsigned int))) {
 			AUD_ERR("%s: copy from user failed.\n", __func__);
 			return -EFAULT;
 		}
-		if (pathid < 0 || pathid >= (unsigned int)ES305B_PATH_MAX)
+		if (mode < 0 || mode >= (unsigned int)ES305B_PATH_MAX)
 			return -EINVAL;
 		rc = es305b_wakeup();
 		if (rc < 0) {
@@ -876,9 +1007,9 @@ static long es305b_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				return -EINVAL;
 			}
 		}
-		rc = es305b_soc_config(pathid);
+		rc = es305b_soc_config(mode);
 		if (rc < 0)
-			AUD_ERR("%s: ES305B_SOC_CONFIG (%d) error %d!\n", __func__, pathid, rc);
+			AUD_ERR("%s: ES305B_SOC_CONFIG (%d) error %d!\n", __func__, mode, rc);
 		break;
 
 	case ES305B_SET_PARAM:
@@ -896,7 +1027,6 @@ static long es305b_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			AUD_ERR("%s: invalid data\n", __func__);
 			return -EINVAL;
 		}
-
 		if (config_data == NULL)
 			config_data = (int*)kmalloc(param.data_len * sizeof(int), GFP_KERNEL);
 		if (!config_data) {
@@ -918,11 +1048,56 @@ static long es305b_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				return -EFAULT;
 			}
 		}
-
 		AUD_DBG("%s: update ES305B mode commands success.\n",\
 			__func__);
 		rc = 0;
 		break;
+#if defined(ENABLE_DIAG_IOCTLS)
+	case ES305B_READ_DATA:
+		rc = es305b_wakeup();
+		if (rc < 0)
+			return rc;
+		rc = es305b_i2c_read(es305b->client, sizeof(msg), msg);
+		if (copy_to_user(argp, msg, sizeof(msg)))
+			return -EFAULT;
+		break;
+	case ES305B_WRITE_MSG:
+		rc = es305b_wakeup();
+		if (rc < 0)
+			return rc;
+		if (copy_from_user(msg, argp, sizeof(msg)))
+			return -EFAULT;
+		rc = es305b_i2c_write(es305b->client, sizeof(msg), msg);
+		break;
+	case ES305B_SYNC_CMD:
+		AUD_DBG("%s ES305B_SEND_SYNC \n", __func__);
+		rc = es305b_wakeup();
+		if (rc < 0)
+			return rc;
+		rc = es305b_execute_cmdmsg((A200_msg_Sync << 16) | A200_msg_Sync_Polling);
+		if (rc < 0) {
+			sync_done = 0;
+			AUD_DBG("%s: sync command error %d", __func__, rc);
+		} else {
+			sync_done = 1;
+			AUD_DBG("%s: sync command ok", __func__);
+		}
+		break;
+	case ES305B_READ_SYNC_DONE:
+		AUD_DBG("%s ES305B_READ_SYNC_DONE\n", __func__);
+		if (copy_to_user(argp, &sync_done, sizeof(sync_done))) {
+			return -EFAULT;
+		}
+		break;
+	case ES305B_SET_CMD_FILE:
+		rc = es305b_wakeup();
+		if (rc < 0)
+			return rc;
+		if (copy_from_user(msg, argp, sizeof(msg)))
+			return -EFAULT;
+		rc = exe_cmd_in_file(msg);
+		break;
+#endif
 
 	default:
 		AUD_ERR("%s: invalid command\n", __func__);
@@ -955,7 +1130,7 @@ static const struct file_operations es305b_fileops = {
 
 static struct miscdevice es305b_device = {
 	.minor = MISC_DYNAMIC_MINOR,
-	.name = "audience_es305",
+	.name = "audience_es305b",
 	.fops = &es305b_fileops,
 };
 

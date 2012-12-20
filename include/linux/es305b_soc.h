@@ -176,6 +176,11 @@ enum es305b_status {
 	ES305B_RST,
 };
 
+struct es305bimg {
+	unsigned char *buf;
+	unsigned img_size;
+};
+
 enum es305b_reset {
 	ES305B_SOFTWARE_RST,
 	ES305B_COLD_RST,
@@ -214,6 +219,13 @@ struct es305b_img {
 #define ES305B_MDELAY _IOW(ES305B_IOCTL_MAGIC, 16, unsigned int)
 #define ES305B_READ_FAIL_COUNT _IOR(ES305B_IOCTL_MAGIC, 17, unsigned int *)
 #define ES305B_READ_SYNC_DONE _IOR(ES305B_IOCTL_MAGIC, 18, bool *)
+
+/* For Diag */
+#define ES305B_SET_MIC_ONOFF	_IOW(ES305B_IOCTL_MAGIC, 0x50, unsigned)
+#define ES305B_SET_MICSEL_ONOFF	_IOW(ES305B_IOCTL_MAGIC, 0x51, unsigned)
+#define ES305B_READ_DATA		_IOR(ES305B_IOCTL_MAGIC, 0x52, unsigned)
+#define ES305B_WRITE_MSG		_IOW(ES305B_IOCTL_MAGIC, 0x53, unsigned)
+#define ES305B_SET_CMD_FILE	_IOW(ES305B_IOCTL_MAGIC, 0x54, unsigned)
 
 extern int es305b_setmode(int mode);
 
