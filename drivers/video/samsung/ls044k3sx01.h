@@ -115,7 +115,7 @@ static const struct ls044k3sx01_param ls044k3sx01_slpin_seq[] = {
 };
 static const struct ls044k3sx01_param ls044k3sx01_dspon_seq[] = {
 	LCD_PARAM_DCS_CMD(10, MIPI_DCS_SET_DISPLAY_ON, 0x0),
-	LCD_PARAM_DCS_CMD(0, MIPI_DCS_BACKLIGHT_ON, 0x4),
+	LCD_PARAM_DCS_CMD(0, MIPI_DCS_BACKLIGHT_ON, 0x24),
 	LCD_PARAM_DEF_END,
 };
 static const struct ls044k3sx01_param ls044k3sx01_dspoff_seq[] = {
@@ -128,12 +128,11 @@ static const struct ls044k3sx01_param ls044k3sx01_cabc_seq[] = {
 	LCD_PARAM_DEF(0xB5,0x01,0xff,0x02,0x00,0x00,0x08,0x1c,0x00),
 	LCD_PARAM_DCS_CMD(0, 0x5E, 0x3C),
 	LCD_PARAM_DCS_CMD(0, 0x51, 0xFF),
-	LCD_PARAM_DCS_CMD(0, MIPI_DCS_BACKLIGHT_ON, 0x2C),
 	LCD_PARAM_DCS_CMD(0, 0x55, 0x02),
 	LCD_PARAM_DEF_END,
 };
 static const struct ls044k3sx01_param ls044k3sx01_cabc_seq_off[] = {
-	LCD_PARAM_DCS_CMD(0, MIPI_DCS_BACKLIGHT_ON, 0x04),
+	LCD_PARAM_DCS_CMD(0, 0x55, 0x00),
 	LCD_PARAM_DEF_END,
 };
 static const struct ls044k3sx01_param ls044k3sx01_cabc_gradient[] = {
