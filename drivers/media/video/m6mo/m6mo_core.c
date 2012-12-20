@@ -793,6 +793,8 @@ static int m6mo_set_capture_mode(struct v4l2_subdev *sd)
 
 	pr_info("%s:wdr = %d\n", __func__, state->userset.wdr);
 
+	if (state->mode == CAPTURE_MODE) return 0;
+
 	m6mo_prepare_wait(sd);
 
 	ret = m6mo_w8(sd,  SYS_MODE_REG, SYS_CAPTURE_MODE);	
@@ -834,7 +836,13 @@ int m6mo_set_mode(struct v4l2_subdev *sd, enum isp_mode mode)
 {
 	int ret;
 
-	pr_info("%s(), set ISP mode to %d\n", __func__, mode);
+	if (to_state(sd)->mode == mode) {
+		pr_warn("%s(), ISP mode has already been set to %d\n",
+			__func__, mode);
+		return 0;
+	} else {
+		pr_info("%s(), set ISP mode to %d\n", __func__, mode);
+	}
 
 	switch (mode) {	
 	case PARAMETER_MODE:
