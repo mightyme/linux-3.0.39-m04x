@@ -222,7 +222,7 @@
 #define __FSA8108_DEBUG__ 				0
 #define EARPHONE_ADC_CAHNNEL 			3
 #define MIC_DETECT_NOPRESSED			200 //adc value when no key press
-#define WAKE_LOCK_TIME					2*HZ
+#define WAKE_LOCK_TIME					8*HZ
 
 struct fsa8108_info {
 	struct i2c_client		*client;	
