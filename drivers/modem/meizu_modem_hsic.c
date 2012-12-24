@@ -84,6 +84,7 @@ static int pm_data_get_device(struct link_pm_data *pm_data, int new_state)
 			break;
 		}
 		if (new_state == ACM_SUSPEND) {
+			MIF_ERR("new_state == ACM_SUSPEND\n");
 			spin_unlock(&pm_data->pm_data_lock);
 			return -EAGAIN;
 		}
@@ -430,6 +431,7 @@ static void hsic_tx_work(struct work_struct *work)
 	pm_data->tx_cnt++;
 
 	while (ld->sk_raw_tx_q.qlen) {
+		wake_lock(&pm_data->tx_async_wake);
 		ret = hsic_pm_runtime_get_active(pm_data);
 		if (ret < 0) {
 			MIF_ERR("link not avail. ret:%d\n", ret);
@@ -496,9 +498,9 @@ static int hsic_pm_runtime_get_active(struct link_pm_data *pm_data)
 	}
 
 	if (pm_data->dpm_suspending) {
-		MIF_DEBUG("Kernel in suspending try get_active later\n");
 		/* during dpm_suspending...if AP get tx data, wake up. */
 		wake_lock(&pm_data->l2_wake);
+		MIF_ERR("Kernel in suspending try get_active later\n");
 		return -EAGAIN;
 	}
 
@@ -530,7 +532,7 @@ static int hsic_pm_runtime_get_active(struct link_pm_data *pm_data)
 	}
 
 	if (dev->power.runtime_status != RPM_ACTIVE) {
-		MIF_DEBUG("link_active (%d) retry\n",
+		MIF_ERR("link_active (%d) retry\n",
 				dev->power.runtime_status);
 		return -EAGAIN;
 	} else
