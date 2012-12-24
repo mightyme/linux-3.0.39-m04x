@@ -35,6 +35,7 @@
 #include <linux/regulator/consumer.h>
 #include <plat/gpio-cfg.h>
 #include <plat/devs.h>
+#include <mach/gpio-m040.h>
 
 #define DEV_NAME	"max77665-muic"
 
@@ -216,6 +217,45 @@ static void muic_mhl_work(struct work_struct *work)
 	}
 }
 
+static ssize_t debug_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct max77665_muic_info *info = g_info;
+	unsigned long debug = simple_strtoul(buf, NULL, 10);
+	if(debug == 0) {
+		gpio_set_value(M040_USB_SELECT, 0);
+	} else {
+		int ret;
+		u8 val, msk;
+
+		val = (0x1 << COMN1SW_SHIFT) | (0x1 << COMP2SW_SHIFT);
+
+		msk = COMN1SW_MASK | COMP2SW_MASK;
+
+		ret = max77665_update_reg(info->muic, MAX77665_MUIC_REG_CTRL1, val, msk);
+	}
+	return count;
+}
+
+static ssize_t debug_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct max77665_muic_info *info = g_info;
+	int usb_gpio = gpio_get_value(M040_USB_SELECT);
+	int usb_dm, usb_dp;
+	u8 val;
+
+	max77665_read_reg(info->muic, MAX77665_MUIC_REG_CTRL1, &val);
+	usb_dm = !!(val & COMN1SW_MASK);
+	usb_dp = !!(val & COMP2SW_MASK);
+
+	return sprintf(buf, "usb_gpio %d usb_dm %d usb_dp %d\n", 
+			usb_gpio, usb_dm, usb_dp);
+}
+
+static DEVICE_ATTR(debug, S_IRUGO|S_IWUSR|S_IWGRP,
+		   				debug_show, debug_store);
+
 static int __devinit max77665_muic_probe(struct platform_device *pdev)
 {
 	struct max77665_dev *max77665 = dev_get_drvdata(pdev->dev.parent);
@@ -269,6 +309,12 @@ static int __devinit max77665_muic_probe(struct platform_device *pdev)
 	ret = request_threaded_irq(irq, 0, max77665_muic_isr,
 			0, "max77665_adc", info);
 
+	/* create sysfs attributes */
+	ret = sysfs_create_file(&pdev->dev.kobj, &dev_attr_debug.attr);
+	if (ret < 0) {
+		pr_debug("sysfs_create_group failed\n");
+	}
+
 	return 0;
 
 fail1:
@@ -297,11 +343,35 @@ void max77665_muic_shutdown(struct device *dev)
 	return ;
 }
 
+#ifdef CONFIG_PM
+static int max77665_muic_suspend(struct device *dev)
+{
+	gpio_set_value(M040_USB_SELECT, 1);
+	pr_info("%s##############\n", __func__);
+	return 0;
+}
+
+static int max77665_muic_resume(struct device *dev)
+{
+	gpio_set_value(M040_USB_SELECT, 0);
+	pr_info("%s##############\n", __func__);
+	return 0;
+}
+
+static const struct dev_pm_ops max77665_pm_ops = {
+	.suspend        = max77665_muic_suspend,
+	.resume		= max77665_muic_resume,
+};
+#endif
+
 static struct platform_driver max77665_muic_driver = {
 	.driver		= {
 		.name	= DEV_NAME,
 		.owner	= THIS_MODULE,
 		.shutdown = max77665_muic_shutdown,
+#ifdef CONFIG_PM
+		.pm       =  &max77665_pm_ops,
+#endif
 	},
 	.probe		= max77665_muic_probe,
 	.remove		= __devexit_p(max77665_muic_remove),
