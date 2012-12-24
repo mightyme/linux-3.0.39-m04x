@@ -99,6 +99,15 @@ err_regulator_get:
 	kfree(led);
 	return ret;
 }
+static void torch_led_shutdown(struct platform_device *pdev)
+{
+	struct torch_led *led = platform_get_drvdata(pdev);
+	
+	if (led) {
+		if (regulator_is_enabled(led->regulator))
+			regulator_disable(led->regulator);
+	}
+}
 
 static int __devexit torch_led_remove(struct platform_device *pdev)
 {
@@ -117,6 +126,7 @@ static struct platform_driver torch_led_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe  = torch_led_probe,
+	.shutdown = torch_led_shutdown,
 	.remove = __devexit_p(torch_led_remove),
 };
 
