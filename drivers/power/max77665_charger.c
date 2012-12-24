@@ -290,7 +290,7 @@ static int max77665_battery_temp_status(struct max77665_charger *charger)
 			battery_voltage = val.intval;
 		else 
 			return BATTERY_HEALTH_UNKNOW;
-
+		
 		if (battery_temp < BATTERY_TEMP_0) {
 			return BATTERY_HEALTH_COLD;
 		} else if (battery_temp > BATTERY_TEMP_45) {
@@ -369,9 +369,6 @@ static int max77665_charger_types(struct max77665_charger *charger)
 	int chgin_ilim = 0;
 	int battery_status;
 
-	if (!regulator_is_enabled(charger->ps))
-		regulator_enable(charger->ps);
-	
 	battery_status = max77665_battery_temp_status(charger);
 	if (battery_status == BATTERY_HEALTH_LOW1
 			|| battery_status == BATTERY_HEALTH_LOW2
@@ -474,6 +471,7 @@ static void max77665_work_func(struct work_struct *work)
 						cable_status = CABLE_TYPE_AC;
 			}
 		} while(0);
+		regulator_enable(charger->ps);
 #endif
 	} else {
 		charger->done = false;
@@ -552,6 +550,7 @@ static void max77665_poll_work_func(struct work_struct *work)
 		if (battery_health == BATTERY_HEALTH_COLD 
 				|| battery_health == BATTERY_HEALTH_OVERHEAT 
 				|| battery_health == BATTERY_HEALTH_UNKNOW) {
+			charger->done = false;
 			pr_info("----------battery unhealthy, disable charging\n");
 			if (regulator_is_enabled(charger->ps)) {
 				regulator_disable(charger->ps);
@@ -887,8 +886,10 @@ static int max77665_charger_event(struct notifier_block *this, unsigned long eve
 {
 	struct max77665_charger *charger = container_of(this,
 			struct max77665_charger, usb_notifer);
-	
 	int battery_status;
+	if (regulator_is_enabled(charger->reverse))
+		return event;
+
 	battery_status = max77665_battery_temp_status(charger);
 	if (battery_status == BATTERY_HEALTH_GOOD) {
 		switch (event) {
@@ -1000,7 +1001,6 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 				PTR_ERR(charger->ps));
 		goto err_free;
 	}
-	regulator_enable(charger->ps);
 
 	charger->reverse = regulator_get(NULL, "reverse");
 	if (IS_ERR(charger->reverse)) {
@@ -1015,7 +1015,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 		ret = PTR_ERR(charger->adc);
 		goto err_put;
 	}
-
+	
 	fuelgauge_ps = power_supply_get_by_name("fuelgauge");
 	if (!fuelgauge_ps) {
 		pr_info("sorry, you should has battery\n");
