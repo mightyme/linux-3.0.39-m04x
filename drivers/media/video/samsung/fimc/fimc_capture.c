@@ -867,6 +867,7 @@ static struct v4l2_subdev *fimc_get_cam_subdev(const char *module_name)
 	else 
 		sd = NULL;
 
+	put_device(dev);
 	put_driver(drv);
 
 	return sd;	
