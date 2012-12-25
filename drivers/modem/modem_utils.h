@@ -73,13 +73,4 @@ void iodevs_for_each(struct mif_common *commons, action_fn action, void *args);
 void iodev_netif_wake(struct io_device *iod, void *args);
 void iodev_netif_stop(struct io_device *iod, void *args);
 
-/* change tx_link of raw devices */
-void rawdevs_set_tx_link(struct mif_common *commons, enum modem_link link_type);
-
-void mif_add_timer(struct timer_list *timer, unsigned long expire,
-		void (*function)(unsigned long), unsigned long data);
-
-/* debug helper functions for sipc4, sipc5 */
-void mif_print_data(char *buf, int len);
-
 #endif/*__MODEM_UTILS_H__*/

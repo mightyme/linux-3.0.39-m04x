@@ -109,7 +109,6 @@ struct modem_io_t {
 	enum modem_io io_type;
 	enum modem_link links;
 	enum modem_link tx_link;
-	bool rx_gather;
 };
 
 struct modemlink_pm_data {
@@ -154,9 +153,6 @@ struct modem_data {
 	unsigned gpio_hostwake;
 	unsigned gpio_slavewake;
 
-	/* Switch with 2 links in a modem */
-	unsigned gpio_dynamic_switching;
-
 	/* Modem component */
 	enum modem_network  modem_net;
 	enum modem_t        modem_type;
@@ -172,10 +168,6 @@ struct modem_data {
 
 	void (*gpio_revers_bias_clear)(void);
 	void (*gpio_revers_bias_restore)(void);
-
-	/* Handover with 2+ modems */
-	bool use_handover;
-
 };
 
 #define  MC_HOST_SUCCESS        0 

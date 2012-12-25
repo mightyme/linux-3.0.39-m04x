@@ -153,8 +153,4 @@ struct usb_link_device {
 #define to_usb_link_device(linkdev) \
 			container_of(linkdev, struct usb_link_device, ld)
 
-#ifdef FOR_TEGRA
-extern void tegra_ehci_txfilltuning(void);
-#endif
-
 #endif

@@ -37,72 +37,6 @@
 #define MODEM_DUMPING		6
 #define MODEM_RUNNING		7
 
-#define IP6VERSION		6
-
-/* Debugging features */
-#define MAX_MIF_LOG_PATH_LEN	128
-#define MAX_MIF_LOG_FILE_SIZE	0x800000	/* 8 MB */
-
-#define MAX_MIF_EVT_BUFF_SIZE	256
-#define MAX_MIF_TIME_LEN	32
-#define MAX_MIF_NAME_LEN	16
-#define MAX_MIF_STR_LEN		127
-#define MAX_MIF_LOG_LEN		128
-
-struct dpram_queue_status {
-	unsigned in;
-	unsigned out;
-};
-
-struct dpram_queue_status_pair {
-	struct dpram_queue_status txq;
-	struct dpram_queue_status rxq;
-};
-
-struct dpram_irq_buff {
-	unsigned magic;
-	unsigned access;
-	struct dpram_queue_status_pair qsp[MAX_IPC_DEV];
-	unsigned int2ap;
-	unsigned int2cp;
-};
-
-struct mif_event_buff {
-	char time[MAX_MIF_TIME_LEN];
-
-	struct timeval tv;
-
-	char mc[MAX_MIF_NAME_LEN];
-
-	char iod[MAX_MIF_NAME_LEN];
-
-	char ld[MAX_MIF_NAME_LEN];
-	enum modem_link link_type;
-
-	unsigned rcvd;
-	unsigned len;
-	union {
-		u8 data[MAX_MIF_LOG_LEN];
-		struct dpram_irq_buff dpram_irqb;
-	};
-};
-
-#define MIF_LOG_DIR	"/sdcard"
-#define MIF_LOG_LV_FILE	"/data/.mif_log_level"
-
-/* Does modem ctl structure will use state ? or status defined below ?*/
-enum modem_state {
-	STATE_OFFLINE,
-	STATE_CRASH_RESET, /* silent reset */
-	STATE_CRASH_EXIT,  /* cp ramdump */
-	STATE_BOOTING,
-	STATE_ONLINE,
-	STATE_NV_REBUILDING, /* <= rebuilding start */
-	STATE_LOADER_DONE,
-	STATE_SIM_ATTACH,
-	STATE_SIM_DETACH,
-};
-
 enum com_state {
 	COM_NONE,
 	COM_ONLINE,
@@ -119,38 +53,6 @@ enum link_mode {
 	LINK_MODE_ULOAD,
 };
 
-#define HDLC_START		0x7F
-#define HDLC_END		0x7E
-#define SIZE_OF_HDLC_START	1
-#define SIZE_OF_HDLC_END	1
-#define MAX_LINK_PADDING_SIZE	3
-
-struct fmt_hdr {
-	u16 len;
-	u8 control;
-} __packed;
-
-struct raw_hdr {
-	u32 len;
-	u8 channel;
-	u8 control;
-} __packed;
-
-struct rfs_hdr {
-	u32 len;
-	u8 cmd;
-	u8 id;
-} __packed;
-
-struct sipc_fmt_hdr {
-	u16 len;
-	u8  msg_seq;
-	u8  ack_seq;
-	u8  main_cmd;
-	u8  sub_cmd;
-	u8  cmd_type;
-} __packed;
-
 struct vnet {
 	int pkt_sz;
 	struct io_device *iod;
@@ -164,7 +66,6 @@ struct vnet {
 struct skbuff_private {
 	struct io_device *iod;
 	struct link_device *ld;
-	struct io_device *real_iod; /* for rx multipdp */
 };
 
 static inline struct skbuff_private *skbpriv(struct sk_buff *skb)
@@ -202,8 +103,6 @@ struct io_device {
 	atomic_t opened;
 	atomic_t is_iod_op;
 
-	/* Misc and net device structures for the IO device */
-	//struct miscdevice  miscdev;
 	struct device *ttydev;
 	struct net_device *ndev;
 	struct tty_struct *tty;
@@ -226,9 +125,6 @@ struct io_device {
 	** use this for private io device rx action
 	*/
 	struct delayed_work rx_work;
-
-	/* for multi-frame */
-	struct sk_buff *skb[128];
 
 	/* called from linkdevice when a packet arrives for this iodevice */
 	int (*recv)(struct io_device *iod, struct link_device *ld,
@@ -279,9 +175,6 @@ struct link_device {
 
 	struct sk_buff_head *skb_txq[MAX_IPC_DEV];
 
-	bool raw_tx_suspended; /* for misc dev */
-	struct completion raw_tx_resumed_by_cp;
-
 	struct workqueue_struct *tx_wq;
 	struct work_struct tx_work;
 	struct delayed_work tx_delayed_work;
@@ -306,20 +199,6 @@ struct link_device {
 	int (*send)(struct link_device *ld, struct io_device *iod,
 			struct sk_buff *skb);
 
-	int (*udl_start)(struct link_device *ld, struct io_device *iod);
-
-	int (*force_dump)(struct link_device *ld, struct io_device *iod);
-
-	int (*dump_start)(struct link_device *ld, struct io_device *iod);
-
-	int (*modem_update)(struct link_device *ld, struct io_device *iod,
-			unsigned long arg);
-
-	int (*dump_update)(struct link_device *ld, struct io_device *iod,
-			unsigned long arg);
-
-	int (*ioctl)(struct link_device *ld, struct io_device *iod,
-			unsigned cmd, unsigned long _arg);
 };
 
 struct modemctl_ops {
@@ -351,9 +230,7 @@ struct modem_ctl {
 
 	struct mif_common commons;
 
-	enum modem_state phone_state;
 	int sim_state;
-
 	unsigned gpio_cp_on;
 	unsigned gpio_reset_req_n;
 	unsigned gpio_cp_reset;
@@ -374,28 +251,12 @@ struct modem_ctl {
 	int irq_link_hostwake;
 
 	struct workqueue_struct *rx_wq;
-	struct work_struct work;
 
 	struct modemctl_ops ops;
 	struct io_device *iod;
 
 	void (*gpio_revers_bias_clear)(void);
 	void (*gpio_revers_bias_restore)(void);
-
-	/* TODO this will be move to struct mif_common */
-	atomic_t log_open;
-
-	struct workqueue_struct *evt_wq;
-	struct work_struct evt_work;
-	struct sk_buff_head evtq;
-
-	char log_path[MAX_MIF_LOG_PATH_LEN];
-	struct file *log_fp;
-
-	bool fs_ready;
-	bool fs_failed;
-
-	char *buff;
 
 	struct completion *l2_done;
 	int enum_done;

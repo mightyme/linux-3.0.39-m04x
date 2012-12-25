@@ -1288,8 +1288,6 @@ struct link_device *hsic_create_link_device(void *data)
 	ld->terminate_comm = hsic_close_channel;
 	ld->send = hsic_send;
 	ld->com_state = COM_NONE;
-	ld->raw_tx_suspended = false;
-	init_completion(&ld->raw_tx_resumed_by_cp);
 
 	ld->tx_wq = create_singlethread_workqueue("usb_tx_wq");
 	if (!ld->tx_wq) {
