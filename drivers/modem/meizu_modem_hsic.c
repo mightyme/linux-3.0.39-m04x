@@ -582,7 +582,7 @@ static void hsic_pm_runtime_start(struct work_struct *work)
 
 static inline int hsic_pm_slave_wake(struct link_pm_data *pm_data)
 {
-	int ret  = 0;
+	int ret = MC_HOST_SUCCESS;
 	int val;
 
 	val = gpio_get_value(pm_data->gpio_hostwake);
@@ -619,26 +619,33 @@ static void hsic_pm_runtime_work(struct work_struct *work)
 		container_of(work, struct link_pm_data, hsic_pm_work.work);
 	struct usb_device *usbdev = pm_data->usb_ld->usbdev;
 	struct device *dev = &usbdev->dev;
-	int host_wakeup_done = 0;
-	int spin1 = 10;
-	int spin2 = 20;
+	int spin1 = 1000;
+	int spin2 = 1000;
 
-	if (!pm_data->usb_ld->if_usb_connected || pm_data->dpm_suspending)
+	if (pm_data->dpm_suspending) {
+		wake_lock_timeout(&pm_data->l2_wake, msecs_to_jiffies(5000));
+		MIF_ERR("pm_data->dpm_suspending:%d\n", \
+				pm_data->dpm_suspending);
+		queue_delayed_work(pm_data->wq, &pm_data->hsic_pm_work,
+							msecs_to_jiffies(20));
 		return;
-
-	if (pm_data->usb_ld->ld.com_state == COM_NONE)
+	}
+retry:
+	if (!pm_data->usb_ld->if_usb_connected) {
+		MIF_ERR("pm_data->usb_ld->if_usb_connected:%d\n", \
+				pm_data->usb_ld->if_usb_connected);
+		modem_notify_event(MODEM_EVENT_DISCONN);
 		return;
-
+	}
+	if (pm_data->usb_ld->ld.com_state == COM_NONE) {
+		MIF_ERR("pm_data->usb_ld->ld.com_state:%d\n", \
+				pm_data->usb_ld->ld.com_state);
+		modem_notify_event(MODEM_EVENT_DISCONN);
+		return;
+	}
 	MIF_DEBUG("for dev 0x%p : current %d\n", dev,
 				dev->power.runtime_status);
 
-	usb_mark_last_busy(usbdev);
-
-retry:
-	if (!pm_data->usb_ld->if_usb_connected)
-		return;
-	if (pm_data->usb_ld->ld.com_state == COM_NONE)
-		return;
 	switch (dev->power.runtime_status) {
 	case RPM_ACTIVE:
 		pm_data->resume_retry_cnt = 0;
@@ -649,42 +656,11 @@ retry:
 	case RPM_SUSPENDED:
 		if (pm_data->resume_requested)
 			break;
-		if (pm_data->dpm_suspending || host_wakeup_done) {
-			MIF_DEBUG("DPM Suspending, spin:%d\n", spin2);
-			if (spin2-- == 0) {
-				MIF_ERR("dpm resume timeout\n");
-				break;
-			}
-			msleep(50);
-			goto retry;
-		}
 		pm_data->resume_requested = true;
 		wake_lock(&pm_data->rpm_wake);
 		ret = hsic_pm_slave_wake(pm_data);
-		switch (ret) {
-		case MC_SUCCESS:
-			host_wakeup_done = 1;
-			/*wait until RPM_ACTIVE states*/
-			goto retry;
-		case MC_HOST_TIMEOUT:
+		if (MC_HOST_TIMEOUT == ret)
 			break;
-		case MC_HOST_HIGH:
-			if (spin2-- == 0) {
-				MIF_ERR("MC_HOST_HIGH! spin2==0\n");
-				if(!hsic_pm_runtime_get_active(pm_data)) {
-					host_wakeup_done = 1;
-					spin2 = 20;
-					goto retry;
-				}
-				MIF_ERR("Modem resume fail\n");
-			}
-			break;
-		}
-		if (spin2-- == 0) {
-			MIF_ERR("ACM initiated resume, RPM_SUSPEND timeout\n");
-			modem_notify_event(MODEM_EVENT_DISCONN);
-			break;
-		}
 		if (!pm_data->usb_ld->if_usb_connected) {
 			modem_notify_event(MODEM_EVENT_DISCONN);
 			wake_unlock(&pm_data->rpm_wake);
@@ -712,17 +688,19 @@ retry:
 		MIF_DEBUG("RPM Suspending, spin:%d\n", spin1);
 		if (spin1-- == 0) {
 			MIF_ERR("Modem suspending timeout\n");
+			modem_notify_event(MODEM_EVENT_DISCONN);
 			break;
 		}
-		msleep(100);
+		msleep(1);
 		goto retry;
 	case RPM_RESUMING:
 		MIF_DEBUG("RPM Resuming, spin:%d\n", spin2);
 		if (spin2-- == 0) {
 			MIF_ERR("Modem resume timeout\n");
+			modem_notify_event(MODEM_EVENT_DISCONN);
 			break;
 		}
-		msleep(50);
+		msleep(1);
 		goto retry;
 	default:
 		break;
@@ -733,12 +711,15 @@ retry:
 		pm_data->resume_retry_cnt = 0;
 		complete(&pm_data->active_done);
 	} else if (pm_data->resume_retry_cnt++ > 10) {
-		MIF_ERR("runtime_status(%d), retry_cnt(%d)\n",
+		MIF_ERR("runtime_status:%d, retry_cnt:%d, notify MODEM_EVENT_DISCONN\n",
 			dev->power.runtime_status, pm_data->resume_retry_cnt);
 		modem_notify_event(MODEM_EVENT_DISCONN);
-	} else
+	} else {
+		MIF_ERR("runtime_status:%d, retry_cnt:%d, redo hsic_pm_work\n",
+			dev->power.runtime_status, pm_data->resume_retry_cnt);
 		queue_delayed_work(pm_data->wq, &pm_data->hsic_pm_work,
 							msecs_to_jiffies(20));
+	}
 }
 
 static irqreturn_t host_wakeup_irq_handler(int irq, void *data)
@@ -753,8 +734,8 @@ static irqreturn_t host_wakeup_irq_handler(int irq, void *data)
 
 	/*igonore host wakeup interrupt at suspending kernel*/
 	if (pm_data->dpm_suspending) {
-		MIF_ERR("%s when suspending\n", __func__);
 		wake_lock_timeout(&pm_data->l2_wake, msecs_to_jiffies(5000));
+		MIF_ERR("%s when suspending\n", __func__);
 	}
 
 	if (!mc->enum_done) {

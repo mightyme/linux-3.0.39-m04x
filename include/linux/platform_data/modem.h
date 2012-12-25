@@ -178,12 +178,12 @@ struct modem_data {
 
 };
 
-#define  MC_SUCCESS       0
-#define  MC_HOST_HIGH     1
-#define  MC_HOST_TIMEOUT  2
-#define  MC_HOST_HALT     3
+#define  MC_HOST_SUCCESS        0 
+#define  MC_HOST_HIGH           1 
+#define  MC_HOST_TIMEOUT        2 
+#define  MC_HOST_HALT           3 
 
-#define HOSTWAKE_TRIGLEVEL	0
+#define  HOSTWAKE_TRIGLEVEL	0
 
 void modem_notify_event(int type);
 
