@@ -285,10 +285,10 @@ bool __must_check cma_mem_check_region(dma_addr_t start, u32 size)
 {
 	struct cma_region *reg;
 
-	pr_info("%s: start = 0x%x, size=0x%x\n", __func__, start, size);
+	pr_debug("%s: start = 0x%x, size=0x%x\n", __func__, start, size);
 	cma_foreach_region(reg){
 		 if(reg->start <= start && (reg->start+reg->size) >=(start+size) ){
-			pr_info("%s: found cma %s: start = 0x%x, size=0x%x\n", __func__, reg->name, reg->start, reg->size);
+			pr_debug("%s: found cma %s: start = 0x%x, size=0x%x\n", __func__, reg->name, reg->start, reg->size);
 			return true;
 		}
 	}
