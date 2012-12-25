@@ -280,6 +280,21 @@ static LIST_HEAD(cma_regions);
 #define cma_foreach_region(reg) \
 	list_for_each_entry(reg, &cma_regions, list)
 
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+bool __must_check cma_mem_check_region(dma_addr_t start, u32 size)
+{
+	struct cma_region *reg;
+
+	pr_info("%s: start = 0x%x, size=0x%x\n", __func__, start, size);
+	cma_foreach_region(reg){
+		 if(reg->start <= start && (reg->start+reg->size) >=(start+size) ){
+			pr_info("%s: found cma %s: start = 0x%x, size=0x%x\n", __func__, reg->name, reg->start, reg->size);
+			return true;
+		}
+	}
+	return false;
+}
+#endif
 int __must_check cma_region_register(struct cma_region *reg)
 {
 	const char *name, *alloc_name;

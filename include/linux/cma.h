@@ -125,7 +125,9 @@ struct cma_info {
 	size_t total_size, free_size;
 	unsigned count;
 };
-
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+bool __must_check cma_mem_check_region(dma_addr_t start, u32 size);
+#endif
 /**
  * cma_info - queries information about regions.
  * @info:	Pointer to a structure where to save the information.

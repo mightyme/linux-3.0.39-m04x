@@ -19,6 +19,7 @@
 #include <linux/highmem.h>
 #include <linux/dma-mapping.h>
 #include <asm/cacheflush.h>
+#include <linux/cma.h>
 
 #include <plat/cpu.h>
 
@@ -221,7 +222,13 @@ int exynos_mem_mmap(struct file *filp, struct vm_area_struct *vma)
 		pr_err("[%s] invalid paddr(0x%08x)\n", __func__, start);
 		return -EINVAL;
 	}
-
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+	if(!cma_mem_check_region(start, size))
+	{
+		pr_err("[%s] invalid paddr(0x%08x), size=0x%08x\n", __func__, start, size);
+		return -EINVAL;
+	}
+#endif
 	if (!cacheable)
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 
