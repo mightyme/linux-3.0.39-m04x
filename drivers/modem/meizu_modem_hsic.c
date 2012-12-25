@@ -512,7 +512,9 @@ static int hsic_pm_runtime_get_active(struct link_pm_data *pm_data)
 	if (!pm_data->resume_requested) {
 		MIF_DEBUG("QW PM\n");
 		queue_delayed_work(pm_data->wq, &pm_data->hsic_pm_work, 0);
-	}
+	} else
+		MIF_ERR("pm_data->resume_requested is true, not QW PM!\n");
+
 	MIF_DEBUG("Wait pm\n");
 	INIT_COMPLETION(pm_data->active_done);
 	ret = wait_for_completion_timeout(&pm_data->active_done,
@@ -583,6 +585,7 @@ static void hsic_pm_runtime_start(struct work_struct *work)
 static inline int hsic_pm_slave_wake(struct link_pm_data *pm_data)
 {
 	int ret = MC_HOST_SUCCESS;
+	int spin = 100;
 	int val;
 
 	val = gpio_get_value(pm_data->gpio_hostwake);
@@ -593,17 +596,13 @@ static inline int hsic_pm_slave_wake(struct link_pm_data *pm_data)
 				gpio_get_value(pm_data->gpio_slavewake));
 			mdelay(5);
 		}
-		do {
-			struct platform_device *dev_modem = pm_data->pdev_modem;
-			struct modem_ctl *mc = platform_get_drvdata(dev_modem);
-			DECLARE_COMPLETION_ONSTACK(done);
-			
-			mc->l2_done = &done;
-			hsic_set_slave_wakeup_gpio(pm_data->gpio_slavewake, 1);
-			if (!wait_for_completion_timeout(&done, 20*HZ))
-				ret = MC_HOST_TIMEOUT;
-			mc->l2_done = NULL;
-		} while(0);
+		hsic_set_slave_wakeup_gpio(pm_data->gpio_slavewake, 1);
+		mdelay(1);
+		while (spin-- && gpio_get_value(pm_data->gpio_hostwake) !=
+							HOSTWAKE_TRIGLEVEL)
+			mdelay(1);
+		if (spin <= 0)
+			ret = MC_HOST_TIMEOUT;
 	} else {
 		MIF_DEBUG("HOST_WUP:HOSTWAKE_TRIGLEVEL!\n");
 		ret = MC_HOST_HIGH;
@@ -659,8 +658,10 @@ retry:
 		pm_data->resume_requested = true;
 		wake_lock(&pm_data->rpm_wake);
 		ret = hsic_pm_slave_wake(pm_data);
-		if (MC_HOST_TIMEOUT == ret)
+		if (MC_HOST_TIMEOUT == ret) {
+			pm_data->resume_requested = false;
 			break;
+		}
 		if (!pm_data->usb_ld->if_usb_connected) {
 			modem_notify_event(MODEM_EVENT_DISCONN);
 			wake_unlock(&pm_data->rpm_wake);
