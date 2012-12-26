@@ -76,7 +76,7 @@ static ssize_t qm_touch_keytype_show(struct device *dev,
 }
 
 
-static DEVICE_ATTR(doublekey, 0666, qm_touch_keytype_show, qm_touch_keytype_store);
+static DEVICE_ATTR(doublekey, S_IRUGO | S_IWUSR, qm_touch_keytype_show, qm_touch_keytype_store);
 
 static struct attribute *touchpad_attrs[] = {
 	&dev_attr_doublekey.attr,
