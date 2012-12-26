@@ -1510,7 +1510,7 @@ static void set_noise_mitigation_by_vbus(struct f11_data *data)
 	if(touch_adjust)
 		cap_val = 180;
 	else
-		cap_val = 220;
+		cap_val = 223;
 	
 	value = gpio_get_value(pdata->vbus_gpio) ;
 	
@@ -2008,7 +2008,7 @@ static ssize_t rmi_turn_on_calibration_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(mxt_toc, 0666, NULL, rmi_turn_on_calibration_store);
+static DEVICE_ATTR(mxt_toc, RMI_RW_ATTR, NULL, rmi_turn_on_calibration_store);
 
 static struct attribute *mxt_attrs[] = {
 	&dev_attr_mxt_toc.attr,
@@ -2018,6 +2018,67 @@ static struct attribute *mxt_attrs[] = {
 static const struct attribute_group mxt_attr_group = {
 	.attrs = mxt_attrs,
 };
+
+
+#define	LINK_KOBJ_NAME	"mx_tsp"
+struct kobject *devices_kobj = NULL;
+/**
+ * mx_create_link - create a sysfs link to an exported virtual node
+ *	@target:	object we're pointing to.
+ *	@name:		name of the symlink.
+ *
+ * Set up a symlink from /sys/class/input/inputX to 
+ * /sys/devices/mx_tsp node. 
+ *
+ * Returns zero on success, else an error.
+ */
+int mx_create_link(struct kobject *target, const char *name)
+{
+	int rc = 0;
+	
+	struct device *mx_tsp = NULL;
+	struct kset *pdevices_kset;
+	
+	mx_tsp = kzalloc(sizeof(*mx_tsp), GFP_KERNEL);
+	if (!mx_tsp){
+		rc = -ENOMEM;
+		return rc;
+	}
+	
+	device_initialize(mx_tsp);
+	pdevices_kset = mx_tsp->kobj.kset;
+	devices_kobj = &pdevices_kset->kobj;
+	kfree(mx_tsp);	
+	
+	if( !devices_kobj )
+	{
+		rc = -EINVAL;
+		goto err_exit;
+	}
+	
+	rc = sysfs_create_link(devices_kobj,target, name);
+	if(rc < 0)
+	{
+		pr_err("sysfs_create_link failed.\n");
+		goto err_exit;
+	}
+
+	return rc;
+	
+err_exit:
+	devices_kobj = NULL;
+	pr_err("mx_create_link failed %d \n",rc);
+	return rc;
+}
+	 
+void mx_remove_link(void)
+{
+ 	if( devices_kobj )
+	{
+		sysfs_remove_link(devices_kobj, LINK_KOBJ_NAME);
+		devices_kobj = NULL;
+	}
+}
 
 static int rmi_f11_register_devices(struct rmi_function_container *fc)
 {
@@ -2083,6 +2144,11 @@ static int rmi_f11_register_devices(struct rmi_function_container *fc)
 		rc = sysfs_create_group(&input_dev->dev.kobj, &mxt_attr_group);
 		if (rc < 0) 
 			goto error_unregister;
+
+		rc = mx_create_link(&input_dev->dev.kobj, LINK_KOBJ_NAME);
+		if(rc < 0)
+			dev_err(&fc->dev, "sysfs_create_link failed.\n");
+
 
 		/* how to register the virtualbutton device */
 #ifdef CONFIG_RMI4_VIRTUAL_BUTTON
@@ -2182,6 +2248,7 @@ static int rmi_f11_register_devices(struct rmi_function_container *fc)
 
 error_unregister:
 	sysfs_remove_group(&input_dev->dev.kobj, &mxt_attr_group);
+	mx_remove_link();
 	for (; sensors_itertd > 0; sensors_itertd--) {
 		if (f11->sensors[sensors_itertd].input) {
 			if (f11->sensors[sensors_itertd].mouse_input) {
@@ -2208,6 +2275,7 @@ static void rmi_f11_free_devices(struct rmi_function_container *fc)
 	struct f11_data *f11 = fc->data;
 	int i;
 
+	mx_remove_link();
 	for (i = 0; i < (f11->dev_query.nbr_of_sensors + 1); i++) {
 		if (f11->sensors[i].input)
 			input_unregister_device(f11->sensors[i].input);
