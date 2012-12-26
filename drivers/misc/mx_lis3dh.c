@@ -913,6 +913,27 @@ static ssize_t attr_get_selftest_data(struct device *dev,
 
 }
 
+static ssize_t attr_get_level_threshold(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct lis3dh_acc_data *acc = dev_get_drvdata(dev);
+	int xyz[3] = {0};
+	int ret;
+	bool level; 
+
+	ret = lis3dh_acc_get_acceleration_data(acc, xyz);
+
+	/*place level*/
+	if ((xyz[0] <= 250 && xyz[0] >= -250)
+			&& (xyz[1] <= 250 && xyz[1] >= -250)
+			&& (xyz[2] <= 1230 && xyz[2] >= 730)) 
+		level = true;	
+	else
+		level = false;
+	ret = sprintf(buf, "%d\n", level);
+	return ret;
+}
+
 #ifdef DEBUG
 /* PAY ATTENTION: These DEBUG funtions don't manage resume_state */
 static ssize_t attr_reg_set(struct device *dev, struct device_attribute *attr,
@@ -983,7 +1004,7 @@ static struct device_attribute attributes[] = {
 	__ATTR(click_timewindow, 0664, attr_get_click_tw, attr_set_click_tw),
 	__ATTR(raw_data, 0444, attr_get_raw_data, NULL),
 	__ATTR(selftest_data, 0444, attr_get_selftest_data, NULL),
-
+	__ATTR(level_threshold, 0444, attr_get_level_threshold, NULL),
 #ifdef DEBUG
 	__ATTR(reg_value, 0600, attr_reg_get, attr_reg_set),
 	__ATTR(reg_addr, 0200, NULL, attr_addr_set),
