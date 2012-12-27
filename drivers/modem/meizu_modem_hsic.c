@@ -1210,9 +1210,9 @@ static int hsic_pm_init(struct usb_link_device *usb_ld, void *data)
 
 	pm_data->gpio_link_active = pdata->gpio_host_active;
 
-	pm_data->gpio_link_enable = pm_pdata->gpio_link_enable;
-	pm_data->gpio_hostwake = pm_pdata->gpio_hostwake;
-	pm_data->gpio_slavewake = pm_pdata->gpio_slavewake;
+	pm_data->gpio_hostwake    = pm_pdata->gpio_hostwake;    
+	pm_data->gpio_slavewake   = pm_pdata->gpio_slavewake;   
+	pm_data->gpio_link_enable = pm_pdata->gpio_link_enable; 
 
 	pm_data->irq_link_hostwake = gpio_to_irq(pm_data->gpio_hostwake);
 

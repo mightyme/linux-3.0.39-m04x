@@ -75,7 +75,16 @@ static struct resource umts_modem_res[] = {
 
 static void xmm_gpio_revers_bias_restore(void);
 
-static struct modemlink_pm_data modem_link_pm_data = {
+static struct modemlink_pm_data modem_link_pm_data;
+
+static struct modemlink_pm_data modem_link_pm_data_m030 = {
+	.name = "link_pm",
+	.gpio_link_enable    = 0,
+	.gpio_hostwake  = M030_GPIO_HOST_WAKEUP,
+	.gpio_slavewake = M030_GPIO_SLAVE_WAKEUP,
+};
+
+static struct modemlink_pm_data modem_link_pm_data_m03x = {
 	.name = "link_pm",
 	.gpio_link_enable    = 0,
 	.gpio_hostwake  = GPIO_HOST_WAKEUP,
@@ -86,19 +95,18 @@ static struct modem_data umts_modem_data;
 
 static struct modem_data umts_modem_data_m030 = {
 	.name                     = "xmm6260",
-	.gpio_cp_on               = GPIO_MODEM_ON,
-	.gpio_reset_req_n         = GPIO_MODEM_RST_FULL,
-	.gpio_cp_reset            = GPIO_MODEM_RST,
-	.gpio_host_active         = GPIO_HOST_ACTIVE,
-	.gpio_cp_reset_int        = GPIO_MODEM_RESET_INT,
-	.gpio_cp_dump_int         = GPIO_MODEM_DUMP_INT,
+	.gpio_cp_on               = M030_GPIO_MODEM_ON,
+	.gpio_reset_req_n         = M030_GPIO_MODEM_RST_FULL,
+	.gpio_cp_reset            = M030_GPIO_MODEM_RST,
+	.gpio_host_active         = M030_GPIO_HOST_ACTIVE,
+	.gpio_cp_reset_int        = M030_GPIO_MODEM_RESET_INT,
+	.gpio_cp_dump_int         = M030_GPIO_MODEM_DUMP_INT,
 	.gpio_sim_detect          = M030_INT16_SIMDETECT,
-	.gpio_hostwake            = GPIO_HOST_WAKEUP,
-	.gpio_slavewake           = GPIO_SLAVE_WAKEUP,
+	.gpio_hostwake            = M030_GPIO_HOST_WAKEUP,
+	.gpio_slavewake           = M030_GPIO_SLAVE_WAKEUP,
 	.modem_type               = IMC_XMM6260,
 	.link_types               = LINKTYPE(LINKDEV_HSIC),
 	.modem_net                = UMTS_NETWORK,
-	.use_handover             = false,
 	.num_iodevs               = ARRAY_SIZE(m03x_io_devices),
 	.iodevs                   = m03x_io_devices,
 	.link_pm_data             = &modem_link_pm_data,
@@ -120,7 +128,6 @@ static struct modem_data umts_modem_data_m03x = {
 	.modem_type               = IMC_XMM6260,                  
 	.link_types               = LINKTYPE(LINKDEV_HSIC),       
 	.modem_net                = UMTS_NETWORK,                 
-	.use_handover             = false,                        
 	.num_iodevs               = ARRAY_SIZE(m03x_io_devices),  
 	.iodevs                   = m03x_io_devices,              
 	.link_pm_data             = &modem_link_pm_data,          
@@ -251,9 +258,9 @@ static void umts_modem_cfg_gpio(void)
 static void modem_hsic_pm_config_gpio(void)
 {
 	int err = 0;
-	unsigned gpio_link_enable    = modem_link_pm_data.gpio_link_enable;
-	unsigned gpio_hostwake  = modem_link_pm_data.gpio_hostwake;
-	unsigned gpio_slavewake = modem_link_pm_data.gpio_slavewake;
+	unsigned gpio_hostwake    = modem_link_pm_data.gpio_hostwake;    
+	unsigned gpio_slavewake   = modem_link_pm_data.gpio_slavewake;   
+	unsigned gpio_link_enable = modem_link_pm_data.gpio_link_enable; 
 
 	if (gpio_link_enable) {
 		err = gpio_request(gpio_link_enable, "LINK_EN");
@@ -298,10 +305,13 @@ static int __init modem_device_init(void)
 	int ret;
 
 	pr_info("[MODEM_IF] init_modem\n");
-	if(machine_is_m030())
-		umts_modem_data = umts_modem_data_m030;
-	else
-		umts_modem_data = umts_modem_data_m03x;
+	if(machine_is_m030()) {
+		umts_modem_data    = umts_modem_data_m030;    
+		modem_link_pm_data = modem_link_pm_data_m030; 
+	} else {
+		umts_modem_data    = umts_modem_data_m03x;    
+		modem_link_pm_data = modem_link_pm_data_m03x; 
+	}
 
 	umts_modem_cfg_gpio();
 	modem_hsic_pm_config_gpio();
@@ -321,3 +331,4 @@ late_initcall(modem_device_init);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("KarlZheng<zhengkl@meizu.com>");
 MODULE_DESCRIPTION("Meizu Modem Interface Driver");
+

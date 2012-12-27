@@ -22,6 +22,7 @@ config UMTS_MODEM_XMM6262
 config LINK_DEVICE_HSIC
 	bool "modem driver link device HSIC"
 	depends on MEIZU_MODEM
+	depends on ! MX_RECOVERY_KERNEL
 	default n
 
 #config SIM_DETECT

@@ -1081,8 +1081,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 		pr_err("Failed to read MAX77665_CHG_REG_CHG_INT: %d\n", ret);
 	else {
 		if (!(regulator_is_enabled(charger->reverse)) 
-				&& (reg_data & 0x40) //CHGIN
-				&& (charger->BATTERY)) {
+				&& (reg_data & 0x40)) {//CHGIN 
 			charger->chgin = true;
 			if (is_charging_mode()) {
 				charger->cable_status = CABLE_TYPE_USB;

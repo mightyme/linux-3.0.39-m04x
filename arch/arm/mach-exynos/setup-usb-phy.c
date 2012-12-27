@@ -383,7 +383,7 @@ int exynos4_check_usb_op(void)
 		if (phypwr & (PHY1_STD_FORCE_SUSPEND
 			| EXYNOS4210_HSIC0_FORCE_SUSPEND
 			| EXYNOS4210_HSIC1_FORCE_SUSPEND)) {
-			
+
 			writel(readl(EXYNOS4_PHYPWR)
 				| PHY1_STD_ANALOG_POWERDOWN,
 				EXYNOS4_PHYPWR);
@@ -423,7 +423,7 @@ int exynos4_check_usb_op(void)
 			writel(PHY_DISABLE, S5P_HSIC_1_PHY_CONTROL);
 			writel(PHY_DISABLE, S5P_HSIC_2_PHY_CONTROL);
 			writel(PHY_DISABLE, S5P_USB_PHY_CONTROL);
-	
+
 			op = 0;
 #ifdef CONFIG_UMTS_MODEM_XMM6260
 			modem_set_active_state(0);
@@ -440,7 +440,7 @@ done:
 static int exynos4_usb_phy1_suspend(struct platform_device *pdev)
 {
 	u32 phypwr;
-	
+
 	/* set to suspend HSIC 0 and 1 and standard of PHY1 */
 	phypwr = readl(EXYNOS4_PHYPWR);
 	if (soc_is_exynos4210()) {
@@ -462,7 +462,7 @@ static int exynos4_usb_phy1_resume(struct platform_device *pdev)
 {
 	u32 rstcon;
 	u32 phypwr;
-	u32 phyclk;	
+	u32 phyclk;
 	int err;
 
 	if (exynos4_usb_host_phy_is_on()) {
@@ -495,7 +495,7 @@ static int exynos4_usb_phy1_resume(struct platform_device *pdev)
 				ETC6PUD);
 
 			writel(PHY_ENABLE, S5P_USBHOST_PHY_CONTROL);
-			
+
 			/* set clock frequency for PLL */
 			phyclk = exynos_usb_phy_set_clock(pdev);
 			phyclk &= ~(PHY1_COMMON_ON_N);
@@ -521,7 +521,7 @@ static int exynos4_usb_phy1_resume(struct platform_device *pdev)
 			rstcon &= ~(EXYNOS4210_HOST_LINK_PORT_SWRST_MASK
 				| EXYNOS4210_PHY1_SWRST_MASK);
 			writel(rstcon, EXYNOS4_RSTCON);
-			udelay(80);	
+			udelay(80);
 		} else {
 			/*
 			 *  set XuhostOVERCUR to in-active by controlling ET6PUD[15:14]
@@ -535,7 +535,7 @@ static int exynos4_usb_phy1_resume(struct platform_device *pdev)
 #ifdef CONFIG_USB_S5P_HSIC0
 			writel(PHY_ENABLE, S5P_HSIC_1_PHY_CONTROL);
 #endif
-#ifdef CONFIG_USB_S5P_HSIC1			
+#ifdef CONFIG_USB_S5P_HSIC1
 			writel(PHY_ENABLE, S5P_HSIC_2_PHY_CONTROL);
 #endif
 			writel(PHY_ENABLE, S5P_USB_PHY_CONTROL);
@@ -567,9 +567,9 @@ static int exynos4_usb_phy1_resume(struct platform_device *pdev)
 			rstcon &= ~(EXYNOS4212_HOST_LINK_PORT_SWRST_MASK
 				| EXYNOS4212_PHY1_SWRST_MASK);
 			writel(rstcon, EXYNOS4_RSTCON);
-			
+
 			udelay(80);
-			
+
 			if(exynos4_usb_device_phy_is_on())
 				exynos_usb_mux_change(pdev, 0);
 			enter_lpa_flag = 0;
@@ -637,7 +637,7 @@ static int exynos4_usb_phy1_exit(struct platform_device *pdev)
 {
 	u32 phypwr;
 	u32 rstcon;
-	
+
 	phypwr = readl(EXYNOS4_PHYPWR)
 		| PHY1_STD_NORMAL_MASK
 		| EXYNOS4210_HSIC0_NORMAL_MASK
@@ -650,9 +650,9 @@ static int exynos4_usb_phy1_exit(struct platform_device *pdev)
 		| EXYNOS4210_PHY1_SWRST_MASK;
 	writel(rstcon, EXYNOS4_RSTCON);
 	udelay(80);
-	
+
 	exynos_usb_phy_control(USB_PHY1, PHY_DISABLE);
-	
+
 	return 0;
 }
 
@@ -748,7 +748,7 @@ static int exynos4_usb_dev_phy20_init(struct platform_device *pdev)
 	/* COMMON Block configuration during suspend */
 	phyclk &= ~(PHY0_COMMON_ON_N);
 	writel(phyclk, EXYNOS4_PHYCLK);
-	
+
 	/* set to normal of Device */
 	phypwr = readl(EXYNOS4_PHYPWR) & ~PHY0_NORMAL_MASK;
 	writel(phypwr, EXYNOS4_PHYPWR);
@@ -770,14 +770,14 @@ static int exynos4_usb_dev_phy20_exit(struct platform_device *pdev)
 	/* unset to normal of Device */
 	writel((readl(EXYNOS4_PHYPWR) | PHY0_NORMAL_MASK),
 			EXYNOS4_PHYPWR);
-	
+
 	/* reset both PHY and Link of Device */
 	rstcon = readl(EXYNOS4_RSTCON) | PHY0_SWRST_MASK;
 	writel(rstcon, EXYNOS4_RSTCON);
 	udelay(80);
-	
+
 	exynos_usb_phy_control(USB_PHY, PHY_DISABLE);
-	
+
 	return 0;
 }
 static int exynos5_usb_phy20_init(struct platform_device *pdev)
@@ -947,7 +947,7 @@ static int exynos_usb_hsic_init(struct platform_device *pdev)
 		phyclk = exynos_usb_phy_set_clock(pdev);
 		phyclk &= ~(PHY1_COMMON_ON_N);
 		writel(phyclk, EXYNOS4_PHYCLK);
-	
+
 		/* ensure PHY0 is power up */
 		phypwr = readl(EXYNOS4_PHYPWR) & ~PHY0_NORMAL_MASK;
 		writel(phypwr, EXYNOS4_PHYPWR);
@@ -957,7 +957,7 @@ static int exynos_usb_hsic_init(struct platform_device *pdev)
 		phypwr &= ~(EXYNOS4212_HSIC0_NORMAL_MASK
 			| EXYNOS4212_HSIC1_NORMAL_MASK);
 		writel(phypwr, EXYNOS4_PHYPWR);
-		
+
 		/* reset both PHY and Link of Device */
 
 		/* reset both PHY and Link of Host */
@@ -966,7 +966,7 @@ static int exynos_usb_hsic_init(struct platform_device *pdev)
 			| EXYNOS4212_PHY1_HSIC1_SWRST;
 		writel(rstcon, EXYNOS4_RSTCON);
 		udelay(20);
-		
+
 		rstcon &= ~(EXYNOS4212_PHY1_HSIC0_SWRST
 			| EXYNOS4212_PHY1_HSIC1_SWRST);
 		writel(rstcon, EXYNOS4_RSTCON);
@@ -1253,7 +1253,7 @@ static int m030_usb_dev_phy_power(struct platform_device *pdev,int on)
 		ret = regulator_bulk_disable(num_consumers, supplies);
 
 	regulator_bulk_free(num_consumers, supplies);
-	
+
 	return 0;
 }
 
@@ -1276,24 +1276,25 @@ static int m03x_usb_dev_phy_power(struct platform_device *pdev,int on)
 
 	if (on)
 		ret = regulator_bulk_enable(num_consumers, supplies);
-	else 
+	else
 		ret = regulator_bulk_disable(num_consumers, supplies);
 
 	regulator_bulk_free(num_consumers, supplies);
-	
-	return 0;	
+
+	return 0;
 }
 
 static int m030_usb_host_phy_power(struct platform_device *pdev, int on)
 {
 	int ret;
-	struct regulator_bulk_data supplies[2];
+	struct regulator_bulk_data supplies[3];
 	int num_consumers = ARRAY_SIZE(supplies);
 
 	dev_dbg(&pdev->dev, "%s() : [%s]\n", __FUNCTION__, on?"ON":"OFF");
 
 	supplies[0].supply = "pd_io";
 	supplies[1].supply = "pd_core";
+	supplies[2].supply = "pd_hsic";
 
 	ret = regulator_bulk_get(&pdev->dev, num_consumers, supplies);
 	if (ret) {
@@ -1307,8 +1308,8 @@ static int m030_usb_host_phy_power(struct platform_device *pdev, int on)
 		ret = regulator_bulk_disable(num_consumers, supplies);
 
 	regulator_bulk_free(num_consumers, supplies);
-	
-	return 0;	
+
+	return 0;
 }
 
 static int m03x_usb_host_phy_power(struct platform_device *pdev, int on)
@@ -1334,8 +1335,8 @@ static int m03x_usb_host_phy_power(struct platform_device *pdev, int on)
 		ret = regulator_bulk_disable(num_consumers, supplies);
 
 	regulator_bulk_free(num_consumers, supplies);
-	
-	return 0;	
+
+	return 0;
 }
 
 int s5p_usb_phy_power(struct platform_device *pdev,int type, int on)

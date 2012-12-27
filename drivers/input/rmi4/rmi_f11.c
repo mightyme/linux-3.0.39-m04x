@@ -2021,7 +2021,7 @@ static const struct attribute_group mxt_attr_group = {
 
 
 #define	LINK_KOBJ_NAME	"mx_tsp"
-struct kobject *devices_kobj = NULL;
+static struct kobject *devices_kobj = NULL;
 /**
  * mx_create_link - create a sysfs link to an exported virtual node
  *	@target:	object we're pointing to.
@@ -2032,7 +2032,7 @@ struct kobject *devices_kobj = NULL;
  *
  * Returns zero on success, else an error.
  */
-int mx_create_link(struct kobject *target, const char *name)
+static int mx_create_link(struct kobject *target, const char *name)
 {
 	int rc = 0;
 	
@@ -2071,11 +2071,11 @@ err_exit:
 	return rc;
 }
 	 
-void mx_remove_link(void)
+static void mx_remove_link(const char *name)
 {
  	if( devices_kobj )
 	{
-		sysfs_remove_link(devices_kobj, LINK_KOBJ_NAME);
+		sysfs_remove_link(devices_kobj, name);
 		devices_kobj = NULL;
 	}
 }
@@ -2248,7 +2248,7 @@ static int rmi_f11_register_devices(struct rmi_function_container *fc)
 
 error_unregister:
 	sysfs_remove_group(&input_dev->dev.kobj, &mxt_attr_group);
-	mx_remove_link();
+	mx_remove_link(LINK_KOBJ_NAME);
 	for (; sensors_itertd > 0; sensors_itertd--) {
 		if (f11->sensors[sensors_itertd].input) {
 			if (f11->sensors[sensors_itertd].mouse_input) {
@@ -2275,7 +2275,7 @@ static void rmi_f11_free_devices(struct rmi_function_container *fc)
 	struct f11_data *f11 = fc->data;
 	int i;
 
-	mx_remove_link();
+	mx_remove_link(LINK_KOBJ_NAME);
 	for (i = 0; i < (f11->dev_query.nbr_of_sensors + 1); i++) {
 		if (f11->sensors[i].input)
 			input_unregister_device(f11->sensors[i].input);
