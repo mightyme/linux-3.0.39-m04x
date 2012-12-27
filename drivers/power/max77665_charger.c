@@ -122,6 +122,7 @@ struct max77665_charger
 	bool adb_open;
 	bool storage_open;
 	bool rndis_open;
+	int fastcharging;
 };
 
 enum {
@@ -133,6 +134,7 @@ enum {
 	BATTERY_HEALTH_OVERHEAT,
 	BATTERY_HEALTH_COLD,
 };
+extern struct class *power_supply_class;
 
 #ifdef CONFIG_USB_GADGET 
 extern int register_usb_gadget_notifier(struct notifier_block *nb);
@@ -362,6 +364,7 @@ static int max77665_charger_types(struct max77665_charger *charger)
 	int chgin_ilim = 0;
 	int battery_status;
 
+	chgin_ilim = charger->chgin_ilim_usb;
 	battery_status = max77665_battery_temp_status(charger);
 	if (battery_status == BATTERY_HEALTH_LOW1
 			|| battery_status == BATTERY_HEALTH_LOW2
@@ -373,8 +376,12 @@ static int max77665_charger_types(struct max77665_charger *charger)
 	} else {
 		switch (cable_status) {
 		case CABLE_TYPE_USB:
+			if (!charger->fastcharging) {
+				regulator_set_current_limit(charger->ps, chgin_ilim * MA_TO_UA, 
+						MAX_AC_CURRENT * MA_TO_UA);
+				break;
+			}
 		case CABLE_TYPE_AC:	
-			chgin_ilim = charger->chgin_ilim_usb;
 			if (false == charger-> done) {
 				pr_info("we want to adjust the input current now\n");
 				if (charger->cable_status == CABLE_TYPE_USB) {
@@ -806,6 +813,38 @@ static irqreturn_t max77665_bypass_irq(int irq, void *dev_id)
 	return IRQ_HANDLED; 
 }
 
+static ssize_t usb_fastcharging_store(struct device *dev, 
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{	
+	struct max77665_charger *charger = dev_get_drvdata(dev);
+
+	charger->fastcharging = simple_strtol(buf, NULL, 10);
+	if ((charger->chgin) && 
+			(charger->cable_status == CABLE_TYPE_USB) ) {
+		if (charger->fastcharging) {
+			if (charger->done)
+				charger->done = false;
+		}
+		max77665_charger_types(charger);
+	}
+	pr_info("%s:fastcharging = %d\n", __func__, charger->fastcharging);
+	
+	return count;
+}
+
+static ssize_t usb_fastcharging_show(struct device *dev, 
+		struct device_attribute *attr, char *buf)
+{	
+	struct max77665_charger *charger = dev_get_drvdata(dev);
+	int fastcharging = 0;
+
+	fastcharging = charger->fastcharging;
+
+	return sprintf(buf, "%d\n", fastcharging);
+}
+static DEVICE_ATTR(fastcharging, 0644, usb_fastcharging_show, usb_fastcharging_store);
+
 static __devinit int max77665_init(struct max77665_charger *charger)
 {
 	struct max77665_dev *iodev = dev_get_drvdata(charger->dev->parent);
@@ -991,6 +1030,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	charger->adb_open = false;
 	charger->storage_open = false;
 	charger->rndis_open = false;
+	charger->fastcharging = 0;
 	charger->usb_notifer.notifier_call = max77665_charger_event;
 	register_usb_gadget_notifier(&charger->usb_notifer);
 	
@@ -1033,6 +1073,13 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 		pr_info("sorry, you should has battery\n");
 		charger->BATTERY = false;
 	}
+	
+	if (!power_supply_class) 
+		return -ENXIO;
+
+	charger->dev = device_create(power_supply_class, charger->dev->parent, 
+			0, charger, "charging-switch");
+	ret = device_create_file(charger->dev, &dev_attr_fastcharging);
 
 	charger->psy_charger.name = "charger";
 	charger->psy_charger.type = POWER_SUPPLY_TYPE_BATTERY;
