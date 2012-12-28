@@ -162,7 +162,7 @@ static void __init m040_cma_region_reserve(
 static struct cma_region m040_regions[] = {
 	{
 		.name = "jpeg",
-		.size = 1024 * SZ_1K,
+		.size = 4096 * SZ_1K,
 		.start = 0
 	}, {
 		.name = "fimc1",
