@@ -375,7 +375,7 @@ static void check_battery_temp(struct bq27541_chip *chip)
 	}
 
 	temp = ((int)(short)ret) - 2731;
-	bq27541_debug(chip, "battery temp %d\n", temp);
+	bq27541_debug(chip, "battery hw temp %d\n", temp);
 	if(!chip->bat_info.temp_debug)
 		chip->bat_info.temp = temp;
 
@@ -383,17 +383,18 @@ static void check_battery_temp(struct bq27541_chip *chip)
 		if(info->health == POWER_SUPPLY_HEALTH_GOOD)
 			if(info->abnormal_temp_cnt < CHECK_CNT)
 				info->abnormal_temp_cnt += 1;
-		pr_info("battery temp abnormal, temp %d count %d\n", temp, info->abnormal_temp_cnt);
+		pr_info("battery temp abnormal, temp %d count %d\n", chip->bat_info.temp, info->abnormal_temp_cnt);
+		
 	} else {
 		if(info->health != POWER_SUPPLY_HEALTH_GOOD) {
-			pr_info("battery temp return normal, temp %d count %d\n", temp, info->recover_temp_cnt);
+			pr_info("battery temp return normal, temp %d count %d\n", chip->bat_info.temp, info->recover_temp_cnt);
 			if(info->recover_temp_cnt < CHECK_CNT)
 				info->recover_temp_cnt += 1;
 		}
 	}
 
 	if(info->abnormal_temp_cnt >= CHECK_CNT) {
-		health = (temp > HIGH_BLOCK_TEMP) ? POWER_SUPPLY_HEALTH_OVERHEAT: POWER_SUPPLY_HEALTH_COLD;
+		health = (chip->bat_info.temp > HIGH_BLOCK_TEMP) ? POWER_SUPPLY_HEALTH_OVERHEAT: POWER_SUPPLY_HEALTH_COLD;
 		info->abnormal_temp_cnt = 0;
 		info->recover_temp_cnt = 0;
 	} else if(info->recover_temp_cnt >= CHECK_CNT) {

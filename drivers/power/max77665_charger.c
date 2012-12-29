@@ -32,7 +32,7 @@
 
 #define MAX_AC_CURRENT          1000  
 #define CHGIN_USB_CURRENT	450
-#define TEMP_CHECK_DELAY        (120*HZ) 
+#define TEMP_CHECK_DELAY        (60*HZ) 
 #define WAKE_ALARM_INT          (120) 
 #define CURRENT_INCREMENT_STEP  100   /*mA*/ 
 #define COMPLETE_TIMEOUT        200   /*ms*/ 
@@ -603,6 +603,7 @@ static void max77665_poll_work_func(struct work_struct *work)
 	} else {
 		if (regulator_is_enabled(charger->ps)) {
 			pr_info("--------------charger remove, disable charging\n");
+			regulator_disable(charger->ps);
 		}
 	}
 	pr_debug("###########the current = %d\n",regulator_get_current_limit(charger->ps));
