@@ -980,14 +980,11 @@ static ssize_t attr_get_level_threshold(struct device *dev,
 	int ret;
 	bool level; 
 	
-	mutex_lock(&acc->lock);
 	ret = lis3dh_acc_read_accel_xyz(acc, xyz);
 	if (ret < 0) {
 		dev_err(&acc->client->dev, "get_acceleration_data failed\n");
-		mutex_unlock(&acc->lock);
 		return ret;
 	}
-	mutex_unlock(&acc->lock);
 
 	/*place level*/
 	if ((xyz[0] <= 250 && xyz[0] >= -250)
