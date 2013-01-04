@@ -17,6 +17,7 @@
 
 #define	DEBUG	1
 #define	G_MAX	16000
+#define CALIB_DATA_AMOUNT 100
 
 static atomic_t suspend_flag = ATOMIC_INIT(0);
 
@@ -34,6 +35,12 @@ struct {
 		{ 1000, ODR1    },
 };
 
+struct lis3dh_t {
+	int x;
+	int y;
+	int z;
+};
+
 struct lis3dh_acc_data {
 	struct i2c_client *client;
 	struct lis3dh_acc_platform_data *pdata;
@@ -49,19 +56,13 @@ struct lis3dh_acc_data {
 	u8 sensitivity;
 	u8 resume_state[RESUME_ENTRIES];
 	struct mutex ioctl_lock;
-
+	struct lis3dh_t calib_data;
 #ifdef DEBUG
 	u8 reg_addr;
 #endif
 
 	struct miscdevice misc_device;
 	atomic_t opened;     /*misc device open flag*/
-};
-
-struct lis3dh_t {
-	int x;
-	int y;
-	int z;
 };
 
 static int lis3dh_acc_i2c_read(struct lis3dh_acc_data *acc,
@@ -358,7 +359,6 @@ static int lis3dh_acc_register_write(struct lis3dh_acc_data *acc, u8 *buf,
 	return err;
 }
 
-
 static int lis3dh_acc_get_acceleration_data(struct lis3dh_acc_data *acc,
 		int *xyz)
 {
@@ -373,7 +373,7 @@ static int lis3dh_acc_get_acceleration_data(struct lis3dh_acc_data *acc,
 	err = lis3dh_acc_i2c_read(acc, acc_data, 6);
 	if (err < 0)
 		return err;
-
+	
 	/*adjust x, y, z coordinates*/
 	xyz[0] = (((pdata->negate_x) ? (-hw_d[pdata->axis_map_x]) : 
 		   (hw_d[pdata->axis_map_x])) >> 4) * sensitivity;
@@ -393,6 +393,66 @@ static int lis3dh_acc_get_acceleration_data(struct lis3dh_acc_data *acc,
 	return err;
 }
 
+static int lis3dh_acc_read_accel_xyz(struct lis3dh_acc_data *acc,
+		int *xyz)
+{
+	int err = 0;
+	
+	mutex_lock(&acc->lock);
+	err = lis3dh_acc_get_acceleration_data(acc, xyz);
+	if (err < 0) {
+		dev_err(&acc->client->dev, "get_acceleration_data failed\n");
+		mutex_unlock(&acc->lock);
+		return err;
+		}
+		
+	mutex_unlock(&acc->lock);
+
+	xyz[0] -= acc->calib_data.x;
+	xyz[1] -= acc->calib_data.y;
+	xyz[2] -= acc->calib_data.z;
+
+	return err;
+}
+
+/*lis3dh calibration*/
+static int lis3dh_acc_calibration(struct lis3dh_acc_data *acc, bool do_calib)
+{
+	int xyz[3] = {0,};
+	int sum[3] = {0,};
+	int err = 0;
+	int i;
+	
+	if (do_calib) {
+		for (i =0; i < CALIB_DATA_AMOUNT; i++) {
+			mutex_lock(&acc->lock);
+			err = lis3dh_acc_get_acceleration_data(acc, xyz);
+			if (err < 0) {
+				dev_err(&acc->client->dev, "get_acceleration_data failed\n");
+				mutex_unlock(&acc->lock);
+				return err;
+			}
+			mutex_unlock(&acc->lock);
+			
+			sum[0] += xyz[0];
+			sum[1] += xyz[1];
+			sum[2] += xyz[2];
+		}
+		
+		acc->calib_data.x = sum[0] / CALIB_DATA_AMOUNT;
+		acc->calib_data.y = sum[1] / CALIB_DATA_AMOUNT;
+		acc->calib_data.z = sum[2] / CALIB_DATA_AMOUNT - 1000;
+	} else {
+		acc->calib_data.x = 0;
+		acc->calib_data.y = 0;
+		acc->calib_data.z = 0;
+	}
+	
+	pr_info("%s: calibration data (%d,%d,%d)\n", 
+			__func__, acc->calib_data.x, acc->calib_data.y, 
+			acc->calib_data.z);
+	return err;
+}
 
 static int lis3dh_acc_enable(struct lis3dh_acc_data *acc)
 {
@@ -409,7 +469,6 @@ static int lis3dh_acc_enable(struct lis3dh_acc_data *acc)
 		}
 		atomic_set(&acc->enabled, 1);
 	}
-
 	return 0;
 }
 
@@ -886,7 +945,7 @@ static ssize_t attr_get_raw_data(struct device *dev,
 
 	mutex_lock(&acc->lock);
 
-	err = lis3dh_acc_get_acceleration_data(acc, xyz);
+	err = lis3dh_acc_read_accel_xyz(acc, xyz);
 	if (err < 0) {
 		dev_err(&acc->client->dev, "get_acceleration_data failed\n");
 		mutex_unlock(&acc->lock);
@@ -920,8 +979,15 @@ static ssize_t attr_get_level_threshold(struct device *dev,
 	int xyz[3] = {0};
 	int ret;
 	bool level; 
-
-	ret = lis3dh_acc_get_acceleration_data(acc, xyz);
+	
+	mutex_lock(&acc->lock);
+	ret = lis3dh_acc_read_accel_xyz(acc, xyz);
+	if (ret < 0) {
+		dev_err(&acc->client->dev, "get_acceleration_data failed\n");
+		mutex_unlock(&acc->lock);
+		return ret;
+	}
+	mutex_unlock(&acc->lock);
 
 	/*place level*/
 	if ((xyz[0] <= 250 && xyz[0] >= -250)
@@ -932,6 +998,95 @@ static ssize_t attr_get_level_threshold(struct device *dev,
 		level = false;
 	ret = sprintf(buf, "%d\n", level);
 	return ret;
+}
+
+static ssize_t attr_set_Calibration(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t size)
+{
+	struct lis3dh_acc_data *acc = dev_get_drvdata(dev);
+	unsigned long val;
+	bool do_calib;
+	int err = 0;
+
+	if (strict_strtoul(buf, 10, &val))
+		return -EINVAL;
+	if (val) 
+		do_calib = true;
+	else 
+		do_calib = false;
+
+	/*if off , before the calibration, we should turn on it*/
+	if (!atomic_read(&acc->enabled)) {
+		err = lis3dh_acc_device_power_on(acc);
+		if (err < 0) {
+			pr_err("%s: lis3dh_acc_device_power_on fail\n",
+				       	__func__);
+			return err;
+		}
+		atomic_set(&acc->enabled, 1);
+	}
+
+	lis3dh_acc_calibration(acc, do_calib);
+	if (err < 0) {
+		dev_err(&acc->client->dev, "lis3dh_acc_calibration failed\n");
+		return err;	
+	}
+
+	return size;
+}
+
+static ssize_t attr_get_Calibration(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct lis3dh_acc_data *acc = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d %d %d\n", acc->calib_data.x,
+			acc->calib_data.y, acc->calib_data.z);
+}
+
+static ssize_t attr_set_calibvalue(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t size)
+{
+	struct lis3dh_acc_data *acc = dev_get_drvdata(dev);
+	char calib_buf[64] = {0};
+	char *calib_value1 = NULL;
+	char *calib_value2 = NULL;
+	
+	if (buf == NULL) 
+		return -EINVAL;
+	
+	strcpy(calib_buf, buf);
+	calib_value1 = calib_value2 = calib_buf;
+	
+	while (*calib_value1 && *calib_value1 != ' ')
+		++calib_value1;
+	*calib_value1 = '\0';
+	acc->calib_data.x = simple_strtol(calib_buf, NULL, 10);
+	
+	calib_value1++;
+	calib_value2 = calib_value1;
+	while (*calib_value1 && *calib_value1 != ' ')
+		++calib_value1;
+	*calib_value1 = '\0';
+	acc->calib_data.y = simple_strtol(calib_value2, NULL, 10);
+	
+	acc->calib_data.z = simple_strtol(calib_value1+1, NULL, 10);
+
+	pr_info("x = %d, y = %d, z= %d\n", acc->calib_data.x,
+			acc->calib_data.y, acc->calib_data.z);
+
+	return size;
+}
+
+static ssize_t attr_get_calibvalue(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct lis3dh_acc_data *acc = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d %d %d\n", acc->calib_data.x,
+			acc->calib_data.y, acc->calib_data.z);
 }
 
 #ifdef DEBUG
@@ -1005,6 +1160,8 @@ static struct device_attribute attributes[] = {
 	__ATTR(raw_data, 0444, attr_get_raw_data, NULL),
 	__ATTR(selftest_data, 0444, attr_get_selftest_data, NULL),
 	__ATTR(level_threshold, 0444, attr_get_level_threshold, NULL),
+	__ATTR(Calibration, 0644, attr_get_Calibration, attr_set_Calibration),
+	__ATTR(calib_value, 0644, attr_get_calibvalue, attr_set_calibvalue),
 #ifdef DEBUG
 	__ATTR(reg_value, 0600, attr_reg_get, attr_reg_set),
 	__ATTR(reg_addr, 0200, NULL, attr_addr_set),
@@ -1203,7 +1360,7 @@ static long lis3dh_misc_ioctl_init(struct file *file,
 		}
 		break;
 	case LIS3DH_IOCTL_READ_ACCEL_XYZ:
-		ret = lis3dh_acc_get_acceleration_data(lis3dh, acc_data);
+		ret = lis3dh_acc_read_accel_xyz(lis3dh, acc_data);
 		if (ret) {
 			pr_err("%s()->%d:read accelerater data error!\n",
 				__FUNCTION__, __LINE__);
