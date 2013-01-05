@@ -43,7 +43,7 @@
 #define BATTERY_TEMP_10		100 /*10oC*/
 #define BATTERY_TEMP_15		150 /*15oC*/
 #define BATTERY_TEMP_45		450 /*45oC*/
-#define BATTERY_TEMP_5CURRENT	180 /*0.1C*/
+#define BATTERY_TEMP_5CURRENT	167
 #define BATTERY_TEMP_10CURRENT	300 
 #define BATTERY_TEMP_15CURRENT	500 
 #define BATTERY_TEMP_4VOLTAGE   4000
@@ -87,6 +87,7 @@ struct max77665_charger
 	struct delayed_work adjust_dwork;
 	struct regulator *ps;
 	struct regulator *reverse;
+	struct regulator *battery;
 	struct mutex mutex_t;
 	struct completion byp_complete;	
 
@@ -109,6 +110,7 @@ struct max77665_charger
 	int chr_pin;
 	int chgin_ilim_usb;	/* 60mA ~ 500mA */
 	int chgin_ilim_ac;	/* 60mA ~ 2.58A */
+	int fast_charge_current;
 	int (*usb_attach) (bool);
 	int irq_reg;
 	struct alarm alarm;
@@ -116,7 +118,6 @@ struct max77665_charger
 	bool adc_flag;
 	struct s3c_adc_client *adc;
 	bool BATTERY;
-	int battery_current;
 	int battery_health;
 	struct notifier_block usb_notifer;
 	bool adb_open;
@@ -282,39 +283,50 @@ static int max77665_battery_temp_status(struct max77665_charger *charger)
 		= power_supply_get_by_name("fuelgauge");
 	union power_supply_propval val;
 	int battery_temp = 0, battery_voltage = 0;
-	
+	int battery_current = min(MAX_AC_CURRENT, charger->fast_charge_current);
+	int health = BATTERY_HEALTH_GOOD;
+
 	if (fuelgauge_ps) {
-		if(fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_TEMP, &val) == 0) 
-			battery_temp = val.intval;
-		else
-			return  BATTERY_HEALTH_UNKNOW;
-		if(fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_VOLTAGE_NOW, &val) == 0) 
+		if(fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_VOLTAGE_NOW, &val) == 0)
 			battery_voltage = val.intval;
-		else 
-			return BATTERY_HEALTH_UNKNOW;
-		
-		if (battery_temp < BATTERY_TEMP_0) {
-			return BATTERY_HEALTH_COLD;
-		} else if (battery_temp > BATTERY_TEMP_45) {
-			return BATTERY_HEALTH_OVERHEAT;
-		} else if (battery_temp < BATTERY_TEMP_5) {
-			charger->battery_current = BATTERY_TEMP_5CURRENT;
-			return BATTERY_HEALTH_LOW3;
-		} else if (battery_temp < BATTERY_TEMP_10) {
-			if (battery_voltage > BATTERY_TEMP_4VOLTAGE * MA_TO_UA) {
-				charger->battery_current = BATTERY_TEMP_5CURRENT;
-				return BATTERY_HEALTH_LOW3;
-			} else {
-				charger->battery_current = BATTERY_TEMP_10CURRENT;
-				return BATTERY_HEALTH_LOW2;
+		if(fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_TEMP, &val) == 0) {
+			battery_temp = val.intval;
+
+			if (battery_temp < BATTERY_TEMP_0) {
+				battery_current = 0;
+				health = BATTERY_HEALTH_COLD;
+			} else if (battery_temp > BATTERY_TEMP_45) {
+				battery_current = 0;
+				health = BATTERY_HEALTH_OVERHEAT;
+			} else if (battery_temp < BATTERY_TEMP_5) {
+				battery_current = min(battery_current, BATTERY_TEMP_5CURRENT);
+			} else if (battery_temp < BATTERY_TEMP_10) {
+				if (battery_voltage > BATTERY_TEMP_4VOLTAGE * MA_TO_UA) {
+					battery_current = min(battery_current, BATTERY_TEMP_5CURRENT);
+				} else {
+					battery_current = min(battery_current, BATTERY_TEMP_10CURRENT);
+				}
+			} else if (battery_temp < BATTERY_TEMP_15) {
+				battery_current = min(battery_current, BATTERY_TEMP_15CURRENT);
 			}
-		} else if (battery_temp < BATTERY_TEMP_15) {
-			charger->battery_current = BATTERY_TEMP_15CURRENT;
-			return BATTERY_HEALTH_LOW1;
-		} else 
-			return BATTERY_HEALTH_GOOD;
-	} 
-	return BATTERY_HEALTH_UNKNOW;
+		}
+	}
+
+	do {
+		int ret;
+		int now_current = regulator_get_current_limit(charger->battery) / 1000;
+		if(!(now_current <= battery_current && battery_current <= now_current + CHG_CC_STEP)) {
+			pr_info("now_current %d current %d\n", now_current, battery_current);
+			ret = regulator_set_current_limit(charger->battery,
+					battery_current*MA_TO_UA,
+					battery_current*MA_TO_UA);
+			if (ret) {
+				pr_err("failed to set battery current limit\n");
+			}
+		}
+	} while(0);
+
+	return health;
 }
 
 static int max77665_adjust_current(struct max77665_charger *charger,
@@ -366,14 +378,9 @@ static int max77665_charger_types(struct max77665_charger *charger)
 
 	chgin_ilim = charger->chgin_ilim_usb;
 	battery_status = max77665_battery_temp_status(charger);
-	if (battery_status == BATTERY_HEALTH_LOW1
+	if (!(	battery_status == BATTERY_HEALTH_LOW1
 			|| battery_status == BATTERY_HEALTH_LOW2
-			|| battery_status == BATTERY_HEALTH_LOW3) {
-		charger->done = false;
-		regulator_set_current_limit(charger->ps,
-				charger->battery_current * MA_TO_UA,
-				MAX_AC_CURRENT * MA_TO_UA);
-	} else {
+			|| battery_status == BATTERY_HEALTH_LOW3)) {
 		switch (cable_status) {
 		case CABLE_TYPE_USB:
 			if (!charger->fastcharging) {
@@ -1024,6 +1031,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	charger->usb_attach = pdata->usb_attach;
 	charger->chgin_ilim_usb = pdata->chgin_ilim_usb;
 	charger->chgin_ilim_ac = pdata->chgin_ilim_ac;
+	charger->fast_charge_current= pdata->fast_charge_current;
 	charger->chr_pin = pdata->charger_pin;
 	charger->done = false;
 	charger->adc_flag = false;
@@ -1059,6 +1067,13 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	if (IS_ERR(charger->reverse)) {
 		dev_err(&pdev->dev, "Failed to regulator_get reverse: %ld\n",
 				PTR_ERR(charger->reverse));
+		goto err_put1;
+	}
+
+	charger->battery = regulator_get(NULL, "battery");
+	if (IS_ERR(charger->battery)) {
+		dev_err(&pdev->dev, "Failed to regulator_get battery: %ld\n",
+				PTR_ERR(charger->battery));
 		goto err_put0;
 	}
 
@@ -1168,8 +1183,10 @@ err_unregister0:
 err_adc_unregister:
 	s3c_adc_release(charger->adc);
 err_put:
-	regulator_put(charger->reverse);
+	regulator_put(charger->battery);
 err_put0:
+	regulator_put(charger->reverse);
+err_put1:
 	regulator_put(charger->ps);
 err_free:
 #if defined(CONFIG_MX_RECOVERY_KERNEL)
@@ -1190,6 +1207,7 @@ static __devexit int max77665_charger_remove(struct platform_device *pdev)
 
 	free_irq(charger->chgin_irq, charger);
 	free_irq(charger->bypass_irq, charger);
+	regulator_put(charger->battery);
 	regulator_put(charger->reverse);
 	regulator_put(charger->ps);
 	power_supply_unregister(&charger->psy_usb);

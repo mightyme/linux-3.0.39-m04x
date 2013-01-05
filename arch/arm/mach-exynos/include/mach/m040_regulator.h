@@ -847,6 +847,10 @@ static struct regulator_consumer_supply reverse_supply[] = {
 	REGULATOR_SUPPLY("reverse", NULL),
 };
 
+static struct regulator_consumer_supply battery_supply[] = {
+	REGULATOR_SUPPLY("battery", NULL),
+};
+
 static struct regulator_init_data safeout1_init_data = {
 	.constraints	= {
 		.name		= "safeout1 range",
@@ -933,6 +937,22 @@ static struct regulator_init_data reverse_init_data = {
 	.consumer_supplies	= reverse_supply,
 };
 
+static struct regulator_init_data battery_init_data = {
+	.constraints	= {
+		.name		= "BATTERY",
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS |
+					      REGULATOR_CHANGE_CURRENT,
+		.boot_on	= true,
+		.min_uA		= 0,
+		.max_uA		= 2100000,
+		.state_mem	= {
+			.enabled	= true,
+		},
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(battery_supply),
+	.consumer_supplies	= battery_supply,
+};
+
 static struct max77665_regulator_data max77665_regulators[] = {
 	{MAX77665_ESAFEOUT1, &safeout1_init_data,},
 	{MAX77665_ESAFEOUT2, &safeout2_init_data,},
@@ -940,5 +960,6 @@ static struct max77665_regulator_data max77665_regulators[] = {
 	{MAX77665_FLASH_LED, &flash_led_init_data,},
 	{MAX77665_TORCH_LED, &torch_led_init_data,},
 	{MAX77665_REVERSE, &reverse_init_data,},
+	{MAX77665_BATTERY, &battery_init_data,},
 };
 #endif

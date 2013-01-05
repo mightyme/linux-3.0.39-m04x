@@ -447,6 +447,54 @@ static int max77665_set_current(struct regulator_dev *rdev,
 	return ret;
 }
 
+static int max77665_battery_get_current(struct regulator_dev *rdev)
+{
+	struct max77665_data *max77665 = rdev_get_drvdata(rdev);
+	struct i2c_client *i2c = max77665->iodev->i2c;
+	int ret;
+	u8 val;
+
+	ret = max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_02, &val);
+	if (ret)
+		return ret;
+
+	return (val & 0x3F) * 100 * 1000 / 3;
+}
+
+static int max77665_battery_set_current(struct regulator_dev *rdev,
+				int min_uA, int max_uA)
+{
+	struct max77665_data *max77665 = rdev_get_drvdata(rdev);
+	struct i2c_client *i2c = max77665->iodev->i2c;
+	int ret;
+	u8 reg;
+
+	reg = min_uA / 1000 * 3 /100;
+
+	/* Unlock protected registers */
+	ret = max77665_write_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_06, 0x0C);
+	if (unlikely(ret)) {
+		dev_err(rdev->dev.parent, "Failed to set unlock protected registers: %d\n", ret);
+		goto error;
+	}
+
+	ret = max77665_update_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_02, reg, 0x3F);
+	if (unlikely(ret)) {
+		dev_err(rdev->dev.parent, "Failed to update the battery current: %d\n", ret);
+		goto error;
+	}
+
+	/* Lock protected registers */
+	ret = max77665_write_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_06, 0x00);
+	if (unlikely(ret)) {
+		dev_err(rdev->dev.parent, "Failed to set lock protected registers: %d\n", ret);
+		goto error;
+	}
+
+error:
+	return ret;
+}
+
 static const int safeoutvolt[] = {
 	3300000,
 	4850000,
@@ -565,6 +613,15 @@ static struct regulator_ops max77665_reverse_ops = {
 	.set_suspend_disable	= max77665_reg_do_nothing,
 };
 
+static struct regulator_ops max77665_battery_ops = {
+	.enable			= max77665_reg_do_nothing,
+	.disable			= max77665_reg_do_nothing,
+	.get_current_limit	= max77665_battery_get_current,
+	.set_current_limit	= max77665_battery_set_current,
+	.set_suspend_enable	= max77665_reg_do_nothing,
+	.set_suspend_disable	= max77665_reg_do_nothing,
+};
+
 static struct regulator_desc regulators[] = {
 	{
 		.name = "ESAFEOUT1",
@@ -600,6 +657,12 @@ static struct regulator_desc regulators[] = {
 		.name = "REVERSE",
 		.id = MAX77665_REVERSE,
 		.ops = &max77665_reverse_ops,
+		.type = REGULATOR_CURRENT,
+		.owner = THIS_MODULE,
+	}, {
+		.name = "BATTERY",
+		.id = MAX77665_BATTERY,
+		.ops = &max77665_battery_ops,
 		.type = REGULATOR_CURRENT,
 		.owner = THIS_MODULE,
 	}
