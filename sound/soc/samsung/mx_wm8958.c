@@ -146,6 +146,7 @@ static int mx_wm8958_aif1_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
+#if 0
 	ret = snd_soc_dai_set_sysclk(cpu_dai, SAMSUNG_I2S_RCLKSRC_0,//SAMSUNG_I2S_RCLKSRC_0 = Using BUSCLK,SAMSUNG_I2S_RCLKSRC_1 = Using I2SCLK
 					rclk, 0);
 	if (ret < 0)
@@ -155,6 +156,7 @@ static int mx_wm8958_aif1_hw_params(struct snd_pcm_substream *substream,
 					rfs, SND_SOC_CLOCK_OUT);
 	if (ret < 0)
 		return ret;
+#endif
 
 	ret = snd_soc_dai_set_clkdiv(cpu_dai, SAMSUNG_I2S_DIV_BCLK, bfs);//set BFS
 	if (ret < 0)

@@ -477,9 +477,9 @@ void SetVolume_ADC1(struct snd_soc_codec *codec, bool enable)
 	dprintk ("%s() \n, enable = %d\n", __func__, enable);
 
 	// AIF1ADC1
-	if (enable) { // +12dB
-		snd_soc_update_bits(codec, WM8994_AIF1_ADC1_RIGHT_VOLUME,WM8994_AIF1ADC1R_VOL_MASK, 0xE0 << WM8994_AIF1ADC1R_VOL_SHIFT);
-		snd_soc_update_bits(codec, WM8994_AIF1_ADC1_LEFT_VOLUME,WM8994_AIF1ADC1L_VOL_MASK, 0xE0 << WM8994_AIF1ADC1L_VOL_SHIFT);
+	if (enable) { // +17.625dB
+		snd_soc_update_bits(codec, WM8994_AIF1_ADC1_RIGHT_VOLUME,WM8994_AIF1ADC1R_VOL_MASK, 0xEF << WM8994_AIF1ADC1R_VOL_SHIFT);
+		snd_soc_update_bits(codec, WM8994_AIF1_ADC1_LEFT_VOLUME,WM8994_AIF1ADC1L_VOL_MASK, 0xEF << WM8994_AIF1ADC1L_VOL_SHIFT);
 	} else { // +0dB
 		snd_soc_update_bits(codec, WM8994_AIF1_ADC1_RIGHT_VOLUME,WM8994_AIF1ADC1R_VOL_MASK, 0xC0 << WM8994_AIF1ADC1R_VOL_SHIFT);
 		snd_soc_update_bits(codec, WM8994_AIF1_ADC1_LEFT_VOLUME,WM8994_AIF1ADC1L_VOL_MASK, 0xC0 << WM8994_AIF1ADC1L_VOL_SHIFT);
