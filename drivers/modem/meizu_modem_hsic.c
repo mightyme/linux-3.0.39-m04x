@@ -46,20 +46,6 @@ static int hsic_tx_urb_with_skb(struct usb_device *usbdev, struct sk_buff *skb,
 static void hsic_rx_complete(struct urb *urb);
 
 static struct usb_device *global_usbdev = NULL;
-int modem_hsic_rpm_status(void)
-{
-	if (global_usbdev) {
-		struct device *dev, *ppdev;
-
-		dev = &global_usbdev->dev;
-		ppdev = dev->parent->parent;
-		pr_info("hsic auto rpm:%d, ehci auto rpm:%d", \
-			dev->power.runtime_auto, ppdev->power.runtime_auto);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(modem_hsic_rpm_status);
 
 static int hsic_set_slave_wakeup_gpio(unsigned int gpio, int val)
 {
