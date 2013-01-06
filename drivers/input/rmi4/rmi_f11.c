@@ -1911,8 +1911,8 @@ static int _turn_on_calibration(struct f11_data *data,int bOnOff)
 	u8 fingers = 0;
 	struct rmi_device_platform_data *pdata = to_rmi_platform_data(rmi_dev);
 
-	if( pdata->manufacturer_id != MANUFACTURER_TPK)
-		return 0;
+	//if( pdata->manufacturer_id != MANUFACTURER_TPK)
+	//	return 0;
 
 	// Enable/Disable Energy Ratio Relaxation
 	ret = rmi_read(rmi_dev,REG_F54_ANALOG_CTRL00,&val);//0x20
