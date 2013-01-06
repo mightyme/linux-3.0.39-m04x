@@ -243,7 +243,7 @@ static int max77665_reverse_reg_disable(struct regulator_dev *rdev)
 	int ret = 0;
 	printk("#### %s\n", __func__);
 
-	ret = max77665_update_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_00, 0x05, 0xF);
+	ret = max77665_update_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_00, 0x04, 0xF);
 
 	return ret;
 }

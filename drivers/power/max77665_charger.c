@@ -500,7 +500,8 @@ static void max77665_work_func(struct work_struct *work)
 						cable_status = CABLE_TYPE_AC;
 			}
 		} while(0);
-		regulator_enable(charger->ps);
+		if (!regulator_is_enabled(charger->ps))
+			regulator_enable(charger->ps);
 #endif
 	} else {
 		charger->done = false;

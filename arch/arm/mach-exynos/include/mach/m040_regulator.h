@@ -881,7 +881,6 @@ static struct regulator_init_data charger_init_data = {
 		.name		= "CHARGER",
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS |
 					      REGULATOR_CHANGE_CURRENT,
-		.boot_on	= true,
 		.min_uA		= 60000,
 		.max_uA		= 2580000,
 		.state_mem	= {
