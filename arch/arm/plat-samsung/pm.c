@@ -278,6 +278,12 @@ static int s3c_pm_enter(suspend_state_t state)
 
 	s3c_pm_configure_extint();
 
+	printk("GPX2-> CON:0x%08x, DATA: 0x%08x, PULL: 0x%08X, DRV: 0x%08x\n",
+		 	__raw_readl(S5P_VA_GPIO2 + 0xC40),
+			__raw_readl(S5P_VA_GPIO2 + 0xC44),
+			__raw_readl(S5P_VA_GPIO2 + 0xC48),
+			__raw_readl(S5P_VA_GPIO2 + 0xC4C));
+
 	printk("sleep: irq wakeup masks: %08lx,%08lx\n",
 	    s3c_irqwake_intmask, s3c_irqwake_eintmask);
 
