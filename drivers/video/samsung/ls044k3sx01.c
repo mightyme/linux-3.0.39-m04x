@@ -122,13 +122,18 @@ static int lcd_panel_set_brightness(struct ls044k3sx01_info *lcd, int brt)
 	return write_to_lcd(lcd, ls044k3sx01_brightness);
 }
 #endif
-static int lcd_panel_cabc_seq(struct ls044k3sx01_info *lcd, int enable)
+static int lcd_panel_cabc_switch(struct ls044k3sx01_info *lcd, int enable)
 {
 	if (enable)
-		return write_to_lcd(lcd, ls044k3sx01_cabc_seq);
+		return write_to_lcd(lcd, ls044k3sx01_cabc_seq_on);
 	else
 		return write_to_lcd(lcd, ls044k3sx01_cabc_seq_off);
 }
+static int lcd_panel_cabc_seq_prepare(struct ls044k3sx01_info *lcd)
+{
+	return write_to_lcd(lcd, ls044k3sx01_cabc_seq);
+}
+
 static int lcd_panel_cabc_gradient(struct ls044k3sx01_info *lcd)
 {
 	return write_to_lcd(lcd, ls044k3sx01_cabc_gradient);
@@ -201,7 +206,8 @@ static int lcd_init(struct mipi_dsim_lcd_device *mipi_dev)
 	CHECK_PANEL_RET(lcd_panel_sleep_out(lcd));
 	CHECK_PANEL_RET(lcd_panel_init_code(lcd));
 	CHECK_PANEL_RET(lcd_panel_display_on(lcd));
-	CHECK_PANEL_RET(lcd_panel_cabc_seq(lcd, lcd->cabc_en));
+	CHECK_PANEL_RET(lcd_panel_cabc_seq_prepare(lcd));
+	CHECK_PANEL_RET(lcd_panel_cabc_switch(lcd, lcd->cabc_en));
 	CHECK_PANEL_RET(lcd_panel_cabc_gradient(lcd));
 	CHECK_PANEL_RET(lcd_panel_set_ce_mode(lcd));
 
@@ -226,7 +232,7 @@ static int lcd_remove(struct mipi_dsim_lcd_device *mipi_dev)
 int lcd_cabc_opr(unsigned int brightness, unsigned int enable)
 {
 	CHECK_LCD_NULL(); 
-	CHECK_PANEL_RET(lcd_panel_cabc_seq(g_lcd_info , enable));
+	CHECK_PANEL_RET(lcd_panel_cabc_switch(g_lcd_info, enable));
 	g_lcd_info->cabc_en = enable;
 	return 0;
 }

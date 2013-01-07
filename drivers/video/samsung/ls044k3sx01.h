@@ -128,9 +128,13 @@ static const struct ls044k3sx01_param ls044k3sx01_cabc_seq[] = {
 	LCD_PARAM_DEF(0xB5,0x01,0xff,0x02,0x00,0x00,0x08,0x1c,0x00),
 	LCD_PARAM_DCS_CMD(0, 0x5E, 0x3C),
 	LCD_PARAM_DCS_CMD(0, 0x51, 0xFF),
+	LCD_PARAM_DEF_END,
+};
+static const struct ls044k3sx01_param ls044k3sx01_cabc_seq_on[] = {
 	LCD_PARAM_DCS_CMD(0, 0x55, 0x02),
 	LCD_PARAM_DEF_END,
 };
+
 static const struct ls044k3sx01_param ls044k3sx01_cabc_seq_off[] = {
 	LCD_PARAM_DCS_CMD(0, 0x55, 0x00),
 	LCD_PARAM_DEF_END,

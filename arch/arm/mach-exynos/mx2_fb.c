@@ -53,7 +53,7 @@ static struct s3cfb_lcd mx2_mipi_lcd = {
 		.h_fp = 0x1c,
 		.h_bp = 0x1a,
 		.h_sw = 0x5,
-		.v_fp = 0x6,
+		.v_fp = 0x12,
 		.v_bp = 0x6,
 		.v_sw = 0x2,
 		.cmd_allow_len = 0xf,
@@ -104,7 +104,7 @@ static struct mipi_dsim_config mx2_dsi_config = {
 	.e_byte_clk = DSIM_PLL_OUT_DIV8,
 
 	.p = 3,
-	.m = 109,
+	.m = 110,
 	.s = 1,
 
 	.pll_stable_time = 500,
