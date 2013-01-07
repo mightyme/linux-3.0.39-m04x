@@ -73,8 +73,6 @@ static struct resource umts_modem_res[] = {
 	},
 };
 
-static void xmm_gpio_revers_bias_restore(void);
-
 static struct modemlink_pm_data modem_link_pm_data;
 
 static struct modemlink_pm_data modem_link_pm_data_m030 = {
@@ -132,30 +130,8 @@ static struct modem_data umts_modem_data_m03x = {
 	.iodevs                   = m03x_io_devices,              
 	.link_pm_data             = &modem_link_pm_data,          
 	.gpio_revers_bias_clear   = NULL,                         
-	.gpio_revers_bias_restore = xmm_gpio_revers_bias_restore, 
+	.gpio_revers_bias_restore = NULL, 
 };
-
-static void xmm_gpio_revers_bias_restore(void)
-{
-	unsigned gpio_hostwake = modem_link_pm_data.gpio_hostwake;
-	unsigned gpio_sim_detect = umts_modem_data.gpio_sim_detect;
-
-	gpio_direction_output(gpio_hostwake, 0);
-	s3c_gpio_cfgpin(gpio_hostwake, S3C_GPIO_SFN(0xF));
-	s3c_gpio_setpull(gpio_hostwake, S3C_GPIO_PULL_NONE);
-	irq_set_irq_type(gpio_to_irq(gpio_hostwake),
-			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING);
-	enable_irq_wake(gpio_to_irq(gpio_hostwake));
-
-	if (umts_modem_data.gpio_sim_detect) {
-		gpio_direction_output(gpio_sim_detect, 0);
-		s3c_gpio_cfgpin(gpio_sim_detect, S3C_GPIO_SFN(0xF));
-		s3c_gpio_setpull(gpio_sim_detect, S3C_GPIO_PULL_NONE);
-		irq_set_irq_type(gpio_to_irq(gpio_sim_detect),
-				IRQ_TYPE_EDGE_BOTH);
-		enable_irq_wake(gpio_to_irq(gpio_sim_detect));
-	}
-}
 
 void modem_set_active_state(int state)
 {

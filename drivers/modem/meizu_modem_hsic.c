@@ -2,6 +2,7 @@
  *
  * Copyright (C) 2010 Google, Inc.
  * Copyright (C) 2010 Samsung Electronics.
+ * Copyright (C) 2012 Zhuhai Meizu Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -39,7 +40,6 @@
 extern void pm_runtime_init(struct device *dev);
 #define HSIC_MAX_PIPE_ORDER_NR 3
 
-static struct modem_ctl *modem_hsic_get_modemctl(struct link_pm_data *pm_data);
 static int hsic_pm_runtime_get_active(struct link_pm_data *pm_data);
 static int hsic_tx_urb_with_skb(struct usb_device *usbdev, struct sk_buff *skb,
 					struct if_usb_devdata *pipe_data);
@@ -299,7 +299,7 @@ static int hsic_send(struct link_device *ld, struct io_device *iod,
 	struct link_pm_data *pm_data = usb_ld->link_pm_data;
 
 	if (usb_ld->ld.com_state != COM_ONLINE) {
-		modem_notify_event(MODEM_EVENT_DISCONN); 
+		modem_notify_event(MODEM_EVENT_DISCONN);
 		return -ENODEV;
 	}
 
@@ -346,7 +346,7 @@ static void hsic_tx_complete(struct urb *urb)
 	if (urb->dev)
 		usb_mark_last_busy(urb->dev);
 	usb_free_urb(urb);
-	
+
 	dev_kfree_skb_any(skb);
 }
 
@@ -719,11 +719,10 @@ static irqreturn_t host_wakeup_irq_handler(int irq, void *data)
 	value = gpio_get_value(pm_data->gpio_hostwake);
 	MIF_DEBUG("\n[HWK]<=[%d]\n", value);
 
-	/*igonore host wakeup interrupt at suspending kernel*/
-	if (pm_data->dpm_suspending) {
-		wake_lock_timeout(&pm_data->l2_wake, msecs_to_jiffies(5000));
+	wake_lock(&pm_data->l2_wake);
+
+	if (pm_data->dpm_suspending)
 		MIF_ERR("%s when suspending\n", __func__);
-	}
 
 	if (!mc->enum_done) {
 		if (value == HOSTWAKE_TRIGLEVEL) {
@@ -781,14 +780,6 @@ static int hsic_pm_notifier_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct modem_ctl *modem_hsic_get_modemctl(struct link_pm_data *pm_data)
-{
-	struct platform_device *pdev_modem = pm_data->pdev_modem;
-	struct modem_ctl *mc = platform_get_drvdata(pdev_modem);
-
-	return mc;
-}
-
 static int modem_hsic_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct if_usb_devdata *devdata = usb_get_intfdata(intf);
@@ -809,7 +800,7 @@ static int modem_hsic_suspend(struct usb_interface *intf, pm_message_t message)
 	}
 
 	devdata->usb_ld->suspended++;
-	
+
 	if (devdata->usb_ld->suspended == 1)
 		MIF_INFO("%s begin suspend!\n", __func__);
 
@@ -853,7 +844,7 @@ static int modem_hsic_resume(struct usb_interface *intf)
 			devdata->usb_ld->usbdev->dev.power.runtime_status);
 		pm_data->resume_retry_cnt = 0;
 	}
-	
+
 	if (devdata->usb_ld->suspended == IF_USB_DEVNUM_MAX*2)
 		MIF_INFO("%s begin resume!\n", __func__);
 
@@ -893,7 +884,7 @@ static void modem_hsic_disconnect(struct usb_interface *intf)
 
 	if (devdata->disconnected)
 		return;
-	
+
 	wake_lock_timeout(&devdata->usb_ld->link_pm_data->l2_wake, \
 			msecs_to_jiffies(1000));
 
@@ -924,8 +915,8 @@ static void modem_hsic_disconnect(struct usb_interface *intf)
 	/* cancel runtime start delayed works */
 	cancel_delayed_work(&pm_data->hsic_pm_start);
 	cancel_delayed_work(&ld->tx_delayed_work);
-		
-	modem_notify_event(MODEM_EVENT_DISCONN); 
+
+	modem_notify_event(MODEM_EVENT_DISCONN);
 
 	return;
 }
@@ -979,7 +970,7 @@ static int __devinit modem_hsic_probe(struct usb_interface *intf,
 	struct usb_link_device *usb_ld = info->usb_ld;
 	struct usb_interface *control_interface;
 	struct usb_device *root_usbdev= to_usb_device(intf->dev.parent->parent);
-	
+
 	pr_info("hsic usbdev=0x%p, intf->dev=0x%p\n", usbdev, &intf->dev);
 	global_usbdev = usbdev;
 	pm_runtime_init(&intf->dev);
@@ -1196,18 +1187,19 @@ static int hsic_pm_init(struct usb_link_device *usb_ld, void *data)
 
 	pm_data->gpio_link_active = pdata->gpio_host_active;
 
-	pm_data->gpio_hostwake    = pm_pdata->gpio_hostwake;    
-	pm_data->gpio_slavewake   = pm_pdata->gpio_slavewake;   
-	pm_data->gpio_link_enable = pm_pdata->gpio_link_enable; 
+	pm_data->gpio_hostwake    = pm_pdata->gpio_hostwake;
+	pm_data->gpio_slavewake   = pm_pdata->gpio_slavewake;
+	pm_data->gpio_link_enable = pm_pdata->gpio_link_enable;
 
 	pm_data->irq_link_hostwake = gpio_to_irq(pm_data->gpio_hostwake);
-
-	modem_hsic_get_modemctl(pm_data)->irq_link_hostwake =
-						pm_data->irq_link_hostwake;
 
 	pm_data->usb_ld = usb_ld;
 	pm_data->ipc_debug_cnt = 0;
 	usb_ld->link_pm_data = pm_data;
+
+	wake_lock_init(&pm_data->l2_wake, WAKE_LOCK_SUSPEND, "l2_hsic");
+	wake_lock_init(&pm_data->rpm_wake, WAKE_LOCK_SUSPEND, "rpm_hsic");
+	wake_lock_init(&pm_data->tx_async_wake, WAKE_LOCK_SUSPEND, "tx_hsic");
 
 #ifndef CONFIG_MX_RECOVERY_KERNEL
 	r = request_threaded_irq(pm_data->irq_link_hostwake,
@@ -1239,10 +1231,6 @@ static int hsic_pm_init(struct usb_link_device *usb_ld, void *data)
 	init_completion(&pm_data->active_done);
 	INIT_DELAYED_WORK(&pm_data->hsic_pm_work, hsic_pm_runtime_work);
 	INIT_DELAYED_WORK(&pm_data->hsic_pm_start, hsic_pm_runtime_start);
-
-	wake_lock_init(&pm_data->l2_wake, WAKE_LOCK_SUSPEND, "l2_hsic");
-	wake_lock_init(&pm_data->rpm_wake, WAKE_LOCK_SUSPEND, "rpm_hsic");
-	wake_lock_init(&pm_data->tx_async_wake, WAKE_LOCK_SUSPEND, "tx_hsic");
 
 	return 0;
 
