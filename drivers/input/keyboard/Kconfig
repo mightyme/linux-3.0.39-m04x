@@ -571,4 +571,11 @@ config KEYBOARD_MXQM
          Say Y here if you want to use MX QMatix
          Sensor as input device.
 
+config KEYBOARD_MXQM_FILTER
+	bool "QM Touchpad filter driver"
+	depends on KEYBOARD_MXQM
+	default n
+       help
+         Say Y here if you want to use the filter.
+         
 endif
