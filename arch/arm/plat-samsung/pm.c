@@ -285,11 +285,12 @@ static int s3c_pm_enter(suspend_state_t state)
 			__raw_readl(S5P_VA_GPIO2 + 0xC44),
 			__raw_readl(S5P_VA_GPIO2 + 0xC48),
 			__raw_readl(S5P_VA_GPIO2 + 0xC4C));
-
+#if 0
 	if ((__raw_readl(S5P_VA_GPIO2 + 0xC44) & (0x1<<4)) == 0) {
 		pr_err("%s: modem is busy!!!\n", __func__);
 		return -EINVAL;
 	}
+#endif
 #endif
 	printk("sleep: irq wakeup masks: %08lx,%08lx\n",
 	    s3c_irqwake_intmask, s3c_irqwake_eintmask);

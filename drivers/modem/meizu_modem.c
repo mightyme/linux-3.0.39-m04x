@@ -218,13 +218,25 @@ static void modem_shutdown(struct platform_device *pdev)
 	mc->cp_flag = MODEM_OFF;
 }
 
-static int modem_suspend(struct device *pdev)
+static int modem_suspend(struct device *dev)
 {
+	struct modem_ctl *mc = dev_get_drvdata(dev);
+
+	disable_irq(mc->irq_hostwake);
+	irq_set_irq_type(mc->irq_hostwake, IRQF_NO_SUSPEND |\
+			IRQF_TRIGGER_LOW | IRQF_ONESHOT);
+
 	return 0;
 }
 
-static int modem_resume(struct device *pdev)
+static int modem_resume(struct device *dev)
 {
+	struct modem_ctl *mc = dev_get_drvdata(dev);
+
+	irq_set_irq_type(mc->irq_hostwake, IRQF_NO_SUSPEND |\
+			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING);
+	enable_irq(mc->irq_hostwake);
+
 	return 0;
 }
 

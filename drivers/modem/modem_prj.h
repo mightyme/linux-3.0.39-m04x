@@ -248,6 +248,7 @@ struct modem_ctl {
 	int irq_phone_active;
 	int irq_modem_reset;
 	int irq_sim_detect;
+	int irq_hostwake;
 
 	struct workqueue_struct *rx_wq;
 

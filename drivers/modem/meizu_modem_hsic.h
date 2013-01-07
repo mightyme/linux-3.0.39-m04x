@@ -80,7 +80,7 @@ typedef enum {
 
 struct link_pm_data {
 	struct usb_link_device *usb_ld;
-	unsigned irq_link_hostwake;
+	unsigned irq_hostwake;
 	unsigned gpio_link_enable;
 	unsigned gpio_link_active;
 	unsigned gpio_hostwake;
