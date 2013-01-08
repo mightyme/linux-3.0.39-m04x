@@ -770,6 +770,7 @@ static int hsic_pm_notifier_event(struct notifier_block *this,
 		pm_data->dpm_suspending = false;
 		if (gpio_get_value(pm_data->gpio_hostwake)
 			== HOSTWAKE_TRIGLEVEL) {
+			wake_lock(&pm_data->l2_wake);
 			queue_delayed_work(pm_data->wq, &pm_data->hsic_pm_work,
 				0);
 			MIF_INFO("post resume\n");

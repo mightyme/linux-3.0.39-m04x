@@ -109,7 +109,7 @@ static struct modem_data umts_modem_data_m030 = {
 	.iodevs                   = m03x_io_devices,
 	.link_pm_data             = &modem_link_pm_data,
 	.gpio_revers_bias_clear   = NULL,
-	.gpio_revers_bias_restore = xmm_gpio_revers_bias_restore,
+	.gpio_revers_bias_restore = NULL,
 };
 
 static struct modem_data umts_modem_data_m03x = {
