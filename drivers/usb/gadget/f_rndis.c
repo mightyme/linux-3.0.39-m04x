@@ -637,6 +637,12 @@ fail:
 	return -EINVAL;
 }
 
+#ifdef CONFIG_USB_GADGET
+extern int usb_gadget_notifier_call_chain(unsigned long val);
+#else
+static int usb_gadget_notifier_call_chain(unsigned long val) {return 0;}
+#endif
+
 static void rndis_disable(struct usb_function *f)
 {
 	struct f_rndis		*rndis = func_to_rndis(f);
@@ -647,6 +653,8 @@ static void rndis_disable(struct usb_function *f)
 
 	DBG(cdev, "rndis deactivated\n");
 
+	pr_info("rndis function disable\n");
+	usb_gadget_notifier_call_chain(RNDIS_CLOSE);
 	rndis_uninit(rndis->config);
 	gether_disconnect(&rndis->port);
 
@@ -659,11 +667,6 @@ static void rndis_disable(struct usb_function *f)
 }
 
 /*-------------------------------------------------------------------------*/
-#ifdef CONFIG_USB_GADGET
-extern int usb_gadget_notifier_call_chain(unsigned long val);
-#else
-static int usb_gadget_notifier_call_chain(unsigned long val) {return 0;}
-#endif
 
 /*
  * This isn't quite the same mechanism as CDC Ethernet, since the
@@ -692,8 +695,6 @@ static void rndis_close(struct gether *geth)
 	struct f_rndis		*rndis = func_to_rndis(&geth->func);
 
 	DBG(geth->func.config->cdev, "%s\n", __func__);
-	pr_info("rndis function close\n");
-	usb_gadget_notifier_call_chain(RNDIS_CLOSE);
 	rndis_set_param_medium(rndis->config, NDIS_MEDIUM_802_3, 0);
 	rndis_signal_disconnect(rndis->config);
 #if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
