@@ -943,15 +943,11 @@ static ssize_t attr_get_raw_data(struct device *dev,
 	int xyz[3] = { 0 };
 	int err;
 
-	mutex_lock(&acc->lock);
-
 	err = lis3dh_acc_read_accel_xyz(acc, xyz);
 	if (err < 0) {
 		dev_err(&acc->client->dev, "get_acceleration_data failed\n");
-		mutex_unlock(&acc->lock);
 		return err;
 	}
-	mutex_unlock(&acc->lock);
 	
 	return sprintf(buf, "%d %d %d\n", xyz[0], xyz[1], xyz[2]);
 }
