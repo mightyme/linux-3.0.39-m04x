@@ -361,6 +361,18 @@ static int __devexit max77665_haptic_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/*
+	this function will be called when power off the machine,to avoid non-stop vibration problem when shutdown.
+*/
+static void max77665_haptic_shutdown(struct platform_device * pdev)
+{
+	struct haptic_data *chip = platform_get_drvdata(pdev);
+
+	pr_info("%s disable motor when power off!", __func__);
+	max77665_haptic_disable(chip->client);
+	schedule_delayed_work(&chip->disable_work,msecs_to_jiffies(50));
+}
+
 static int max77665_haptic_suspend(struct device *dev)
 {
 	struct haptic_data *chip = dev_get_drvdata(dev);
@@ -394,6 +406,7 @@ static struct platform_driver max77665_haptic_driver = {
 		.owner = THIS_MODULE,
 		.pm = &max77665_haptic_pm_ops,
 	},
+	.shutdown = max77665_haptic_shutdown,
 	.probe = max77665_haptic_probe,
 	.remove = __devexit_p(max77665_haptic_remove),
 };
