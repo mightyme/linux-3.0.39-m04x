@@ -579,12 +579,31 @@ static int set_config(struct usb_composite_dev *cdev,
 		}
 
 		if (result == USB_GADGET_DELAYED_STATUS) {
+#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+			if(cdev->delayed_status) {
+				ERROR(cdev,
+						"%s: interface %d (%s) in delayed status, NOT ALLOW requested delayed status\n",
+						__func__, tmp, f->name);
+				reset_config(cdev);
+				cdev->delayed_status = 0;
+				result = -EBUSY;
+				goto done;
+			} else {
+				_DBG(cdev,
+						"%s: interface %d (%s) requested delayed status\n",
+						__func__, tmp, f->name);
+				cdev->delayed_status++;
+				_DBG(cdev, "delayed_status count %d\n",
+						cdev->delayed_status);
+			}
+#else
 			_DBG(cdev,
 			 "%s: interface %d (%s) requested delayed status\n",
 					__func__, tmp, f->name);
 			cdev->delayed_status++;
 			_DBG(cdev, "delayed_status count %d\n",
 					cdev->delayed_status);
+#endif
 		}
 	}
 
