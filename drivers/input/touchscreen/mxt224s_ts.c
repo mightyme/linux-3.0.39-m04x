@@ -2445,6 +2445,15 @@ static int mxt_resume(struct device *dev)
 		}
 	}
 
+	if (data->state == APPMODE) {
+		error = mxt_make_highchg(data);
+		if (error < 0) {
+			dev_err(&client->dev, ": Failed to make high CHG\n");
+			mutex_unlock(&input_dev->mutex);
+			return error;
+		}
+	}
+
 	mutex_unlock(&input_dev->mutex);
 
 	enable_irq(data->client->irq);
