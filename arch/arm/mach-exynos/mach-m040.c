@@ -892,7 +892,7 @@ static struct gpio_keys_button m040_gpio_keys_tables[] = {
 	}, {
 		.code			= KEY_VOLUMEUP,
 		.gpio			= M040_VOLUMEUP_KEY,
-		.desc			= "gpio-keys: KEY_VOLUMEDOWN",
+		.desc			= "gpio-keys: KEY_VOLUMEUP",
 		.type			= EV_KEY,
 		.active_low		= 1,
 		.debounce_interval	= 1,
