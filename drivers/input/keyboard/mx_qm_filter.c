@@ -14,8 +14,6 @@
 
 #define QM_MINORS		2
 #define QM_HOME_WAIT_TIMEOUT	150//ms
-#define QM_BACK_WAIT_TIMEOUT	150//ms
-//#define QM_VIRTUAL_BACK_KEY
 
 struct qm_filter_info {
 	struct input_dev *input_dev;
@@ -26,13 +24,6 @@ struct qm_filter_global_data {
 	int qm_filter_count;
 	struct qm_filter_info *qm_table[QM_MINORS];
 	
-#ifdef QM_VIRTUAL_BACK_KEY
-	struct workqueue_struct *qm_wq;
-	struct work_struct qm_work;
-	struct completion   completion;
-	struct input_dev *input_dev;
-#endif
-
 	unsigned int left;
 	unsigned int right;
 	unsigned int top;
@@ -64,45 +55,7 @@ static bool qm_filter_in_rect(struct qm_filter_global_data *global_data, unsigne
 	}
 	return false;
 }
-#ifdef QM_VIRTUAL_BACK_KEY
-static void qm_filter_back_event_fn(struct work_struct *work)
-{
-	struct qm_filter_global_data *qm_data =
-		list_entry(work, struct qm_filter_global_data, qm_work);
 
-	input_report_key(qm_data->input_dev, KEY_BACK, 1);
-	input_sync(qm_data->input_dev);
-	pr_info("%s: report %d 1++++++++++++\n", __func__, KEY_BACK);
-	wait_for_completion_interruptible(&qm_data->completion);
-	input_report_key(qm_data->input_dev, KEY_BACK, 0);
-	input_sync(qm_data->input_dev);
-	pr_info("%s: report %d 0++++++++++++\n", __func__, KEY_BACK);
-
-}
-
-static bool qm_filter_check_touch(struct qm_filter_global_data *global_data, int value)
-{
-	ktime_t delta_total;
-	long long delta_ms = 0;
-	
-	if(value == 1)
-	{
-		delta_total= ktime_sub(ktime_get(), global_data->key_time);
-		delta_ms = ktime_to_ms(delta_total);	
-		if((delta_ms < QM_BACK_WAIT_TIMEOUT) && qm_filter_in_rect(global_data, global_data->position_x, global_data->position_y)){
-			global_data->back_key_report = 1;
-			init_completion(&global_data->completion);
-			queue_work(global_data->qm_wq, &global_data->qm_work);
-		}
-	}else{
-		if(global_data->back_key_report){
-			complete(&global_data->completion);
-			global_data->back_key_report = 0;
-		}
-	}
-	return false;
-}
-#endif
 static bool qm_filter_check_home(struct qm_filter_global_data *global_data, int value)
 {
 	ktime_t delta_total;
@@ -132,12 +85,6 @@ static bool qm_filter_filter(struct input_handle *handle, unsigned int type, uns
 		global_data->home_key_status = value;
 		global_data->key_time = ktime_get();
 		return qm_filter_check_home(global_data, value);
-	case BTN_TOUCH:
-		global_data->touch_status = value;
-#ifdef QM_VIRTUAL_BACK_KEY		
-		qm_filter_check_touch(global_data, value);
-#endif
-		break;
 	case ABS_MT_TRACKING_ID:
 		global_data->finger = value;
 		break;
@@ -148,7 +95,7 @@ static bool qm_filter_filter(struct input_handle *handle, unsigned int type, uns
 		global_data->position_y= value;
 		break;
 	case SYN_REPORT:
-		if(qm_filter_in_rect(global_data, global_data->position_x, global_data->position_y))
+		if(test_bit(EV_ABS, handle->dev->evbit) && qm_filter_in_rect(global_data, global_data->position_x, global_data->position_y))
 			global_data->touch_time = ktime_get();
 		break;
 	default:
@@ -268,68 +215,22 @@ static int __init qm_filter_init(void)
 		return PTR_ERR(global_data);
 	global_data->touch_time = ktime_get();
 
-#ifdef QM_VIRTUAL_BACK_KEY
-	global_data->qm_wq = create_singlethread_workqueue("mx-filter-keypad");
-	if (!global_data->qm_wq) {
-		pr_err("%s: Failed to create_singlethread_workqueue\n", __func__);
-		ret = -ENOMEM;
-		goto fail;
-	}
-	global_data->input_dev = input_allocate_device();
-	if (!global_data->input_dev) {
-		pr_err("failed to allocate state\n");
-		ret = -ENOMEM;
-		goto fail1;
-	}
-
-	global_data->input_dev->name = "mx-filter-keypad";
-	global_data->input_dev->id.bustype = BUS_HOST;
-
-
-	INIT_WORK(&global_data->qm_work, qm_filter_back_event_fn);
-	init_completion(&global_data->completion);
-
-	input_set_drvdata(global_data->input_dev, global_data);
-	
-	__set_bit(EV_KEY, global_data->input_dev->evbit);
-	
-	input_set_capability(global_data->input_dev, EV_KEY, KEY_BACK);
-	
-	ret = input_register_device(global_data->input_dev);
-	if (ret) {
-		pr_err("Unable to register input device, error: %d\n",
-			ret);
-		goto fail2;
-	}
-#endif	
 	qm_filter_handler.private = global_data;
 	ret = input_register_handler(&qm_filter_handler);
 	if (ret) {
 		pr_err("Unable to register input handler, error: %d\n",
 			ret);
-		goto fail3;
+		goto fail;
 	}
 	qm_filter_data = global_data;
 	return 0;
-fail3:
-#ifdef QM_VIRTUAL_BACK_KEY
-	input_unregister_device(global_data->input_dev);
-fail2:
-	input_free_device(global_data->input_dev);
-fail1:
-	destroy_workqueue(global_data->qm_wq);
 fail:
-#endif
 	kfree(global_data);
 	return ret;
 }
 
 static void __exit qm_filter_exit(void)
 {
-#ifdef QM_VIRTUAL_BACK_KEY
-	destroy_workqueue(qm_filter_data->qm_wq);
-	input_unregister_device(qm_filter_data->input_dev);
-#endif
 	input_unregister_handler(&qm_filter_handler);
 	kfree(qm_filter_data);}
 
