@@ -478,7 +478,9 @@ static struct lm3530_platform_data lm3530_pd = {
 	.max_current = 0x4,
 	.pwm_pol_hi = false,
 	.brt_val = 0xff,
-	.brt_ramp_law = false,
+	.brt_ramp_law = true,
+	.brt_ramp_fall = 0x2,
+	.brt_ramp_rise = 0x2,
 };
 #endif
 static struct i2c_board_info __initdata i2c_devs6[] = {
