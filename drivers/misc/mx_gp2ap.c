@@ -25,6 +25,7 @@
 #include <linux/fs.h>
 #include <linux/earlysuspend.h>
 #include <asm/uaccess.h>
+#include <linux/wakelock.h>
 #include <linux/mx_gp2ap.h>
 
 #include <asm/gpio.h>
@@ -1164,8 +1165,11 @@ static irqreturn_t gp2ap_irq_handler(int irq, void *dev_id)
 
 	if (enabled_sensors & ID_PS) {
 		pr_debug("%s: ********** ps ***********\n", __func__);
+
 		queue_delayed_work(gp2ap->gp2ap_wq, &gp2ap->ps_dwork
 				, HZ/100);
+
+		wake_lock_timeout(&gp2ap->ps_wake_lock, 1*HZ);
 	} else {
 		pr_debug("%s: ********** als ***********\n", __func__);
 
@@ -1421,6 +1425,8 @@ static int __devinit gp2ap_probe(struct i2c_client *client, const struct i2c_dev
 	}
 
 	mutex_init(&gp2ap->lock);
+	wake_lock_init(&gp2ap->ps_wake_lock, WAKE_LOCK_SUSPEND,
+			"ps_wake_lock");
 	gp2ap->gp2ap_wq = create_singlethread_workqueue("gp2ap_handler");
 	INIT_DELAYED_WORK(&gp2ap->als_dwork, gp2ap_als_dwork_func);
 	INIT_DELAYED_WORK(&gp2ap->ps_dwork, gp2ap_ps_handler);

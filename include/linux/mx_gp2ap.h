@@ -167,6 +167,7 @@ struct gp2ap_data {
 
 	struct mutex ioctl_lock;
 	struct mutex i2c_lock;
+	struct wake_lock ps_wake_lock;
 	int enable;
 };
 #endif
