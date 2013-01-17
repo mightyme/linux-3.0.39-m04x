@@ -1504,7 +1504,7 @@ static void set_noise_mitigation_by_vbus(struct f11_data *data)
 	struct rmi_device *rmi_dev = f11->rmi_dev;
 	struct rmi_device_platform_data *pdata = to_rmi_platform_data(rmi_dev);
 
-	if( pdata->manufacturer_id != MANUFACTURER_TPK)
+	if( (pdata->manufacturer_id != MANUFACTURER_TPK)  && (pdata->manufacturer_id != MANUFACTURER_WINTEK))
 		return;
 	
 	if(touch_adjust)
@@ -1518,11 +1518,11 @@ static void set_noise_mitigation_by_vbus(struct f11_data *data)
 	
 	if ( value ) { // USB Dectected
 		//rmi_f11_disable_noise_mitigation(f11,false);		
-		rmi_f11_saturation_capacitance(f11,cap_val+30);//223
+		rmi_f11_saturation_capacitance(f11,cap_val+30);
 	}
 	else	{
 		//rmi_f11_disable_noise_mitigation(f11,true);	
-		rmi_f11_saturation_capacitance(f11,cap_val);//208
+		rmi_f11_saturation_capacitance(f11,cap_val);//223
 	}	
 }
 
@@ -1911,8 +1911,8 @@ static int _turn_on_calibration(struct f11_data *data,int bOnOff)
 	u8 fingers = 0;
 	struct rmi_device_platform_data *pdata = to_rmi_platform_data(rmi_dev);
 
-	//if( pdata->manufacturer_id != MANUFACTURER_TPK)
-	//	return 0;
+	if( (pdata->manufacturer_id != MANUFACTURER_TPK)  && (pdata->manufacturer_id != MANUFACTURER_WINTEK))
+		return 0;
 
 	// Enable/Disable Energy Ratio Relaxation
 	ret = rmi_read(rmi_dev,REG_F54_ANALOG_CTRL00,&val);//0x20
