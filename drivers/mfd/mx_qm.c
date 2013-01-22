@@ -56,7 +56,7 @@ const struct mx_qm_reg_data init_regs[] = {
 //	{LED_REG_CUR3, 0x00},
 //	{LED_REG_CUR4, 0x00},		
 	{QM_REG_MASK_POS, 0x09},
-	{QM_REG_QM_DET_TH, 0x08},
+	{QM_REG_QM_DET_TH, 0x0A},
 	{QM_REG_QM_MASK_TH, 0x06},
 //	{QM_REG_QM_BURST, 0x40},
 	{},
@@ -327,7 +327,7 @@ static bool __devinit mx_qm_identify(struct mx_qm_data *mx)
 	if( img_ver == 0xFF )
 		img_ver = FW_VERSION;
 		
-	if( ver != img_ver)
+	if( ver < img_ver)
 	{
 		dev_info(&client->dev, "Old firmware version %d.%d , img ver %d.%d,need be update\n", ((ver>>4)&0x0F),(ver&0x0F), ((img_ver>>4)&0x0F),(img_ver&0x0F));
 upd_ext:		
