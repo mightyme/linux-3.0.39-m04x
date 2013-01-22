@@ -37,6 +37,7 @@
 #define CURRENT_INCREMENT_STEP  100   /*mA*/ 
 #define COMPLETE_TIMEOUT        200   /*ms*/ 
 #define MA_TO_UA                1000  
+#define ADC_READ_AMOUNT		20
 
 #define BATTERY_TEMP_0		0   /*0oC*/
 #define BATTERY_TEMP_5		50  /*5oC*/
@@ -117,7 +118,7 @@ struct max77665_charger
 	bool done;
 	bool adc_flag;
 	struct s3c_adc_client *adc;
-	bool BATTERY;
+	bool bat_available;
 	int battery_health;
 	struct notifier_block usb_notifer;
 	bool adb_open;
@@ -185,7 +186,7 @@ static int max77665_usb_get_property(struct power_supply *psy,
 	val->intval = (charger->cable_status == CABLE_TYPE_USB);
 
 	/*if it has no battery, set it's none*/
-	if (!charger->BATTERY)
+	if (!charger->bat_available)
 		val->intval = CABLE_TYPE_NONE;
 	
 	return 0;
@@ -204,7 +205,7 @@ static int max77665_ac_get_property(struct power_supply *psy,
 	val->intval = (charger->cable_status == CABLE_TYPE_AC);
 	
 	/*if it has no battery, set it's none*/
-	if (!charger->BATTERY)
+	if (!charger->bat_available)
 		val->intval = CABLE_TYPE_NONE;
 
 	return 0;
@@ -255,12 +256,17 @@ static void charger_bat_alarm(struct alarm *alarm)
 }
 
 #define CHG_ADC_CHANNEL 2
-static int adc_is_available(struct max77665_charger *charger)
+static int adc_threshold_check(struct max77665_charger *charger)
 {
 	int adc_value = 0;
+	int i = 0, adc_sum = 0;
 
-	msleep(100);
-	adc_value = s3c_adc_read(charger->adc, CHG_ADC_CHANNEL);
+	for (i = 0; i < ADC_READ_AMOUNT; i++) {
+		adc_value = s3c_adc_read(charger->adc, CHG_ADC_CHANNEL);
+		adc_sum += adc_value;
+	}
+		
+	adc_value = adc_sum / ADC_READ_AMOUNT;
 	if (adc_value > 1024) {
 		return 1;
 	} else {
@@ -364,7 +370,7 @@ static int max77665_adjust_current(struct max77665_charger *charger,
 			}
 			break;
 		}
-		if (charger->adc_flag || !(adc_is_available(charger))) 
+		if (charger->adc_flag || !(adc_threshold_check(charger))) 
 			break;
 	}
 	return ret;
@@ -517,7 +523,7 @@ static void max77665_work_func(struct work_struct *work)
 	power_supply_changed(&charger->psy_ac);
 	power_supply_changed(&charger->psy_usb);
 
-	if (charger->BATTERY) {
+	if (charger->bat_available) {
 		max77665_charger_types(charger);
 
 		if (delayed_work_pending(&charger->adjust_dwork))
@@ -727,8 +733,8 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 	charger->irq_reg = int_ok;
 	
 	pr_info("-----%s %s\n", __func__, chgin ? "insert" : "remove");
-	if (charger->BATTERY) {	
-		if ((!chgin) && (adc_is_available(charger))) {
+	if (charger->bat_available) {	
+		if ((!chgin) && (adc_threshold_check(charger))) {
 			charger->adc_flag = true;
 			now_current = regulator_get_current_limit(charger->ps);
 			do{
@@ -1036,7 +1042,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	charger->chr_pin = pdata->charger_pin;
 	charger->done = false;
 	charger->adc_flag = false;
-	charger->BATTERY = true;
+	charger->bat_available = true;
 	charger->adb_open = false;
 	charger->storage_open = false;
 	charger->rndis_open = false;
@@ -1088,7 +1094,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	fuelgauge_ps = power_supply_get_by_name("fuelgauge");
 	if (!fuelgauge_ps) {
 		pr_info("sorry, you should has battery\n");
-		charger->BATTERY = false;
+		charger->bat_available = false;
 	}
 	
 	if (!power_supply_class) 
