@@ -477,7 +477,7 @@ void SetVolume_ADC1(struct snd_soc_codec *codec, bool enable)
 	dprintk ("%s() \n, enable = %d\n", __func__, enable);
 
 	// AIF1ADC1
-	if (enable) { // +17.625dB
+	if (enable) { // +17.625.dB
 		snd_soc_update_bits(codec, WM8994_AIF1_ADC1_RIGHT_VOLUME,WM8994_AIF1ADC1R_VOL_MASK, 0xEF << WM8994_AIF1ADC1R_VOL_SHIFT);
 		snd_soc_update_bits(codec, WM8994_AIF1_ADC1_LEFT_VOLUME,WM8994_AIF1ADC1L_VOL_MASK, 0xEF << WM8994_AIF1ADC1L_VOL_SHIFT);
 	} else { // +0dB
@@ -1038,7 +1038,7 @@ int set_capture_path(struct snd_soc_codec *codec,u8 capture_path)
 
 		case CAPTURE_HAND_MIC_NORMAL:
 			SetVolume_Mixerin_spk(codec);
-			SetVolume_ADC1(codec, 1);
+			SetVolume_ADC1(codec, 0);
 			break;
 
 		case CAPTURE_MAIN_MIC_INCALL:
