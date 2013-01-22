@@ -214,8 +214,8 @@ static void modem_shutdown(struct platform_device *pdev)
 	struct modem_ctl *mc = dev_get_drvdata(dev);
 
 	free_irq(mc->irq_modem_reset, mc);
+	mc->cp_flag &= MODEM_SIM_DETECT_FLAG;
 	mc->ops.modem_off(mc);
-	mc->cp_flag = MODEM_OFF;
 }
 
 static int modem_suspend(struct device *dev)

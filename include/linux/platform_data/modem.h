@@ -170,10 +170,10 @@ struct modem_data {
 	void (*gpio_revers_bias_restore)(void);
 };
 
-#define  MC_HOST_SUCCESS        0 
-#define  MC_HOST_HIGH           1 
-#define  MC_HOST_TIMEOUT        2 
-#define  MC_HOST_HALT           3 
+#define  MC_HOST_SUCCESS        0
+#define  MC_HOST_HIGH           1
+#define  MC_HOST_TIMEOUT        2
+#define  MC_HOST_HALT           3
 
 #define  HOSTWAKE_TRIGLEVEL	0
 

@@ -40,7 +40,7 @@
 extern void pm_runtime_init(struct device *dev);
 #define HSIC_MAX_PIPE_ORDER_NR 3
 
-static struct modem_ctl *modem_hsic_get_modemctl(struct link_pm_data *pm_data);
+static struct modem_ctl *get_modemctl(struct link_pm_data *pm_data);
 static int hsic_pm_runtime_get_active(struct link_pm_data *pm_data);
 static int hsic_tx_urb_with_skb(struct usb_device *usbdev, struct sk_buff *skb,
 					struct if_usb_devdata *pipe_data);
@@ -112,7 +112,7 @@ static int hsic_start_channel(struct link_device *ld, struct io_device *iod)
 	}
 
 retry:
-	if (ld->mc->cp_flag != MODEM_CONNECT_FLAG) {
+	if (!(ld->mc->cp_flag & MODEM_CONNECT_FLAG)) {
 		MIF_DEBUG("MODEM is not online, skip start ipc\n");
 		err = -ENODEV;
 		goto exit;
@@ -782,7 +782,7 @@ static int hsic_pm_notifier_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct modem_ctl *modem_hsic_get_modemctl(struct link_pm_data *pm_data)
+static struct modem_ctl *get_modemctl(struct link_pm_data *pm_data)
 {
 	struct platform_device *pdev_modem = pm_data->pdev_modem;
 	struct modem_ctl *mc = platform_get_drvdata(pdev_modem);
@@ -793,7 +793,7 @@ static int modem_hsic_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct if_usb_devdata *devdata = usb_get_intfdata(intf);
 	struct link_pm_data *pm_data = devdata->usb_ld->link_pm_data;
-	
+
 	if (!devdata->disconnected && devdata->state == STATE_RESUMED) {
 		usb_kill_urb(devdata->urb);
 		devdata->state = STATE_SUSPENDED;
@@ -1193,7 +1193,7 @@ static int hsic_pm_init(struct usb_link_device *usb_ld, void *data)
 
 	pm_data->irq_hostwake = gpio_to_irq(pm_data->gpio_hostwake);
 
-	modem_hsic_get_modemctl(pm_data)->irq_hostwake = pm_data->irq_hostwake;
+	get_modemctl(pm_data)->irq_hostwake = pm_data->irq_hostwake;
 
 	pm_data->usb_ld = usb_ld;
 	pm_data->ipc_debug_cnt = 0;

@@ -147,7 +147,7 @@ void modem_notify_event(int type)
 
 	switch (type) {
 		case MODEM_EVENT_POWEROFF:
-			global_mc->cp_flag = 0;
+			global_mc->cp_flag &= MODEM_SIM_DETECT_FLAG;
 			wake_up_interruptible(&global_mc->read_wq);
 			break;
 
@@ -165,24 +165,24 @@ void modem_notify_event(int type)
 
 		case MODEM_EVENT_CONN:
 			if(global_mc->enum_done) {
-				global_mc->cp_flag = MODEM_CONNECT_FLAG;
+				global_mc->cp_flag &= ~(MODEM_DISCONNECT_FLAG);
+				global_mc->cp_flag |= MODEM_CONNECT_FLAG;
 				wake_up_interruptible(&global_mc->conn_wq);
 			}
 			break;
 
 		case MODEM_EVENT_DISCONN:
 			if(global_mc->enum_done) {
+				global_mc->cp_flag &= ~(MODEM_CONNECT_FLAG);
 				global_mc->cp_flag |= MODEM_DISCONNECT_FLAG;
 				wake_up_interruptible(&global_mc->read_wq);
 			}
 			break;
 
 		case MODEM_EVENT_SIM:
-			if(global_mc->enum_done) {
-				global_mc->cp_flag |= MODEM_SIM_DETECT_FLAG;
-				global_mc->cp_flag |= MODEM_CRASH_FLAG;
-				wake_up_interruptible(&global_mc->read_wq);
-			}
+			global_mc->cp_flag |= MODEM_SIM_DETECT_FLAG;
+			global_mc->cp_flag |= MODEM_CRASH_FLAG;
+			wake_up_interruptible(&global_mc->read_wq);
 			break;
 
 		case MODEM_EVENT_BOOT_INIT:
@@ -271,11 +271,11 @@ static int xmm6260_off(struct modem_ctl *mc)
 {
 	MIF_INFO("xmm6260_off()\n");
 
+	mc->cp_flag &= MODEM_SIM_DETECT_FLAG;
 	gpio_set_value(mc->gpio_cp_on, 0);
 	gpio_set_value(mc->gpio_cp_reset, 0);
 	gpio_set_value(mc->gpio_reset_req_n, 0);
 	modem_wake_lock_timeout(mc, 10 * HZ);
-	mc->cp_flag = MODEM_OFF;
 
 	return 0;
 }
@@ -291,7 +291,7 @@ static int xmm6260_main_enum(struct modem_ctl *mc)
 	s5p_ehci_power(0);
 	modem_set_active_state(0);
 	msleep(100);
-	mc->cp_flag =0;
+	mc->cp_flag &= MODEM_SIM_DETECT_FLAG;
 	xmm6260_on(mc);
 	init_completion(&done);
 	mc->l2_done = &done;
@@ -309,7 +309,7 @@ static int xmm6260_renum(struct modem_ctl *mc)
 	wake_up_interruptible(&mc->read_wq);
 	modem_wake_lock(mc);
 	mc->enum_done = 0;
-	mc->cp_flag =0;
+	mc->cp_flag &= MODEM_SIM_DETECT_FLAG;
 	s5p_ehci_power(0);
 	msleep(1);
 	s5p_ehci_power(1);
@@ -333,7 +333,7 @@ static int xmm6260_reset(struct modem_ctl *mc)
 	s5p_ehci_power(0);
 	modem_set_active_state(0);
 	msleep(100);
-	mc->cp_flag =0;
+	mc->cp_flag &= MODEM_SIM_DETECT_FLAG;
 #endif
 	xmm6260_on(mc);
 #ifndef CONFIG_MX_RECOVERY_KERNEL
@@ -356,7 +356,7 @@ static int xmm6260_flash_enum(struct modem_ctl *mc)
 {
 	wake_up_interruptible(&mc->read_wq);
 	modem_wake_lock(mc);
-	mc->cp_flag = 0;
+	mc->cp_flag &= MODEM_SIM_DETECT_FLAG;
 	mc->enum_done = 0;
 	s5p_ehci_power(0);
 	msleep(50);
@@ -372,15 +372,12 @@ static irqreturn_t sim_detect_irq_handler(int irq, void *_mc)
 {
 	struct modem_ctl *mc = (struct modem_ctl *)_mc;
 
-	if (mc->enum_done) {
-		mc->sim_state = !gpio_get_value(mc->gpio_sim_detect);
-
-		modem_wake_lock_timeout(mc,  HZ*30);
-		mc->ops.modem_off(mc);
-		MIF_ERR("SIM %s\n", mc->sim_state ? "removed": "insert");
-		mdelay(500);
-		modem_notify_event(MODEM_EVENT_SIM);
-	}
+	mc->sim_state = !gpio_get_value(mc->gpio_sim_detect);
+	modem_wake_lock_timeout(mc,  HZ*30);
+	MIF_ERR("SIM %s\n", mc->sim_state ? "insert" : "removed");
+	modem_notify_event(MODEM_EVENT_SIM);
+	mc->ops.modem_off(mc);
+	mdelay(200);
 
 	return IRQ_HANDLED;
 }
@@ -507,6 +504,8 @@ modem_read(struct file *filp, char __user * buffer, size_t count,
 		return -EFAULT;
 	pr_info("%s: modem event = 0x%x\n", __func__, flag);
 
+	global_mc->cp_flag &= MODEM_CONNECT_FLAG;
+
 	return 1;
 }
 
@@ -560,15 +559,15 @@ int xmm6260_init_modemctl_device(struct modem_ctl *mc,
 	global_mc   = mc;
 	mc->l2_done = NULL;
 
-	mc->gpio_cp_on        = pdata->gpio_cp_on;        
-	mc->gpio_cp_reset     = pdata->gpio_cp_reset;     
-	mc->gpio_hostwake     = pdata->gpio_hostwake;     
-	mc->gpio_slavewake    = pdata->gpio_slavewake;    
-	mc->gpio_sim_detect   = pdata->gpio_sim_detect;   
-	mc->gpio_cp_dump_int  = pdata->gpio_cp_dump_int;  
-	mc->gpio_host_active  = pdata->gpio_host_active;  
-	mc->gpio_reset_req_n  = pdata->gpio_reset_req_n;  
-	mc->gpio_cp_reset_int = pdata->gpio_cp_reset_int; 
+	mc->gpio_cp_on        = pdata->gpio_cp_on;
+	mc->gpio_cp_reset     = pdata->gpio_cp_reset;
+	mc->gpio_hostwake     = pdata->gpio_hostwake;
+	mc->gpio_slavewake    = pdata->gpio_slavewake;
+	mc->gpio_sim_detect   = pdata->gpio_sim_detect;
+	mc->gpio_cp_dump_int  = pdata->gpio_cp_dump_int;
+	mc->gpio_host_active  = pdata->gpio_host_active;
+	mc->gpio_reset_req_n  = pdata->gpio_reset_req_n;
+	mc->gpio_cp_reset_int = pdata->gpio_cp_reset_int;
 
 	mc->gpio_revers_bias_clear   = pdata->gpio_revers_bias_clear;
 	mc->gpio_revers_bias_restore = pdata->gpio_revers_bias_restore;

@@ -27,16 +27,6 @@
 #include <linux/wakelock.h>
 #include <linux/regulator/consumer.h>
 
-/* modem status */
-#define MODEM_OFF		0
-#define MODEM_CRASHED		1
-#define MODEM_RAMDUMP		2
-#define MODEM_POWER_ON		3
-#define MODEM_BOOTING_NORMAL	4
-#define MODEM_BOOTING_RAMDUMP	5
-#define MODEM_DUMPING		6
-#define MODEM_RUNNING		7
-
 enum com_state {
 	COM_NONE,
 	COM_ONLINE,
