@@ -538,7 +538,7 @@ static void max77665_work_func(struct work_struct *work)
 			charger->usb_attach(false);
 		max77665_charger_notifier_call_chain(0);
 	}
-	wake_unlock(&charger->wake_lock);
+	wake_lock_timeout(&charger->wake_lock, 3 * HZ);
 
 #if defined(CONFIG_MX_RECOVERY_KERNEL)
 	if (charger->chgin) {
