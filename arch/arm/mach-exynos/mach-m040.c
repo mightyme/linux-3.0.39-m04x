@@ -717,7 +717,7 @@ static struct max77665_platform_data __initdata m040_max77665_info = {
 
 	/* charger */
 	.supply = "vinchg1",
-	.fast_charge_timer = MAX77665_FCHGTIME_10H,
+	.fast_charge_timer = MAX77665_FCHGTIME_12H,
 	.charging_restart_thresold = MAX77665_CHG_RSTRT_150MV,
 	.top_off_current_thresold = MAX77665_CHG_TO_ITH_100MA,
 	.top_off_timer = MAX77665_CHG_TO_TIME_70MIN,

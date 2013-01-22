@@ -33,20 +33,20 @@
 #define MAX_AC_CURRENT          1000  
 #define CHGIN_USB_CURRENT	450
 #define TEMP_CHECK_DELAY        (60*HZ) 
-#define WAKE_ALARM_INT          (120) 
+#define WAKE_ALARM_INT          (60) 
 #define CURRENT_INCREMENT_STEP  100   /*mA*/ 
 #define COMPLETE_TIMEOUT        200   /*ms*/ 
 #define MA_TO_UA                1000  
 #define ADC_READ_AMOUNT		20
 
-#define BATTERY_TEMP_0		0   /*0oC*/
-#define BATTERY_TEMP_5		50  /*5oC*/
-#define BATTERY_TEMP_10		100 /*10oC*/
-#define BATTERY_TEMP_15		150 /*15oC*/
-#define BATTERY_TEMP_45		450 /*45oC*/
-#define BATTERY_TEMP_5CURRENT	167
-#define BATTERY_TEMP_10CURRENT	300 
-#define BATTERY_TEMP_15CURRENT	500 
+#define BATTERY_TEMP_2		20		/*2oC*/
+#define BATTERY_TEMP_12		120		/*12oC*/
+#define BATTERY_TEMP_20		200		/*20oC*/
+#define BATTERY_TEMP_27		270		/*27oC*/
+#define BATTERY_TEMP_45		450		/*45oC*/
+#define BATTERY_TEMP_CURRENT_01C	167
+#define BATTERY_TEMP_CURRENT_03C	534 
+#define BATTERY_TEMP_CURRENT_05C	900 
 #define BATTERY_TEMP_4VOLTAGE   4000
 
 #define MAX77665_CHGIN_DTLS       0x60 
@@ -298,22 +298,28 @@ static int max77665_battery_temp_status(struct max77665_charger *charger)
 		if(fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_TEMP, &val) == 0) {
 			battery_temp = val.intval;
 
-			if (battery_temp < BATTERY_TEMP_0) {
+			if (battery_temp <= BATTERY_TEMP_2) {
 				battery_current = 0;
 				health = BATTERY_HEALTH_COLD;
-			} else if (battery_temp > BATTERY_TEMP_45) {
+			} else if (battery_temp >= BATTERY_TEMP_45) {
 				battery_current = 0;
 				health = BATTERY_HEALTH_OVERHEAT;
-			} else if (battery_temp < BATTERY_TEMP_5) {
-				battery_current = min(battery_current, BATTERY_TEMP_5CURRENT);
-			} else if (battery_temp < BATTERY_TEMP_10) {
+			} else if (battery_temp < BATTERY_TEMP_12) {
+				battery_current = min(battery_current, BATTERY_TEMP_CURRENT_01C);
+			} else if (battery_temp < BATTERY_TEMP_20) {
 				if (battery_voltage > BATTERY_TEMP_4VOLTAGE * MA_TO_UA) {
-					battery_current = min(battery_current, BATTERY_TEMP_5CURRENT);
+					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_01C);
 				} else {
-					battery_current = min(battery_current, BATTERY_TEMP_10CURRENT);
+					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_03C);
 				}
-			} else if (battery_temp < BATTERY_TEMP_15) {
-				battery_current = min(battery_current, BATTERY_TEMP_15CURRENT);
+			} else if (battery_temp < BATTERY_TEMP_27) {
+				if (battery_voltage > BATTERY_TEMP_4VOLTAGE * MA_TO_UA) {
+					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_03C);
+				} else {
+					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_05C);
+				}
+			} else {
+				battery_current = min(battery_current, BATTERY_TEMP_CURRENT_05C);
 			}
 		}
 	}
