@@ -270,7 +270,21 @@ void SetHpMute(struct snd_soc_codec *codec,bool bmute)
 	{
 		snd_soc_write(codec, WM8994_CHARGE_PUMP_1, WM8994_CP_ENA | DEFAULT_VAL_CHARGE_PUMP_1);
 		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,(WM8994_HPOUT1L_ENA_MASK |WM8994_HPOUT1R_ENA_MASK ),WM8994_HPOUT1R_ENA	 |WM8994_HPOUT1L_ENA);
+		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME,WM8994_HPOUT1R_MUTE_N_MASK,WM8994_HPOUT1R_MUTE_N);
+		snd_soc_update_bits(codec, WM8994_LEFT_OUTPUT_VOLUME,WM8994_HPOUT1L_MUTE_N_MASK,WM8994_HPOUT1L_MUTE_N);
+	}
+}
 
+void headphone_analog_mute(struct snd_soc_codec *codec, bool bmute)
+{
+	dprintk ("%s(%d) \n", __func__,bmute);
+
+	if(bmute) {
+		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME,WM8994_HPOUT1R_MUTE_N_MASK,0x00);
+		snd_soc_update_bits(codec, WM8994_LEFT_OUTPUT_VOLUME,WM8994_HPOUT1L_MUTE_N_MASK,0x00);
+		snd_soc_write(codec,WM8994_CHARGE_PUMP_1 ,DEFAULT_VAL_CHARGE_PUMP_1);
+	} else {
+		snd_soc_write(codec, WM8994_CHARGE_PUMP_1, WM8994_CP_ENA | DEFAULT_VAL_CHARGE_PUMP_1);
 		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME,WM8994_HPOUT1R_MUTE_N_MASK,WM8994_HPOUT1R_MUTE_N);
 		snd_soc_update_bits(codec, WM8994_LEFT_OUTPUT_VOLUME,WM8994_HPOUT1L_MUTE_N_MASK,WM8994_HPOUT1L_MUTE_N);
 	}
@@ -659,6 +673,7 @@ void OpenBTRing(struct snd_soc_codec *codec)
 	else
 		snd_soc_write(codec, WM8994_FLL1_CONTROL_5, 0x0C88); // * FLL1 Control (5)(224H):  0C88  FLL1_BYP=FLL1, FLL1_FRC_NCO_VAL=01_1001, FLL1_FRC_NCO=0, FLL1_REFCLK_DIV=MCLK / 2, FLL1_REFCLK_SRC=MCLK1
 	snd_soc_write(codec, WM8994_FLL1_CONTROL_1, 0x0001); // * FLL1 Control (1)(220H):  0001  FLL1_OSC_ENA=0, FLL1_ENA=1
+	mdelay(10);
 	snd_soc_write(codec, WM8994_AIF1_CLOCKING_1, 0x0011);// * AIF1 Clocking (1)(200H): 0011  AIF1CLK_SRC=FLL1/BCLK1, AIF1CLK_INV=0, AIF1CLK_DIV=AIF1CLK, AIF1CLK_ENA=1
 
 	snd_soc_write(codec, WM8994_FLL2_CONTROL_1, 0x0000); // * FLL2 Control (1)(240H):  0000  FLL2_OSC_ENA=0, FLL2_ENA=0
@@ -670,6 +685,7 @@ void OpenBTRing(struct snd_soc_codec *codec)
 	else
 		snd_soc_write(codec, WM8994_FLL2_CONTROL_5, 0x0C88); // * FLL2 Control (5)(244H):  0C88  FLL2_BYP=FLL1, FLL2_FRC_NCO_VAL=01_1001, FLL2_FRC_NCO=0, FLL2_REFCLK_DIV=MCLK / 2, FLL2_REFCLK_SRC=MCLK1
 	snd_soc_write(codec,WM8994_FLL2_CONTROL_1, WM8994_FLL2_ENA);
+	mdelay(10);
 	snd_soc_write(codec, WM8994_AIF2_CLOCKING_1, 0x0019);// * AIF2 Clocking (1)(204H): 0019  AIF2CLK_SRC=FLL2/BCLK2, AIF2CLK_INV=0, AIF2CLK_DIV=AIF2CLK, AIF2CLK_ENA=1
 
 	snd_soc_write(codec, WM8994_AIF2_BCLK, 0x0040); //

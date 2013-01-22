@@ -41,10 +41,10 @@
 
 static int mx_wm8958_aif1_hw_init(struct snd_soc_pcm_runtime *rtd)
 {
-
 	printk("%s\n", __func__);
 	return 0;
 }
+
 static int mx_wm8958_aif2_hw_init(struct snd_soc_pcm_runtime *rtd)
 {
 	printk("%s\n", __func__);
@@ -121,10 +121,9 @@ static int mx_wm8958_aif1_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_sysclk(codec_dai, WM8994_SYSCLK_FLL1, rclk,
-					SND_SOC_CLOCK_IN);
-	if (ret < 0)
-		return ret;
+	snd_soc_dai_digital_mute(codec_dai, 1);
+	headphone_analog_mute(codec_dai->codec, 1);
+
 #ifdef CONFIG_MACH_M030
 	if (machine_is_m030()) {
 		ret = snd_soc_dai_set_pll(codec_dai, WM8994_FLL1, WM8994_FLL_SRC_MCLK1,
@@ -141,6 +140,11 @@ static int mx_wm8958_aif1_hw_params(struct snd_pcm_substream *substream,
 	}
 #endif
 
+	ret = snd_soc_dai_set_sysclk(codec_dai, WM8994_SYSCLK_FLL1,
+					  rclk, SND_SOC_CLOCK_IN);
+	if (ret < 0)
+		return ret;
+
 	ret = snd_soc_dai_set_sysclk(cpu_dai, SAMSUNG_I2S_OPCLK,
 					rclk, MOD_OPCLK_PCLK);//select audio bus clock
 	if (ret < 0)
@@ -156,9 +160,9 @@ static int mx_wm8958_aif1_hw_params(struct snd_pcm_substream *substream,
 					rfs, SND_SOC_CLOCK_OUT);
 	if (ret < 0)
 		return ret;
-#endif
 
-	ret = snd_soc_dai_set_clkdiv(cpu_dai, SAMSUNG_I2S_DIV_BCLK, bfs);//set BFS
+#endif
+	ret = snd_soc_dai_set_clkdiv(cpu_dai, SAMSUNG_I2S_DIV_BCLK, bfs); //set BFS
 	if (ret < 0)
 		return ret;
 
@@ -189,6 +193,7 @@ out:
 	return 0;
 }
 #endif /* CONFIG_SND_SAMSUNG_PCM_USE_EPLL */
+
 
 static int mx_wm8958_aif2_hw_params(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params)
