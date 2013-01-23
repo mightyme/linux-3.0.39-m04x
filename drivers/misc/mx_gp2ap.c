@@ -47,9 +47,9 @@
 #define PS_CALIB_TO_NEAR(calib)	((calib) + (PS_NEAR_THRESHOLD - PS_CALIB_VALUE))
 #define PS_NEAR_TO_FAR(near) ((near) - (PS_NEAR_THRESHOLD - PS_FAR_THRESHOLD))
 
-static u16 read_ps_calibvalue(struct gp2ap_data *gp2ap);
 static atomic_t gp2ap_als_start = ATOMIC_INIT(0);
 
+#define PS_CALIB_AMOUNT	50
 #define __ALS_RANGE_X2   0 
 #define __ALS_RANGE_X8   1 
 #define __ALS_RANGE_X128 2 
@@ -284,7 +284,7 @@ static void get_ps_thresholds(struct gp2ap_data *gp2ap)
 
 	mutex_lock(&gp2ap->lock);
 	if (gp2ap->init_threshold_flag) {
-		gp2ap->ps_near_threshold = PS_CALIB_TO_NEAR(read_ps_calibvalue(gp2ap));
+		gp2ap->ps_near_threshold = PS_CALIB_TO_NEAR(gp2ap->ps_calib_value);
 		gp2ap->ps_far_threshold = PS_NEAR_TO_FAR(gp2ap->ps_near_threshold);
 		gp2ap->init_threshold_flag = 0;
 	}
@@ -583,7 +583,7 @@ static ssize_t gp2ap_ps_enable_store(struct device *dev,
 	struct gp2ap_data *gp2ap = i2c_get_clientdata(client);
 	int enable = simple_strtol(buf, NULL, 10);
 	int ret;
-
+	
 	ret = gp2ap_set_enable(gp2ap, ID_PS, enable);
 	if (ret < 0)
 		return ret;
@@ -758,43 +758,63 @@ static ssize_t gp2ap_ReflectData_show(struct device *dev,
 	return sprintf(buf, "%u\n", reg_data);
 }
 
-static inline u16 __read_ps_calibvalue(void)
+static u16 gp2ap_ps_calibration(struct gp2ap_data *gp2ap)
 {
-	struct file *fp;
-	char buf[256];
-	loff_t  pos = 0;
-	ssize_t rb;
-	u16 calib_value = PS_CALIB_VALUE;
+	u16 calib_value = 0;
+	u16 ps_data = 0, ps_sum = 0;
+	int i, ret;
+	bool als_enable= false, ps_enable = false;
 
-	fp = filp_open(PROXIMITY_CALIB_FILE, O_RDONLY, 0);
-	if (IS_ERR(fp)) {
-		pr_err("open %s error, err = %ld!\n", PROXIMITY_CALIB_FILE, PTR_ERR(fp));
-	} else {
-		rb = kernel_read(fp, pos, buf, sizeof(buf));
-		if (rb > 0) {
-			buf[rb] = '\0';
-			calib_value = simple_strtol(buf, NULL, 10);
-			pr_debug("in read_prox_calibvalue: rb is %d, read buf is %s, calib_value is %d\n", rb, buf, calib_value);
-		} else {
-			pr_err("read %s file error!, rb is %d\n", PROXIMITY_CALIB_FILE, rb);
+	if (gp2ap->enabled_sensors & ID_ALS) { 
+		als_enable = true;
+		ret = gp2ap_set_enable(gp2ap, ID_ALS, 0);
+		if (ret < 0) {
+			pr_err("%s:set als enable failed\n", __func__);
+			return ret;
 		}
-		filp_close(fp, NULL);
+	}
+		
+	if (gp2ap->enabled_sensors & ID_PS) {	
+		ps_enable = true;
+		ret = gp2ap_set_enable(gp2ap, ID_PS, 0);
+		if (ret < 0) {
+			pr_err("%s:set ps enable failed\n", __func__);
+			return ret;
+		}
+	}
+	
+	pr_info("start %s***********\n", __func__);
+
+	for (i = 0; i < PS_CALIB_AMOUNT; i++) {
+		gp2ap_set_ps_mode(gp2ap, PS_SHUTDOWN_MODE);
+		
+		msleep(10);
+		ps_data = gp2ap_get_ps_data(gp2ap);
+		if (ps_data < 0) {
+			pr_err("%s: get ps data error!(ret = %d)\n", __func__, ps_data);
+			ps_data = -1;
+		}
+
+		ps_sum += ps_data;
+	}
+	calib_value = ps_sum / PS_CALIB_AMOUNT;
+	
+	if (als_enable) {
+		ret = gp2ap_set_enable(gp2ap, ID_ALS, 1);
+		if (ret < 0) {
+			pr_err("%s:set als enable failed\n", __func__);
+			return ret;
+		}
+	}
+	if (ps_enable) {
+		ret = gp2ap_set_enable(gp2ap, ID_PS, 1);
+		if (ret < 0) {
+			pr_err("%s:set ps enable failed\n", __func__);
+			return ret;
+		}
 	}
 
-	return calib_value;
-}
-
-static u16 read_ps_calibvalue(struct gp2ap_data *gp2ap)
-{
-	u16 ps_calib_value;
-
-	if (likely(gp2ap->calib_value_readed))
-		ps_calib_value = gp2ap->ps_calib_value;
-	else {
-		ps_calib_value = __read_ps_calibvalue();
-		gp2ap->calib_value_readed = 1;
-	}
-	return ps_calib_value;
+	return calib_value; 
 }
 
 static ssize_t gp2ap_threshold_show(struct device *dev,
@@ -804,10 +824,34 @@ static ssize_t gp2ap_threshold_show(struct device *dev,
 	struct gp2ap_data *gp2ap = i2c_get_clientdata(client);
 
 	mutex_lock(&gp2ap->lock);
-	gp2ap->ps_near_threshold = PS_CALIB_TO_NEAR(read_ps_calibvalue(gp2ap));
+	gp2ap->ps_near_threshold = PS_CALIB_TO_NEAR(gp2ap->ps_calib_value);
 	mutex_unlock(&gp2ap->lock);
 
 	return sprintf(buf, "%d\n", gp2ap->ps_near_threshold);
+}
+
+static ssize_t gp2ap_calibration_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct gp2ap_data *gp2ap = i2c_get_clientdata(client);
+
+	return sprintf(buf, "%d\n", gp2ap->calibration);
+}
+
+static ssize_t gp2ap_calibration_store(struct device *dev,
+			struct device_attribute *attr, 
+			const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct gp2ap_data *gp2ap = i2c_get_clientdata(client);
+
+	int calibration = simple_strtoul(buf, NULL, 10);
+	
+	if (calibration)
+		gp2ap->ps_calib_value = gp2ap_ps_calibration(gp2ap);
+
+	return count;
 }
 
 static ssize_t gp2ap_CalibValue_show(struct device *dev,
@@ -815,11 +859,7 @@ static ssize_t gp2ap_CalibValue_show(struct device *dev,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct gp2ap_data *gp2ap = i2c_get_clientdata(client);
-
-	mutex_lock(&gp2ap->lock);
-	gp2ap->ps_calib_value = read_ps_calibvalue(gp2ap);
-	mutex_unlock(&gp2ap->lock);
-
+	
 	return sprintf(buf, "%d\n", gp2ap->ps_calib_value);
 }
 
@@ -859,6 +899,7 @@ static DEVICE_ATTR(debug, S_IWUSR,
 static DEVICE_ATTR(ps_debug_data, S_IRUGO,
 	gp2ap_ps_debug_data_show, NULL);
 static DEVICE_ATTR(CalibValue, 0664, gp2ap_CalibValue_show, gp2ap_CalibValue_store);
+static DEVICE_ATTR(calibration, 0664, gp2ap_calibration_show, gp2ap_calibration_store);
 static DEVICE_ATTR(ReflectData, S_IRUGO, gp2ap_ReflectData_show, NULL);
 static DEVICE_ATTR(threshold, S_IRUGO, gp2ap_threshold_show, NULL);
 
@@ -871,6 +912,7 @@ static struct attribute *gp2ap_attributes[] = {
 	&dev_attr_debug.attr,
 	&dev_attr_ps_debug_data.attr,
 	&dev_attr_CalibValue.attr,
+	&dev_attr_calibration.attr,
 	&dev_attr_ReflectData.attr,
 	&dev_attr_threshold.attr,
 	NULL,
@@ -1126,6 +1168,8 @@ static void gp2ap_ps_handler(struct work_struct *work)
 	int ret, ps_data = 0;
 	u8 buf[2] = {0}, command1 = 0;
 
+	wake_lock_timeout(&gp2ap->ps_wake_lock, 2*HZ);
+
 	/*read REG_COMMAND1(0x00) to clear interrupts*/
 	ret = gp2ap_i2c_read_byte(client, REG_COMMAND1, &command1);
 	if (ret < 0) {
@@ -1168,8 +1212,6 @@ static irqreturn_t gp2ap_irq_handler(int irq, void *dev_id)
 
 		queue_delayed_work(gp2ap->gp2ap_wq, &gp2ap->ps_dwork
 				, HZ/100);
-
-		wake_lock_timeout(&gp2ap->ps_wake_lock, 1*HZ);
 	} else {
 		pr_debug("%s: ********** als ***********\n", __func__);
 
@@ -1446,7 +1488,6 @@ static int __devinit gp2ap_probe(struct i2c_client *client, const struct i2c_dev
 	/* We can not access the calib file in early boot, use our preset one
 	 * and reset it when enable the ps
 	 */
-	gp2ap->calib_value_readed = 0;
 	gp2ap->ps_calib_value = PS_CALIB_VALUE;
 	gp2ap->ps_near_threshold = PS_CALIB_TO_NEAR(gp2ap->ps_calib_value);
 	gp2ap->ps_far_threshold = PS_NEAR_TO_FAR(gp2ap->ps_near_threshold);

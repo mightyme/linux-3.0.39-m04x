@@ -123,8 +123,6 @@
 #define PS_FAR    2 
 #define PS_UNKNOW -1 
 
-#define PROXIMITY_CALIB_FILE "/data/calibration/proximity_calibration"
-
 #define PS_IRQ_MODE		0
 #define PS_SHUTDOWN_MODE	1
 
@@ -162,13 +160,13 @@ struct gp2ap_data {
 	int init_threshold_flag;
 	int reset_threshold_flag;
 	bool irq_wake_enabled;
-	bool calib_value_readed;
 	bool lowlight_mode;
 
 	struct mutex ioctl_lock;
 	struct mutex i2c_lock;
 	struct wake_lock ps_wake_lock;
 	int enable;
+	int calibration;
 };
 #endif
 
