@@ -122,7 +122,6 @@ static int mx_wm8958_aif1_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	snd_soc_dai_digital_mute(codec_dai, 1);
-	headphone_analog_mute(codec_dai->codec, 1);
 
 #ifdef CONFIG_MACH_M030
 	if (machine_is_m030()) {

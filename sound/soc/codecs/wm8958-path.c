@@ -275,18 +275,26 @@ void SetHpMute(struct snd_soc_codec *codec,bool bmute)
 	}
 }
 
-void headphone_analog_mute(struct snd_soc_codec *codec, bool bmute)
+void playback_analog_mute(struct snd_soc_codec *codec, bool bmute)
 {
 	dprintk ("%s(%d) \n", __func__,bmute);
 
-	if(bmute) {
+	if (bmute) {
+		// headphone
 		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME,WM8994_HPOUT1R_MUTE_N_MASK,0x00);
 		snd_soc_update_bits(codec, WM8994_LEFT_OUTPUT_VOLUME,WM8994_HPOUT1L_MUTE_N_MASK,0x00);
 		snd_soc_write(codec,WM8994_CHARGE_PUMP_1 ,DEFAULT_VAL_CHARGE_PUMP_1);
+		// speaker
+		snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_RIGHT,WM8994_SPKOUTR_MUTE_N_MASK,0x00);
+		snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_LEFT,WM8994_SPKOUTL_MUTE_N_MASK,0x00);
 	} else {
+		// headphone
 		snd_soc_write(codec, WM8994_CHARGE_PUMP_1, WM8994_CP_ENA | DEFAULT_VAL_CHARGE_PUMP_1);
 		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME,WM8994_HPOUT1R_MUTE_N_MASK,WM8994_HPOUT1R_MUTE_N);
 		snd_soc_update_bits(codec, WM8994_LEFT_OUTPUT_VOLUME,WM8994_HPOUT1L_MUTE_N_MASK,WM8994_HPOUT1L_MUTE_N);
+		// speaker
+		snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_RIGHT,WM8994_SPKOUTR_MUTE_N_MASK,WM8994_SPKOUTR_MUTE_N);
+		snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_LEFT,WM8994_SPKOUTL_MUTE_N_MASK,WM8994_SPKOUTL_MUTE_N);
 	}
 }
 
@@ -1044,47 +1052,38 @@ int set_capture_path(struct snd_soc_codec *codec,u8 capture_path)
 	{
 		case CAPTURE_MAIN_MIC_NORMAL:
 			SetVolume_Mixerin_rec(codec);
-			SetVolume_ADC1(codec, 1);
 			break;
 
 		case CAPTURE_SECOND_MIC_NORMAL:
 			SetVolume_Mixerin_spk(codec);
-			SetVolume_ADC1(codec, 1);
 			break;
 
 		case CAPTURE_HAND_MIC_NORMAL:
 			SetVolume_Mixerin_spk(codec);
-			SetVolume_ADC1(codec, 0);
 			break;
 
 		case CAPTURE_MAIN_MIC_INCALL:
 			audio_switch(SWTICH_TO_BB);
-			SetVolume_ADC1(codec, 0);
 			break;
 
 		case CAPTURE_SECOND_MIC_INCALL:
 			audio_switch(SWTICH_TO_BB);
-			SetVolume_ADC1(codec, 0);
 			break;
 
 		case CAPTURE_HAND_MIC_INCALL:
 			audio_switch(SWTICH_TO_BB);
-			SetVolume_ADC1(codec, 0);
 			break;
 
 		case CAPTURE_MAIN_MIC_VOIP:
 			audio_switch(SWTICH_TO_AP);
-			SetVolume_ADC1(codec, 0);
 			break;
 
 		case CAPTURE_SECOND_MIC_VOIP:
 			audio_switch(SWTICH_TO_AP);
-			SetVolume_ADC1(codec, 0);
 			break;
 
 		case CAPTURE_HAND_MIC_VOIP:
 			audio_switch(SWTICH_TO_AP);
-			SetVolume_ADC1(codec, 0);
 			break;
 
 		case CAPTURE_NONE:
@@ -1094,7 +1093,6 @@ int set_capture_path(struct snd_soc_codec *codec,u8 capture_path)
 
 		case CAPTURE_TEST:
 			audio_switch(SWTICH_TO_AP);
-			SetVolume_ADC1(codec, 0);
 			break;
 
 		default:

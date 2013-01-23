@@ -756,10 +756,8 @@ static int soc_codec_close(struct snd_pcm_substream *substream)
 	/* Muting the DAC suppresses artifacts caused during digital
 	 * shutdown, for example from stopping clocks.
 	 */
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		headphone_analog_mute(codec_dai->codec, 1);
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		snd_soc_dai_digital_mute(codec_dai, 1);
-	}
 #ifdef	CONFIG_WM8958_ALWAYS_ON_SUSPEND	
 	}
 #endif	
@@ -861,7 +859,6 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 					  SND_SOC_DAPM_STREAM_START);
 
 	snd_soc_dai_digital_mute(codec_dai, 0);
-	headphone_analog_mute(codec_dai->codec, 0);
 
 out:
 	mutex_unlock(&pcm_mutex);

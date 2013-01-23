@@ -2853,6 +2853,8 @@ static int wm8994_aif_mute(struct snd_soc_dai *codec_dai, int mute)
 
 	snd_soc_update_bits(codec, mute_reg, WM8994_AIF1DAC1_MUTE, reg);
 
+	playback_analog_mute(codec, mute);
+
 	return 0;
 }
 

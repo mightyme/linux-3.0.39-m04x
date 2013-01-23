@@ -200,5 +200,5 @@ enum _capture_path {
 		CAPTURE_TEST, // 10
 };
 
-void headphone_analog_mute(struct snd_soc_codec *codec, bool bmute);
+void playback_analog_mute(struct snd_soc_codec *codec, bool bmute);
 #endif
