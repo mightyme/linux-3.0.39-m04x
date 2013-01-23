@@ -301,18 +301,18 @@ static int max77665_battery_temp_status(struct max77665_charger *charger)
 			if (battery_temp <= BATTERY_TEMP_2) {
 				battery_current = 0;
 				health = BATTERY_HEALTH_COLD;
-			} else if (battery_temp >= BATTERY_TEMP_45) {
+			} else if (battery_temp > BATTERY_TEMP_45) {
 				battery_current = 0;
 				health = BATTERY_HEALTH_OVERHEAT;
-			} else if (battery_temp < BATTERY_TEMP_12) {
+			} else if (battery_temp <= BATTERY_TEMP_12) {
 				battery_current = min(battery_current, BATTERY_TEMP_CURRENT_01C);
-			} else if (battery_temp < BATTERY_TEMP_20) {
+			} else if (battery_temp <= BATTERY_TEMP_20) {
 				if (battery_voltage > BATTERY_TEMP_4VOLTAGE * MA_TO_UA) {
 					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_01C);
 				} else {
 					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_03C);
 				}
-			} else if (battery_temp < BATTERY_TEMP_27) {
+			} else if (battery_temp <= BATTERY_TEMP_27) {
 				if (battery_voltage > BATTERY_TEMP_4VOLTAGE * MA_TO_UA) {
 					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_03C);
 				} else {
