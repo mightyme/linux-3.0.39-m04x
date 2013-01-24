@@ -174,7 +174,7 @@ static struct cma_region m040_regions[] = {
 		.start = 0
 	},  {
 		.name = "fimc3",
-		.size = 4 * SZ_1K,
+		.size = 25600 * SZ_1K,
 		.start = 0
 	}, {
 		.name = "mfc0",
