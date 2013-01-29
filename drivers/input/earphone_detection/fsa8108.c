@@ -659,8 +659,9 @@ static void fsa8108_reset_work(struct work_struct *work)
 	fsa8108_write_reg(FSA8108_REG_RESET,1);
 	msleep(100);
 	fsa8108_write_reg(FSA8108_REG_RESET,0);
-
 	
+	fsa8108_set_value(FSA8108_REG_GLOBAL_MUL,0x07,0,0x00);
+	fsa8108_set_value(FSA8108_REG_KEY_PRS_T,FSA8108_TDOUBLE,FSA8108_TDOUBLE_SHIFT,0x00);
 	/*** Set Timing parameters shorten long press time***/		
 	fsa8108_write_reg(FSA8108_REG_KEY_PRS_T,0);	
 	/*span insert time*/
