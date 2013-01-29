@@ -534,7 +534,7 @@ static void max77665_work_func(struct work_struct *work)
 
 		if (delayed_work_pending(&charger->adjust_dwork))
 			cancel_delayed_work(&charger->adjust_dwork);
-		schedule_delayed_work_on(0, &charger->adjust_dwork, 180*HZ);
+		schedule_delayed_work_on(0, &charger->adjust_dwork, HZ/4);
 
 		if (delayed_work_pending(&charger->poll_dwork))
 			cancel_delayed_work(&charger->poll_dwork);
