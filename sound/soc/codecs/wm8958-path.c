@@ -875,7 +875,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 #endif
 		SetVolume_Incall(codec);
 		SetVolume_Mixerin_rec(codec);
-		SetRecMute(codec,1);
+		SetRecMute(codec,0);
 		break;
 	case PLAYBACK_BT_INCALL:
 #ifdef CONFIG_MACH_M040
