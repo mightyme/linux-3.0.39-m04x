@@ -94,7 +94,7 @@ static struct platform_device m040_wm8958_fixed_voltage2 = {
 };
 /*lcd power set*/
 static struct regulator_consumer_supply m040_lcd_fixed_voltage0_supplies =
-	REGULATOR_SUPPLY("LCD_N5V", "ls044k3sx01");
+	REGULATOR_SUPPLY("LCD_N5V", "lcd_panel");
 
 static struct regulator_init_data m040_lcd_fixed_voltage0_init_data = {
 	.constraints = {
@@ -124,7 +124,7 @@ static struct platform_device m040_lcd_fixed_voltage0 = {
 };
 
 static struct regulator_consumer_supply m040_lcd_fixed_voltage1_supplies =
-	REGULATOR_SUPPLY("LCD_5V", "ls044k3sx01");
+	REGULATOR_SUPPLY("LCD_5V", "lcd_panel");
 
 static struct regulator_init_data m040_lcd_fixed_voltage1_init_data = {
 	.constraints = {
@@ -154,7 +154,7 @@ static struct platform_device m040_lcd_fixed_voltage1 = {
 };
 
 static struct regulator_consumer_supply m040_lcd_fixed_voltage2_supplies =
-	REGULATOR_SUPPLY("LCD_2V8", "ls044k3sx01");
+	REGULATOR_SUPPLY("LCD_2V8", "lcd_panel");
 
 static struct regulator_init_data m040_lcd_fixed_voltage2_init_data = {
 	.constraints = {

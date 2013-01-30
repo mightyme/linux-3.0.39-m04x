@@ -85,7 +85,7 @@ static struct regulator_consumer_supply __initdata max77686_ldo12[] = {
 };
 
 static struct regulator_consumer_supply __initdata max77686_ldo13 = /*lcd 1.8v */
-	REGULATOR_SUPPLY("vdd_ldo13", "ls044k3sx01");
+	REGULATOR_SUPPLY("vdd_ldo13", "lcd_panel");
 
 static struct regulator_consumer_supply __initdata max77686_ldo14 =
 	REGULATOR_SUPPLY("vdd_ldo14", NULL);

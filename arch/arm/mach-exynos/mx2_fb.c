@@ -36,7 +36,7 @@
 #include <plat/pd.h>
 
 #include <../../../drivers/video/samsung/s3cfb.h>
-#include <../../../drivers/video/samsung/ls044k3sx01.h>
+#include <../../../drivers/video/samsung/meizu_lcd.h>
 
 #if defined(CONFIG_FB_S5P_MIPI_DSIM)
 /* fb helper*/
@@ -147,7 +147,7 @@ static int mx2_mipi_power(struct platform_device *pdev, unsigned int enable)
 }
 
 static struct s5p_platform_mipi_dsim __initdata mx2_dsi_pd = {
-	.lcd_panel_name	= "ls044k3sx01",
+	.lcd_panel_name	= "lcd_panel",
 	.phy_enable	= s5p_dsim_phy_enable,
 	.mipi_power	= mx2_mipi_power,
 	.dsim_config	= &mx2_dsi_config,
@@ -163,7 +163,7 @@ static struct s5p_platform_mipi_dsim __initdata mx2_dsi_pd = {
 
 #if defined(CONFIG_FB_MX2_MIPI_LCD)
 /* mipi lcd helper */
-static int ls044k3sx01_lcd_reset_level(struct lcd_device *ld, int level)
+static int lcd_panel_reset_level(struct lcd_device *ld, int level)
 {
 	int ret;
 	unsigned int gpio = M040_LCD_RST;
@@ -179,12 +179,12 @@ static int ls044k3sx01_lcd_reset_level(struct lcd_device *ld, int level)
 	return 0;
 }
 
-static int ls044k3sx01_lcd_reset(struct lcd_device *ld)
+static int lcd_panel_reset(struct lcd_device *ld)
 {
-	return ls044k3sx01_lcd_reset_level(ld, 0);
+	return lcd_panel_reset_level(ld, 0);
 }
 
-static int ls044k3sx01_lcd_power_vdd(struct lcd_device *ld, int enable)
+static int lcd_panel_power_vdd(struct lcd_device *ld, int enable)
 {
 	struct regulator_bulk_data supplies[2];
 	int num_consumers = ARRAY_SIZE(supplies);
@@ -216,7 +216,7 @@ static int ls044k3sx01_lcd_power_vdd(struct lcd_device *ld, int enable)
 
 	return 0;
 }
-static int ls044k3sx01_lcd_power_vs(struct lcd_device *ld, int enable)
+static int lcd_panel_power_vs(struct lcd_device *ld, int enable)
 {
 	struct regulator_bulk_data supplies[2];
 	int num_consumers = ARRAY_SIZE(supplies);
@@ -248,38 +248,38 @@ static int ls044k3sx01_lcd_power_vs(struct lcd_device *ld, int enable)
 	return 0;
 }
 
-static int ls044k3sx01_lcd_power(struct lcd_device *ld, int enable)
+static int lcd_panel_power(struct lcd_device *ld, int enable)
 {
-	struct ls044k3sx01_info *lcd =
-		container_of(&ld, struct ls044k3sx01_info, ld);
+	struct lcd_panel_info *lcd =
+		container_of(&ld, struct lcd_panel_info, ld);
 
 	if (enable) {
 		if (lcd->state != LCD_DISPLAY_DEEP_STAND_BY) {
-			ls044k3sx01_lcd_reset_level(ld, 0);
-			ls044k3sx01_lcd_power_vdd(ld, enable);
+			lcd_panel_reset_level(ld, 0);
+			lcd_panel_power_vdd(ld, enable);
 		}
-		ls044k3sx01_lcd_reset_level(ld, 1);
-		ls044k3sx01_lcd_power_vs(ld, enable);
+		lcd_panel_power_vs(ld, enable);
+		lcd_panel_reset_level(ld, 1);
 	} else {
-		ls044k3sx01_lcd_power_vs(ld, enable);
-		ls044k3sx01_lcd_reset_level(ld, 0);
+		lcd_panel_power_vs(ld, enable);
 		if (lcd->state != LCD_DISPLAY_DEEP_STAND_BY)
-			ls044k3sx01_lcd_power_vdd(ld, enable);
+			lcd_panel_power_vdd(ld, enable);
+		lcd_panel_reset_level(ld, 0);
 	}
 	return 0;
 }
 
 /* ls040b3sx01 panel. */
-static struct lcd_platform_data ls044k3sx01_pd = {
-	.reset			= ls044k3sx01_lcd_reset,
-	.power_on		= ls044k3sx01_lcd_power,
+static struct lcd_platform_data lcd_panel_pd = {
+	.reset			= lcd_panel_reset,
+	.power_on		= lcd_panel_power,
 };
 
 static struct mipi_dsim_lcd_device mx2_mipi_lcd_device = {
-	.name		= "ls044k3sx01",
+	.name		= "lcd_panel",
 	.id		= -1,
 	.bus_id		= 0,
-	.platform_data	= (void *)&ls044k3sx01_pd,
+	.platform_data	= (void *)&lcd_panel_pd,
 };
 #endif
 
