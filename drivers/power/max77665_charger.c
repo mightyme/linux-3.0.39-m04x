@@ -42,12 +42,15 @@
 #define BATTERY_TEMP_2		20		/*2oC*/
 #define BATTERY_TEMP_12		120		/*12oC*/
 #define BATTERY_TEMP_20		200		/*20oC*/
+#define BATTERY_TEMP_23		230		/*23oC*/
 #define BATTERY_TEMP_27		270		/*27oC*/
 #define BATTERY_TEMP_45		450		/*45oC*/
 #define BATTERY_TEMP_CURRENT_01C	167
 #define BATTERY_TEMP_CURRENT_03C	534 
+#define BATTERY_TEMP_CURRENT_04C	720
 #define BATTERY_TEMP_CURRENT_05C	900 
 #define BATTERY_TEMP_4VOLTAGE   4000
+#define BATTERY_TEMP_42VOLTAGE	4200
 
 #define MAX77665_CHGIN_DTLS       0x60 
 #define MAX77665_CHGIN_DTLS_SHIFT 5    
@@ -307,17 +310,19 @@ static int max77665_battery_temp_status(struct max77665_charger *charger)
 			} else if (battery_temp <= BATTERY_TEMP_12) {
 				battery_current = min(battery_current, BATTERY_TEMP_CURRENT_01C);
 			} else if (battery_temp <= BATTERY_TEMP_20) {
-				if (battery_voltage > BATTERY_TEMP_4VOLTAGE * MA_TO_UA) {
+				if (battery_voltage > BATTERY_TEMP_42VOLTAGE * MA_TO_UA) {
 					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_01C);
 				} else {
 					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_03C);
 				}
-			} else if (battery_temp <= BATTERY_TEMP_27) {
+			} else if (battery_temp <= BATTERY_TEMP_23) {
 				if (battery_voltage > BATTERY_TEMP_4VOLTAGE * MA_TO_UA) {
 					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_03C);
 				} else {
 					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_05C);
 				}
+			} else if (battery_temp <= BATTERY_TEMP_27) {
+				battery_current = min(battery_current, BATTERY_TEMP_CURRENT_04C);	
 			} else {
 				battery_current = min(battery_current, BATTERY_TEMP_CURRENT_05C);
 			}
