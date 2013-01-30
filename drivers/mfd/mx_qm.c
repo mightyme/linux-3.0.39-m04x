@@ -38,6 +38,7 @@
 
 //#define	VERIFY_CRC
 
+static volatile int force_update = false;
 static volatile int is_update = false;
 static int key_wakeup_type = 0;
 
@@ -57,7 +58,8 @@ const struct mx_qm_reg_data init_regs[] = {
 //	{LED_REG_CUR4, 0x00},		
 	{QM_REG_MASK_POS, 0x09},
 	{QM_REG_QM_DET_TH, 0x0A},
-	{QM_REG_QM_MASK_TH, 0x06},
+	{QM_REG_QM_MASK_TH, 0x06},	
+//	{QM_REG_WAKEUP_TYPE, 0x02},// µ¥»÷
 //	{QM_REG_QM_BURST, 0x40},
 	{},
 };
@@ -824,7 +826,7 @@ static ssize_t qm_store(struct device *dev,
 		if (sscanf(buf, "%d\n", &value) == 1) {	
 			int ret;
 			dev_info(dev, "V:0x%.2X \n", value);
-			if( value < 2 )
+			if( value < 3 )
 			{
 				ret = mx_qm_writebyte(qm->client,QM_REG_WAKEUP_TYPE,value);
 				if (ret < 0)
@@ -949,7 +951,11 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 	mutex_init(&data->iolock);
 	wake_lock_init(&data->wake_lock, WAKE_LOCK_SUSPEND, "qm_pad");
 
-	//mx_qm_update(data);
+	if( force_update )
+	{
+		pr_info("mx_qm:force update...\n");
+		mx_qm_update(data);
+	}
 	
 	mx_qm_wakeup(data,true);
 	/* Identify the mx_qm chip */
