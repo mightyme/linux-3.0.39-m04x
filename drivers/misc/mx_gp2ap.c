@@ -1168,8 +1168,6 @@ static void gp2ap_ps_handler(struct work_struct *work)
 	int ret, ps_data = 0;
 	u8 buf[2] = {0}, command1 = 0;
 
-	wake_lock_timeout(&gp2ap->ps_wake_lock, 2*HZ);
-
 	/*read REG_COMMAND1(0x00) to clear interrupts*/
 	ret = gp2ap_i2c_read_byte(client, REG_COMMAND1, &command1);
 	if (ret < 0) {
@@ -1191,6 +1189,7 @@ static void gp2ap_ps_handler(struct work_struct *work)
 		ps_data = PS_NEAR;
 	
 	if (gp2ap->ps_data != ps_data) {
+		wake_lock_timeout(&gp2ap->ps_wake_lock, 3*HZ);
 		input_report_abs(idp, ABS_PS, ps_data);
 		input_sync(idp);
 		gp2ap->ps_data = ps_data;
