@@ -468,7 +468,7 @@ static void fsa8108_adc_read_func(struct work_struct *work)
 		fsa8108_report_key_event(KEY_HEADSETHOOK, KEY_EVENT_RELEASE);
 
 		pr_info("[fsa8108] timer delete\n");
-		del_timer(&info->detect_mic_adc_timer);
+		del_timer_sync(&info->detect_mic_adc_timer);
 	}
 }
 
