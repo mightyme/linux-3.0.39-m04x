@@ -1508,7 +1508,7 @@ static void set_noise_mitigation_by_vbus(struct f11_data *data)
 		return;
 	
 	if(touch_adjust)
-		cap_val = 180;
+		cap_val = 148;//180@T0018  148@T0019
 	else
 		cap_val = 223;
 	
