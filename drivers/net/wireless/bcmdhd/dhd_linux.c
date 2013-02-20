@@ -346,7 +346,7 @@ uint dhd_pkt_filter_init = 0;
 module_param(dhd_pkt_filter_init, uint, 0);
 
 /* Pkt filter mode control */
-uint dhd_master_mode = TRUE;
+uint dhd_master_mode = FALSE;
 module_param(dhd_master_mode, uint, 0);
 
 #ifdef DHDTHREAD
@@ -3368,12 +3368,16 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	/* Setup defintions for pktfilter , enable in suspend */
 	dhd->pktfilter_count = 5;
 	/* Setup filter to allow only unicast */
+#ifdef MEIZU_POWER
+	dhd->pktfilter[0] = "100 0 0 0 0x01 0x01";
+#else
 	dhd->pktfilter[0] = "100 0 0 0 0x01 0x00";
+#endif
 	dhd->pktfilter[1] = NULL;
 	dhd->pktfilter[2] = NULL;
 	dhd->pktfilter[3] = NULL;
 #ifdef MEIZU_POWER
-	dhd->pktfilter[4] = NULL;
+	dhd->pktfilter[4] = "104 0 0 23 0xff000000000000ffffffff0000ffff 0x11000000000000effffffa0000076c";
 #else
 	/* Add filter to pass multicastDNS packet and NOT filter out as Broadcast */
 	dhd->pktfilter[4] = "104 0 0 0 0xFFFFFFFFFFFF 0x01005E0000FB";
@@ -4494,14 +4498,9 @@ int net_os_rxfilter_add_remove(struct net_device *dev, int add_remove, int num)
 	char *filterp = NULL;
 	int ret = 0;
 
-#ifdef MEIZU_POWER
-	if (!dhd || (num == DHD_UNICAST_FILTER_NUM))
-		return ret;
-#else
 	if (!dhd || (num == DHD_UNICAST_FILTER_NUM) ||
 	    (num == DHD_MDNS_FILTER_NUM))
 		return ret;
-#endif
 	if (num >= dhd->pub.pktfilter_count)
 		return -EINVAL;
 	if (add_remove) {
@@ -4515,11 +4514,6 @@ int net_os_rxfilter_add_remove(struct net_device *dev, int add_remove, int num)
 		case DHD_MULTICAST6_FILTER_NUM:
 			filterp = "103 0 0 0 0xFFFF 0x3333";
 			break;
-#ifdef MEIZU_POWER
-		case DHD_MDNS_FILTER_NUM:
-			filterp = "104 0 0 0 0xFFFFFFFFFFFF 0x01005E0000FB";
-			break;
-#endif
 		default:
 			return -EINVAL;
 		}
