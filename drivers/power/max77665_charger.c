@@ -41,6 +41,7 @@
 
 #define BATTERY_TEMP_2		20		/*2oC*/
 #define BATTERY_TEMP_12		120		/*12oC*/
+#define BATTERY_TEMP_17		170		/*17oC*/
 #define BATTERY_TEMP_20		200		/*20oC*/
 #define BATTERY_TEMP_23		230		/*23oC*/
 #define BATTERY_TEMP_27		270		/*27oC*/
@@ -294,37 +295,56 @@ static int max77665_battery_temp_status(struct max77665_charger *charger)
 	int battery_temp = 0, battery_voltage = 0;
 	int battery_current = min(MAX_AC_CURRENT, charger->fast_charge_current);
 	int health = BATTERY_HEALTH_GOOD;
+	char battery_manufacturer[10] = {0};
 
 	if (fuelgauge_ps) {
 		if(fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_VOLTAGE_NOW, &val) == 0)
 			battery_voltage = val.intval;
+		if (fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_MANUFACTURER, &val) == 0)
+			strcpy(battery_manufacturer, val.strval);
 		if(fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_TEMP, &val) == 0) {
 			battery_temp = val.intval;
 
-			if (battery_temp <= BATTERY_TEMP_2) {
-				battery_current = 0;
-				health = BATTERY_HEALTH_COLD;
-			} else if (battery_temp > BATTERY_TEMP_45) {
-				battery_current = 0;
-				health = BATTERY_HEALTH_OVERHEAT;
-			} else if (battery_temp <= BATTERY_TEMP_12) {
-				battery_current = min(battery_current, BATTERY_TEMP_CURRENT_01C);
-			} else if (battery_temp <= BATTERY_TEMP_20) {
-				if (battery_voltage > BATTERY_TEMP_42VOLTAGE * MA_TO_UA) {
-					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_01C);
-				} else {
-					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_03C);
-				}
-			} else if (battery_temp <= BATTERY_TEMP_23) {
-				if (battery_voltage > BATTERY_TEMP_4VOLTAGE * MA_TO_UA) {
+			/*the adjustment programs suitable for ATL battery*/
+			if (!strcmp("SWD M040", battery_manufacturer)) {
+				if (battery_temp <= BATTERY_TEMP_2) {
+					battery_current = 0;
+					health = BATTERY_HEALTH_COLD;
+				} else if (battery_temp > BATTERY_TEMP_45) {
+					battery_current = 0;
+					health = BATTERY_HEALTH_OVERHEAT;
+				} else if (battery_temp <= BATTERY_TEMP_17) {
 					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_03C);
 				} else {
 					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_05C);
 				}
-			} else if (battery_temp <= BATTERY_TEMP_27) {
-				battery_current = min(battery_current, BATTERY_TEMP_CURRENT_04C);	
 			} else {
-				battery_current = min(battery_current, BATTERY_TEMP_CURRENT_05C);
+				/*the adjustment programs suitable for Guangyu battery*/
+				if (battery_temp <= BATTERY_TEMP_2) {
+					battery_current = 0;
+					health = BATTERY_HEALTH_COLD;
+				} else if (battery_temp > BATTERY_TEMP_45) {
+					battery_current = 0;
+					health = BATTERY_HEALTH_OVERHEAT;
+				} else if (battery_temp <= BATTERY_TEMP_12) {
+					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_01C);
+				} else if (battery_temp <= BATTERY_TEMP_20) {
+					if (battery_voltage > BATTERY_TEMP_42VOLTAGE * MA_TO_UA) {
+						battery_current = min(battery_current, BATTERY_TEMP_CURRENT_01C);
+					} else {
+						battery_current = min(battery_current, BATTERY_TEMP_CURRENT_03C);
+					}
+				} else if (battery_temp <= BATTERY_TEMP_23) {
+					if (battery_voltage > BATTERY_TEMP_4VOLTAGE * MA_TO_UA) {
+						battery_current = min(battery_current, BATTERY_TEMP_CURRENT_03C);
+					} else {
+						battery_current = min(battery_current, BATTERY_TEMP_CURRENT_05C);
+					}
+				} else if (battery_temp <= BATTERY_TEMP_27) {
+					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_04C);	
+				} else {
+					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_05C);
+				}
 			}
 		}
 	}
