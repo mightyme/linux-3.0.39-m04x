@@ -25,7 +25,6 @@
 #include <linux/err.h>
 #include <linux/switch.h>
 #include <linux/input.h>
-#include <linux/timer.h>
 #include <linux/wakelock.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
@@ -230,10 +229,10 @@ struct fsa8108_info {
 	struct input_dev *input;
 	struct work_struct  det_work;
 	struct work_struct  reset_work;
+	struct delayed_work correct_4pole_work;
 	unsigned int cur_jack_type;
 	struct s3c_adc_client	*adc_client;
-	struct work_struct    adc_read_work;
-	struct timer_list detect_mic_adc_timer;	
+	struct delayed_work   adc_read_work;		
 	struct wake_lock det_wake_lock;
 	unsigned long jack_plug_timeout;
 };
@@ -460,29 +459,27 @@ static void fsa8108_report_key_event(int key_type,int updown)
 static void fsa8108_adc_read_func(struct work_struct *work)
 {
 	struct fsa8108_info *info =
-		container_of(work, struct fsa8108_info, adc_read_work);	
+		container_of(work, struct fsa8108_info, adc_read_work.work);	
 
 	if (s3c_adc_read(info->adc_client,  EARPHONE_ADC_CAHNNEL) > MIC_DETECT_NOPRESSED){
 		pr_info("%s OKOKOKOKOOOK__LONG RELEASED\n",__func__);		
 		
 		fsa8108_report_key_event(KEY_HEADSETHOOK, KEY_EVENT_RELEASE);
 
-		pr_info("[fsa8108] timer delete\n");
-		del_timer_sync(&info->detect_mic_adc_timer);
-	}
+		pr_info("[fsa8108] key release \n");		
+		return;
+	}	
+	schedule_delayed_work(&info->adc_read_work,msecs_to_jiffies(40));
 }
 
-static void fsa8108_adc_timer_func(unsigned long data){
-	struct fsa8108_info* info = (struct fsa8108_info*)data;
+static void fsa8108_4pole_correct_func(struct work_struct *work)
+{
+	struct fsa8108_info *info =
+		container_of(work, struct fsa8108_info, correct_4pole_work.work);	
+	int adc_value = s3c_adc_read(info->adc_client,  EARPHONE_ADC_CAHNNEL);
 
-	schedule_work(&info->adc_read_work);
-	
-#if __FSA8108_DEBUG__
-	pr_info("[fsa8108] timer triggered\n");
-#endif
-	mod_timer(&info->detect_mic_adc_timer, jiffies + msecs_to_jiffies(40));	
+	pr_info("adc value is %d\n",  adc_value);
 }
-
 static void process_int(int intr_type,struct fsa8108_info* info)
 {
 	unsigned char val1, val2;
@@ -513,6 +510,7 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 
 				fsa8108_LDO_output(0);
 				switch_set_state(&switch_jack_detection, FSA_HEADSET_3POLE);
+				schedule_delayed_work(&info->correct_4pole_work,2*HZ);
 				break;
 				
 			case FSA8108_4POLE_CONNECT:
@@ -521,6 +519,7 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				switch_set_state(&switch_jack_detection, FSA_HEADSET_4POLE);				
 				fsa8108_mask_int(0);/*recover key interrupts after 4pole connect*/
 				info->jack_plug_timeout = jiffies +2*HZ ;
+				schedule_delayed_work(&info->correct_4pole_work,2*HZ);
 				break;
 				
 			case FSA8108_PLUG_DISCONNECT:
@@ -538,7 +537,7 @@ static void process_int(int intr_type,struct fsa8108_info* info)
 				pr_info("%s OKOKOKOKOOOK__LONG PRESSED\n",__func__);				
 				fsa8108_report_key_event(KEY_HEADSETHOOK,KEY_EVENT_PRESS);
 				
-				add_timer(&info->detect_mic_adc_timer);
+				schedule_delayed_work(&info->adc_read_work,msecs_to_jiffies(40));
 				break;	
 				
 			case FSA8108_SEND_END_PRESS:
@@ -716,11 +715,6 @@ static int fsa8108_i2c_probe(
 
 	info->input->name = "mx-earphone-keypad";
 
-	init_timer(&info->detect_mic_adc_timer);
-	info->detect_mic_adc_timer.function = fsa8108_adc_timer_func;
-	info->detect_mic_adc_timer.data = (unsigned long)info;
-	info->detect_mic_adc_timer.expires = jiffies + msecs_to_jiffies(40);
-
 	wake_lock_init(&info->det_wake_lock, WAKE_LOCK_SUSPEND, "mx2_jack_det");
 	
 	for (i = 0 ; i < sizeof(fsa8108_jack_keycode)/sizeof(int); i++)
@@ -746,7 +740,8 @@ static int fsa8108_i2c_probe(
 
 	INIT_WORK(&info->det_work, fsa8081_jack_det_work_func);
 	INIT_WORK(&info->reset_work, fsa8108_reset_work);
-	INIT_WORK(&info->adc_read_work, fsa8108_adc_read_func);
+	INIT_DELAYED_WORK(&info->adc_read_work, fsa8108_adc_read_func);
+	INIT_DELAYED_WORK(&info->correct_4pole_work, fsa8108_4pole_correct_func);
 	// Reset
 	//fsa8108_reset();
 	schedule_work(&info->reset_work);	
