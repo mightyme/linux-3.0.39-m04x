@@ -347,6 +347,9 @@ static int max77665_battery_temp_status(struct max77665_charger *charger)
 				}
 			}
 		}
+	} else {
+		pr_info("no battery, so set the charger current is 0mA\n");
+		battery_current = min(battery_current, 0);
 	}
 
 	do {
@@ -554,13 +557,13 @@ static void max77665_work_func(struct work_struct *work)
 	power_supply_changed(&charger->psy_ac);
 	power_supply_changed(&charger->psy_usb);
 
+	max77665_charger_types(charger);
+
+	if (delayed_work_pending(&charger->adjust_dwork))
+		cancel_delayed_work(&charger->adjust_dwork);
+	schedule_delayed_work_on(0, &charger->adjust_dwork, HZ/4);
+
 	if (charger->bat_available) {
-		max77665_charger_types(charger);
-
-		if (delayed_work_pending(&charger->adjust_dwork))
-			cancel_delayed_work(&charger->adjust_dwork);
-		schedule_delayed_work_on(0, &charger->adjust_dwork, HZ/4);
-
 		if (delayed_work_pending(&charger->poll_dwork))
 			cancel_delayed_work(&charger->poll_dwork);
 		schedule_delayed_work_on(0, &charger->poll_dwork, 0);
@@ -764,24 +767,26 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 	charger->irq_reg = int_ok;
 	
 	pr_info("-----%s %s\n", __func__, chgin ? "insert" : "remove");
-	if (charger->bat_available) {	
-		if ((!chgin) && (adc_threshold_check(charger))) {
-			charger->adc_flag = true;
-			now_current = regulator_get_current_limit(charger->ps);
-			do{
-				now_current -= CURRENT_INCREMENT_STEP * MA_TO_UA;
-				regulator_set_current_limit(charger->ps,
-						now_current,
-						now_current + CURRENT_INCREMENT_STEP*MA_TO_UA);
-				msleep(100);
-				max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK,
-						&int_ok);
-				pr_info("current %d\n", now_current);
-				if (int_ok == 0X5d)
-					break;
-			} while (now_current > CHGIN_USB_CURRENT * MA_TO_UA);
-		}
+
+	if ((!chgin) && (adc_threshold_check(charger))) {
+		charger->adc_flag = true;
+		now_current = regulator_get_current_limit(charger->ps);
+		do{
+			if (now_current < CHGIN_USB_CURRENT * MA_TO_UA) 
+				break;
+			now_current -= CURRENT_INCREMENT_STEP * MA_TO_UA;
+			regulator_set_current_limit(charger->ps,
+					now_current,
+					now_current + CURRENT_INCREMENT_STEP*MA_TO_UA);
+			msleep(100);
+			max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK,
+					&int_ok);
+			pr_info("current %d\n", now_current);
+			if (int_ok == 0X5d)
+				break;
+		} while (now_current > CHGIN_USB_CURRENT * MA_TO_UA);
 	}
+
 	if (charger->chgin != chgin) {
 		alarm_cancel(&charger->alarm);
 		if(chgin)
