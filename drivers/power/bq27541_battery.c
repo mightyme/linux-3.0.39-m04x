@@ -79,7 +79,11 @@ struct bat_info {
 	bool batt_is_low;
 	int temp_debug;
 	int volt_debug;
+	char *manufacturer_name;
 };
+
+char SWD[] = "SWD M040";
+char GY[] = "GUANG YU";
 
 struct bq27541_chip {
 #define REFRESH_POLL		(60 * HZ)
@@ -175,7 +179,8 @@ static enum power_supply_property bq27541_battery_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_ENERGY_NOW,
-	POWER_SUPPLY_PROP_CHARGE_TYPE
+	POWER_SUPPLY_PROP_CHARGE_TYPE,
+	POWER_SUPPLY_PROP_MANUFACTURER,
 };
 
 static int bq27541_set_property(struct power_supply *psy,
@@ -340,6 +345,9 @@ static int bq27541_get_property(struct power_supply *psy,
 		} else {
 			return -EINVAL;
 		}
+		break;
+	case POWER_SUPPLY_PROP_MANUFACTURER:
+		val->strval = chip->bat_info.manufacturer_name;
 		break;
 	default:
 		bq27541_debug(chip, "invalid psp = %d\n", psp);
@@ -624,6 +632,35 @@ static int __devinit bq27541_probe(struct i2c_client *client,
 		dev_err(&client->dev, "failed: device_init_wakeup\n");
 		goto err_irq;
 	}
+
+	do {
+		int ret = 0;
+		int size = 0;
+		char fuelgauge_info[9];
+
+		ret |= i2c_smbus_write_byte_data(chip->client, bq27541CMD_DFDCNTL, 0x00);
+		ret |= i2c_smbus_write_byte_data(chip->client, bq27541CMD_DFCLS, 58);
+		ret |= i2c_smbus_write_byte_data(chip->client, bq27541CMD_DFBLK, 0x00);
+
+		fuelgauge_info[0] = i2c_smbus_read_byte_data(chip->client, bq27541CMD_ADF);
+		fuelgauge_info[1] = i2c_smbus_read_byte_data(chip->client, bq27541CMD_ADF + 1);
+		fuelgauge_info[2] = i2c_smbus_read_byte_data(chip->client, bq27541CMD_ADF + 2);
+		fuelgauge_info[3] = i2c_smbus_read_byte_data(chip->client, bq27541CMD_ADF + 3);
+		fuelgauge_info[4] = i2c_smbus_read_byte_data(chip->client, bq27541CMD_ADF + 4);
+		fuelgauge_info[5] = i2c_smbus_read_byte_data(chip->client, bq27541CMD_ADF + 5);
+		fuelgauge_info[6] = i2c_smbus_read_byte_data(chip->client, bq27541CMD_ADF + 6);
+		fuelgauge_info[7] = i2c_smbus_read_byte_data(chip->client, bq27541CMD_ADF + 7);
+		fuelgauge_info[8] = 0;
+
+		pr_info("%s %s\n", __func__, fuelgauge_info);
+		if (!strcmp(SWD, fuelgauge_info)) {
+			pr_info("SWD\n");
+			chip->bat_info.manufacturer_name = SWD;
+		} else {
+			pr_info("GUANGYU\n");
+			chip->bat_info.manufacturer_name = GY;
+		}
+	} while (0);
 
 	return 0;
 
