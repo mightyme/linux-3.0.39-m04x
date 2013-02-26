@@ -160,23 +160,23 @@ static void adb_ready_callback(void);
 static void adb_closed_callback(void);
 
 /*---------------------usb notifier------------------*/
-static BLOCKING_NOTIFIER_HEAD(usb_gadget_chain_head);
+static ATOMIC_NOTIFIER_HEAD(usb_gadget_chain_head);
 
 int register_usb_gadget_notifier(struct notifier_block *nb)
 {
-	return blocking_notifier_chain_register(&usb_gadget_chain_head, nb);
+	return atomic_notifier_chain_register(&usb_gadget_chain_head, nb);
 }
 EXPORT_SYMBOL_GPL(register_usb_gadget_notifier);
 
 int unregister_usb_gadget_notifier(struct notifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&usb_gadget_chain_head, nb);
+	return atomic_notifier_chain_unregister(&usb_gadget_chain_head, nb);
 }
 EXPORT_SYMBOL_GPL(unregister_usb_gadget_notifier);
 
 int usb_gadget_notifier_call_chain(unsigned long val)
 {
-	return (blocking_notifier_call_chain(&usb_gadget_chain_head, val, NULL)
+	return (atomic_notifier_call_chain(&usb_gadget_chain_head, val, NULL)
 			== NOTIFY_BAD) ? -EINVAL : 0;
 }
 EXPORT_SYMBOL_GPL(usb_gadget_notifier_call_chain);

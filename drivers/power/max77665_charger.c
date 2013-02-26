@@ -90,6 +90,7 @@ struct max77665_charger
 	struct delayed_work ad_work;
 	struct work_struct chgin_work;
 	struct delayed_work adjust_dwork;
+	struct delayed_work usb_notifier_work;
 	struct regulator *ps;
 	struct regulator *reverse;
 	struct regulator *battery;
@@ -989,69 +990,65 @@ error:
 	return ret;
 }
 
+static void max77665_usb_notifier_dwork(struct work_struct *work)
+{
+	struct max77665_charger *charger = container_of(work,
+			struct max77665_charger, usb_notifier_work.work);
+
+	max77665_charger_types(charger);
+}
+
 static int max77665_charger_event(struct notifier_block *this, unsigned long event,
 		void *ptr)
 {
 	struct max77665_charger *charger = container_of(this,
 			struct max77665_charger, usb_notifer);
-	int battery_status;
 
-	if (regulator_is_enabled(charger->reverse)) {
-		if (event == ADB_OPEN)
-			charger->adb_open = true;
-		else if (event == ADB_CLOSE)
-			charger->adb_open = false;
-		return event;
-	}
-
-	battery_status = max77665_battery_temp_status(charger);
-	if (battery_status == BATTERY_HEALTH_GOOD) {
-		switch (event) {
-		case ADB_CLOSE:
-			pr_info("adb close##########\n");
-			charger->adb_open = false;
-			if (charger->chgin) {
-				charger->done = false;
-				max77665_charger_types(charger);
-			}
-			break;
+	switch (event) {
 		case ADB_OPEN:
 			pr_info("adb open##########\n");
-			if (charger->cable_status == CABLE_TYPE_USB) 
-				max77665_usb_charger(charger);
+			if (charger->cable_status != CABLE_TYPE_USB)
+				return event;
 			charger->adb_open = true;
 			break;
 		case STORAGE_OPEN:
 			pr_info("usb mass storage open######\n");
-			max77665_usb_charger(charger);
 			charger->storage_open = true;
+			break;
+		case RNDIS_OPEN:
+			pr_info("rndis open########\n");
+			charger->rndis_open = true;
+			break;
+		case ADB_CLOSE:
+			pr_info("adb close##########\n");
+			if (!charger->adb_open) 
+				return event;
+			charger->done = false;
+			charger->adb_open = false;
 			break;
 		case STORAGE_CLOSE:
 			pr_info("usb mass stroage close######\n");
-			if (!charger->storage_open)
-				break;
-			charger->storage_open = false;
+			if (!charger->storage_open) 
+				return event;
 			charger->done = false;
-			max77665_charger_types(charger);
-			break;
-		case RNDIS_OPEN:
-			pr_info("rndis open#######\n");
-			max77665_usb_charger(charger);
-			charger->rndis_open = true;
+			charger->storage_open = false;
 			break;
 		case RNDIS_CLOSE:
 			pr_info("rndis close########\n");
-			charger->rndis_open = false;
+			if (!charger->rndis_open)
+				return event;
 			charger->done = false;
-			max77665_charger_types(charger);
+			charger->rndis_open = false;
 			break;
 		default:
 			break;
-		}
 	}
-	pr_info("usb related,current:%d, event:%ld, chgin:%d\n",
-			regulator_get_current_limit(charger->ps)
-			, event, charger->chgin);
+	pr_info("adb_open:%d, storage_open:%d, rndis open:%d\n",
+			charger->adb_open, charger->storage_open, charger->rndis_open);
+	
+	if (charger->chgin) 
+		schedule_delayed_work_on(0, &charger->usb_notifier_work, HZ/10);
+
 	return event;
 }
 
@@ -1098,6 +1095,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&charger->ad_work,max77665_second_adjust_current);
 	INIT_WORK(&charger->chgin_work, max77665_chgin_irq_handler);
 	INIT_DELAYED_WORK(&charger->adjust_dwork, max77665_adjust_work);
+	INIT_DELAYED_WORK(&charger->usb_notifier_work, max77665_usb_notifier_dwork);
 
 	charger->ps = regulator_get(charger->dev, pdata->supply);
 	if (IS_ERR(charger->ps)) {
