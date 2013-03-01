@@ -478,7 +478,7 @@ static int dhd_toe_set(dhd_info_t *dhd, int idx, uint32 toe_ol);
 static int dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
                              wl_event_msg_t *event_ptr, void **data_ptr);
 
-#ifdef MEIZU_POWER
+#ifdef MEIZU_WIFI_PM
 static dhd_info_t *g_dhd = NULL;
 #endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP)
@@ -501,7 +501,7 @@ static int dhd_sleep_pm_callback(struct notifier_block *nfb, unsigned long actio
 	}
 	smp_mb();
 #endif
-#ifdef MEIZU_POWER
+#ifdef MEIZU_WIFI_PM
 	do {
 		if(action == PM_SUSPEND_PREPARE && g_dhd) {
 			dhd_pub_t *dhdp = &g_dhd->pub;
@@ -2841,7 +2841,7 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	register_pm_notifier(&dhd_sleep_pm_notifier);
 #endif /*  (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP) */
 
-#ifdef MEIZU_POWER
+#ifdef MEIZU_WIFI_PM
 	g_dhd = dhd;
 #endif
 
@@ -3888,7 +3888,7 @@ dhd_free(dhd_pub_t *dhdp)
 		dhd = (dhd_info_t *)dhdp->info;
 		if (dhd)
 			MFREE(dhd->pub.osh, dhd, sizeof(*dhd));
-#ifdef MEIZU_POWER
+#ifdef MEIZU_WIFI_PM
 		g_dhd = NULL;
 #endif
 	}
