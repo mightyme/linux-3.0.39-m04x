@@ -298,7 +298,7 @@ static int max77665_battery_temp_status(struct max77665_charger *charger)
 	int health = BATTERY_HEALTH_GOOD;
 	char battery_manufacturer[10] = {0};
 
-	if (fuelgauge_ps) {
+	if (charger->bat_available) {
 		if(fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_VOLTAGE_NOW, &val) == 0)
 			battery_voltage = val.intval;
 		if (fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_MANUFACTURER, &val) == 0)
@@ -1126,11 +1126,13 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 		ret = PTR_ERR(charger->adc);
 		goto err_put;
 	}
-	
-	fuelgauge_ps = power_supply_get_by_name("fuelgauge");
-	if (!fuelgauge_ps) {
-		pr_info("sorry, you should has battery\n");
-		charger->bat_available = false;
+
+	if (!strcmp(CONFIG_LOCALVERSION, "-eng")) {
+		fuelgauge_ps = power_supply_get_by_name("fuelgauge");
+		if (!fuelgauge_ps) {
+			pr_info("sorry, you should has battery\n");
+			charger->bat_available = false;
+		}
 	}
 	
 	if (!power_supply_class) 
