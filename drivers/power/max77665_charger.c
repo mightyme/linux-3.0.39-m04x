@@ -783,8 +783,10 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 			max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK,
 					&int_ok);
 			pr_info("current %d\n", now_current);
-			if (int_ok == 0X5d)
+			if (int_ok == 0X5d) {
+				charger->chgin = true;
 				break;
+			}
 		} while (now_current > CHGIN_USB_CURRENT * MA_TO_UA);
 	}
 
