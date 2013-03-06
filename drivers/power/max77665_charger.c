@@ -298,7 +298,7 @@ static int max77665_battery_temp_status(struct max77665_charger *charger)
 	int health = BATTERY_HEALTH_GOOD;
 	char battery_manufacturer[10] = {0};
 
-	if (charger->bat_available) {
+	if (fuelgauge_ps) {
 		if(fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_VOLTAGE_NOW, &val) == 0)
 			battery_voltage = val.intval;
 		if (fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_MANUFACTURER, &val) == 0)
@@ -349,8 +349,7 @@ static int max77665_battery_temp_status(struct max77665_charger *charger)
 			}
 		}
 	} else {
-		pr_info("no battery, so set the charger current is 0mA\n");
-		battery_current = min(battery_current, 0);
+		battery_current = min(battery_current, BATTERY_TEMP_CURRENT_01C);
 	}
 
 	do {
