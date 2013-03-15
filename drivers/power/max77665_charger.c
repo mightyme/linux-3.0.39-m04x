@@ -123,7 +123,6 @@ struct max77665_charger
 	bool done;
 	bool adc_flag;
 	struct s3c_adc_client *adc;
-	bool bat_available;
 	int battery_health;
 	struct notifier_block usb_notifer;
 	bool adb_open;
@@ -190,10 +189,6 @@ static int max77665_usb_get_property(struct power_supply *psy,
 	/* Set enable=1 only if the AC charger is connected */
 	val->intval = (charger->cable_status == CABLE_TYPE_USB);
 
-	/*if it has no battery, set it's none*/
-	if (!charger->bat_available)
-		val->intval = CABLE_TYPE_NONE;
-	
 	return 0;
 }
 
@@ -209,10 +204,6 @@ static int max77665_ac_get_property(struct power_supply *psy,
 	/* Set enable=1 only if the AC charger is connected */
 	val->intval = (charger->cable_status == CABLE_TYPE_AC);
 	
-	/*if it has no battery, set it's none*/
-	if (!charger->bat_available)
-		val->intval = CABLE_TYPE_NONE;
-
 	return 0;
 }
 
@@ -348,11 +339,15 @@ static int max77665_battery_temp_status(struct max77665_charger *charger)
 				}
 			}
 		}
+	} else {
+		battery_current = min(battery_current, BATTERY_TEMP_CURRENT_01C);
 	}
 
 	do {
 		int ret;
 		int now_current = regulator_get_current_limit(charger->battery) / 1000;
+		pr_info("%s: now_current = %d, battery_current = %d\n", 
+				__func__, now_current, battery_current);
 		if(!(now_current <= battery_current && battery_current <= now_current + CHG_CC_STEP)) {
 			pr_info("now_current %d current %d\n", now_current, battery_current);
 			ret = regulator_set_current_limit(charger->battery,
@@ -561,11 +556,9 @@ static void max77665_work_func(struct work_struct *work)
 		cancel_delayed_work(&charger->adjust_dwork);
 	schedule_delayed_work_on(0, &charger->adjust_dwork, HZ/4);
 
-	if (charger->bat_available) {
-		if (delayed_work_pending(&charger->poll_dwork))
-			cancel_delayed_work(&charger->poll_dwork);
-		schedule_delayed_work_on(0, &charger->poll_dwork, 0);
-	}
+	if (delayed_work_pending(&charger->poll_dwork))
+		cancel_delayed_work(&charger->poll_dwork);
+	schedule_delayed_work_on(0, &charger->poll_dwork, 0);
 
 	if (cable_status == CABLE_TYPE_USB) {
 		charger->usb_attach(true);	
@@ -1072,7 +1065,6 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	charger->chr_pin = pdata->charger_pin;
 	charger->done = false;
 	charger->adc_flag = false;
-	charger->bat_available = true;
 	charger->adb_open = false;
 	charger->storage_open = false;
 	charger->rndis_open = false;
@@ -1120,12 +1112,6 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "cannot register adc\n");
 		ret = PTR_ERR(charger->adc);
 		goto err_put;
-	}
-	
-	fuelgauge_ps = power_supply_get_by_name("fuelgauge");
-	if (!fuelgauge_ps) {
-		pr_info("sorry, you should has battery\n");
-		charger->bat_available = false;
 	}
 	
 	if (!power_supply_class) 
