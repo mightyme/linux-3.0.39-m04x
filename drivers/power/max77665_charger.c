@@ -76,6 +76,7 @@ struct max77665_charger
 	struct device *dev;
 	struct power_supply psy_usb;
 	struct power_supply psy_ac;
+	struct power_supply psy_charger;
 	struct max77665_dev *iodev;
 	struct wake_lock wake_lock;
 #if defined(CONFIG_MX_RECOVERY_KERNEL)
@@ -197,6 +198,32 @@ static int max77665_ac_get_property(struct power_supply *psy,
 
 	/* Set enable=1 only if the AC charger is connected */
 	val->intval = (charger->cable_status == CABLE_TYPE_AC);
+	
+	return 0;
+}
+
+static enum power_supply_property max77665_charger_props[] = {
+	POWER_SUPPLY_PROP_STATUS,
+};
+
+static int max77665_charger_get_property(struct power_supply *psy,
+		enum power_supply_property psp, union power_supply_propval *val)
+{
+	struct max77665_charger *charger =
+		container_of(psy, struct max77665_charger, psy_charger);
+	
+	if (psp != POWER_SUPPLY_PROP_STATUS)
+		return -EINVAL;
+
+	if (charger->cable_status == CABLE_TYPE_USB || 
+		charger->cable_status == CABLE_TYPE_AC) {
+		if (charger->chg_status == CHG_STATUS_FAST)
+			val->intval = POWER_SUPPLY_STATUS_CHARGING;
+		else
+			val->intval = POWER_SUPPLY_STATUS_FULL;
+	} else {
+		val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+	}
 	
 	return 0;
 }
@@ -992,6 +1019,17 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	
 	charger->delayed_time = class_create(THIS_MODULE, "delayed_time");
 	ret = class_create_file(charger->delayed_time, &class_attr_delayedtime);	
+
+	charger->psy_charger.name = "charger";
+	charger->psy_charger.type = POWER_SUPPLY_TYPE_BATTERY;
+	charger->psy_charger.properties = max77665_charger_props,
+	charger->psy_charger.num_properties = ARRAY_SIZE(max77665_charger_props),
+	charger->psy_charger.get_property = max77665_charger_get_property,
+	ret = power_supply_register(&pdev->dev, &charger->psy_charger);
+	if (unlikely(ret != 0)) {
+		dev_err(&pdev->dev, "Failed to power_supply_register psy_charger: %d\n", ret);
+		goto err_adc_unregister;
+	}
 
 	charger->psy_usb.name = "usb";
 	charger->psy_usb.type = POWER_SUPPLY_TYPE_USB;
