@@ -127,6 +127,7 @@
 #define PS_SHUTDOWN_MODE	1
 
 #define ALS_DELAYTIME	0	/*default:100 ms */
+#define TOUCH_SCREEN_PRODUCTID_FILE "/sys/devices/sensor00/fn01/productid"
 
 /* gp2ap driver private data struct*/
 #ifdef __KERNEL__
@@ -167,6 +168,10 @@ struct gp2ap_data {
 	struct wake_lock ps_wake_lock;
 	int enable;
 	int calibration;
+	char idbuf[64];
+	int calib_value;
+	int near_threshold;
+	int far_threshold;
 };
 #endif
 

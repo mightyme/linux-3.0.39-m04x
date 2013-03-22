@@ -31,21 +31,12 @@
 #include <asm/gpio.h>
 #include <plat/gpio-cfg.h>
 
-/* For the new proximity sensor, please define NEW_PS, otherwise, please undefine it */
-#define NEW_PS
-
-#ifdef NEW_PS
-#define PS_CALIB_VALUE 3	/* the default count value without barrier */
-#define PS_NEAR_THRESHOLD 14	/* the count when the barrier is near about 3cm ~ 4cm */
-#define PS_FAR_THRESHOLD 8	/* the count when the barrier is far about 4cm ~ 5cm */
-#else
-#define PS_CALIB_VALUE 6 	/* the default count value without barrier */
-#define PS_NEAR_THRESHOLD 40	/* the count when the barrier is near about 3cm ~ 4cm */
-#define PS_FAR_THRESHOLD 30	/* the count when the barrier is far about 4cm ~ 5cm */
-#endif
-
-#define PS_CALIB_TO_NEAR(calib)	((calib) + (PS_NEAR_THRESHOLD - PS_CALIB_VALUE))
-#define PS_NEAR_TO_FAR(near) ((near) - (PS_NEAR_THRESHOLD - PS_FAR_THRESHOLD))
+/*
+ Because of the TPK and WTK's Infrared transmittance is different,
+ so they have different ps threshold
+ */
+#define PS_CALIB_TO_NEAR(calib, syscalib, sysnear) ((calib) + (sysnear - syscalib))
+#define PS_NEAR_TO_FAR(near, sysnear, sysfar) ((near) - (sysnear - sysfar))
 
 static atomic_t gp2ap_als_start = ATOMIC_INIT(0);
 
@@ -283,9 +274,12 @@ static void get_ps_thresholds(struct gp2ap_data *gp2ap)
 	u16 ps_far_threshold, ps_near_threshold;
 
 	mutex_lock(&gp2ap->lock);
+
 	if (gp2ap->init_threshold_flag) {
-		gp2ap->ps_near_threshold = PS_CALIB_TO_NEAR(gp2ap->ps_calib_value);
-		gp2ap->ps_far_threshold = PS_NEAR_TO_FAR(gp2ap->ps_near_threshold);
+		gp2ap->ps_near_threshold = PS_CALIB_TO_NEAR(gp2ap->ps_calib_value, 
+				gp2ap->calib_value, gp2ap->near_threshold);
+		gp2ap->ps_far_threshold = PS_NEAR_TO_FAR(gp2ap->ps_near_threshold, 
+				gp2ap->near_threshold, gp2ap->far_threshold);
 		gp2ap->init_threshold_flag = 0;
 	}
 	ps_near_threshold = gp2ap->ps_near_threshold;
@@ -317,6 +311,16 @@ static int gp2ap_set_ps_mode(struct gp2ap_data *gp2ap, int mode)
 
 	if (PS_IRQ_MODE == mode) {
 		if (unlikely(gp2ap->reset_threshold_flag)) {
+			if (!strncmp("M040-TPK", gp2ap->idbuf, 8)) {
+				pr_info("the touchscreen is M040-TPK\n");
+			} else {
+				pr_info("the touchsreen is M040-WTK\n");
+				gp2ap->calib_value = 1;
+				gp2ap->near_threshold = 8;
+				gp2ap->far_threshold = 2;
+			}
+			pr_info("calib_value:%d, near_threshold:%d,far_threshold:%d\n",
+					gp2ap->calib_value, gp2ap->near_threshold, gp2ap->far_threshold);
 			get_ps_thresholds(gp2ap);
 			gp2ap->reset_threshold_flag = 0;
 		}
@@ -824,7 +828,8 @@ static ssize_t gp2ap_threshold_show(struct device *dev,
 	struct gp2ap_data *gp2ap = i2c_get_clientdata(client);
 
 	mutex_lock(&gp2ap->lock);
-	gp2ap->ps_near_threshold = PS_CALIB_TO_NEAR(gp2ap->ps_calib_value);
+	gp2ap->ps_near_threshold = PS_CALIB_TO_NEAR(gp2ap->ps_calib_value, 
+			gp2ap->calib_value, gp2ap->near_threshold);
 	mutex_unlock(&gp2ap->lock);
 
 	return sprintf(buf, "%d\n", gp2ap->ps_near_threshold);
@@ -872,13 +877,39 @@ static ssize_t gp2ap_CalibValue_store(struct device *dev,
 
 	mutex_lock(&gp2ap->lock);
 	gp2ap->ps_calib_value = value;
-	gp2ap->ps_near_threshold = PS_CALIB_TO_NEAR(value);
-	gp2ap->ps_far_threshold = PS_NEAR_TO_FAR(gp2ap->ps_near_threshold);
+	gp2ap->ps_near_threshold = PS_CALIB_TO_NEAR(value, gp2ap->calib_value,
+			gp2ap->near_threshold);
+	gp2ap->ps_far_threshold = PS_NEAR_TO_FAR(gp2ap->ps_near_threshold, 
+			gp2ap->near_threshold, gp2ap->far_threshold);
 	/* should reset the thresholds while setting ps irq mode */
 	gp2ap->reset_threshold_flag = 1;
+	gp2ap->init_threshold_flag = 1;
 	mutex_unlock(&gp2ap->lock);
 
 	pr_info("gp2ap proximity threshold is set to %d.\n", gp2ap->ps_near_threshold);
+
+	return count;
+}
+
+static ssize_t touchscreen_productid_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct gp2ap_data *gp2ap = i2c_get_clientdata(client);
+	
+	return sprintf(buf, "%s\n", gp2ap->idbuf);
+}
+
+static ssize_t touchscreen__productid_store(struct device *dev,
+			struct device_attribute *attr, const char *buf,
+			size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct gp2ap_data *gp2ap = i2c_get_clientdata(client);
+	
+	strcpy(gp2ap->idbuf, buf);
+
+	pr_info("%s:the touchscreen is %s\n", __func__, gp2ap->idbuf);
 
 	return count;
 }
@@ -902,6 +933,8 @@ static DEVICE_ATTR(CalibValue, 0664, gp2ap_CalibValue_show, gp2ap_CalibValue_sto
 static DEVICE_ATTR(calibration, 0664, gp2ap_calibration_show, gp2ap_calibration_store);
 static DEVICE_ATTR(ReflectData, S_IRUGO, gp2ap_ReflectData_show, NULL);
 static DEVICE_ATTR(threshold, S_IRUGO, gp2ap_threshold_show, NULL);
+static DEVICE_ATTR(productid, 0644, touchscreen_productid_show, 
+		touchscreen__productid_store);
 
 static struct attribute *gp2ap_attributes[] = {
 	&dev_attr_als_enable.attr,
@@ -915,6 +948,7 @@ static struct attribute *gp2ap_attributes[] = {
 	&dev_attr_calibration.attr,
 	&dev_attr_ReflectData.attr,
 	&dev_attr_threshold.attr,
+	&dev_attr_productid.attr,
 	NULL,
 };
 
@@ -1479,17 +1513,14 @@ static int __devinit gp2ap_probe(struct i2c_client *client, const struct i2c_dev
 	gp2ap->reset_threshold_flag = 1;
 	gp2ap->init_threshold_flag = 1;
 	gp2ap->lowlight_mode = true;
+	gp2ap->calib_value = 3;
+	gp2ap->near_threshold = 14;
+	gp2ap->far_threshold = 8;
 
 	gp2ap->CURRENT_ALS_RANGE[0] = ALS_RANGE_X2;
 	gp2ap->CURRENT_ALS_RANGE[1] = ALS_RANGE_X8;
 	gp2ap->CURRENT_ALS_RANGE[2] = ALS_RANGE_X128;
 
-	/* We can not access the calib file in early boot, use our preset one
-	 * and reset it when enable the ps
-	 */
-	gp2ap->ps_calib_value = PS_CALIB_VALUE;
-	gp2ap->ps_near_threshold = PS_CALIB_TO_NEAR(gp2ap->ps_calib_value);
-	gp2ap->ps_far_threshold = PS_NEAR_TO_FAR(gp2ap->ps_near_threshold);
 	atomic_set(&gp2ap->opened, 0);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
