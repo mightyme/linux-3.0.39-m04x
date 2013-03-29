@@ -316,13 +316,13 @@ static int gp2ap_set_ps_mode(struct gp2ap_data *gp2ap, int mode)
 
 	if (PS_IRQ_MODE == mode) {
 		if (unlikely(gp2ap->reset_threshold_flag)) {
-			if (!strncmp("M040-TPK", gp2ap->idbuf, 8)) {
-				pr_info("the touchscreen is M040-TPK\n");
-			} else {
-				pr_info("the touchsreen is M040-WTK\n");
+			if (!strncmp("M040-WTK", gp2ap->idbuf, 8)) {
+				pr_info("the touchscreen is M040-WTK\n");
 				gp2ap->calib_value = 1;
 				gp2ap->near_threshold = 8;
 				gp2ap->far_threshold = 2;
+			} else {
+				pr_info("the touchsreen is M040-TPK\n");
 			}
 			pr_info("calib_value:%d, near_threshold:%d,far_threshold:%d\n",
 					gp2ap->calib_value, gp2ap->near_threshold, gp2ap->far_threshold);
@@ -1046,7 +1046,7 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 #endif
 	gp2ap->prev_range = gp2ap->current_range;
 
-#ifdef CONFIG_MACH_M040
+#if defined(CONFIG_MACH_M040) || defined(CONFIG_MACH_M041)
 	if(gp2ap->lowlight_mode){/*LOW LIGHT MODE*/
 		if(data1 * 100 <= data0 * 63){
 			alpha = 7042;
