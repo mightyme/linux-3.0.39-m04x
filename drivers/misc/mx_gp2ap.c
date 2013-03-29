@@ -229,12 +229,17 @@ static int gp2ap_set_als_irq_mode(struct gp2ap_data *gp2ap)
 	int ret;
 	u8 buf[7];
 
+#ifndef GP2AP_TYPE1
 	/* The interrupt happens every 0.8s (100ms * 8) for current setting */
 	/* 25ms; default range:x2*/
 	buf[0] = ALS_RESOLUTION_14 | gp2ap->CURRENT_ALS_RANGE[gp2ap->current_range];   
 	buf[1] = INT_TYPE_PULSE;   /* auto light cancel:off; int type:pulse*/
 	buf[2] = CURRENT_INTVAL_TIME(gp2ap->current_intval_time) | INT_SETTING_ALS;   /* ALS int */
-
+#else
+	buf[0] = ALS_RESOLUTION_16 | ALS_RANGE_X4;
+	buf[1] = INT_TYPE_PULSE;
+	buf[2] = INTVAL_TIME_4 | INT_SETTING_ALS;
+#endif
 	ret = gp2ap_i2c_write_multibytes(gp2ap->client, REG_COMMAND2, buf, 3);
 	if (ret < 0) {
 		pr_err("%s()->%d: gp2ap_i2c_write_multibytes fail!\n", __func__, __LINE__);
@@ -445,8 +450,10 @@ static int gp2ap_start_work(struct gp2ap_data *gp2ap, int enabled_sensors)
 		input_sync(gp2ap->input_dev);
 		gp2ap->ps_data = ps_data;
 	} else if (enabled_sensors & ID_ALS) {
+#ifndef GP2AP_TYPE1
 		gp2ap->current_range = __ALS_RANGE_X8;
 		gp2ap->current_intval_time = __INTVAL_TIME_0;
+#endif
 		enable_irq(gp2ap->irq);   /*enable irq first*/
 		ret = gp2ap_set_als_irq_mode(gp2ap);
 		if (ret < 0) {
@@ -623,11 +630,15 @@ static ssize_t gp2ap_als_data_show(struct device *dev,
 
 		return -EINVAL;
 	}
-
+#ifndef GP2AP_TYPE1
 	pr_info("als data0 is %d  : als data1 is %d \n", gp2ap->als_data[0],
 			gp2ap->als_data[1]);
 
 	return sprintf(buf, "%d  %d\n", gp2ap->als_data[0], gp2ap->als_data[1]);
+#else
+	pr_info("als data is %d\n", gp2ap->als_data);
+	return sprintf(buf, "%d\n", gp2ap->als_data);
+#endif
 }
 
 static ssize_t gp2ap_ps_data_show(struct device *dev,
@@ -995,12 +1006,14 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 	struct i2c_client *client = gp2ap->client;
 	struct input_dev *input_dev = gp2ap->input_dev;
 	u8 buf[2], buf1[2];
+#ifndef GP2AP_TYPE1
 	unsigned long data0, data1;
 	int gamma, alpha, beta;
-        int ret;
-	unsigned long light_lux =0;
 	bool gp2ap_reset_als = 0;
+#endif
+	unsigned long light_lux =0;
 	u8 command1 = 0;
+        int ret;
 
 	/*read REG_COMMAND1(0x00) to clear interrupts*/
 	ret = gp2ap_i2c_read_byte(client, REG_COMMAND1, &command1);
@@ -1009,7 +1022,7 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 			__func__, __LINE__);
 		return;
 	}
-
+#ifndef GP2AP_TYPE1
 	ret = gp2ap_i2c_read_multibytes(client, REG_D0_LSB, buf, 2);
 	if (ret < 0) {
 		pr_err("%s()->%d:read REG_ALS_D0_LSB reg fail!\n",
@@ -1158,7 +1171,15 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 			}
 		gp2ap->prev_lux = light_lux;
 	}
-
+#else
+	ret = gp2ap_i2c_read_multibytes(client, REG_D0_LSB, buf, 2);
+	if (ret < 0) {
+		pr_err("%s()->%d:read REG_ALS_D0_LSB reg fail!\n",
+			__func__, __LINE__);
+		return;
+	}
+	light_lux = (buf[1] << 8) | buf[0];
+#endif
 	/* If the consecutive two are the same, the value will not be reported,
 	 * so, force to generate a difference.
 	 */
@@ -1170,6 +1191,7 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 	input_report_abs(input_dev, ABS_ALS, light_lux);
 	input_sync(input_dev);
 
+#ifndef GP2AP_TYPE1
 	gp2ap->als_data[0] = data0;
 	gp2ap->als_data[1] = data1;
 	
@@ -1188,6 +1210,9 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 	if (gp2ap_reset_als) {
 		gp2ap_als_reset(gp2ap);
 	}
+#else
+	gp2ap->als_data = light_lux;
+#endif
 }
 
 /*

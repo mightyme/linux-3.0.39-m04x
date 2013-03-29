@@ -128,6 +128,7 @@
 
 #define ALS_DELAYTIME	0	/*default:100 ms */
 #define TOUCH_SCREEN_PRODUCTID_FILE "/sys/devices/sensor00/fn01/productid"
+#define GP2AP_TYPE1 1	
 
 /* gp2ap driver private data struct*/
 #ifdef __KERNEL__
@@ -147,7 +148,11 @@ struct gp2ap_data {
 	atomic_t opened;
 	int debug;
 
+#ifndef GP2AP_TYPE1
 	int als_data[2];
+#else
+	int als_data;
+#endif
 	int current_range;
 	int current_intval_time;
 	int ps_data;
