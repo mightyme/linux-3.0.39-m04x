@@ -320,7 +320,7 @@ static int gp2ap_set_ps_mode(struct gp2ap_data *gp2ap, int mode)
 				pr_info("the touchscreen is M040-WTK\n");
 				gp2ap->calib_value = 1;
 				gp2ap->near_threshold = 8;
-				gp2ap->far_threshold = 2;
+				gp2ap->far_threshold = 4;
 			} else {
 				pr_info("the touchsreen is M040-TPK\n");
 			}
@@ -864,9 +864,13 @@ static ssize_t gp2ap_calibration_store(struct device *dev,
 
 	int calibration = simple_strtoul(buf, NULL, 10);
 	
-	if (calibration)
+	if (calibration) {
 		gp2ap->ps_calib_value = gp2ap_ps_calibration(gp2ap);
 
+		/* after calibration, should set the near and far threshold again */
+		gp2ap->init_threshold_flag = 1;
+		gp2ap->reset_threshold_flag = 1;
+	}
 	return count;
 }
 
@@ -911,7 +915,7 @@ static ssize_t touchscreen_productid_show(struct device *dev,
 	return sprintf(buf, "%s\n", gp2ap->idbuf);
 }
 
-static ssize_t touchscreen__productid_store(struct device *dev,
+static ssize_t touchscreen_productid_store(struct device *dev,
 			struct device_attribute *attr, const char *buf,
 			size_t count)
 {
@@ -945,7 +949,7 @@ static DEVICE_ATTR(calibration, 0664, gp2ap_calibration_show, gp2ap_calibration_
 static DEVICE_ATTR(ReflectData, S_IRUGO, gp2ap_ReflectData_show, NULL);
 static DEVICE_ATTR(threshold, S_IRUGO, gp2ap_threshold_show, NULL);
 static DEVICE_ATTR(productid, 0644, touchscreen_productid_show, 
-		touchscreen__productid_store);
+		touchscreen_productid_store);
 
 static struct attribute *gp2ap_attributes[] = {
 	&dev_attr_als_enable.attr,
