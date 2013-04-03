@@ -244,7 +244,7 @@ int s3cfb_set_clock(struct s3cfb_global *ctrl)
 #ifdef CONFIG_FB_DYNAMIC_FREQ
 	ctrl->src_clk = src_clk;
 #endif
-	dev_dbg(ctrl->dev, "parent clock: %d, vclk: %d, vclk div: %d\n",
+	dev_info(ctrl->dev, "parent clock: %d, vclk: %d, vclk div: %d\n",
 			src_clk, vclk, div);
 
 	return 0;
@@ -291,7 +291,7 @@ int s3cfb_set_reflesh_rate(struct s3cfb_global *ctrl, int lcd_freq)
 	cfg |= S3C_VIDCON0_CLKVAL_F(div - 1);
 	writel(cfg, ctrl->regs + S3C_VIDCON0);
 
-	dev_dbg(ctrl->dev, "parent clock: %d, vclk: %d, vclk div: %d\n",
+	dev_info(ctrl->dev, "parent clock: %d, vclk: %d, vclk div: %d\n",
 			src_clk, vclk, div);
 
 	return 0;
