@@ -57,8 +57,8 @@ static atomic_t gp2ap_als_start = ATOMIC_INIT(0);
 static int gp2ap_i2c_read_byte(struct i2c_client *client, u8 reg, u8 *val)
 {
 	int ret = 0, retry = I2C_RETRIES;
-	struct gp2ap_data  *gp2ap = i2c_get_clientdata(client);
-	
+	struct gp2ap_data *gp2ap = i2c_get_clientdata(client);
+
 	struct i2c_msg msgs[] = {
 		{
 			.addr = client->addr,
@@ -229,17 +229,17 @@ static int gp2ap_set_als_irq_mode(struct gp2ap_data *gp2ap)
 	int ret;
 	u8 buf[7];
 
-#ifndef GP2AP_TYPE1
 	/* The interrupt happens every 0.8s (100ms * 8) for current setting */
 	/* 25ms; default range:x2*/
-	buf[0] = ALS_RESOLUTION_14 | gp2ap->CURRENT_ALS_RANGE[gp2ap->current_range];   
-	buf[1] = INT_TYPE_PULSE;   /* auto light cancel:off; int type:pulse*/
-	buf[2] = CURRENT_INTVAL_TIME(gp2ap->current_intval_time) | INT_SETTING_ALS;   /* ALS int */
-#else
-	buf[0] = ALS_RESOLUTION_16 | ALS_RANGE_X4;
-	buf[1] = INT_TYPE_PULSE;
-	buf[2] = INTVAL_TIME_4 | INT_SETTING_ALS;
-#endif
+	if (!gp2ap->cal_type) {
+		buf[0] = ALS_RESOLUTION_14 | gp2ap->CURRENT_ALS_RANGE[gp2ap->current_range];   
+		buf[1] = INT_TYPE_PULSE;   /* auto light cancel:off; int type:pulse*/
+		buf[2] = CURRENT_INTVAL_TIME(gp2ap->current_intval_time) | INT_SETTING_ALS;   /* ALS int */
+	} else {
+		buf[0] = ALS_RESOLUTION_16 | ALS_RANGE_X4;
+		buf[1] = INT_TYPE_PULSE;
+		buf[2] = INTVAL_TIME_4 | INT_SETTING_ALS;
+	}
 	ret = gp2ap_i2c_write_multibytes(gp2ap->client, REG_COMMAND2, buf, 3);
 	if (ret < 0) {
 		pr_err("%s()->%d: gp2ap_i2c_write_multibytes fail!\n", __func__, __LINE__);
@@ -258,9 +258,14 @@ static int gp2ap_set_als_irq_mode(struct gp2ap_data *gp2ap)
 		return ret;
 	}
 
-	buf[0] = SOFTWARE_OPERATION | CONTINUE_OPERATION | OPERATING_MODE_ALS
-	       	| ALS_EXTERNAL_CALCULATION;
-	
+	if (!gp2ap->cal_type) {
+		buf[0] = SOFTWARE_OPERATION | CONTINUE_OPERATION | OPERATING_MODE_ALS
+			| ALS_EXTERNAL_CALCULATION;
+	} else {
+		buf[0] = SOFTWARE_OPERATION | CONTINUE_OPERATION | OPERATING_MODE_ALS
+			| ALS_INTERNAL_CALCULATION;
+	}
+
 	ret = gp2ap_i2c_write_byte(gp2ap->client, REG_COMMAND1, buf[0]);
 	if (ret < 0) {
 		pr_err("%s()->%d: gp2ap_i2c_write_byte fail!\n", __func__, __LINE__);
@@ -450,10 +455,8 @@ static int gp2ap_start_work(struct gp2ap_data *gp2ap, int enabled_sensors)
 		input_sync(gp2ap->input_dev);
 		gp2ap->ps_data = ps_data;
 	} else if (enabled_sensors & ID_ALS) {
-#ifndef GP2AP_TYPE1
 		gp2ap->current_range = __ALS_RANGE_X8;
 		gp2ap->current_intval_time = __INTVAL_TIME_0;
-#endif
 		enable_irq(gp2ap->irq);   /*enable irq first*/
 		ret = gp2ap_set_als_irq_mode(gp2ap);
 		if (ret < 0) {
@@ -630,15 +633,15 @@ static ssize_t gp2ap_als_data_show(struct device *dev,
 
 		return -EINVAL;
 	}
-#ifndef GP2AP_TYPE1
-	pr_info("als data0 is %d  : als data1 is %d \n", gp2ap->als_data[0],
-			gp2ap->als_data[1]);
+	if (!gp2ap->cal_type) {
+		pr_info("als data0 is %d  : als data1 is %d \n", gp2ap->als_data[0],
+				gp2ap->als_data[1]);
 
-	return sprintf(buf, "%d  %d\n", gp2ap->als_data[0], gp2ap->als_data[1]);
-#else
-	pr_info("als data is %d\n", gp2ap->als_data);
-	return sprintf(buf, "%d\n", gp2ap->als_data);
-#endif
+		return sprintf(buf, "%d  %d\n", gp2ap->als_data[0], gp2ap->als_data[1]);
+	} else {
+		pr_info("als data is %d\n", gp2ap->als_data1);
+		return sprintf(buf, "%d\n", gp2ap->als_data1);
+	}
 }
 
 static ssize_t gp2ap_ps_data_show(struct device *dev,
@@ -929,6 +932,39 @@ static ssize_t touchscreen_productid_store(struct device *dev,
 	return count;
 }
 
+static ssize_t calculate_type_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct gp2ap_data *gp2ap = i2c_get_clientdata(client);
+	
+	return sprintf(buf, "%d\n", gp2ap->cal_type);
+}
+
+static ssize_t calculate_type_store(struct device *dev,
+			struct device_attribute *attr, const char *buf,
+			size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct gp2ap_data *gp2ap = i2c_get_clientdata(client);
+	
+	gp2ap->cal_type = simple_strtol(buf, NULL, 10);
+	
+	if (gp2ap->cal_type) 
+		pr_info("%s:the als use internal calculate\n", __func__);
+	else 
+		pr_info("%s:the als use external calculate\n", __func__);
+
+	/*
+	   when change the calculate type, the operation mode
+	   should set again
+	 */
+	gp2ap_power_down(gp2ap);
+	gp2ap_set_als_irq_mode(gp2ap);
+
+	return count;
+}
+
 /* sysfs attributes operation function*/
 static DEVICE_ATTR(als_enable, 0664,
 	gp2ap_als_enable_show, gp2ap_als_enable_store);
@@ -950,6 +986,7 @@ static DEVICE_ATTR(ReflectData, S_IRUGO, gp2ap_ReflectData_show, NULL);
 static DEVICE_ATTR(threshold, S_IRUGO, gp2ap_threshold_show, NULL);
 static DEVICE_ATTR(productid, 0644, touchscreen_productid_show, 
 		touchscreen_productid_store);
+static DEVICE_ATTR(cal_type, 0644, calculate_type_show, calculate_type_store);
 
 static struct attribute *gp2ap_attributes[] = {
 	&dev_attr_als_enable.attr,
@@ -964,6 +1001,7 @@ static struct attribute *gp2ap_attributes[] = {
 	&dev_attr_ReflectData.attr,
 	&dev_attr_threshold.attr,
 	&dev_attr_productid.attr,
+	&dev_attr_cal_type.attr,
 	NULL,
 };
 
@@ -1010,11 +1048,9 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 	struct i2c_client *client = gp2ap->client;
 	struct input_dev *input_dev = gp2ap->input_dev;
 	u8 buf[2], buf1[2];
-#ifndef GP2AP_TYPE1
-	unsigned long data0, data1;
+	unsigned long data0 = 0, data1 = 0;
 	int gamma, alpha, beta;
 	bool gp2ap_reset_als = 0;
-#endif
 	unsigned long light_lux =0;
 	u8 command1 = 0;
         int ret;
@@ -1026,164 +1062,165 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 			__func__, __LINE__);
 		return;
 	}
-#ifndef GP2AP_TYPE1
-	ret = gp2ap_i2c_read_multibytes(client, REG_D0_LSB, buf, 2);
-	if (ret < 0) {
-		pr_err("%s()->%d:read REG_ALS_D0_LSB reg fail!\n",
-			__func__, __LINE__);
-		return;
-	}
 
-	ret = gp2ap_i2c_read_multibytes(client, REG_D1_LSB, buf1, 2);
-	if (ret < 0) {
-		pr_err("%s()->%d:read REG_ALS_D1_LSB reg fail!\n",
-			__func__, __LINE__);
-		return;
-	}
+	if (!gp2ap->cal_type) {
+		ret = gp2ap_i2c_read_multibytes(client, REG_D0_LSB, buf, 2);
+		if (ret < 0) {
+			pr_err("%s()->%d:read REG_ALS_D0_LSB reg fail!\n",
+				__func__, __LINE__);
+			return;
+		}
 
-	data0 = (buf[1] << 8) | buf[0];  /*CLEAR*/
-	data1 = (buf1[1] << 8) | buf1[0]; /*IR*/
+		ret = gp2ap_i2c_read_multibytes(client, REG_D1_LSB, buf1, 2);
+		if (ret < 0) {
+			pr_err("%s()->%d:read REG_ALS_D1_LSB reg fail!\n",
+				__func__, __LINE__);
+			return;
+		}
+
+		data0 = (buf[1] << 8) | buf[0];  /*CLEAR*/
+		data1 = (buf1[1] << 8) | buf1[0]; /*IR*/
 
 #ifdef DEBUG
-	if (gp2ap->debug)
-		pr_info("als data0 is %d, data1 is %d.\n", data0,data1);
+		if (gp2ap->debug)
+			pr_info("als data0 is %d, data1 is %d.\n", data0,data1);
 #endif
-	gp2ap->prev_range = gp2ap->current_range;
+		gp2ap->prev_range = gp2ap->current_range;
 
 #if defined(CONFIG_MACH_M040) || defined(CONFIG_MACH_M041)
-	if(gp2ap->lowlight_mode){/*LOW LIGHT MODE*/
-		if(data1 * 100 <= data0 * 63){
-			alpha = 7042;
-			beta = 0;
-		}else if(data1 * 100 <= data0 * 80){
-			alpha = 32340;
-			beta = 40160;
-		}else if(data1 * 100 <= data0 * 98){
-			alpha = 1162;
-			beta = 1186;
-		}else{
-			alpha = 0;
-			beta = 0;
+		if(gp2ap->lowlight_mode){/*LOW LIGHT MODE*/
+			if(data1 * 100 <= data0 * 63){
+				alpha = 7042;
+				beta = 0;
+			}else if(data1 * 100 <= data0 * 80){
+				alpha = 32340;
+				beta = 40160;
+			}else if(data1 * 100 <= data0 * 98){
+				alpha = 1162;
+				beta = 1186;
+			}else{
+				alpha = 0;
+				beta = 0;
+			}
+		}else{ /*HIGH LIGHT MODE*/
+			if(data1 * 100 <= data0 * 63){
+				alpha = 7042;
+				beta = 0;
+			}else if(data1 * 100 <= data0 * 80){
+				alpha = 32340;
+				beta = 40160;
+			}else if(data1 * 100 <= data0 * 98){
+				alpha = 170;
+				beta = 34;
+			}else{
+				alpha = 0;
+				beta = 0;
+			}
 		}
-	}else{ /*HIGH LIGHT MODE*/
-		if(data1 * 100 <= data0 * 63){
-			alpha = 7042;
-			beta = 0;
-		}else if(data1 * 100 <= data0 * 80){
-			alpha = 32340;
-			beta = 40160;
-		}else if(data1 * 100 <= data0 * 98){
-			alpha = 170;
-			beta = 34;
-		}else{
-			alpha = 0;
-			beta = 0;
-		}
-	}
 #else
-	if(gp2ap->lowlight_mode){/*LOW LIGHT MODE*/
-		if(data1 * 100 <= data0 * 70){
-			alpha = 9091;
-			beta = 0;
-		}else if(data1 * 100 <= data0 * 75){
-			alpha = 132900;
-			beta = 176900;
-		}else if(data1 * 100 <= data0 * 98){
-			alpha = 1030;
-			beta = 1051;
-		}else{
-			alpha = 0;
-			beta = 0;
+		if(gp2ap->lowlight_mode){/*LOW LIGHT MODE*/
+			if(data1 * 100 <= data0 * 70){
+				alpha = 9091;
+				beta = 0;
+			}else if(data1 * 100 <= data0 * 75){
+				alpha = 132900;
+				beta = 176900;
+			}else if(data1 * 100 <= data0 * 98){
+				alpha = 1030;
+				beta = 1051;
+			}else{
+				alpha = 0;
+				beta = 0;
+			}
+		}else{ /*HIGH LIGHT MODE*/
+			if(data1 * 100 <= data0 * 70){
+				alpha = 9091;
+				beta = 0;
+			}else if(data1 * 100 <= data0 * 75){
+				alpha = 132900;
+				beta = 176900;
+			}else if(data1 * 100 <= data0 * 98){
+				alpha = 165;
+				beta = 33;
+			}else{
+				alpha = 0;
+				beta = 0;
+			}
 		}
-	}else{ /*HIGH LIGHT MODE*/
-		if(data1 * 100 <= data0 * 70){
-			alpha = 9091;
-			beta = 0;
-		}else if(data1 * 100 <= data0 * 75){
-			alpha = 132900;
-			beta = 176900;
-		}else if(data1 * 100 <= data0 * 98){
-			alpha = 165;
-			beta = 33;
-		}else{
-			alpha = 0;
-			beta = 0;
-		}
-	}
 #endif
 
-	/* When the current range is X8 and data0 is less than 16000,or 
-	   when the current range is X128 and data0 is less than 1000, 
-	   belonging to the low illumination.Accordingly,it is a high illumination
-	 */
-	if((gp2ap->current_range == __ALS_RANGE_X2)/*LOW MODE*/ 
-			&& (data0 >= 200
-			       	&& (data0 <= 16383 && data1 <=16383))){
-		gp2ap->current_range = __ALS_RANGE_X8;
-		gp2ap_reset_als =1;
-	}else if((gp2ap->current_range == __ALS_RANGE_X8) 
-			&& data0 < 50){
-		gp2ap->current_range = __ALS_RANGE_X2;
-		gp2ap_reset_als = 1;	
-	}else if(gp2ap->current_range == __ALS_RANGE_X128 
-			&& (data0 < 1000)){
+		/* When the current range is X8 and data0 is less than 16000,or 
+		   when the current range is X128 and data0 is less than 1000, 
+		   belonging to the low illumination.Accordingly,it is a high illumination
+		 */
+		if((gp2ap->current_range == __ALS_RANGE_X2)/*LOW MODE*/ 
+				&& (data0 >= 200
+					&& (data0 <= 16383 && data1 <=16383))){
 			gp2ap->current_range = __ALS_RANGE_X8;
-			gp2ap->lowlight_mode = true;
+			gp2ap_reset_als =1;
+		}else if((gp2ap->current_range == __ALS_RANGE_X8) 
+				&& data0 < 50){
+			gp2ap->current_range = __ALS_RANGE_X2;
+			gp2ap_reset_als = 1;	
+		}else if(gp2ap->current_range == __ALS_RANGE_X128 
+				&& (data0 < 1000)){
+				gp2ap->current_range = __ALS_RANGE_X8;
+				gp2ap->lowlight_mode = true;
+				gp2ap_reset_als = 1;
+		}else if((gp2ap->current_range == __ALS_RANGE_X8)/*HIGH MODE*/
+				&& (data0 >= 16000) 
+				&& (data0 <= 16383 && data1 <= 16383)){
+			gp2ap->current_range = __ALS_RANGE_X128;
+			gp2ap->lowlight_mode = false;
 			gp2ap_reset_als = 1;
-	}else if((gp2ap->current_range == __ALS_RANGE_X8)/*HIGH MODE*/
-			&& (data0 >= 16000) 
-			&& (data0 <= 16383 && data1 <= 16383)){
-		gp2ap->current_range = __ALS_RANGE_X128;
-		gp2ap->lowlight_mode = false;
-		gp2ap_reset_als = 1;
-	}else{
-		pr_debug("do nothing\n");		
-	}
+		}else{
+			pr_debug("do nothing\n");		
+		}
 
-	/*according to the current range, calculate the report light value*/	
-	if(unlikely(data0 > 16383 || data1 > 16383)){
-		light_lux = 16383;
-		pr_debug("the gp2ap sensor detect the light value is overflow\n");
-	}else if(data0 ==0 || data1 == 0){
-		light_lux = 0;	
-	}else if(data1 * 100 > data0 * 98){
-		light_lux = gp2ap->prev_lux;	
-	}else{
-		if(gp2ap->current_range == __ALS_RANGE_X2){
-			gamma = 25;
-			light_lux = gamma * (alpha * data0 - beta * data1);
-			light_lux /= 100000;
-			if(gp2ap->prev_range == __ALS_RANGE_X8){
-				light_lux = light_lux << 2;
-			}
-		}else if(gp2ap->current_range == __ALS_RANGE_X8){
-				gamma = 1;
+		/*according to the current range, calculate the report light value*/	
+		if(unlikely(data0 > 16383 || data1 > 16383)){
+			light_lux = 16383;
+			pr_debug("the gp2ap sensor detect the light value is overflow\n");
+		}else if(data0 ==0 || data1 == 0){
+			light_lux = 0;	
+		}else if(data1 * 100 > data0 * 98){
+			light_lux = gp2ap->prev_lux;	
+		}else{
+			if(gp2ap->current_range == __ALS_RANGE_X2){
+				gamma = 25;
 				light_lux = gamma * (alpha * data0 - beta * data1);
-				light_lux /= 1000;
-				if(gp2ap->prev_range == __ALS_RANGE_X2){
-					light_lux = light_lux >> 2;
-				}else if(gp2ap->prev_range == __ALS_RANGE_X128){
-					light_lux = light_lux << 4;
-				}
-		} else if(gp2ap->current_range == __ALS_RANGE_X128){
-				gamma = 16;
-				light_lux = gamma * (alpha * data0 - beta * data1);
-				light_lux /= 1000;
+				light_lux /= 100000;
 				if(gp2ap->prev_range == __ALS_RANGE_X8){
-					light_lux = light_lux >> 4;
+					light_lux = light_lux << 2;
 				}
-			}
-		gp2ap->prev_lux = light_lux;
+			}else if(gp2ap->current_range == __ALS_RANGE_X8){
+					gamma = 1;
+					light_lux = gamma * (alpha * data0 - beta * data1);
+					light_lux /= 1000;
+					if(gp2ap->prev_range == __ALS_RANGE_X2){
+						light_lux = light_lux >> 2;
+					}else if(gp2ap->prev_range == __ALS_RANGE_X128){
+						light_lux = light_lux << 4;
+					}
+			} else if(gp2ap->current_range == __ALS_RANGE_X128){
+					gamma = 16;
+					light_lux = gamma * (alpha * data0 - beta * data1);
+					light_lux /= 1000;
+					if(gp2ap->prev_range == __ALS_RANGE_X8){
+						light_lux = light_lux >> 4;
+					}
+				}
+			gp2ap->prev_lux = light_lux;
+		}
+	} else {
+		ret = gp2ap_i2c_read_multibytes(client, REG_D0_LSB, buf, 2);
+		if (ret < 0) {
+			pr_err("%s()->%d:read REG_ALS_D0_LSB reg fail!\n",
+				__func__, __LINE__);
+			return;
+		}
+		light_lux = (buf[1] << 8) | buf[0];
 	}
-#else
-	ret = gp2ap_i2c_read_multibytes(client, REG_D0_LSB, buf, 2);
-	if (ret < 0) {
-		pr_err("%s()->%d:read REG_ALS_D0_LSB reg fail!\n",
-			__func__, __LINE__);
-		return;
-	}
-	light_lux = (buf[1] << 8) | buf[0];
-#endif
 	/* If the consecutive two are the same, the value will not be reported,
 	 * so, force to generate a difference.
 	 */
@@ -1195,28 +1232,28 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 	input_report_abs(input_dev, ABS_ALS, light_lux);
 	input_sync(input_dev);
 
-#ifndef GP2AP_TYPE1
-	gp2ap->als_data[0] = data0;
-	gp2ap->als_data[1] = data1;
-	
-	pr_debug("light_lux is %ld, data0 is %ld, data1 is %ld,range is %d\n",
-			light_lux, data0,data1, gp2ap->current_range);
+	if (!gp2ap->cal_type) {
+		gp2ap->als_data[0] = data0;
+		gp2ap->als_data[1] = data1;
+		
+		pr_debug("light_lux is %ld, data0 is %ld, data1 is %ld,range is %d\n",
+				light_lux, data0,data1, gp2ap->current_range);
 
-	/*when the gp2ap als enable the first time, set the intval_time is 0
-	  but after set the intval_time as 8 times,so the intermittent 
-	  operation is 25ms * 8 = 200ms; 
-	 */
-	if(gp2ap->current_intval_time == __INTVAL_TIME_0) {
-		gp2ap->current_intval_time = __INTVAL_TIME_16;
-		gp2ap_reset_als = 1;
-	}
+		/*when the gp2ap als enable the first time, set the intval_time is 0
+		  but after set the intval_time as 8 times,so the intermittent 
+		  operation is 25ms * 8 = 200ms; 
+		 */
+		if(gp2ap->current_intval_time == __INTVAL_TIME_0) {
+			gp2ap->current_intval_time = __INTVAL_TIME_16;
+			gp2ap_reset_als = 1;
+		}
 
-	if (gp2ap_reset_als) {
-		gp2ap_als_reset(gp2ap);
+		if (gp2ap_reset_als) {
+			gp2ap_als_reset(gp2ap);
+		}
+	} else {
+		gp2ap->als_data1 = light_lux;
 	}
-#else
-	gp2ap->als_data = light_lux;
-#endif
 }
 
 /*
@@ -1545,6 +1582,7 @@ static int __devinit gp2ap_probe(struct i2c_client *client, const struct i2c_dev
 	gp2ap->calib_value = 3;
 	gp2ap->near_threshold = 14;
 	gp2ap->far_threshold = 8;
+	gp2ap->cal_type = 0; /*defualt external calculate*/
 
 	gp2ap->CURRENT_ALS_RANGE[0] = ALS_RANGE_X2;
 	gp2ap->CURRENT_ALS_RANGE[1] = ALS_RANGE_X8;

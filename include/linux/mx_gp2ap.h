@@ -148,11 +148,8 @@ struct gp2ap_data {
 	atomic_t opened;
 	int debug;
 
-#ifndef GP2AP_TYPE1
 	int als_data[2];
-#else
-	int als_data;
-#endif
+	int als_data1;
 	int current_range;
 	int current_intval_time;
 	int ps_data;
@@ -177,6 +174,7 @@ struct gp2ap_data {
 	int calib_value;
 	int near_threshold;
 	int far_threshold;
+	int cal_type;
 };
 #endif
 
