@@ -1181,10 +1181,8 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 		if(unlikely(data0 > 16383 || data1 > 16383)){
 			light_lux = 16383;
 			pr_debug("the gp2ap sensor detect the light value is overflow\n");
-		}else if(data0 ==0 || data1 == 0){
+		} else if (data0 == 0) {
 			light_lux = 0;	
-		}else if(data1 * 100 > data0 * 98){
-			light_lux = gp2ap->prev_lux;	
 		}else{
 			if(gp2ap->current_range == __ALS_RANGE_X2){
 				gamma = 25;
@@ -1210,6 +1208,9 @@ static void gp2ap_als_dwork_func(struct work_struct *work)
 						light_lux = light_lux >> 4;
 					}
 				}
+			if ((light_lux == 0) && (data0 != 0)) {
+				light_lux = data0;
+			} 
 			gp2ap->prev_lux = light_lux;
 		}
 	} else {
