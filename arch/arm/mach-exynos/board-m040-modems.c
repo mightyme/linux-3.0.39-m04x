@@ -41,24 +41,24 @@ static struct modem_io_t m040_io_devices[] = {
 	},
 	[1] = {
 		.id      = 0x1,                    
-		.name    = "ttyACM1",              
+		.name    = "rmnet0",
 		.links   = LINKTYPE(LINKDEV_HSIC), 
 		.format  = IPC_RAW,                
-		.io_type = IODEV_TTY,              
+		.io_type = IODEV_NET,
 	},
 	[2] = {
 		.id      = 0x2,                    
-		.name    = "ttyACM2",              
+		.name    = "ttyACM1",
 		.links   = LINKTYPE(LINKDEV_HSIC), 
 		.format  = IPC_RAW,                
-		.io_type = IODEV_TTY,              
+		.io_type = IODEV_TTY,
 	},
 	[3] = {
 		.id      = 0x3,                    
-		.name    = "rmnet0",               
+		.name    = "ttyACM2",
 		.links   = LINKTYPE(LINKDEV_HSIC), 
 		.format  = IPC_RAW,                
-		.io_type = IODEV_NET,              
+		.io_type = IODEV_TTY,
 	},
 };
 
