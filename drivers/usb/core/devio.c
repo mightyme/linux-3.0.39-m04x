@@ -713,8 +713,8 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	usb_lock_device(dev);
 	if (dev->state == USB_STATE_NOTATTACHED)
 		goto out_unlock_device;
-#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
-	printk(KERN_DEBUG "CDC-ACM skip usb_autoresume_device\n");
+#if defined(CONFIG_LINK_DEVICE_HSIC) || defined(CONFIG_LINK_DEVICE_USB)
+	pr_debug("mif: modem usbdev_open, skip usb_autoresume_device\n");
 	ret = 0;
 #else
 	ret = usb_autoresume_device(dev);
@@ -769,8 +769,8 @@ static int usbdev_release(struct inode *inode, struct file *file)
 			releaseintf(ps, ifnum);
 	}
 	destroy_all_async(ps);
-#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
-	printk(KERN_DEBUG "CDC_ACM_open, skip usb_autosuspend_device\n");
+#if defined(CONFIG_LINK_DEVICE_HSIC) || defined(CONFIG_LINK_DEVICE_USB)
+	pr_debug("mif: modem usbdev_open, skip usb_autosuspend_device\n");
 #else
 	usb_autosuspend_device(dev);
 #endif	

@@ -14,7 +14,7 @@
 #define	__MX_QMATRIX__
 
 #include <linux/wakelock.h>
-
+#include <linux/earlysuspend.h>
 
 #define FW_VERSION     				0x11
 #define FLASH_ADDR_FW_VERSION   	0x3F

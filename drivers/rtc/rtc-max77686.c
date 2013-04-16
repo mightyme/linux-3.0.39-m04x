@@ -339,7 +339,7 @@ static int max77686_rtc_start_alarm(struct max77686_rtc_info *info)
 	}
 
 	max77686_rtc_data_to_tm(data, &tm, info->rtc_24hr_mode);
-	printk(KERN_INFO "%s: %d/%d/%d %d:%d:%d(%d)\n", __func__,
+	printk(KERN_DEBUG"%s: %d/%d/%d %d:%d:%d(%d)\n", __func__,
 		tm.tm_year, tm.tm_mon, tm.tm_mday,
 		tm.tm_hour, tm.tm_min, tm.tm_sec, tm.tm_wday);
 

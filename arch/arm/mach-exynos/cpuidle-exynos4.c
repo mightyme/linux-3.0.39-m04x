@@ -39,7 +39,9 @@
 #ifdef CONFIG_S3C2410_WATCHDOG
 #include <plat/regs-watchdog.h>
 #endif
-
+#ifdef CONFIG_USB_EHCI_S5P
+extern int s5p_ehci_check_op(void);
+#endif
 extern unsigned long sys_pwr_conf_addr;
 extern unsigned int l2x0_save[3];
 extern unsigned int scu_save[2];
@@ -363,8 +365,8 @@ static int exynos4_check_operation(void)
 	if (check_usbotg_op())
 		return 1;
 #endif
-#ifdef CONFIG_UMTS_MODEM_XMM6260
-	if (exynos4_check_usb_op())
+#ifdef CONFIG_USB_EHCI_S5P
+	if (s5p_ehci_check_op())
 		return 1;
 #endif
 #ifdef CONFIG_BT

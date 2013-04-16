@@ -561,7 +561,7 @@ modem_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
 
 	err = ld->send(ld, iod, skb);
 	if (err < 0) {
-		pr_info("%s ld send error:%d!\n", __func__, err);
+		MIF_DEBUG("%s ld send error:%d!\n", __func__, err);
 		dev_kfree_skb_any(skb);
 		return err;
 	}

@@ -25,17 +25,17 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
-
-#include <asm/mach-types.h>
-
-#include <plat/iic.h>
-#include <mach/i2c-m040.h>
+#include <linux/i2c-gpio.h>
 #include <linux/gpio.h>
-#include <mach/gpio-m040.h>
-
 #ifdef CONFIG_RMI4_I2C
 #include <linux/rmi.h>
 #endif
+
+#include <asm/mach-types.h>
+#include <plat/devs.h>
+#include <plat/iic.h>
+#include <mach/i2c-m040.h>
+#include <mach/gpio-m040.h>
 
 #if defined(CONFIG_TOUCHSCREEN_MXT224S)
 #include <linux/i2c/atmel_mxts_ts.h>
@@ -217,11 +217,17 @@ static struct i2c_board_info __initdata i2c_devs7[] = {
 #endif
 };
 
+static struct platform_device __initdata *m040_tsp_devices[]  = {
+	&s3c_device_i2c7,
+};
 static int  __init mx2_init_ts(void)
 {
 	/* touch pannel */
 	s3c_i2c7_set_platdata(&m040_default_i2c7_data);
 	i2c_register_board_info(7, i2c_devs7, ARRAY_SIZE(i2c_devs7));
+	if(platform_add_devices(m040_tsp_devices, ARRAY_SIZE(m040_tsp_devices))){
+		pr_err("%s: register touchscreen device fail\n", __func__);
+	}
 	return 0;
 }
 

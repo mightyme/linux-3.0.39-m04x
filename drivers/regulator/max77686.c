@@ -837,7 +837,7 @@ static __devinit int max77686_pmic_probe(struct platform_device *pdev)
 	struct i2c_client *i2c;
 	int i, ret, size;
 	u8 data = 0;
-#ifdef CONFIG_MACH_M040
+#if defined(CONFIG_MACH_M040) || defined(CONFIG_MACH_M041)
 	u8 ldo4 = 0, ldo18 = 0;
 #endif
 
@@ -973,7 +973,7 @@ static __devinit int max77686_pmic_probe(struct platform_device *pdev)
 		}
 	}
 
-#ifdef CONFIG_MACH_M040
+#if defined(CONFIG_MACH_M040) || defined(CONFIG_MACH_M041)
 	/* For The F cking fsa8108
 	 * LDO4, LDO18 Both off first,
 	 * LDO18 first on then LDO4 on.

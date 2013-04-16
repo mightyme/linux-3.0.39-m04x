@@ -345,6 +345,8 @@ struct hc_driver {
 	int	(*update_device)(struct usb_hcd *, struct usb_device *);
 
 	int    (*wait_for_device)(struct usb_hcd *);
+	
+	int	(*port_check)(struct usb_hcd *, unsigned port_num);
 };
 
 extern int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb);

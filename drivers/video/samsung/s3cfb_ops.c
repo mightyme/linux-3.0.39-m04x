@@ -37,7 +37,7 @@
 #endif
 
 #if defined(CONFIG_FB_MX_MIPI_LCD) || defined(CONFIG_FB_MX2_MIPI_LCD)
-#if defined(CONFIG_MACH_M040)
+#if defined(CONFIG_MACH_M040) || defined(CONFIG_MACH_M041)
 #if defined(CONFIG_MX_UNICOM_KERNEL)
 	#include "mx2_unicom_logo.h"
 	#define LOGO_BACKGROUND_COLOR		0x00ffffff

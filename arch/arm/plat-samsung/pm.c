@@ -278,21 +278,7 @@ static int s3c_pm_enter(suspend_state_t state)
 
 	s3c_pm_configure_extint();
 
-#if CONFIG_MEIZU_MODEM
-	/*GPX2(4)---> momem host wakeup*/
-	printk("GPX2-> CON:0x%08x, DATA: 0x%08x, PULL: 0x%08X, DRV: 0x%08x\n",
-		 	__raw_readl(S5P_VA_GPIO2 + 0xC40),
-			__raw_readl(S5P_VA_GPIO2 + 0xC44),
-			__raw_readl(S5P_VA_GPIO2 + 0xC48),
-			__raw_readl(S5P_VA_GPIO2 + 0xC4C));
-#if 0
-	if ((__raw_readl(S5P_VA_GPIO2 + 0xC44) & (0x1<<4)) == 0) {
-		pr_err("%s: modem is busy!!!\n", __func__);
-		return -EINVAL;
-	}
-#endif
-#endif
-	printk("sleep: irq wakeup masks: %08lx,%08lx\n",
+	S3C_PMDBG("sleep: irq wakeup masks: %08lx,%08lx\n",
 	    s3c_irqwake_intmask, s3c_irqwake_eintmask);
 
 	s3c_pm_arch_prepare_irqs();
@@ -314,9 +300,9 @@ static int s3c_pm_enter(suspend_state_t state)
 
 	s3c_pm_arch_stop_clocks();
 
-	printk(KERN_ALERT "PM: SLEEP\n");
+	S3C_PMDBG(KERN_ALERT "PM: SLEEP\n");
 
-	printk(KERN_ALERT "ARM_COREx_STATUS CORE1[0x%08x], "
+	S3C_PMDBG(KERN_ALERT "ARM_COREx_STATUS CORE1[0x%08x], "
 		   "CORE2[0x%08x], CORE3[0x%08x]\n",
 			__raw_readl(S5P_VA_PMU + 0x2084),
 			__raw_readl(S5P_VA_PMU + 0x2104),

@@ -2184,6 +2184,16 @@ void __init_or_cpufreq exynos4_setup_clocks(void)
 
 	for (ptr = 0; ptr < ARRAY_SIZE(exynos4_clksrcs); ptr++)
 		s3c_set_clksrc(&exynos4_clksrcs[ptr], true);
+
+#ifdef CONFIG_SPI_S3C64XX
+	clk_set_parent(&exynos4_clk_dout_spi0.clk, &clk_xusbxti);
+	clk_set_parent(&exynos4_clk_dout_spi1.clk, &clk_xusbxti);
+	clk_set_parent(&exynos4_clk_dout_spi2.clk, &clk_xusbxti);
+	
+	clk_set_rate(&exynos4_clk_dout_spi0.clk, clk_get_rate(&clk_xusbxti));
+	clk_set_rate(&exynos4_clk_dout_spi1.clk, clk_get_rate(&clk_xusbxti));
+	clk_set_rate(&exynos4_clk_dout_spi2.clk, clk_get_rate(&clk_xusbxti));
+#endif
 }
 
 static struct clk *exynos4_clks[] __initdata = {

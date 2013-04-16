@@ -31,6 +31,7 @@
 
 #include <asm/mach-types.h>
 
+#include <plat/cpu.h>
 #include <plat/fb.h>
 #include <plat/mipi_dsim.h>
 #include <plat/regs-mipidsim.h>
@@ -339,7 +340,7 @@ static int s5p_mipi_setup_clk(struct platform_device *pdev)
 		panic("clk_get sclk_mipi_phy failed\n");
 	}
 
-	if (machine_is_m032() || machine_is_m031() || machine_is_m040())
+	if (soc_is_exynos4212() || soc_is_exynos4412())
 		parent = clk_get(NULL, "mout_mpll_user");
 	else
 		parent = clk_get(NULL, "mout_mpll");

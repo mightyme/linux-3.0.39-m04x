@@ -75,7 +75,7 @@ struct haptic_data {
 int g_vibrate_count = 0;
 #endif
 
-#ifndef CONFIG_MACH_M040
+#if !defined(CONFIG_MACH_M040) && !defined(CONFIG_MACH_M41)
 /* this function is useless when external pwm is applied*/
 static int haptic_clk_on(struct device *dev, bool en)
 {
@@ -318,7 +318,7 @@ static __devinit int max77665_haptic_probe(struct platform_device *pdev)
 	ret = max77665_write_reg(chip->client,
 				 MAX77665_HAPTIC_REG_CONFIG2, config);
 	/* init done */
-#ifndef CONFIG_MACH_M040
+#if !defined(CONFIG_MACH_M040) && !defined(CONFIG_MACH_M41)
 	/*comment the function call for better performance*/
 	haptic_clk_on(chip->dev, true);
 #endif
@@ -378,7 +378,7 @@ static int max77665_haptic_suspend(struct device *dev)
 	struct haptic_data *chip = dev_get_drvdata(dev);
 	hrtimer_cancel(&chip->timer);
 	max77665_haptic_on(chip, false);
-#ifndef CONFIG_MACH_M040
+#if !defined(CONFIG_MACH_M040) && !defined(CONFIG_MACH_M41)
 	/*comment the function call for better performance*/
 	haptic_clk_on(chip->dev, false);
 #endif
@@ -388,7 +388,7 @@ static int max77665_haptic_suspend(struct device *dev)
 static int max77665_haptic_resume(struct device *dev)
 {
 	struct haptic_data *chip = dev_get_drvdata(dev);
-#ifndef CONFIG_MACH_M040
+#if !defined(CONFIG_MACH_M040) && !defined(CONFIG_MACH_M41)
 	/*comment the function call for better performance*/
 	haptic_clk_on(chip->dev, true);
 #endif

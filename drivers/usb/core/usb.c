@@ -264,7 +264,7 @@ static int usb_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
  * it by skipping the usb_port_suspend() call for a quiesce.  And for
  * USB interfaces there's no difference at all.
  */
-#if defined(CONFIG_XMM6260_ENUM_SYNC)
+
 static int usb_dev_prepare(struct device *dev)
 {
 	return 0;		/* Implement eventually? */
@@ -305,46 +305,7 @@ static int usb_dev_restore(struct device *dev)
 {
 	return usb_resume(dev, PMSG_RESTORE);
 }
-#else
-static int usb_dev_prepare(struct device *dev)
-{
-	return 0;		/* Implement eventually? */
-}
 
-static void usb_dev_complete(struct device *dev)
-{
-}
-
-static int usb_dev_suspend(struct device *dev)
-{
-	return 0;
-}
-
-static int usb_dev_resume(struct device *dev)
-{
-	return 0;
-}
-
-static int usb_dev_freeze(struct device *dev)
-{
-	return 0;
-}
-
-static int usb_dev_thaw(struct device *dev)
-{
-	return 0;
-}
-
-static int usb_dev_poweroff(struct device *dev)
-{
-	return 0;
-}
-
-static int usb_dev_restore(struct device *dev)
-{
-	return 0;
-}
-#endif
 static const struct dev_pm_ops usb_device_pm_ops = {
 	.prepare =	usb_dev_prepare,
 	.complete =	usb_dev_complete,

@@ -39,6 +39,7 @@
 #include "modem_variation.h"
 #include "modem_utils.h"
 
+int modem_debug = 0;
 static struct modem_ctl *create_modemctl_device(struct platform_device *pdev)
 {
 	int ret = 0;

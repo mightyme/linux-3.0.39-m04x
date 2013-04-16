@@ -29,12 +29,13 @@
 #include <linux/regulator/machine.h>
 #include <linux/i2c.h>
 #include <linux/err.h>
+#include <linux/gpio.h>
 
 #include <mach/irqs.h>
-#include <linux/gpio.h>
-#include <plat/gpio-cfg.h>
 #include <mach/gpio-m040.h>
+#include <mach/i2c-m040.h>
 
+#include <plat/gpio-cfg.h>
 #include <plat/pd.h>
 #include <plat/devs.h>
 #include <plat/tvout.h>
@@ -200,6 +201,15 @@ static struct i2c_board_info __initdata i2c_devs13[] = {
 	},
 #endif
 };
+static struct platform_device __initdata *m040_tvout_devices[]  = {
+	&m040_device_gpio_i2c8,
+	&m040_device_gpio_i2c13,
+#ifdef CONFIG_VIDEO_TVOUT
+	&s5p_device_tvout,
+	&s5p_device_cec,
+	&s5p_device_hpd,
+#endif
+};
 static int  __init mx2_init_tvout(void)
 {
 	/* mhl */
@@ -216,6 +226,9 @@ static int  __init mx2_init_tvout(void)
 	s5p_hdmi_hpd_set_platdata(&hdmi_hpd_data);
 	s5p_hdmi_cec_set_platdata(&hdmi_cec_data);
 #endif
+	if(platform_add_devices(m040_tvout_devices, ARRAY_SIZE(m040_tvout_devices))){
+		pr_err("%s: register tvout device fail\n", __func__);
+	}
 	return 0;
 }
 

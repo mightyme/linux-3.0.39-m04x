@@ -24,7 +24,7 @@
 #ifndef _MEIZUMX_LOGO_H_
 #define _MEIZUMX_LOGO_H_
 
-#ifdef CONFIG_MACH_M040
+#if defined(CONFIG_MACH_M040) || defined(CONFIG_MACH_M041)
 #define X_MEIZUMX_LOGO_START     257
 #define Y_MEIZUMX_LOGO_START     470
 #else

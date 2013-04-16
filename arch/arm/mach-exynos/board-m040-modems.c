@@ -103,7 +103,6 @@ static struct modem_data umts_modem_data_m040 = {
 
 void modem_set_active_state(int state)
 {
-	MIF_DEBUG("%s state=>:%d\n", __func__, state);
 	gpio_direction_output(umts_modem_data.gpio_host_active, state);
 }
 
@@ -234,26 +233,20 @@ static void modem_hsic_pm_config_gpio(void)
 	printk(KERN_INFO "modem_hsic_pm_config_gpio done\n");
 }
 
-static int __init modem_device_init(void)
+int m040_modem_device_init(void)
 {
-	int ret;
+	int ret = 0;
 
-	pr_info("[MODEM_IF] init_modem\n");
-
+	pr_info("[MODEM_IF] init_modem for wm\n");
 	umts_modem_data = umts_modem_data_m040;
 
 	umts_modem_cfg_gpio();
 	modem_hsic_pm_config_gpio();
 
 	ret = platform_device_register(&umts_modem_m040);
-	if (ret < 0)
-		return ret;
 
-	pr_info("[MODEM_IF] init_modem device over.\n");
+	pr_info("[MODEM_IF] init_modem device over, ret=%d.\n", ret);
+
 	return ret;
-}
-late_initcall(modem_device_init);
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("KarlZheng<zhengkl@meizu.com>");
-MODULE_DESCRIPTION("Meizu Modem Interface Driver");
+}

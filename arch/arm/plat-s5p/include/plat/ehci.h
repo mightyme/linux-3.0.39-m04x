@@ -17,6 +17,12 @@ struct s5p_ehci_platdata {
 	int (*phy_exit)(struct platform_device *pdev, int type);
 	int (*phy_suspend)(struct platform_device *pdev, int type);
 	int (*phy_resume)(struct platform_device *pdev, int type);
+	int (*phy_check_op)(struct platform_device *pdev, int type);
+	void(*set_cp_active)(int type);
+	
+	int cp_port_enable;
+	int late_resume;
+	int wait_device;
 };
 
 struct s5p_ohci_platdata {

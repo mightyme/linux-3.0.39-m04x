@@ -465,7 +465,10 @@ static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 	if (sci->clk_from_cmu) {
 		/* Configure Clock */
 		/* There is half-multiplier before the SPI */
-		clk_set_rate(sdd->src_clk, sdd->cur_speed * 2);
+
+		if(clk_set_rate(sdd->src_clk, sdd->cur_speed * 2)){
+			pr_err("%s:set clk rate to %d fail\n" , __func__, sdd->cur_speed * 2);
+		}
 		/* Enable Clock */
 		clk_enable(sdd->src_clk);
 	} else {
@@ -704,7 +707,7 @@ static void handle_msg(struct s3c64xx_spi_driver_data *sdd,
 					s3c2410_dma_ctrl(sdd->rx_dmach,
 							S3C2410_DMAOP_FLUSH);
 			}
-
+			flush_fifo(sdd);
 			goto out;
 		}
 
@@ -958,7 +961,7 @@ static void s3c64xx_spi_hwinit(struct s3c64xx_spi_driver_data *sdd, int channel)
 	flush_fifo(sdd);
 }
 
-static int __init s3c64xx_spi_probe(struct platform_device *pdev)
+static int s3c64xx_spi_probe(struct platform_device *pdev)
 {
 	struct resource	*mem_res, *dmatx_res, *dmarx_res;
 	struct s3c64xx_spi_driver_data *sdd;
@@ -1058,7 +1061,6 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 		ret = PTR_ERR(sdd->clk);
 		goto err3;
 	}
-
 	if (clk_enable(sdd->clk)) {
 		dev_err(&pdev->dev, "Couldn't enable clock 'spi'\n");
 		ret = -EBUSY;
@@ -1102,10 +1104,10 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 		goto err8;
 	}
 
-	dev_dbg(&pdev->dev, "Samsung SoC SPI Driver loaded for Bus SPI-%d "
+	dev_info(&pdev->dev, "Samsung SoC SPI Driver loaded for Bus SPI-%d "
 					"with %d Slaves attached\n",
 					pdev->id, master->num_chipselect);
-	dev_dbg(&pdev->dev, "\tIOmem=[0x%x-0x%x]\tDMA=[Rx-%d, Tx-%d]\n",
+	dev_info(&pdev->dev, "\tIOmem=[0x%x-0x%x]\tDMA=[Rx-%d, Tx-%d]\n",
 					mem_res->end, mem_res->start,
 					sdd->rx_dmach, sdd->tx_dmach);
 
@@ -1223,6 +1225,7 @@ static struct platform_driver s3c64xx_spi_driver = {
 		.name	= "s3c64xx-spi",
 		.owner = THIS_MODULE,
 	},
+	.probe    = s3c64xx_spi_probe,
 	.remove = s3c64xx_spi_remove,
 	.suspend = s3c64xx_spi_suspend,
 	.resume = s3c64xx_spi_resume,
@@ -1231,7 +1234,7 @@ MODULE_ALIAS("platform:s3c64xx-spi");
 
 static int __init s3c64xx_spi_init(void)
 {
-	return platform_driver_probe(&s3c64xx_spi_driver, s3c64xx_spi_probe);
+	return platform_driver_register(&s3c64xx_spi_driver);
 }
 subsys_initcall(s3c64xx_spi_init);
 

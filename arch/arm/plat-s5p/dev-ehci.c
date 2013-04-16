@@ -61,6 +61,8 @@ void __init s5p_ehci_set_platdata(struct s5p_ehci_platdata *pd)
 		npd->phy_suspend = s5p_usb_phy_suspend;
 	if (!npd->phy_resume)
 		npd->phy_resume = s5p_usb_phy_resume;
+	if (!npd->phy_check_op)
+		npd->phy_check_op = s5p_usb_phy_check_op;
 }
 #endif
 

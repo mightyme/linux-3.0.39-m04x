@@ -26,7 +26,7 @@
 #ifndef	__WM8958_PATH_H__
 #define	__WM8958_PATH_H__
 
-#if defined(CONFIG_MACH_M040)
+#if defined(CONFIG_MACH_M040) || defined(CONFIG_MACH_M041)
 #define	VOL_NORMAL_SPK				(0x39+2)							//0dB 0dB = 0x39
 #else
 #define	VOL_NORMAL_SPK				(0x39+4)							//4dB 0dB = 0x39

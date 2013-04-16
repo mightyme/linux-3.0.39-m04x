@@ -1077,9 +1077,10 @@ static int ehci_hub_control (
 			set_bit(wIndex, &ehci->suspended_ports);
 			break;
 		case USB_PORT_FEAT_POWER:
-			if (HCS_PPC (ehci->hcs_params))
+			if (HCS_PPC (ehci->hcs_params) && hcd->driver->port_check(hcd, wIndex+1)){
 				ehci_writel(ehci, temp | PORT_POWER,
 						status_reg);
+			}
 			break;
 		case USB_PORT_FEAT_RESET:
 			if (temp & PORT_RESUME)

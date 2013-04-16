@@ -19,5 +19,4 @@ extern int modem_is_host_wakeup(void);
 extern int modem_set_slave_wakeup(int val);
 extern void modem_notify_event(int type);
 extern void modem_set_active_state(int state);
-
 #endif

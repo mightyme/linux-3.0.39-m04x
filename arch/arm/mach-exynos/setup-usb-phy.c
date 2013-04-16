@@ -351,7 +351,7 @@ static int exynos4_usb_phy0_exit(struct platform_device *pdev)
 	return 0;
 }
 
-int exynos4_check_usb_op(void)
+static int exynos4_check_usb_op(void)
 {
 	u32 rstcon __maybe_unused;
 	u32 phypwr;
@@ -397,9 +397,6 @@ int exynos4_check_usb_op(void)
 			writel(PHY_DISABLE, S5P_USBHOST_PHY_CONTROL);
 
 			op = 0;
-#ifdef CONFIG_UMTS_MODEM_XMM6260
-			modem_set_active_state(0);
-#endif
 		}
 	} else {
 		if (phypwr & (PHY1_STD_FORCE_SUSPEND
@@ -425,9 +422,6 @@ int exynos4_check_usb_op(void)
 			writel(PHY_DISABLE, S5P_USB_PHY_CONTROL);
 
 			op = 0;
-#ifdef CONFIG_UMTS_MODEM_XMM6260
-			modem_set_active_state(0);
-#endif
 		}
 	}
 done:
@@ -465,7 +459,7 @@ static int exynos4_usb_phy1_resume(struct platform_device *pdev)
 	u32 phyclk;
 	int err;
 
-	if (exynos4_usb_host_phy_is_on()) {
+	if (exynos4_usb_host_phy_is_on() && exynos4_usb_host_is_suspended()) {
 		/* set to resume HSIC 0 and 1 and standard of PHY1 */
 		phypwr = readl(EXYNOS4_PHYPWR);
 		if (soc_is_exynos4210()) {
@@ -1064,20 +1058,16 @@ static int exynos5_usb_phy30_exit(struct platform_device *pdev)
 
 	return 0;
 }
+int s5p_usb_phy_check_op(struct platform_device *pdev, int type)
+{
+	return exynos4_check_usb_op();
+}
 
 int s5p_usb_phy_suspend(struct platform_device *pdev, int type)
 {
 	int ret = 0;
 
 	down(&phy_lock);
-	if (!strcmp(pdev->name, "s5p-ehci"))
-		clear_bit(HOST_PHY_EHCI, &usb_phy_control.flags);
-	else if (!strcmp(pdev->name, "s5p-ohci"))
-		clear_bit(HOST_PHY_OHCI, &usb_phy_control.flags);
-
-	if (usb_phy_control.flags)
-		goto done;
-
 	ret = exynos_usb_phy_clock_enable(pdev);
 	if (ret)
 		goto done;
@@ -1096,9 +1086,6 @@ int s5p_usb_phy_resume(struct platform_device *pdev, int type)
 	int ret = 0;
 
 	down(&phy_lock);
-	if (usb_phy_control.flags)
-		goto done;
-
 	ret = exynos_usb_phy_clock_enable(pdev);
 	if (ret) {
 		up(&phy_lock);
@@ -1109,11 +1096,6 @@ int s5p_usb_phy_resume(struct platform_device *pdev, int type)
 		ret = exynos4_usb_phy1_resume(pdev);
 
 	exynos_usb_phy_clock_disable(pdev);
-done:
-	if (!strcmp(pdev->name, "s5p-ehci"))
-		set_bit(HOST_PHY_EHCI, &usb_phy_control.flags);
-	else if (!strcmp(pdev->name, "s5p-ohci"))
-		set_bit(HOST_PHY_OHCI, &usb_phy_control.flags);
 
 	up(&phy_lock);
 	return ret;
@@ -1133,11 +1115,7 @@ int s5p_usb_phy_init(struct platform_device *pdev, int type)
 			set_bit(HOST_PHY_EHCI, &usb_phy_control.flags);
 		else if (!strcmp(pdev->name, "s5p-ohci"))
 			set_bit(HOST_PHY_OHCI, &usb_phy_control.flags);
-#ifdef CONFIG_UMTS_MODEM_XMM6260
-		if (modem_is_on() && !modem_is_host_wakeup()) {
-			modem_set_slave_wakeup(1);
-		}
-#endif
+
 		if (soc_is_exynos4210())
 			ret = exynos4_usb_phy1_init(pdev);
 		else if (soc_is_exynos4212() || soc_is_exynos4412())

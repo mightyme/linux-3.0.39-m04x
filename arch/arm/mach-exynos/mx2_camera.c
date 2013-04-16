@@ -27,6 +27,7 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/videodev2.h>
+#include <linux/i2c.h>
 
 #include <asm/mach-types.h>
 
@@ -371,12 +372,26 @@ static struct i2c_board_info __initdata i2c_devs5[] = {
 static struct i2c_board_info __initdata i2c_devs5[] = {
 };
 #endif
-
+static struct platform_device __initdata *m040_camera_devices[]  = {
+#ifndef CONFIG_MX2_SC8803G_TEST
+	&s3c_device_i2c5,
+#endif
+#if defined(CONFIG_VIDEO_FIMC)
+	&s3c_device_fimc0,
+	&s3c_device_fimc1,
+	&s3c_device_fimc2,
+	&s3c_device_fimc3,
+#endif
+#ifdef CONFIG_VIDEO_FIMC_MIPI
+	&s3c_device_csis0,
+#endif
+};
 static int __init mx2_init_camera(void)
 {
-	s3c_i2c5_set_platdata(&m040_default_i2c5_data);
-	i2c_register_board_info(5, i2c_devs5, ARRAY_SIZE(i2c_devs5));
-	
+#ifndef CONFIG_MX2_SC8803G_TEST
+		s3c_i2c5_set_platdata(&m040_default_i2c5_data);
+		i2c_register_board_info(5, i2c_devs5, ARRAY_SIZE(i2c_devs5));
+#endif
 #ifdef CONFIG_VIDEO_FIMC
 	s3c_fimc0_set_platdata(&fimc_plat);
 	s3c_fimc1_set_platdata(NULL);
@@ -396,7 +411,9 @@ static int __init mx2_init_camera(void)
 	s3c_device_csis0.dev.parent = &exynos4_device_pd[PD_CAM].dev;
 #endif
 #endif
-
+	if(platform_add_devices(m040_camera_devices, ARRAY_SIZE(m040_camera_devices))){
+		pr_err("%s: register camera device fail\n", __func__);
+	}
 	return 0;
 }
 

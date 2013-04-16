@@ -214,7 +214,7 @@ static inline void m040_set_wakeup_type(mx_int_type group, int mask)
 
 static inline void set_wakeup_type(mx_int_type group, int pending)
 {
-#ifdef CONFIG_MACH_M040
+#if defined(CONFIG_MACH_M040) || defined(CONFIG_MACH_M041)
 	m040_set_wakeup_type(group, pending);
 #else
 	if(machine_is_m030()){

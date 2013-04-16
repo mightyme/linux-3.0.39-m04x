@@ -9,6 +9,9 @@
 #include <plat/usb-phy.h>
 #include <plat/devs.h>
 #include <asm/mach-types.h>
+#ifdef CONFIG_UMTS_MODEM_XMM6260
+#include <mach/modem.h>
+#endif
 
 /* USB EHCI */
 #ifdef CONFIG_USB_EHCI_S5P
@@ -77,16 +80,31 @@ int mx2_usb_phy_power(struct platform_device *pdev,int type, int on)
 
 	return 0;
 }
-
+static void mx2_modem_set_active_state(int state)
+{
+#ifdef CONFIG_UMTS_MODEM_XMM6260
+	modem_set_active_state(state);
+#endif
+	return;
+}
 static struct s5p_ehci_platdata mx2_ehci_pdata={
 	.phy_power = mx2_usb_phy_power,
+	.set_cp_active = mx2_modem_set_active_state,
 };
 
 static int __init mx2_ehci_init(void)
 {
 	int ret = 0;
 	struct s5p_ehci_platdata *pdata = &mx2_ehci_pdata;
-
+	
+	if(machine_is_m040()){
+		pdata->late_resume = 1;
+		pdata->wait_device = 1;
+	}else{
+		pdata->late_resume = 0;
+		pdata->wait_device  = 0;
+		pdata->set_cp_active = NULL;
+	}
 	ret = platform_device_register(&s5p_device_ehci);
 	if(ret)
 		return ret;

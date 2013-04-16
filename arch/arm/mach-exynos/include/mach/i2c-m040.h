@@ -34,4 +34,16 @@ extern struct s3c2410_platform_i2c m040_default_i2c5_data;
 extern struct s3c2410_platform_i2c m040_default_i2c6_data;
 /*touch ic*/
 extern struct s3c2410_platform_i2c m040_default_i2c7_data;
+
+extern struct platform_device m040_device_gpio_i2c8;
+extern struct platform_device m040_device_gpio_i2c9;
+extern struct platform_device m040_device_gpio_i2c10;
+extern struct platform_device m040_device_gpio_i2c11;
+extern struct platform_device m040_device_gpio_i2c12;
+extern struct platform_device m040_device_gpio_i2c13;
+extern struct platform_device m040_device_gpio_i2c14;
+extern struct platform_device m040_device_gpio_i2c15;
+extern struct platform_device m040_device_gpio_i2c16;
+extern struct platform_device m040_device_gpio_i2c17;
+extern struct platform_device m040_device_gpio_i2c18;
 #endif //__I2C_M040_H

@@ -19,7 +19,6 @@
 #include <linux/regulator/fixed.h>
 #include <linux/mfd/max77686.h>
 #include <linux/mfd/max77665.h>
-#include <linux/mfd/wm8994/pdata.h>
 #include <linux/mfd/bu26507.h>
 #include <linux/power_supply.h>
 #include <linux/memblock.h>
@@ -31,9 +30,6 @@
 #include <linux/bq27541.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-#ifdef CONFIG_AUDIENCE_ES305B
-#include <linux/es305b_soc.h>
-#endif
 #include <linux/mhl.h>
 #include <linux/devfreq-exynos4.h>
 #include <linux/platform_data/exynos4_tmu.h>
@@ -48,9 +44,6 @@
 #include <linux/mx_spdif_platform.h>
 #include <linux/exynos-cpufreq.h>
 #include <linux/led-lm3530.h>
-#ifdef CONFIG_SWITCH_GPIO
-#include <linux/switch.h>
-#endif
 #include <linux/switch.h>
 
 #include <asm/mach/arch.h>
@@ -58,7 +51,6 @@
 
 #include <mach/map.h>
 #include <mach/gpio-m040.h>
-#include <mach/dwmci.h>
 #include <mach/dev-sysmmu.h>
 #include <mach/dev-ppmu.h>
 #include <mach/dev.h>
@@ -87,15 +79,11 @@
 #include <plat/fimg2d.h>
 #include <plat/jpeg.h>
 #include <plat/sdhci.h>
-#include <plat/mshci.h>
 #ifdef CONFIG_BATTERY_MX
 #include <mach/mx_battery.h>
 #endif
 #include <mach/m040_regulator.h>
 #include <mach/m040_regulator_fixed.h>
-#ifdef CONFIG_MFD_MXQM
-#include <linux/mx_qm.h>
-#endif
 #include <mach/exynos_fiq_debugger.h>
 
 extern void __init m040_reserve_mem(void);
@@ -188,245 +176,6 @@ static struct s3c_hwmon_pdata __initdata m040_hwmon_pdata = {
 };
 #endif
 
-#ifdef CONFIG_EXYNOS4_DEV_DWMCI
-static void m040_dwmci_cfg_gpio(int width)
-{
-	static int pre_width = -1;
-
-	unsigned int gpio;
-
-	if (pre_width == width)
-		return;
-
-	for (gpio = EXYNOS4_GPK0(0); gpio < EXYNOS4_GPK0(2); gpio++) {
-		s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(3));
-		s3c_gpio_setpull(gpio, S3C_GPIO_PULL_NONE);
-		s5p_gpio_set_drvstr(gpio, S5P_GPIO_DRVSTR_LV2);
-	}
-
-	switch (width) {
-	case 8:
-		for (gpio = EXYNOS4_GPK1(3); gpio <= EXYNOS4_GPK1(6); gpio++) {
-			s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(4));
-			s3c_gpio_setpull(gpio, S3C_GPIO_PULL_UP);
-			s5p_gpio_set_drvstr(gpio, S5P_GPIO_DRVSTR_LV2);
-		}
-	case 4:
-		for (gpio = EXYNOS4_GPK0(3); gpio <= EXYNOS4_GPK0(6); gpio++) {
-			s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(3));
-			s3c_gpio_setpull(gpio, S3C_GPIO_PULL_UP);
-			s5p_gpio_set_drvstr(gpio, S5P_GPIO_DRVSTR_LV2);
-		}
-		break;
-	case 1:
-		gpio = EXYNOS4_GPK0(3);
-		s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(3));
-		s3c_gpio_setpull(gpio, S3C_GPIO_PULL_UP);
-		s5p_gpio_set_drvstr(gpio, S5P_GPIO_DRVSTR_LV2);
-	default:
-		break;
-	}
-
-	pre_width = width;
-}
-
-static int m040_dwmci_get_bus_wd(u32 slot_id)
-{
-	if (0 == slot_id)
-		return 8;
-	return 4;
-}
-
-static struct dw_mci_board __initdata m040_dwmci_pdata = {
-	.num_slots		= 1,
-	.quirks			= DW_MCI_QUIRK_BROKEN_CARD_DETECTION |
-					    DW_MCI_QUIRK_HIGHSPEED,
-	.bus_hz			= 100 * 1000 * 1000,
-	.caps				= MMC_CAP_UHS_DDR50 | MMC_CAP_1_8V_DDR |
-					   MMC_CAP_8_BIT_DATA | MMC_CAP_CMD23,
-	.detect_delay_ms	= 200,
-	.hclk_name		= "dwmci",
-	.cclk_name		= "sclk_dwmci",
-	.cfg_gpio			= m040_dwmci_cfg_gpio,
-	.get_bus_wd		= m040_dwmci_get_bus_wd,
-};
-#endif
-
-#ifdef CONFIG_SND_SOC_MX_WM8958
-static struct platform_device m040_audio_device = {
-	.name = "mx-audio",
-	.id = -1,
-};
-#endif
-
-#ifdef CONFIG_SND_SAMSUNG_SPDIF
-static void m040_spdif_output_enable(int bEn)
-{
-	unsigned long flags =  bEn ? GPIOF_OUT_INIT_LOW :
-					   GPIOF_OUT_INIT_HIGH;
-	gpio_request_one(M040_SPDIF_OUT, flags, "spdif output");
-	gpio_free(M040_SPDIF_OUT);
-}
-
-static struct mx_spdif_platform_data m040_spdif_data={
-	.spdif_output_enable = m040_spdif_output_enable,
-};
-
-static struct platform_device m040_spdif_device={
-	.name = "mx-spdif",
-	.id = -1,
-	.dev = {
-		.platform_data = &m040_spdif_data,
-	},
-};
-#endif
-
-#if defined(CONFIG_MFD_WM8994)
-static struct regulator_consumer_supply wm8958_avdd1_supply =
-	REGULATOR_SUPPLY("AVDD1", "0-001a");
-
-static struct regulator_consumer_supply wm8958_dcvdd_supply =
-	REGULATOR_SUPPLY("DCVDD", "0-001a");
-
-static struct regulator_init_data wm8958_ldo1_data = {
-	.constraints	= {
-		.name		= "AVDD1",
-		.min_uV		= 2400000,
-		.max_uV		= 3100000,
-		.apply_uV	= 1,
-		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
-	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &wm8958_avdd1_supply,
-};
-
-static struct regulator_init_data wm8958_ldo2_data = {
-	.constraints	= {
-		.name		= "DCVDD",
-		.min_uV		= 1000000,
-		.max_uV		= 1300000,
-		.apply_uV	= 1,
-		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
-	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &wm8958_dcvdd_supply,
-};
-
-#if defined(CONFIG_SWITCH_GPIO)
-static struct gpio_switch_platform_data m040_earphone_pd_gpio = {
-	.name = "h2w",
-	.gpio = M040_HDETEC_IRQ,
-	.active_level = 0,
-	.adc_channel = 3,
-};
-static struct platform_device m040_switch_gpio = {
-	.name = "switch-gpio",
-	.dev = {
-		.platform_data = &m040_earphone_pd_gpio,
-	},
-	.id = -1,
-};
-#endif
-
-struct wm8958_mbc_cfg m040_mbc_cfgs[] = {
-	{
-		.name = "playback spk normal",
-		.coeff_regs[0] = 0x0028,
-		.coeff_regs[1] = 0x1851,
-		.coeff_regs[2] = 0x0032,
-		.coeff_regs[3] = 0xF52D,
-		.coeff_regs[4] = 0x0065,
-		.coeff_regs[5] = 0xAC8C,
-		.coeff_regs[6] = 0x006B,
-		.coeff_regs[7] = 0xE087,
-		.coeff_regs[8] = 0x0072,
-		.coeff_regs[9] = 0x1483,
-		.coeff_regs[10] = 0x0072,
-		.coeff_regs[11] = 0x1483,
-		.coeff_regs[12] = 0x0045,
-		.coeff_regs[13] = 0x156D,
-		.coeff_regs[14] = 0x000A,
-		.coeff_regs[15] = 0x2ADB,
-		.coeff_regs[16] = 0x0045,
-		.coeff_regs[17] = 0x85B9,
-		.coeff_regs[18] = 0x000C,
-		.coeff_regs[19] = 0xCCCD,
-		.coeff_regs[20] = 0x0000,
-		.coeff_regs[21] = 0x0800,
-		.coeff_regs[22] = 0x003F,
-		.coeff_regs[23] = 0x8BD8,
-		.coeff_regs[24] = 0x0032,
-		.coeff_regs[25] = 0xF52D,
-		.coeff_regs[26] = 0x0065,
-		.coeff_regs[27] = 0xAC8C,
-		.coeff_regs[28] = 0x006B,
-		.coeff_regs[29] = 0xE087,
-		.coeff_regs[30] = 0x0072,
-		.coeff_regs[31] = 0x1483,
-		.coeff_regs[32] = 0x0072,
-		.coeff_regs[33] = 0x1483,
-		.coeff_regs[34] = 0x0043,
-		.coeff_regs[35] = 0x3525,
-		.coeff_regs[36] = 0x0006,
-		.coeff_regs[37] = 0x6A4A,
-		.coeff_regs[38] = 0x0043,
-		.coeff_regs[39] = 0x6079,
-		.coeff_regs[40] = 0x0020,
-		.coeff_regs[41] = 0x0000,
-		.coeff_regs[42] = 0x0000,
-		.coeff_regs[43] = 0xFF97,
-		.coeff_regs[44] = 0x005A,
-		.coeff_regs[45] = 0x9DF8,
-		.coeff_regs[46] = 0x005A,
-		.coeff_regs[47] = 0x7EFA,
-		.cutoff_regs[0] = 0x00A7,
-		.cutoff_regs[1] = 0x0D1C,
-		.cutoff_regs[2] = 0x0059,
-		.cutoff_regs[3] = 0xFE0F,
-		.cutoff_regs[4] = 0x0099,
-		.cutoff_regs[5] = 0xD861,
-		.cutoff_regs[6] = 0x00A7,
-		.cutoff_regs[7] = 0x0D1C,
-		.cutoff_regs[8] = 0x0059,
-		.cutoff_regs[9] = 0xFE0F,
-		.cutoff_regs[10] = 0x0099,
-		.cutoff_regs[11] = 0xD861,
-		.cutoff_regs[12] = 0x002B,
-		.cutoff_regs[13] = 0x3769,
-		.cutoff_regs[14] = 0x0017,
-		.cutoff_regs[15] = 0xB53B,
-		.cutoff_regs[16] = 0x0008,
-		.cutoff_regs[17] = 0xE7A2,
-		.cutoff_regs[18] = 0x0086,
-		.cutoff_regs[19] = 0x3A99,
-	},
-};
-
-static struct wm8994_pdata wm8958_platform_data = {
-	/* configure gpio1 function: 0x0001(Logic level input/output) */
-	.gpio_defaults[0] = 0x0001,
-	/* If the i2s0 and i2s2 is enabled simultaneously */
-	.gpio_defaults[7] = 0x8100, /* GPIO8  DACDAT3 in */
-	.gpio_defaults[8] = 0x0100, /* GPIO9  ADCDAT3 out */
-	.gpio_defaults[9] = 0x0100, /* GPIO10 LRCLK3  out */
-	.gpio_defaults[10] = 0x0100,/* GPIO11 BCLK3   out */
-	.ldo[0] = {M040_CODEC_LDO1_EN, NULL, &wm8958_ldo1_data},
-	.ldo[1] = {M040_CODEC_LDO2_EN, NULL, &wm8958_ldo2_data},
-	.num_mbc_cfgs = 1,
-	.mbc_cfgs = &m040_mbc_cfgs[0],
-};
-#endif
-
-
-static struct i2c_board_info __initdata i2c_devs0[] = {
-#if defined(CONFIG_MFD_WM8994)
-	{
-		I2C_BOARD_INFO("wm8958", (0x34 >> 1)),
-		.platform_data	= &wm8958_platform_data,
-	},
-#endif
-
-};
 static struct i2c_board_info __initdata i2c_devs1[] = {
 #if defined(CONFIG_REGULATOR_MAX77686)
 	{
@@ -455,22 +204,6 @@ static int m040_usb_attach(bool enable)
 }
 #endif
 
-#if defined(CONFIG_AUDIENCE_ES305B)
-/* es305b */
-static struct es305b_platform_data __initdata es305b_pd = {
-	.gpio_es305b_wake	= M040_NOISE_CANCELLER_WAKE,
-	.gpio_es305b_reset	= M040_NOISE_CANCELLER_RST,
-};
-#endif
-static struct i2c_board_info __initdata i2c_devs4[] = {
-#if defined(CONFIG_AUDIENCE_ES305B)
-	{
-		I2C_BOARD_INFO(ES305B_I2C_NAME, ES305B_I2S_SLAVE_ADDRESS),
-		.platform_data	= &es305b_pd,
-	},
-#endif
-};
-
 #if defined(CONFIG_LEDS_LM3530)
 static struct lm3530_platform_data lm3530_pd = {
 	.mode = LM3530_BL_MODE_MANUAL,
@@ -491,40 +224,6 @@ static struct i2c_board_info __initdata i2c_devs6[] = {
 		.irq = M040_BL_IR_IRQ,
 #endif
 	},
-};
-
-/* I2C8 */
-static struct i2c_gpio_platform_data gpio_i2c8_data  = {
-	.sda_pin		= M040_SDA_MHL,
-	.scl_pin		= M040_SCL_MHL,
-	.udelay			= 5,
-	.sda_is_open_drain	= 0,
-	.scl_is_open_drain	= 0,
-	.scl_is_output_only	= 0,
-};
-
-struct platform_device m040_device_gpio_i2c8 = {
-	.name	= "i2c-gpio",
-	.id	= 8,
-	.dev	= {
-		.platform_data = &gpio_i2c8_data
-	},
-};
-
-/*st lis3dh accelerometer sensor*/
-static struct i2c_gpio_platform_data gpio_i2c9_data = {
-	.sda_pin = M040_SDA_GS,
-	.scl_pin = M040_SCL_GS,
-	.udelay = 2,   /*the scl frequency is (500 / udelay) kHz*/
-	.sda_is_open_drain = 0,
-	.scl_is_open_drain = 0,
-	.scl_is_output_only = 0,
-};
-
-static struct platform_device m040_device_gpio_i2c9 = {
-	.name = "i2c-gpio",
-	.id = 9,
-	.dev.platform_data = &gpio_i2c9_data,
 };
 
 #ifdef CONFIG_SENSORS_LIS3DH
@@ -553,21 +252,6 @@ static struct i2c_board_info __initdata i2c_devs9[]  = {
 #endif
 };
 
-/*akm8975C compass sensor*/
-static struct i2c_gpio_platform_data gpio_i2c10_data = {
-	.sda_pin = M040_SDA_CP,
-	.scl_pin = M040_SCL_CP,
-	.udelay = 5,   /*the scl frequency is (500 / udelay) kHz*/
-	.sda_is_open_drain = 0,
-	.scl_is_open_drain = 0,
-	.scl_is_output_only = 0,
-};
-
-static struct platform_device m040_device_gpio_i2c10 = {
-	.name = "i2c-gpio",
-	.id = 10,
-	.dev.platform_data = &gpio_i2c10_data,
-};
 
 static struct i2c_board_info __initdata i2c_devs10[]  = {
 #ifdef CONFIG_SENSORS_AKM8963N
@@ -575,21 +259,6 @@ static struct i2c_board_info __initdata i2c_devs10[]  = {
 #endif
 };
 
-/*st l3g4200d gyroscope sensor*/
-static struct i2c_gpio_platform_data gpio_i2c11_data = {
-	.sda_pin = M040_SDA_GY,
-	.scl_pin = M040_SCL_GY,
-	.udelay = 2,   /*the scl frequency is (500 / udelay) kHz*/
-	.sda_is_open_drain = 0,
-	.scl_is_open_drain = 0,
-	.scl_is_output_only = 0,
-};
-
-static struct platform_device m040_device_gpio_i2c11 = {
-	.name = "i2c-gpio",
-	.id = 11,
-	.dev.platform_data = &gpio_i2c11_data,
-};
 
 #ifdef CONFIG_SENSORS_L3GD20
 static struct l3g4200d_platform_data l3gd20_platdata = {
@@ -645,58 +314,11 @@ static struct platform_device m040_battery_device = {
 };
 #endif
 
-/*sharp gp2ap020a00f sensor*/
-static struct i2c_gpio_platform_data gpio_i2c12_data = {
-	.sda_pin = M040_SDA_IR,
-	.scl_pin = M040_SCL_IR,
-	.udelay = 2,   /*the scl frequency is (500 / udelay) kHz*/
-	.sda_is_open_drain = 0,
-	.scl_is_open_drain = 0,
-	.scl_is_output_only = 0,
-};
-
-static struct platform_device m040_device_gpio_i2c12 = {
-	.name = "i2c-gpio",
-	.id = 12,
-	.dev.platform_data = &gpio_i2c12_data,
-};
-
 static struct i2c_board_info __initdata i2c_devs12[] = {
 #ifdef CONFIG_SENSORS_GP2AP020A00F
 	{I2C_BOARD_INFO("gp2ap020a00f", 0x39),
 	.irq = M040_IR_IRQ,},
 #endif
-};
-/*gpio i2c 13*/
-static struct i2c_gpio_platform_data gpio_i2c13_data = {
-	.sda_pin = M040_SDA_HPD,
-	.scl_pin = M040_SCL_HPD,
-	.udelay = 2,   /*the scl frequency is (500 / udelay) kHz*/
-	.sda_is_open_drain = 0,
-	.scl_is_open_drain = 0,
-	.scl_is_output_only = 0,
-};
-
-static struct platform_device m040_device_gpio_i2c13 = {
-	.name = "i2c-gpio",
-	.id = 13,
-	.dev.platform_data = &gpio_i2c13_data,
-};
-
-/*gpio i2c 14*/
-static struct i2c_gpio_platform_data gpio_i2c14_data = {
-	.sda_pin = M040_SDA_CHG,
-	.scl_pin = M040_SCL_CHG,
-	.udelay = 2,   /*the scl frequency is (500 / udelay) kHz*/
-	.sda_is_open_drain = 0,
-	.scl_is_open_drain = 0,
-	.scl_is_output_only = 0,
-};
-
-static struct platform_device m040_device_gpio_i2c14 = {
-	.name = "i2c-gpio",
-	.id = 14,
-	.dev.platform_data = &gpio_i2c14_data,
 };
 
 #ifdef CONFIG_MOTOR_DRV_MAX77665
@@ -751,22 +373,6 @@ static struct i2c_board_info __initdata i2c_devs14[] = {
 #endif
 };
 
-/*gpio i2c 15*/
-static struct i2c_gpio_platform_data gpio_i2c15_data = {
-	.sda_pin = M040_SDA_FUEL0,
-	.scl_pin = M040_SCL_FUEL0,
-	.udelay = 10,   /*the scl frequency is (500 / udelay) kHz*/
-	.sda_is_open_drain = 0,
-	.scl_is_open_drain = 0,
-	.scl_is_output_only = 0,
-};
-
-static struct platform_device m040_device_gpio_i2c15 = {
-	.name = "i2c-gpio",
-	.id = 15,
-	.dev.platform_data = &gpio_i2c15_data,
-};
-
 #if defined(CONFIG_BATTERY_BQ27541_I2C)
 static struct bq27541_platform_data __initdata m040_bq27541_info = {
 	.wakeup = true,
@@ -782,65 +388,6 @@ static struct i2c_board_info __initdata i2c_devs15[] = {
 		.platform_data	= &m040_bq27541_info,
 	},
 #endif
-};
-#if defined(CONFIG_MFD_MXQM)
-/*
-struct mx_qm_platform_data {
-	unsigned int gpio_wake;
-	unsigned int gpio_reset;
-	unsigned int gpio_irq;
-};*/
-
-/*mxqm*/
-static struct mx_qm_platform_data __initdata mxqm_pd = {
-	.gpio_wake 	= M040_TOUCHPAD_WAKE,
-	.gpio_reset 	= M040_TOUCHPAD_RESET,
-	.gpio_irq 	= M040_TOUCHPAD_INT,
-};
-#endif
-
-/*gpio i2c 16*/
-static struct i2c_gpio_platform_data gpio_i2c16_data = {
-	.sda_pin = M040_SDA_TOUCHPAD,
-	.scl_pin = M040_SCL_TOUCHPAD,
-	.udelay = 2,   /*the scl frequency is (500 / udelay) kHz*/
-	.sda_is_open_drain = 0,
-	.scl_is_open_drain = 0,
-	.scl_is_output_only = 0,
-};
-
-static struct platform_device m040_device_gpio_i2c16 = {
-	.name = "i2c-gpio",
-	.id = 16,
-	.dev.platform_data = &gpio_i2c16_data,
-};
-
-
-static struct i2c_board_info __initdata i2c_devs16[] = {
-#if defined(CONFIG_MFD_MXQM)
-	{
-		I2C_BOARD_INFO("mx_qm", 0x43),
-		.platform_data	= &mxqm_pd,
-		.irq = IRQ_EINT(8),
-	},
-#endif
-};
-
-
-/*gpio i2c 17*/
-static struct i2c_gpio_platform_data gpio_i2c17_data = {
-	.sda_pin = M040_SDA_EARPHONE,
-	.scl_pin = M040_SCL_EARPHONE,
-	.udelay = 2,   /*the scl frequency is (500 / udelay) kHz*/
-	.sda_is_open_drain = 0,
-	.scl_is_open_drain = 0,
-	.scl_is_output_only = 0,
-};
-
-static struct platform_device m040_device_gpio_i2c17 = {
-	.name = "i2c-gpio",
-	.id = 17,
-	.dev.platform_data = &gpio_i2c17_data,
 };
 
 static struct i2c_board_info __initdata i2c_devs17[] = {
@@ -987,22 +534,15 @@ static struct platform_device __initdata *m040_devices[]  = {
 	&exynos4_device_pd[PD_GPS_ALIVE],
 	&exynos4_device_pd[PD_ISP],
 
-	&s3c_device_i2c0,
 	&s3c_device_i2c1,
-//	&s3c_device_i2c3,
-	&s3c_device_i2c4,
-	&s3c_device_i2c5,
 	&s3c_device_i2c6,
-	&s3c_device_i2c7,
-	&m040_device_gpio_i2c8,
+
 	&m040_device_gpio_i2c9,
 	&m040_device_gpio_i2c10,
 	&m040_device_gpio_i2c11,
 	&m040_device_gpio_i2c12,
-	&m040_device_gpio_i2c13,
 	&m040_device_gpio_i2c14,
 	&m040_device_gpio_i2c15,
-	&m040_device_gpio_i2c16,
 	&m040_device_gpio_i2c17,
 #if defined(CONFIG_KEYBOARD_GPIO)
 	&m040_gpio_keys,
@@ -1032,54 +572,14 @@ static struct platform_device __initdata *m040_devices[]  = {
 	&s5p_device_mipi_dsim0,
 #endif
 
-#if defined(CONFIG_EXYNOS4_DEV_DWMCI)
-	&exynos_device_dwmci,
-#endif
-
-#ifdef CONFIG_EXYNOS4_DEV_MSHC
-	&s3c_device_mshci,
-#endif
-
-#if defined(CONFIG_SND_SAMSUNG_I2S)
-	&exynos_device_i2s0,
-	&samsung_asoc_idma,
-#endif
-#ifdef CONFIG_SND_SAMSUNG_PCM
-	&exynos_device_pcm1,
-	&samsung_asoc_dma,
-#endif
-#ifdef CONFIG_SND_SAMSUNG_SPDIF
-	&exynos_device_spdif,
-#endif
-#ifdef CONFIG_SND_SOC_SAMSUNG_SMDK_SPDIF
-	&m040_spdif_device,
-#endif
-#ifdef CONFIG_SND_SOC_MX_WM8958
-	&m040_audio_device,
-#endif
 #ifdef CONFIG_ION_EXYNOS
 	&exynos_device_ion,
-#endif
-#ifdef CONFIG_VIDEO_TVOUT
-	&s5p_device_tvout,
-	&s5p_device_cec,
-	&s5p_device_hpd,
-#endif
-#if defined(CONFIG_VIDEO_FIMC)
-	&s3c_device_fimc0,
-	&s3c_device_fimc1,
-	&s3c_device_fimc2,
-	&s3c_device_fimc3,
 #endif
 
 #if defined(CONFIG_VIDEO_MFC5X)
 	&s5p_device_mfc,
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
-#endif
-
-#ifdef CONFIG_VIDEO_FIMC_MIPI
-	&s3c_device_csis0,
 #endif
 
 #ifdef CONFIG_S3C2410_WATCHDOG
@@ -1203,6 +703,13 @@ static void __init m040_map_io(void)
 	clk_xusbxti.rate = 24000000;
 	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
 	s3c24xx_init_clocks(24000000);
+#ifdef CONFIG_MACH_M041
+#ifndef CONFIG_MX2_SC8803G_TEST
+	if(machine_is_m041()){
+		m040_uartcfgs[1].has_afc = 1; //m041 modem use uart afc
+	}
+#endif
+#endif
 	s3c24xx_init_uarts(m040_uartcfgs, ARRAY_SIZE(m040_uartcfgs));
 	writel((readl(EXYNOS4_CLKDIV_PERIL0) & ~(0xf)) | 0x4, EXYNOS4_CLKDIV_PERIL0);
 #if defined(CONFIG_S5P_MEM_CMA)
@@ -1224,18 +731,10 @@ static void __init m040_machine_init(void)
 	m040_gpio_irq_init();
 	m040_sysmmu_init();
 
-	/* init i2c part */
-	s3c_i2c0_set_platdata(&m040_default_i2c0_data);
-	i2c_register_board_info(0, i2c_devs0, ARRAY_SIZE(i2c_devs0));
 	/* max77668 */
 	s3c_i2c1_set_platdata(&m040_default_i2c1_data);
 	i2c_register_board_info(1, i2c_devs1, ARRAY_SIZE(i2c_devs1));
-
-	/* es305b */
-#ifdef CONFIG_AUDIENCE_ES305B
-	s3c_i2c4_set_platdata(&m040_default_i2c4_data);
-	i2c_register_board_info(4, i2c_devs4, ARRAY_SIZE(i2c_devs4));
-#endif
+	/*lm3530 leds*/
 	s3c_i2c6_set_platdata(&m040_default_i2c6_data);
 	i2c_register_board_info(6, i2c_devs6, ARRAY_SIZE(i2c_devs6));
 	/* lis3dh */
@@ -1252,16 +751,8 @@ static void __init m040_machine_init(void)
 	i2c_register_board_info(14, i2c_devs14, ARRAY_SIZE(i2c_devs14));
 	/*Ti fuelguage  bq27541 */
 	i2c_register_board_info(15, i2c_devs15, ARRAY_SIZE(i2c_devs15));
-	/*MX qm */
-	i2c_register_board_info(16, i2c_devs16, ARRAY_SIZE(i2c_devs16));
 	/*earphone detection*/
 	i2c_register_board_info(17, i2c_devs17, ARRAY_SIZE(i2c_devs17));
-
-#ifdef CONFIG_EXYNOS4_DEV_DWMCI
-	exynos_dwmci_set_platdata(&m040_dwmci_pdata);
-#endif
-#ifdef CONFIG_EXYNOS4_DEV_MSHC
-#endif
 
 #ifdef CONFIG_VIDEO_FIMG2D
 	s5p_fimg2d_set_platdata(&fimg2d_data);
@@ -1343,3 +834,13 @@ MACHINE_START(M040, "MX2")
 	.init_machine	= m040_machine_init,
 	.timer		= &exynos4_timer,
 MACHINE_END
+MACHINE_START(M041, "MX2")
+//MACHINE_START(M040, "SMDK4X12")
+	/* Maintainer: WenbinWu <wenbinwu@meizu.com> */
+	.boot_params	= S5P_PA_SDRAM + 0x100,
+	.init_irq	= exynos4_init_irq,
+	.map_io		= m040_map_io,
+	.init_machine	= m040_machine_init,
+	.timer		= &exynos4_timer,
+MACHINE_END
+

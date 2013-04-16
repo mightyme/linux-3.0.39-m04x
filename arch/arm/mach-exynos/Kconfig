@@ -106,7 +106,6 @@ config MX2_SERIAL_TYPE
 	select S3C_DEV_RTC
 	select S3C_DEV_HSMMC3
 	select S3C_DEV_I2C1
-	select S3C_DEV_I2C5
 	select S3C_DEV_I2C6
 	select S3C_DEV_I2C7
 	select S5P_GPIO_INT
@@ -127,7 +126,6 @@ config MX2_SERIAL_TYPE
 	select EXYNOS4_SETUP_MFC
 	select EXYNOS4_SETUP_USB_PHY
 	select EXYNOS4_SETUP_I2C1
-	select EXYNOS4_SETUP_I2C5
 	select EXYNOS4_SETUP_I2C6
 	select EXYNOS4_SETUP_I2C7
 	select SAMSUNG_DEV_ADC
@@ -726,7 +724,22 @@ config MACH_M040
 	select CPU_EXYNOS4212	
 	select CPU_EXYNOS4412
 	select S3C_DEV_I2C4
+	select S3C_DEV_I2C5
 	select EXYNOS4_SETUP_I2C4
+	select EXYNOS4_SETUP_I2C5
+	select LEDS_GPIO_REGISTER
+	help
+	  Machine support for Meizu M040 SmartPhone based on EXYNOS4x12
+
+config MACH_M041
+	bool "MEIZU M041 Board"
+	select MX2_SERIAL_TYPE
+	select CPU_EXYNOS4212
+	select CPU_EXYNOS4412
+	select S3C_DEV_I2C4
+	select S3C_DEV_I2C5
+	select EXYNOS4_SETUP_I2C4
+	select EXYNOS4_SETUP_I2C5
 	select LEDS_GPIO_REGISTER
 	help
 	  Machine support for Meizu M040 SmartPhone based on EXYNOS4x12
@@ -937,22 +950,15 @@ config EXYNOS5250_ABB_WA
 	help
 	 Add W/A to fix ARM/INT ABB errata in EVT0
 
-if MEIZU_MODEM
 choice
 	prompt "MEIZU MODEM CONFIG"
-	depends on MEIZU_MODEM
-	default MEIZU_M040_MODEM
+	default MEIZU_M04X_MODEM
 
 config MEIZU_M03X_MODEM
 	bool "board m03x modem(WCDMA xmm6260)"
-	select UMTS_MODEM_XMM6260
-	select LINK_DEVICE_HSIC if ! MX_RECOVERY_KERNEL
 
-config MEIZU_M040_MODEM
-	bool "board m040 modem(WCDMA xmm6260)"
-	select UMTS_MODEM_XMM6260
-	select LINK_DEVICE_HSIC if ! MX_RECOVERY_KERNEL
+config MEIZU_M04X_MODEM
+	bool "board m040/m041 modem(WCDMA xmm6260/TD-SCDMA SC8803G)"
 
 endchoice
 
-endif

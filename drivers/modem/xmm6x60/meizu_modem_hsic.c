@@ -300,7 +300,7 @@ static int hsic_send(struct link_device *ld, struct io_device *iod,
 	struct link_pm_data *pm_data = usb_ld->link_pm_data;
 
 	if (usb_ld->ld.com_state != COM_ONLINE) {
-		modem_notify_event(MODEM_EVENT_DISCONN);
+		//modem_notify_event(MODEM_EVENT_DISCONN);
 		return -ENODEV;
 	}
 

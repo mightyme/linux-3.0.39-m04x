@@ -526,7 +526,7 @@ void OpenAIF2(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8994_OVERSAMPLING, WM8994_ADC_OSR128 );	// Select High Power ADC/DMIC Oversample Rate, Select Low Power DAC Oversample Rate (Default)
 	snd_soc_write(codec, WM8994_AIF2_CONTROL_1, 0x411B );	// AIF2 Word Length = 16-bits, AIF2 Format = DSP,BCLK2 not inverted
 	snd_soc_write(codec, WM8994_AIF2_CONTROL_2, 0x4000 );	// Disable AIF2 DSP Mono Mode
-#ifdef CONFIG_MACH_M040
+#if defined(CONFIG_MACH_M040) || defined(CONFIG_MACH_M041)
 	snd_soc_write(codec, WM8994_AIF2_MASTER_SLAVE, 0x4000 );	// AIF2 Master Mode
 	// snd_soc_write(codec, WM8994_AIF2_MASTER_SLAVE, 0x0000 );	// AIF2 Master Mode
 	snd_soc_write(codec, WM8994_AIF2_BCLK, 0x0070 );	// AIF2CLK / 8
@@ -666,7 +666,7 @@ void OpenBTRing(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8994_AIF2_CONTROL_1, 0x411B); // * AIF2 Control (1)(310H):  411B  AIF2_LRCLK_INV=1, AIF2_WL=16 bits, AIF2_FMT=DSP mode
 	snd_soc_write(codec, WM8958_AIF3_CONTROL_1, 0x0018); // * AIF3 Control (1)(320H):  0018  AIF3_LRCLK_INV=0, AIF3_WL=16 bits, AIF3_FMT=DSP mode
 	snd_soc_write(codec, WM8994_AIF1_MASTER_SLAVE, 0x4000); // * AIF1 Master/Slave(302H): 4000  AIF1_TRI=0, AIF1_MSTR=Master mode, AIF1_CLK_FRC=0, AIF1_LRCLK_FRC=0
-#if defined(CONFIG_MACH_M040)
+#if defined(CONFIG_MACH_M040) || defined(CONFIG_MACH_M041)
 	snd_soc_write(codec, WM8994_AIF2_MASTER_SLAVE, 0x0000); // * AIF2 Master/Slave(312H): 4000  AIF2_TRI=0, AIF2_MSTR=Master mode, AIF2_CLK_FRC=0, AIF2_LRCLK_FRC=0
 #else
 	snd_soc_write(codec, WM8994_AIF2_MASTER_SLAVE, 0x4000); // * AIF2 Master/Slave(312H): 4000  AIF2_TRI=0, AIF2_MSTR=Master mode, AIF2_CLK_FRC=0, AIF2_LRCLK_FRC=0
@@ -767,7 +767,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		break;
 	case PLAYBACK_BT_RING:
 		OpenBTRing(codec);
-#if defined(CONFIG_MACH_M040)
+#if defined(CONFIG_MACH_M040) || defined(CONFIG_MACH_M041)
 #ifdef CONFIG_AUDIENCE_ES305B
 		es305b_setmode(ES305B_BT_RING);
 #endif
@@ -878,7 +878,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetRecMute(codec,0);
 		break;
 	case PLAYBACK_BT_INCALL:
-#ifdef CONFIG_MACH_M040
+#if defined(CONFIG_MACH_M040) || defined(CONFIG_MACH_M041)
 		SetAIF3_2_AIF2(codec,false);
 #else
 		SetAIF3_2_AIF2(codec,true);
@@ -975,7 +975,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		break;
 	case PLAYBACK_BT_VOIP:
 		audio_switch(SWTICH_TO_AP);
-#ifdef CONFIG_MACH_M040
+#if defined(CONFIG_MACH_M040) || defined(CONFIG_MACH_M041)
 		SetAIF3_2_AIF2(codec,false);
 #else
 		SetAIF3_2_AIF2(codec,true);

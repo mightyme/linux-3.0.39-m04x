@@ -347,14 +347,12 @@ void max77665_muic_shutdown(struct device *dev)
 static int max77665_muic_suspend(struct device *dev)
 {
 	gpio_set_value(M040_USB_SELECT, 1);
-	pr_info("%s##############\n", __func__);
 	return 0;
 }
 
 static int max77665_muic_resume(struct device *dev)
 {
 	gpio_set_value(M040_USB_SELECT, 0);
-	pr_info("%s##############\n", __func__);
 	return 0;
 }
 

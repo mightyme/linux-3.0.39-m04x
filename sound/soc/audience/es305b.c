@@ -468,7 +468,8 @@ int es305b_setmode(int mode)
 	int retry = 5;
 
 	AUD_DBG("ES305B: set mode %d\n", mode);
-
+	if(es305b==NULL)
+		return 0;
 	if (mode == ES305B_LASTMODE) {
 		AUD_INFO("ES305B: set to the last setting mode.\n");
 		if (ES305B_NORMAL == es305b->status)

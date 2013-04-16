@@ -571,7 +571,7 @@ void mhl_connect(int on)
 	}
 }
 
-#ifndef CONFIG_MACH_M040
+#if !defined(CONFIG_MACH_M040) && !defined(CONFIG_MACH_M041)
 static struct notifier_block mhl_usb_notifier = {
 	.notifier_call = mhl_usb_notifier_event,
 };
@@ -606,13 +606,13 @@ static int real_mhl_probe(struct i2c_client *client)
 	init_timer(&g_mhl_timer);
 	g_mhl_timer.function = timertickhandler;
 
-#ifndef CONFIG_MACH_M040
+#if !defined(CONFIG_MACH_M040) && !defined(CONFIG_MACH_M041)
 	register_mx_usb_notifier(&mhl_usb_notifier);
 #endif
 
 	pr_info("%s succeed\n", __func__);
 
-#ifndef CONFIG_MACH_M040
+#if !defined(CONFIG_MACH_M040) && !defined(CONFIG_MACH_M041)
 	mhl_connect(true);
 #endif
 

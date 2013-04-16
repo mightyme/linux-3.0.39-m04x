@@ -59,6 +59,7 @@ obj-$(CONFIG_MACH_SMDK5250)		+= mach-smdk5250.o
 
 obj-$(CONFIG_MX_SERIAL_TYPE)		+= gpio-common.o usb-detect.o gpio-mx.o mx_reboot.o
 obj-$(CONFIG_MX2_SERIAL_TYPE)		+= gpio-common.o gpio-mx2.o mx2_reboot.o
+obj-$(CONFIG_MACH_M041)			+= mach-m040.o  i2c-m040.o
 obj-$(CONFIG_MACH_M040)			+= mach-m040.o  i2c-m040.o
 obj-$(CONFIG_MACH_M032)			+= mach-m032.o i2c-m032.o
 obj-$(CONFIG_MACH_M030)			+= mach-m030.o i2c-m030.o
@@ -132,7 +133,7 @@ ifeq ($(CONFIG_MX2_SERIAL_TYPE),y)
 obj-$(CONFIG_BT)			+= mx2-rfkill.o
 obj-$(CONFIG_BCMDHD)			+= mx2-wifi.o
 endif
-obj-$(CONFIG_MX2_SERIAL_TYPE)		+= mx2_mshci.o mx2_cma.o mx2_fb.o mx2_tsp.o mx2_factory.o mx2_ehci.o mx2_leds.o mx2_tvout.o mx2_camera.o
+obj-$(CONFIG_MX2_SERIAL_TYPE)		+= mx2_mshci.o mx2_cma.o mx2_fb.o mx2_tsp.o mx2_factory.o mx2_ehci.o mx2_leds.o mx2_tvout.o mx2_camera.o mx2_audio.o mx2_keypad.o
  
 
 obj-$(CONFIG_MX_SERIAL_TYPE)		+= mx_fb.o mx_camera.o mx_cma.o mx_tsp.o mx_mshci.o mx_tvout.o
@@ -142,4 +143,4 @@ obj-$(CONFIG_MX2_SERIAL_TYPE) += rsa.o sha.o meizu_security.o
 obj-$(CONFIG_MX_SERIAL_TYPE) += rsa.o sha.o meizu_security.o
 
 obj-$(CONFIG_MEIZU_M03X_MODEM) += board-m03x-modems.o
-obj-$(CONFIG_MEIZU_M040_MODEM) += board-m040-modems.o
+obj-$(CONFIG_MEIZU_M04X_MODEM) += board-m04x-modems.o board-m040-modems.o board-m041-modems.o

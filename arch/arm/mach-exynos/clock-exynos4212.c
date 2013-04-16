@@ -1070,7 +1070,7 @@ void __init exynos4212_register_clocks(void)
 	s3c_disable_clocks(&exynos4212_clk_isp_srcs[6].clk, 1);
 
 	/* We need 24MHZ clk for audio system if machine is m03x */
-#ifdef CONFIG_MACH_M040
+#if defined(CONFIG_MACH_M040) || defined(CONFIG_MACH_M041)
 	do{
 		unsigned int tmp;
 		tmp = __raw_readl(S5P_PMU_DEBUG);

@@ -1310,6 +1310,10 @@ int usb_suspend(struct device *dev, pm_message_t msg)
 {
 	struct usb_device	*udev = to_usb_device(dev);
 
+	if (udev->quirks & USB_QUIRK_HSIC_TUNE){
+		dev_dbg(&udev->dev, "%s: msg.event %d\n", __func__, msg.event);
+		return 0;
+	}
 	do_unbind_rebind(udev, DO_UNBIND);
 	choose_wakeup(udev, msg);
 	return usb_suspend_both(udev, msg);
@@ -1321,6 +1325,10 @@ int usb_resume(struct device *dev, pm_message_t msg)
 	struct usb_device	*udev = to_usb_device(dev);
 	int			status;
 
+	if (udev->quirks & USB_QUIRK_HSIC_TUNE){
+		dev_dbg(&udev->dev, "%s: msg.event %d\n", __func__, msg.event);
+		return 0;
+	}
 	/* For PM complete calls, all we do is rebind interfaces */
 	if (msg.event == PM_EVENT_ON) {
 		if (udev->state != USB_STATE_NOTATTACHED)

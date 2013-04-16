@@ -198,7 +198,7 @@ static int init_extra_partitioin(struct mmc_blk_data *md)
 #ifdef CONFIG_MX_RECOVERY_KERNEL
 	int i;
 	int index;
-#ifndef CONFIG_MACH_M040
+#if defined(CONFIG_MACH_M030)
 	if (machine_is_m030()) {
 		const uint32_t SZ_BLOCK = 512;
 

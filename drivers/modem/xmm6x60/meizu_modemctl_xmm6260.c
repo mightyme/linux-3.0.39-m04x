@@ -41,11 +41,13 @@ static char modem_event_str[8][25] = {
 };
 
 #ifdef CONFIG_USB_EHCI_S5P
+extern int s5p_ehci_port_power(int state);
 extern int  s5p_ehci_power(int value);
 #else
 int  s5p_ehci_power(int value){return 0;}
+int s5p_ehci_port_power(int state){return 0;}
 #endif
-int modem_debug = 1;
+
 static struct modem_ctl *global_mc = NULL;
 DEFINE_SEMAPHORE(modem_downlock);
 
@@ -219,12 +221,12 @@ int modem_is_host_wakeup(void)
 }
 EXPORT_SYMBOL_GPL(modem_is_host_wakeup);
 
-void modem_set_slave_wakeup(void)
+int modem_set_slave_wakeup(int val)
 {
 	struct modem_ctl *mc = global_mc;
 
 	if (!mc)
-		return;
+		return 0;
 
 	if (gpio_get_value(mc->gpio_hostwake)) {
 		pr_info("[MODEM_IF] Slave Wake\n");
@@ -234,6 +236,7 @@ void modem_set_slave_wakeup(void)
 		}
 		gpio_direction_output(mc->gpio_slavewake, 1);
 	}
+	return 0;
 }
 EXPORT_SYMBOL_GPL(modem_set_slave_wakeup);
 
@@ -288,8 +291,9 @@ static int xmm6260_main_enum(struct modem_ctl *mc)
 	modem_wake_lock(mc);
 	mc->enum_done = 0;
 	xmm6260_off(mc);
-	s5p_ehci_power(0);
+	s5p_ehci_port_power(0);
 	modem_set_active_state(0);
+	modem_set_slave_wakeup(0);
 	msleep(100);
 	mc->cp_flag &= MODEM_SIM_DETECT_FLAG;
 	xmm6260_on(mc);
@@ -297,7 +301,9 @@ static int xmm6260_main_enum(struct modem_ctl *mc)
 	mc->l2_done = &done;
 	wait_for_completion_timeout(&done, 20*HZ);
 	mc->l2_done = NULL;
-	s5p_ehci_power(1);
+	modem_set_slave_wakeup(1);
+	s5p_ehci_port_power(1);
+	modem_set_active_state(1);
 	mc->enum_done = 1;
 	modem_wake_lock_timeout(mc, 5*HZ);
 
@@ -310,9 +316,13 @@ static int xmm6260_renum(struct modem_ctl *mc)
 	modem_wake_lock(mc);
 	mc->enum_done = 0;
 	mc->cp_flag &= MODEM_SIM_DETECT_FLAG;
-	s5p_ehci_power(0);
-	msleep(1);
-	s5p_ehci_power(1);
+	modem_set_active_state(0);
+	s5p_ehci_port_power(0);
+	modem_set_slave_wakeup(0);
+	msleep(100);
+	modem_set_slave_wakeup(1);
+	s5p_ehci_port_power(1);
+	modem_set_active_state(1);
 	mc->enum_done = 1;
 	modem_wake_lock_timeout(mc, 5*HZ);
 
@@ -323,32 +333,11 @@ static int xmm6260_renum(struct modem_ctl *mc)
 static int xmm6260_reset(struct modem_ctl *mc)
 {
 	MIF_INFO("xmm6260_reset()\n");
-	if (!mc->gpio_cp_reset || !mc->gpio_reset_req_n)
-		return -ENXIO;
 	wake_up_interruptible(&mc->read_wq);
-	modem_wake_lock(mc);
-	mc->enum_done = 0;
-	xmm6260_off(mc);
-#ifndef CONFIG_MX_RECOVERY_KERNEL
-	s5p_ehci_power(0);
 	modem_set_active_state(0);
-	msleep(100);
-	mc->cp_flag &= MODEM_SIM_DETECT_FLAG;
-#endif
+	s5p_ehci_port_power(0);
 	xmm6260_on(mc);
-#ifndef CONFIG_MX_RECOVERY_KERNEL
-	do {
-		DECLARE_COMPLETION_ONSTACK(done);
-		init_completion(&done);
-		mc->l2_done = &done;
-		wait_for_completion_timeout(&done, 20*HZ);
-		mc->l2_done = NULL;
-	} while(0);
-	s5p_ehci_power(1);
-	mc->enum_done = 1;
-#endif
 	modem_wake_lock_timeout(mc, 5*HZ);
-
 	return 0;
 }
 
@@ -358,9 +347,13 @@ static int xmm6260_flash_enum(struct modem_ctl *mc)
 	modem_wake_lock(mc);
 	mc->cp_flag &= MODEM_SIM_DETECT_FLAG;
 	mc->enum_done = 0;
-	s5p_ehci_power(0);
-	msleep(50);
-	s5p_ehci_power(1);
+	modem_set_active_state(0);
+	s5p_ehci_port_power(0);
+	modem_set_slave_wakeup(0);
+	msleep(100);
+	modem_set_slave_wakeup(1);
+	s5p_ehci_port_power(1);
+	modem_set_active_state(1);
 	xmm6260_on(mc);
 	mc->enum_done = 1;
 	modem_wake_lock_timeout(mc, 5*HZ);
@@ -467,10 +460,6 @@ modem_write(struct file *filp, const char __user *buffer, size_t count,
 	if(count >= 5 && !strncmp(buffer, "reset", 5)) {
 		if (down_interruptible(&modem_downlock) == 0) {
 			xmm6260_reset(global_mc);
-#ifndef CONFIG_MX_RECOVERY_KERNEL
-			msleep_interruptible(150);
-#endif
-			modem_notify_event(MODEM_EVENT_RESET);
 			up(&modem_downlock);
 		}
 	}
@@ -658,3 +647,4 @@ err_sim_detect_request_irq:
 
 	return ret;
 }
+

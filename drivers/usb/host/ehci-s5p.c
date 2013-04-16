@@ -25,9 +25,6 @@
 #include <mach/board_rev.h>
 #include <mach/regs-pmu.h>
 #include <mach/regs-usb-host.h>
-#ifdef CONFIG_UMTS_MODEM_XMM6260
-#include <mach/modem.h>
-#endif
 #ifdef CONFIG_HAS_WAKELOCK
 #include <linux/wakelock.h>
 #endif
@@ -42,8 +39,7 @@ struct s5p_ehci_hcd {
 	int power_on;
 	int phy_on;
 };
-struct device *s5p_dev;
-static int init_resume = 0;
+static  struct device *s5p_dev;
 
 #ifdef CONFIG_HAS_WAKELOCK
 struct wake_lock 	s5p_pm_lock;
@@ -72,6 +68,44 @@ static inline void s5p_wake_unlock(void)
 #define s5p_wake_unlock(void) do { } while (0)
 #endif
 
+int s5p_ehci_port_power( int state)
+{
+	struct platform_device *pdev;
+	struct s5p_ehci_hcd *s5p_ehci;
+	struct usb_hcd *hcd;
+	struct ehci_hcd *ehci;
+	struct s5p_ehci_platdata *pdata;
+	
+	if(s5p_dev == NULL)
+		return 0;
+	pdev = to_platform_device(s5p_dev);
+	pdata = pdev->dev.platform_data;
+	s5p_ehci = platform_get_drvdata(pdev);
+	hcd = s5p_ehci->hcd;
+	ehci = hcd_to_ehci(hcd);
+
+	pm_runtime_forbid(&pdev->dev);
+
+	if(state){
+		pdata->cp_port_enable = 1;
+		(void) ehci_hub_control(hcd,
+				SetPortFeature,
+				USB_PORT_FEAT_POWER,
+				CP_PORT, NULL, 0);
+
+		
+	}else{
+		(void) ehci_hub_control(hcd,
+				ClearPortFeature,
+				USB_PORT_FEAT_POWER,
+				CP_PORT, NULL, 0);
+		pdata->cp_port_enable = 0;
+	}
+	/* Flush those writes */
+	ehci_readl(ehci, &ehci->regs->command);
+	pr_info("%s: %d\n", __func__, state);
+	return 0;
+}
 #ifdef CONFIG_USB_EXYNOS_SWITCH
 int s5p_ehci_port_power_off(struct platform_device *pdev)
 {
@@ -136,13 +170,33 @@ static int s5p_ehci_phy_off(struct device *dev)
 	if(s5p_ehci->phy_on) {
 		if (pdata && pdata->phy_exit)
 			ret = pdata->phy_exit(pdev, S5P_USB_PHY_HOST);
-#ifdef CONFIG_UMTS_MODEM_XMM6260
-		modem_set_active_state(0);
-#endif
+
+		if(pdata->set_cp_active)
+			pdata->set_cp_active(0);
+
 		s5p_ehci->phy_on = 0;
 	}	
 	return 0;
 }
+int s5p_ehci_check_op(void)
+{
+	struct platform_device *pdev;
+	struct s5p_ehci_platdata *pdata;
+	
+	if(s5p_dev == NULL)
+		return 0;
+	pdev = to_platform_device(s5p_dev);
+	pdata = pdev->dev.platform_data;
+
+	if(pdata->phy_check_op){
+		if(pdata->phy_check_op(pdev, S5P_USB_PHY_HOST))
+			return 1;		
+	}
+	if(pdata->set_cp_active)
+		pdata->set_cp_active(0);
+	return 0;
+}
+	
 #ifdef CONFIG_PM
 static int s5p_ehci_suspend(struct device *dev)
 {
@@ -153,6 +207,8 @@ static int s5p_ehci_suspend(struct device *dev)
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	unsigned long flags;
 	int rc = 0;
+
+	dev_dbg( dev, "%s: phy suspend dev->power.status=%d, hcd->state=%d\n", __func__, dev->power.is_suspended, hcd->state);	
 
 	if (time_before(jiffies, ehci->next_statechange))
 		msleep(10);
@@ -180,15 +236,13 @@ static int s5p_ehci_suspend(struct device *dev)
 	s5p_ehci_phy_off(dev);
 	if (pdata->phy_power)
 		pdata->phy_power(pdev, S5P_USB_PHY_HOST, 0);
-	init_resume = 1;
 	return 0;
 fail:
 	spin_unlock_irqrestore(&ehci->lock, flags);
 	return rc;
 }
 
-#ifdef CONFIG_XMM6260_ENUM_SYNC
-static int s5p_ehci_resume(struct device *dev)
+static int s5p_ehci_sync_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct s5p_ehci_platdata *pdata = pdev->dev.platform_data;
@@ -197,7 +251,6 @@ static int s5p_ehci_resume(struct device *dev)
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 
 	dev_dbg( dev, "%s: phy resume dev->power.status=%d, hcd->state=%d\n", __func__, dev->power.is_suspended, hcd->state);
-	init_resume = 0;	
 	
 	if (pdata->phy_power)
 		pdata->phy_power(pdev, S5P_USB_PHY_HOST, 1);
@@ -247,22 +300,34 @@ static int s5p_ehci_resume(struct device *dev)
 	hcd->state = HC_STATE_SUSPENDED;
 	return 0;
 }
-#else
-static int s5p_ehci_resume(struct device *dev)
+
+static int s5p_ehci_late_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct s5p_ehci_hcd *s5p_ehci = platform_get_drvdata(pdev);
 	struct usb_hcd *hcd = s5p_ehci->hcd;
 	struct s5p_ehci_platdata *pdata = pdev->dev.platform_data;
 
-	dev_dbg( dev, "%s: phy resume dev->power.status=%d, hcd->state=%d\n", __func__, dev->power.is_suspended, hcd->state);	
+	dev_dbg( dev, "%s: phy resume dev->power.status=%d, hcd->state=%d\n", __func__, dev->power.is_suspended, hcd->state);
 	if (pdata->phy_power)
 		pdata->phy_power(pdev, S5P_USB_PHY_HOST, 1);
+
+	s5p_ehci_phy_on(dev);
+
 	hcd->state = HC_STATE_SUSPENDED;
 	return 0;
 }
-#endif
-
+static int s5p_ehci_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct s5p_ehci_platdata *pdata = pdev->dev.platform_data;
+	
+	if(pdata->late_resume){
+		return s5p_ehci_late_resume(dev);
+	}
+	
+	return s5p_ehci_sync_resume(dev);
+}
 #else
 #define s5p_ehci_suspend	NULL
 #define s5p_ehci_resume		NULL
@@ -310,14 +375,11 @@ static int s5p_ehci_runtime_resume(struct device *dev)
 	if (dev->power.is_suspended)
 		return 0;
 	s5p_wake_lock();
+
 	/* platform device isn't suspended */
-	if(init_resume){
-		s5p_ehci_phy_on(dev);
-	}else{
-		if (pdata && pdata->phy_resume)
+	if (pdata && pdata->phy_resume)
 			rc = pdata->phy_resume(pdev, S5P_USB_PHY_HOST);
-	}
-	if (rc || init_resume) {
+	if (rc) {
 		s5p_ehci_configurate(hcd);
 
 		if (time_before(jiffies, ehci->next_statechange))
@@ -360,7 +422,6 @@ static int s5p_ehci_runtime_resume(struct device *dev)
 		}
 #endif
 	}
-	init_resume = 0;
 	return 0;
 }
 #else
@@ -369,30 +430,44 @@ static int s5p_ehci_runtime_resume(struct device *dev)
 #endif
 static int s5p_wait_for_cp_resume(struct usb_hcd *hcd)
 {
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	u32 __iomem	*portsc ;
-	u32 val32, retry_cnt = 0;
+	struct platform_device *pdev = to_platform_device(hcd->self.controller);
+	struct s5p_ehci_platdata *pdata = pdev->dev.platform_data;
 
-	portsc = &ehci->regs->port_status[CP_PORT-1];
-#ifdef CONFIG_UMTS_MODEM_XMM6260
-	/* CP USB Power On */
-	modem_set_active_state(1);
-#endif
-	do {
-		msleep(10);
-		val32 = ehci_readl(ehci, portsc);
-	} while (++retry_cnt < RETRY_CNT_LIMIT && !(val32 & PORT_CONNECT));
-	pr_info("%s: retry_cnt = %d\n", __func__, retry_cnt);
-	if(retry_cnt < RETRY_CNT_LIMIT)
-		return 0;
-	else {
-#ifdef CONFIG_UMTS_MODEM_XMM6260
-		modem_notify_event(MODEM_EVENT_DISCONN);
-#endif
-		return -ETIMEDOUT;
+	if(pdata->wait_device){
+		struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+		u32 __iomem	*portsc ;
+		u32 val32, retry_cnt = 0;
+
+		portsc = &ehci->regs->port_status[CP_PORT-1];
+		/* CP USB Power On */
+		if(pdata->set_cp_active)
+			pdata->set_cp_active(1);
+		do {
+			msleep(10);
+			val32 = ehci_readl(ehci, portsc);
+		} while (++retry_cnt < RETRY_CNT_LIMIT && !(val32 & PORT_CONNECT));
+		pr_info("%s: retry_cnt = %d\n", __func__, retry_cnt);
+		if(retry_cnt < RETRY_CNT_LIMIT)
+			return 0;
+		else {
+			return -ETIMEDOUT;
+		}
 	}
+	return 0;
 }
 
+static int	s5p_ehci_port_check(struct usb_hcd *hcd, unsigned port_num)
+{
+	struct platform_device *pdev = to_platform_device(hcd->self.controller);
+	struct s5p_ehci_platdata *pdata = pdev->dev.platform_data;	
+
+	if(port_num == CP_PORT)
+	{
+		return pdata->cp_port_enable;
+	}
+
+	return 1;
+}
 static const struct hc_driver s5p_ehci_hc_driver = {
 	.description		= hcd_name,
 	.product_desc		= "S5P EHCI Host Controller",
@@ -421,6 +496,7 @@ static const struct hc_driver s5p_ehci_hc_driver = {
 	.relinquish_port	= ehci_relinquish_port,
 	.port_handed_over	= ehci_port_handed_over,
 	.wait_for_device	= s5p_wait_for_cp_resume,
+	.port_check 		= s5p_ehci_port_check,
 	.clear_tt_buffer_complete	= ehci_clear_tt_buffer_complete,
 };
 
@@ -437,7 +513,6 @@ int  s5p_ehci_power(int value)
 	if(!s5p_dev)
 		return -1;
 
-	init_resume = 0;	
 	pdev = to_platform_device(s5p_dev);
 	s5p_ehci = platform_get_drvdata(pdev);
 	hcd = s5p_ehci->hcd;
@@ -473,9 +548,6 @@ int  s5p_ehci_power(int value)
 			goto exit;
 		}
 		s5p_ehci->power_on = 1;
-#ifdef CONFIG_UMTS_MODEM_XMM6260
-		modem_set_active_state(1);
-#endif
 	}
 exit:
 	device_unlock(s5p_dev);
@@ -536,10 +608,9 @@ static int __devinit s5p_ehci_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	
-#ifdef CONFIG_UMTS_MODEM_XMM6260
 	if (pdata->phy_power)
 		pdata->phy_power(pdev, S5P_USB_PHY_HOST, 1);
-#endif
+
 	s5p_ehci = kzalloc(sizeof(struct s5p_ehci_hcd), GFP_KERNEL);
 	if (!s5p_ehci)
 		return -ENOMEM;
@@ -615,7 +686,7 @@ static int __devinit s5p_ehci_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, s5p_ehci);
 	s5p_wake_lock_init();
-	s5p_wake_lock();
+
 	create_ehci_sys_file(ehci);
 	s5p_ehci->power_on = 1;
 
@@ -630,7 +701,6 @@ static int __devinit s5p_ehci_probe(struct platform_device *pdev)
 #ifdef CONFIG_USB_SUSPEND
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_forbid(&pdev->dev);
 #endif
 	return 0;
 
