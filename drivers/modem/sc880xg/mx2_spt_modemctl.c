@@ -213,7 +213,7 @@ static irqreturn_t spt_modem_cpcrash_irq(int irq, void *dev_id)
 	int val;
 
 	val = gpio_get_value(mc->modem_alive);
-	if(val){
+	if(!val){
 		spt_modem_wake_lock_timeout(mc, HZ * 30);
 		spt_modem_notify_event(SPT_MODEM_EVENT_RESET);
 	}

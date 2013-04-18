@@ -28,6 +28,7 @@
 #include <linux/i2c-gpio.h>
 #include <plat/gpio-cfg.h>
 #include <mach/gpio-m040.h>
+#include <asm/mach-types.h>
 #include <linux/firmware.h>
 #include	<linux/mx_qm.h>
 
@@ -964,6 +965,12 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 		struct device *parent = client->adapter->dev.parent;
 		struct i2c_gpio_platform_data *pi2cdata;
 
+#ifdef CONFIG_MACH_M041
+		if(machine_is_m041()){
+			err = -ENODEV;	
+			goto err_free_mem;	
+		}
+#endif
 		pi2cdata = parent->platform_data;
 
 		gpio_free(pi2cdata->sda_pin);
@@ -989,7 +996,7 @@ static int __devinit mx_qm_probe(struct i2c_client *client,
 			pr_info("mx_qm:old hardware version!!!\n");
 		}
 	}
-	
+
 	qm_create_attrs(&client->dev);
 		
 	/*initial registers*/

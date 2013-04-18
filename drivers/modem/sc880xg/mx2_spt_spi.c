@@ -917,8 +917,41 @@ static unsigned int spt_spi_align_transfer_size(unsigned int i)
 {
 	return (i + SPT_SPI_TRANSFER_ALIGN_MASK) & ~SPT_SPI_TRANSFER_ALIGN_MASK;
 }
+static void spt_spi_setup_tx_massege(struct spt_spi_device *spt_dev, unsigned int length, unsigned int offset)
+{
+	spi_message_init(&spt_dev->spi_msg);
+	INIT_LIST_HEAD(&spt_dev->spi_msg.queue);
 
-static void spt_spi_setup_massege(struct spt_spi_device *spt_dev, unsigned int length, unsigned int offset)
+	/* set up our spi transfer */
+	spt_dev->spi_xfer.len = spt_spi_align_transfer_size(length);
+	spt_dev->spi_xfer.cs_change = 0;
+	spt_dev->spi_xfer.speed_hz = spt_dev->spi_dev->max_speed_hz;
+	spt_dev->spi_xfer.bits_per_word = spt_dev->spi_dev->bits_per_word;
+
+	spt_dev->spi_xfer.tx_buf = spt_dev->tx_buffer + offset;
+	spt_dev->spi_xfer.rx_buf = NULL;
+	/*
+	 * setup dma pointers
+	 */
+	if (spt_dev->use_dma) {
+		spt_dev->spi_msg.is_dma_mapped = 1;
+		spt_dev->tx_dma = spt_dev->tx_bus + offset;
+		spt_dev->rx_dma = 0;
+		spt_dev->spi_xfer.tx_dma = spt_dev->tx_dma;
+		spt_dev->spi_xfer.rx_dma = spt_dev->rx_dma;
+	} else {
+		spt_dev->spi_msg.is_dma_mapped = 0;
+		spt_dev->tx_dma = (dma_addr_t)0;
+		spt_dev->rx_dma = (dma_addr_t)0;
+		spt_dev->spi_xfer.tx_dma = (dma_addr_t)0;
+		spt_dev->spi_xfer.rx_dma = (dma_addr_t)0;
+	}
+
+	spi_message_add_tail(&spt_dev->spi_xfer, &spt_dev->spi_msg);
+	MDM_DEBUG("%s : count=%d\n", __func__, spt_dev->spi_xfer.len);
+
+}
+static void spt_spi_setup_rx_massege(struct spt_spi_device *spt_dev, unsigned int length, unsigned int offset)
 {
 	spi_message_init(&spt_dev->spi_msg);
 	INIT_LIST_HEAD(&spt_dev->spi_msg.queue);
@@ -1034,7 +1067,7 @@ static void spt_spi_receive_process(struct spt_spi_device *spt_dev)
 	
 	/*set mrdy to start receive data*/
 	spt_spi_receive_response(spt_dev);
-	spt_spi_setup_massege(spt_dev, SPT_SPI_TRANSFER_SIZE, 0);
+	spt_spi_setup_rx_massege(spt_dev, SPT_SPI_TRANSFER_SIZE, 0);
 	retval = spi_sync(spt_dev->spi_dev, &spt_dev->spi_msg);
 	if (retval) {
 		spt_spi_request_resend(spt_dev);
@@ -1058,7 +1091,7 @@ static void spt_spi_send_process(struct spt_spi_device *spt_dev)
 	int tx_length = 0;
 
 	tx_length = spt_spi_prepare_tx_buffer(spt_dev);
-	spt_spi_setup_massege(spt_dev, SPT_SPI_TRANSFER_SIZE, 0);
+	spt_spi_setup_tx_massege(spt_dev, tx_length+SPT_SPI_TRANSFER_ALIGN_SIZE, 0);
 	retval = spi_sync(spt_dev->spi_dev, &spt_dev->spi_msg);
 	if (retval) {
 		spt_spi_send_end(spt_dev);
@@ -1257,27 +1290,17 @@ static void spt_spi_free_device(struct spt_spi_device *spt_dev)
  */
 static int spt_spi_reset(struct spt_spi_device *spt_dev)
 {
-	int ret;
 	/*
 	 * set up modem power, reset
 	 *
 	 * delays are required on some platforms for the modem
 	 * to reset properly
 	 */
-	set_bit(SPT_SPI_STATE_RESET, &spt_dev->flags);
 	gpio_set_value(spt_dev->gpio.po, 0);
 	msleep(50);
 	gpio_set_value(spt_dev->gpio.po, 1);
-	ret = wait_event_timeout(spt_dev->mdm_reset_wait,
-				 !test_bit(SPT_SPI_STATE_RESET,
-					  &spt_dev->flags),
-				 SPT_RESET_TIMEOUT);
-	if (!ret)
-		dev_warn(&spt_dev->spi_dev->dev, "Modem reset timeout: (state:%lx)",
-			 spt_dev->flags);
 
-	clear_bit(SPT_SPI_STATE_RESET, &spt_dev->flags);
-	return ret;
+return 0;
 }
 
 static int spt_spi_notifier_event(struct notifier_block *this,
@@ -1428,6 +1451,7 @@ static int spt_spi_probe(struct spi_device *spi)
 	spt_dev->crash_notifier.notifier_call = spt_spi_notifier_event;
 	register_spt_modem_crash_notifier(&spt_dev->crash_notifier);
 #endif
+	set_bit(SPT_SPI_STATE_RESET, &spt_dev->flags);
 	ret = spt_spi_reset(spt_dev);
 
 	ret = request_irq(gpio_to_irq(spt_dev->gpio.srdy),
@@ -1528,7 +1552,6 @@ static int spt_spi_suspend(struct spi_device *spi, pm_message_t msg)
 	struct spt_spi_device *spt_dev = spi_get_drvdata(spi);
 	
 	set_bit(SPT_SPI_STATE_SUSPEND, &spt_dev->flags); 
-	pr_info("%s\n", __func__);
 	return 0;
 }
 
@@ -1545,7 +1568,6 @@ static int spt_spi_resume(struct spi_device *spi)
 	
 	clear_bit(SPT_SPI_STATE_SUSPEND, &spt_dev->flags); 
 	
-	pr_info("%s\n", __func__);
 	return 0;
 }
 
