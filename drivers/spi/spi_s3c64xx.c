@@ -465,10 +465,10 @@ static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 	if (sci->clk_from_cmu) {
 		/* Configure Clock */
 		/* There is half-multiplier before the SPI */
-
 		if(clk_set_rate(sdd->src_clk, sdd->cur_speed * 2)){
 			pr_err("%s:set clk rate to %d fail\n" , __func__, sdd->cur_speed * 2);
 		}
+		pr_info("%s:set clk rate to %ld\n" , __func__, clk_get_rate(sdd->src_clk));
 		/* Enable Clock */
 		clk_enable(sdd->src_clk);
 	} else {
@@ -633,7 +633,9 @@ static void handle_msg(struct s3c64xx_spi_driver_data *sdd,
 		status = -ENOMEM;
 		goto out;
 	}
-
+	/*reset tx/rx fifo*/	
+	flush_fifo(sdd);
+	
 	/* Configure feedback delay */
 	writel(cs->fb_delay & 0x3, sdd->regs + S3C64XX_SPI_FB_CLK);
 

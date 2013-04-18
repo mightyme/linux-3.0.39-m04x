@@ -115,7 +115,7 @@ static int exynos_spi_cfg_gpio(struct platform_device *pdev)
 		s3c_gpio_setpull(EXYNOS4_GPB(7), S3C_GPIO_PULL_UP);
 
 		for (gpio = EXYNOS4_GPB(4); gpio < EXYNOS4_GPB(8); gpio++)
-			s5p_gpio_set_drvstr(gpio, S5P_GPIO_DRVSTR_LV3);
+			s5p_gpio_set_drvstr(gpio, S5P_GPIO_DRVSTR_LV2);
 
 		break;
 

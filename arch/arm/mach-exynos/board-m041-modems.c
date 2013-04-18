@@ -129,7 +129,7 @@ static struct spt_modem_platform_data default_mdm_data={
 	.m2s2 = M041_GPIO_AP_TO_MODEM2,
 #endif
 	.modem_type = SPT_MODEM_SC8803G,
-	.mode		= SPI_MODE_1,
+	.mode		= SPI_MODE_3,
 	.bit_per_word	= 32,
 	.max_hz = 12*1000*1000,
 	.use_dma = 1,
@@ -171,7 +171,7 @@ static struct s3c64xx_spi_csinfo spi1_csi[] = {
 	[0] = {
 		.line = EXYNOS4_GPB(5),
 		.set_level = gpio_set_value,
-		.fb_delay = 0x2,
+		.fb_delay = 0x1,
 	},
 };
 

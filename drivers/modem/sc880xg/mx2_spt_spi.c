@@ -831,7 +831,7 @@ static int spt_port_activate(struct tty_port *port, struct tty_struct *tty)
 	tty->driver_data = spt_dev;
 
 	/* allows flip string push from int context */
-	tty->low_latency = 1;
+	tty->low_latency = 0; //=1;
 	MDM_DEBUG("%s \n", __func__);
 	return 0;
 }
@@ -917,41 +917,8 @@ static unsigned int spt_spi_align_transfer_size(unsigned int i)
 {
 	return (i + SPT_SPI_TRANSFER_ALIGN_MASK) & ~SPT_SPI_TRANSFER_ALIGN_MASK;
 }
-static void spt_spi_setup_tx_massege(struct spt_spi_device *spt_dev, unsigned int length, unsigned int offset)
-{
-	spi_message_init(&spt_dev->spi_msg);
-	INIT_LIST_HEAD(&spt_dev->spi_msg.queue);
 
-	/* set up our spi transfer */
-	spt_dev->spi_xfer.len = spt_spi_align_transfer_size(length);
-	spt_dev->spi_xfer.cs_change = 0;
-	spt_dev->spi_xfer.speed_hz = spt_dev->spi_dev->max_speed_hz;
-	spt_dev->spi_xfer.bits_per_word = spt_dev->spi_dev->bits_per_word;
-
-	spt_dev->spi_xfer.tx_buf = spt_dev->tx_buffer + offset;
-	spt_dev->spi_xfer.rx_buf = NULL;
-	/*
-	 * setup dma pointers
-	 */
-	if (spt_dev->use_dma) {
-		spt_dev->spi_msg.is_dma_mapped = 1;
-		spt_dev->tx_dma = spt_dev->tx_bus + offset;
-		spt_dev->rx_dma = 0;
-		spt_dev->spi_xfer.tx_dma = spt_dev->tx_dma;
-		spt_dev->spi_xfer.rx_dma = spt_dev->rx_dma;
-	} else {
-		spt_dev->spi_msg.is_dma_mapped = 0;
-		spt_dev->tx_dma = (dma_addr_t)0;
-		spt_dev->rx_dma = (dma_addr_t)0;
-		spt_dev->spi_xfer.tx_dma = (dma_addr_t)0;
-		spt_dev->spi_xfer.rx_dma = (dma_addr_t)0;
-	}
-
-	spi_message_add_tail(&spt_dev->spi_xfer, &spt_dev->spi_msg);
-	MDM_DEBUG("%s : count=%d\n", __func__, spt_dev->spi_xfer.len);
-
-}
-static void spt_spi_setup_rx_massege(struct spt_spi_device *spt_dev, unsigned int length, unsigned int offset)
+static void spt_spi_setup_massege(struct spt_spi_device *spt_dev, unsigned int length, unsigned int offset)
 {
 	spi_message_init(&spt_dev->spi_msg);
 	INIT_LIST_HEAD(&spt_dev->spi_msg.queue);
@@ -964,6 +931,7 @@ static void spt_spi_setup_rx_massege(struct spt_spi_device *spt_dev, unsigned in
 
 	spt_dev->spi_xfer.tx_buf = spt_dev->tx_buffer + offset;
 	spt_dev->spi_xfer.rx_buf = spt_dev->rx_buffer + offset;
+
 	/*
 	 * setup dma pointers
 	 */
@@ -1034,16 +1002,7 @@ static int spt_spi_handle_receive_data(struct spt_spi_device *spt_dev)
 		MDM_ERR("ignore input: verify header fail\n");
 		return -EINVAL;
 	}
-#if 0
-	if(header.length > (SPT_SPI_TRANSFER_ALIGN_SIZE - SPT_SPI_HEADER_OVERHEAD)){
-		spt_spi_setup_massege(spt_dev, header.length, SPT_SPI_TRANSFER_ALIGN_SIZE);
-		retval = spi_sync(spt_dev->spi_dev, &spt_dev->spi_msg);
-		if (retval) {
-			pr_err("%s: spi_sync fail\n", __func__);
-			return -EINVAL;
-		}
-	}
-#endif	
+
 	/* check header validity, get comm flags */
 	decode_result = spt_spi_packet_verify(spt_dev->rx_buffer, &header);
 	if(decode_result == false){
@@ -1067,7 +1026,7 @@ static void spt_spi_receive_process(struct spt_spi_device *spt_dev)
 	
 	/*set mrdy to start receive data*/
 	spt_spi_receive_response(spt_dev);
-	spt_spi_setup_rx_massege(spt_dev, SPT_SPI_TRANSFER_SIZE, 0);
+	spt_spi_setup_massege(spt_dev, SPT_SPI_TRANSFER_SIZE, 0);
 	retval = spi_sync(spt_dev->spi_dev, &spt_dev->spi_msg);
 	if (retval) {
 		spt_spi_request_resend(spt_dev);
@@ -1091,7 +1050,7 @@ static void spt_spi_send_process(struct spt_spi_device *spt_dev)
 	int tx_length = 0;
 
 	tx_length = spt_spi_prepare_tx_buffer(spt_dev);
-	spt_spi_setup_tx_massege(spt_dev, tx_length+SPT_SPI_TRANSFER_ALIGN_SIZE, 0);
+	spt_spi_setup_massege(spt_dev, tx_length+SPT_SPI_TRANSFER_ALIGN_SIZE, 0);
 	retval = spi_sync(spt_dev->spi_dev, &spt_dev->spi_msg);
 	if (retval) {
 		spt_spi_send_end(spt_dev);
