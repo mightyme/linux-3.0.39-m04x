@@ -703,13 +703,7 @@ static void __init m040_map_io(void)
 	clk_xusbxti.rate = 24000000;
 	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
 	s3c24xx_init_clocks(24000000);
-#ifdef CONFIG_MACH_M041
-#ifndef CONFIG_MX2_SC8803G_TEST
-	if(machine_is_m041()){
-		m040_uartcfgs[1].has_afc = 1; //m041 modem use uart afc
-	}
-#endif
-#endif
+
 	s3c24xx_init_uarts(m040_uartcfgs, ARRAY_SIZE(m040_uartcfgs));
 	writel((readl(EXYNOS4_CLKDIV_PERIL0) & ~(0xf)) | 0x4, EXYNOS4_CLKDIV_PERIL0);
 #if defined(CONFIG_S5P_MEM_CMA)
