@@ -318,6 +318,10 @@ static int recv_data_handler(struct io_device *iod,
 	struct sk_buff *skb;
 	int ret = len;
 
+	// just return ok when no receiver
+	if (atomic_read(&iod->opened) == 0)
+		return ret;
+
 	skb = rx_alloc_skb(len, GFP_ATOMIC, iod, ld);
 	if (!skb) {
 		MIF_ERR("fail alloc skb (%d)\n", __LINE__);
