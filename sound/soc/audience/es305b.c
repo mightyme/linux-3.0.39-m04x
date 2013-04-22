@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/firmware.h>
+#include <asm/mach-types.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include <sound/pcm.h>
@@ -338,59 +339,27 @@ static int es305b_soc_config(enum ES305B_MODE mode)
 		break;
 
 	case ES305B_INCALL_CT_NB:
-		es305b_param = incall_ct_buf;
-		size = sizeof(incall_ct_buf);
-		break;
 	case ES305B_INCALL_DV_NB:
-		es305b_param = incall_dv_buf;
-		size = sizeof(incall_dv_buf);
-		break;
 	case ES305B_INCALL_WHS_NB:
-		es305b_param = incall_whs_buf;
-		size = sizeof(incall_whs_buf);
-		break;
-	case ES305B_INCALL_BT:
-		if(es305b->nr_bt) {
-			es305b_param = incall_bt_buf;
-			size = sizeof(incall_bt_buf);
-		} else {
-			es305b_param = incall_bt_vpoff_buf;
-			size = sizeof(incall_bt_vpoff_buf);
-		}
-		AUD_INFO("set nr for bt %s \n", es305b->nr_bt ? "On" : "off");
+	case ES305B_VOIP_CT_NB:
+	case ES305B_VOIP_WHS_NB:
+	case ES305B_VOIP_DV_NB:
+	case ES305B_BT_RING:
+	case ES305B_BYPASS_A2C:
+		es305b_param = es305b->mode_data[mode].param;
+		size = es305b->mode_data[mode].size;
 		break;
 
-	case ES305B_VOIP_CT_NB:
-		es305b_param = voip_ct_buf;
-		size = sizeof(voip_ct_buf);
-		break;
-	case ES305B_VOIP_WHS_NB:
-		es305b_param = voip_whs_buf;
-		size = sizeof(voip_whs_buf);
-		break;
-	case ES305B_VOIP_DV_NB:
-		es305b_param = voip_dv_buf;
-		size = sizeof(voip_dv_buf);
-		break;
+	case ES305B_INCALL_BT:
 	case ES305B_VOIP_BT:
 		if(es305b->nr_bt) {
-			es305b_param = voip_bt_buf;
-			size = sizeof(voip_bt_buf);
+			es305b_param = es305b->mode_data[mode].param;
+			size = es305b->mode_data[mode].size;
 		} else {
-			es305b_param = voip_bt_vpoff_buf;
-			size = sizeof(voip_bt_vpoff_buf);
+			es305b_param = es305b->mode_data[mode].param;
+			size = es305b->mode_nr_off_data[mode].size;
 		}
 		AUD_INFO("set nr for bt %s \n", es305b->nr_bt ? "On" : "off");
-		break;
-
-	case ES305B_BT_RING:
-		es305b_param = bt_ring_buf;
-		size = sizeof(bt_ring_buf);
-		break;
-
-	case ES305B_BYPASS_A2C:
-		es305b_param = bypass_a2c;
-		size = sizeof(bypass_a2c);
 		break;
 
 	default:
@@ -1228,6 +1197,86 @@ error_fw:
 	release_firmware(fw);
 }
 
+static void e305b_initial_mode_data(struct es305b_soc *es305b)
+{
+	if(machine_is_m040()){
+		es305b->mode_data[ES305B_INCALL_CT_NB].param = wd_incall_ct_buf;
+		es305b->mode_data[ES305B_INCALL_CT_NB].size = sizeof(wd_incall_ct_buf);
+		
+		es305b->mode_data[ES305B_INCALL_WHS_NB].param = wd_incall_whs_buf;
+		es305b->mode_data[ES305B_INCALL_WHS_NB].size = sizeof(wd_incall_whs_buf);
+
+		es305b->mode_data[ES305B_INCALL_DV_NB].param = wd_incall_dv_buf;
+		es305b->mode_data[ES305B_INCALL_DV_NB].size = sizeof(wd_incall_dv_buf);
+
+		es305b->mode_data[ES305B_INCALL_BT].param = wd_incall_bt_buf;
+		es305b->mode_data[ES305B_INCALL_BT].size = sizeof(wd_incall_bt_buf);
+
+		es305b->mode_data[ES305B_VOIP_CT_NB].param = wd_voip_ct_buf;
+		es305b->mode_data[ES305B_VOIP_CT_NB].size = sizeof(wd_voip_ct_buf);
+
+		es305b->mode_data[ES305B_VOIP_WHS_NB].param = wd_voip_whs_buf;
+		es305b->mode_data[ES305B_VOIP_WHS_NB].size = sizeof(wd_voip_whs_buf);
+
+		es305b->mode_data[ES305B_VOIP_DV_NB].param = wd_voip_dv_buf;
+		es305b->mode_data[ES305B_VOIP_DV_NB].size = sizeof(wd_voip_dv_buf);
+
+		es305b->mode_data[ES305B_VOIP_BT].param = wd_voip_bt_buf;
+		es305b->mode_data[ES305B_VOIP_BT].size = sizeof(wd_voip_bt_buf);
+
+		es305b->mode_data[ES305B_BT_RING].param = wd_bt_ring_buf;
+		es305b->mode_data[ES305B_BT_RING].size = sizeof(wd_bt_ring_buf);
+
+		es305b->mode_data[ES305B_BYPASS_A2C].param = wd_bypass_a2c;
+		es305b->mode_data[ES305B_BYPASS_A2C].size = sizeof(wd_bypass_a2c);
+
+		/*BT NR OFF Mode*/
+		es305b->mode_nr_off_data[ES305B_INCALL_BT].param = wd_incall_bt_vpoff_buf;
+		es305b->mode_nr_off_data[ES305B_INCALL_BT].size = sizeof(wd_incall_bt_vpoff_buf);
+		
+		es305b->mode_nr_off_data[ES305B_VOIP_BT].param = wd_voip_bt_vpoff_buf;
+		es305b->mode_nr_off_data[ES305B_VOIP_BT].size = sizeof(wd_voip_bt_vpoff_buf);
+		
+	}else{
+		es305b->mode_data[ES305B_INCALL_CT_NB].param = td_incall_ct_buf;
+		es305b->mode_data[ES305B_INCALL_CT_NB].size = sizeof(td_incall_ct_buf);
+		
+		es305b->mode_data[ES305B_INCALL_WHS_NB].param = td_incall_whs_buf;
+		es305b->mode_data[ES305B_INCALL_WHS_NB].size = sizeof(td_incall_whs_buf);
+
+		es305b->mode_data[ES305B_INCALL_DV_NB].param = td_incall_dv_buf;
+		es305b->mode_data[ES305B_INCALL_DV_NB].size = sizeof(td_incall_dv_buf);
+
+		es305b->mode_data[ES305B_INCALL_BT].param = td_incall_bt_buf;
+		es305b->mode_data[ES305B_INCALL_BT].size = sizeof(td_incall_bt_buf);
+
+		es305b->mode_data[ES305B_VOIP_CT_NB].param = td_voip_ct_buf;
+		es305b->mode_data[ES305B_VOIP_CT_NB].size = sizeof(td_voip_ct_buf);
+
+		es305b->mode_data[ES305B_VOIP_WHS_NB].param = td_voip_whs_buf;
+		es305b->mode_data[ES305B_VOIP_WHS_NB].size = sizeof(td_voip_whs_buf);
+
+		es305b->mode_data[ES305B_VOIP_DV_NB].param = td_voip_dv_buf;
+		es305b->mode_data[ES305B_VOIP_DV_NB].size = sizeof(td_voip_dv_buf);
+
+		es305b->mode_data[ES305B_VOIP_BT].param = td_voip_bt_buf;
+		es305b->mode_data[ES305B_VOIP_BT].size = sizeof(td_voip_bt_buf);
+	
+		es305b->mode_data[ES305B_BT_RING].param = td_bt_ring_buf;
+		es305b->mode_data[ES305B_BT_RING].size = sizeof(td_bt_ring_buf);
+
+		es305b->mode_data[ES305B_BYPASS_A2C].param = td_bypass_a2c;
+		es305b->mode_data[ES305B_BYPASS_A2C].size = sizeof(td_bypass_a2c);
+
+		/*BT NR OFF Mode*/
+		es305b->mode_nr_off_data[ES305B_INCALL_BT].param = td_incall_bt_vpoff_buf;
+		es305b->mode_nr_off_data[ES305B_INCALL_BT].size = sizeof(td_incall_bt_vpoff_buf);
+		
+		es305b->mode_nr_off_data[ES305B_VOIP_BT].param = td_voip_bt_vpoff_buf;
+		es305b->mode_nr_off_data[ES305B_VOIP_BT].size = sizeof(td_voip_bt_vpoff_buf);
+	}
+}
+
 static int __devinit es305b_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct es305b_platform_data *pdata;
@@ -1279,6 +1328,7 @@ static int __devinit es305b_i2c_probe(struct i2c_client *client, const struct i2
 	mutex_init(&es305b->es305b_mutex);
 	i2c_set_clientdata(client, es305b);
 
+	e305b_initial_mode_data(es305b);
 
 	ret = misc_register(&es305b_device);
 	if (ret) {

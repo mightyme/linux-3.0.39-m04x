@@ -181,6 +181,11 @@ struct es305bimg {
 	unsigned img_size;
 };
 
+struct es305b_mode_data {
+	const unsigned char *param;
+	unsigned int size;
+};
+
 enum es305b_reset {
 	ES305B_SOFTWARE_RST,
 	ES305B_COLD_RST,
@@ -197,6 +202,8 @@ struct es305b_soc {
 	enum es305b_status  status;
 	int nr_bt;
 
+	struct es305b_mode_data mode_data[ES305B_PATH_MAX];
+	struct es305b_mode_data mode_nr_off_data[ES305B_PATH_MAX];
 	struct regulator *crystal_regulator;
 };
 
