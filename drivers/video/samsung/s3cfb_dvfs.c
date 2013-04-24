@@ -133,7 +133,7 @@ static void s3cfb_dvfs_early_suspend(struct early_suspend *h)
 {
 	struct s3cfb_dvfs_info *info = container_of(h, struct s3cfb_dvfs_info, early_suspend);
 
-	if (machine_is_m031() || machine_is_m032()|| machine_is_m040()) {
+	if (!machine_is_m030()) {
 		flush_delayed_work_sync(&info->dvfs_work);
 	}
 
@@ -161,7 +161,7 @@ int s3cfb_dvfs_init(struct s3cfb_global *fbdev)
 		return -1;
 	}
 
-	if (machine_is_m031() || machine_is_m032()||machine_is_m040()) {
+	if (!machine_is_m030()) {
 		INIT_DELAYED_WORK(&s3cfb_dvfs->dvfs_work, set_lcd_freq);
 		s3cfb_dvfs->fimd_dvfs = create_singlethread_workqueue("lcd_fresh");
 		s3cfb_dvfs->dvfs_nb.notifier_call = lcd_dvfs_notify;
@@ -188,7 +188,7 @@ int s3cfb_dvfs_init(struct s3cfb_global *fbdev)
 }
 void s3cfb_dvfs_remove(struct s3cfb_global *fbdev)
 {
-	if (machine_is_m031() || machine_is_m032()||machine_is_m040()) {
+	if (!machine_is_m030()) {
 		destroy_workqueue(fbdvfs->fimd_dvfs);
 		fb_unregister_client(&fbdvfs->dvfs_nb);
 	}
