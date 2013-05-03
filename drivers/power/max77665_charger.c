@@ -294,7 +294,8 @@ static int max77665_battery_temp_status(struct max77665_charger *charger)
 			battery_temp = val.intval;
 
 			/*the adjustment programs suitable for ATL battery*/
-			if (!strcmp("SWD M040", battery_manufacturer)) {
+			if (!strcmp("SWD M040", battery_manufacturer)
+					|| (!strcmp("SWD M04S", battery_manufacturer))) {
 				if (battery_temp <= BATTERY_TEMP_2) {
 					battery_current = 0;
 					health = BATTERY_HEALTH_COLD;
@@ -806,8 +807,18 @@ static __devinit int max77665_init(struct max77665_charger *charger)
 	struct max77665_dev *iodev = dev_get_drvdata(charger->dev->parent);
 	struct max77665_platform_data *pdata = dev_get_platdata(iodev->dev);	
 	struct i2c_client *i2c = iodev->i2c;
+	struct power_supply *fuelgauge_ps = 
+		power_supply_get_by_name("fuelgauge");
+	union power_supply_propval val;
 	int ret = EINVAL;
 	u8 reg_data = 0;
+	char manufacturer[10];
+
+	if (fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_MANUFACTURER, &val) == 0)
+		strcpy(manufacturer, val.strval);
+
+	if (!strcmp(manufacturer, "SWD M04S"))
+		pdata->charger_termination_voltage = MAX77665_CHG_CV_PRM_4350MV;
 
 	/* Unlock protected registers */
 	ret = max77665_write_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_06, 0x0C);
@@ -952,6 +963,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	struct max77665_charger *charger;
 	u8 reg_data;
 	int ret = EINVAL;
+
 	charger = kzalloc(sizeof(struct max77665_charger), GFP_KERNEL);
 	if (unlikely(!charger))
 		return -ENOMEM;
