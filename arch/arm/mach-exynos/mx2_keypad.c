@@ -36,7 +36,7 @@ static struct platform_device __initdata *m040_keypad_devices[]  = {
 	&m040_device_gpio_i2c16,
 };
 static struct platform_device __initdata *m041_keypad_devices[]  = {
-	&m040_device_gpio_i2c18,
+	&m041_device_gpio_i2c16,
 };
 static int  __init mx2_init_keypad(void)
 {
@@ -55,7 +55,7 @@ static int  __init mx2_init_keypad(void)
 #endif
 #ifdef CONFIG_MACH_M041
 	if(machine_is_m041()){
-		i2c_register_board_info(18, i2c_devs_touchpad, ARRAY_SIZE(i2c_devs_touchpad));
+		i2c_register_board_info(16, i2c_devs_touchpad, ARRAY_SIZE(i2c_devs_touchpad));
 		if(platform_add_devices(m041_keypad_devices, ARRAY_SIZE(m041_keypad_devices)))
 			pr_err("%s: register touchpad device fail\n", __func__);
 	}

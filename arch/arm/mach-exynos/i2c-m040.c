@@ -213,7 +213,7 @@ struct platform_device m040_device_gpio_i2c15 = {
 	.dev.platform_data = &gpio_i2c15_data,
 };
 /*gpio i2c 16: TOUCH PAD*/
-static struct i2c_gpio_platform_data gpio_i2c16_data = {
+static struct i2c_gpio_platform_data m040_gpio_i2c16_data = {
 	.sda_pin = M040_SDA_TOUCHPAD,
 	.scl_pin = M040_SCL_TOUCHPAD,
 	.udelay = 2,   /*the scl frequency is (500 / udelay) kHz*/
@@ -225,7 +225,7 @@ static struct i2c_gpio_platform_data gpio_i2c16_data = {
 struct platform_device m040_device_gpio_i2c16 = {
 	.name = "i2c-gpio",
 	.id = 16,
-	.dev.platform_data = &gpio_i2c16_data,
+	.dev.platform_data = &m040_gpio_i2c16_data,
 };
 /*gpio i2c 17: EARPHONE*/
 static struct i2c_gpio_platform_data gpio_i2c17_data = {
@@ -242,7 +242,7 @@ struct platform_device m040_device_gpio_i2c17 = {
 	.dev.platform_data = &gpio_i2c17_data,
 };
 /*gpio i2c 18: M041 TOUCH PAD*/
-static struct i2c_gpio_platform_data gpio_i2c18_data = {
+static struct i2c_gpio_platform_data m041_gpio_i2c16_data = {
 	.sda_pin = M041_SDA_TOUCHPAD,
 	.scl_pin = M041_SCL_TOUCHPAD,
 	.udelay = 2,   /*the scl frequency is (500 / udelay) kHz*/
@@ -251,9 +251,9 @@ static struct i2c_gpio_platform_data gpio_i2c18_data = {
 	.scl_is_output_only = 0,
 };
 
-struct platform_device m040_device_gpio_i2c18 = {
+struct platform_device m041_device_gpio_i2c16 = {
 	.name = "i2c-gpio",
-	.id = 18,
-	.dev.platform_data = &gpio_i2c18_data,
+	.id = 16,
+	.dev.platform_data = &m041_gpio_i2c16_data,
 };
 

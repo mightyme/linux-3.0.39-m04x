@@ -45,5 +45,5 @@ extern struct platform_device m040_device_gpio_i2c14;
 extern struct platform_device m040_device_gpio_i2c15;
 extern struct platform_device m040_device_gpio_i2c16;
 extern struct platform_device m040_device_gpio_i2c17;
-extern struct platform_device m040_device_gpio_i2c18;
+extern struct platform_device m041_device_gpio_i2c16;
 #endif //__I2C_M040_H
