@@ -478,7 +478,7 @@ static void max77665_judge_insert_type(struct max77665_charger *charger)
 	u8 reg_data = 0;
 	
 	if (charger->chgin) {
-#ifndef CONFIG_MACH_M040
+#if !defined(CONFIG_MACH_M040) && !defined(CONFIG_MACH_M041)
 		if (mx_is_usb_dock_insert()) {
 			pr_info("found dock inserted, treat it as AC\n");
 			cable_status = CABLE_TYPE_AC;
