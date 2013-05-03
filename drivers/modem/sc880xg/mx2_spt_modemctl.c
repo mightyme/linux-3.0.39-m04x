@@ -46,10 +46,13 @@ struct spt_modem_ctl{
 	unsigned short power_on;		/* modem-on gpio */
 	unsigned short modem_alive;	/* modem-alive gpio */
 
+	unsigned short power_status;		/* modem-off gpio */
 	int modem_crash_irq;
 	int cp_flag;
-
+	int cp_user_reset;
+	
 	wait_queue_head_t  read_wq;
+	struct completion done;
 #ifdef CONFIG_HAS_WAKELOCK
 	struct wake_lock   spt_modem_wakelock;
 #endif
@@ -195,16 +198,35 @@ static int spt_sc8803g_off(struct spt_modem_ctl *mc)
 	return 0;
 }
 
-static int spt_sc8803g_reset(struct spt_modem_ctl *mc)
+static int __spt_sc8803g_reset(struct spt_modem_ctl *mc)
 {
-	pr_info("spt_sc8803g_reset()\n");
+	int count = 50;
+	pr_info("spt_sc8803g_reset(%d)\n", gpio_get_value(mc->power_status));
 
 	gpio_set_value(mc->power_on, 0);
-	msleep(500);
+	while(gpio_get_value(mc->power_status) && count){
+		msleep(10);
+		count --;
+	}
+	msleep(10);
 	gpio_set_value(mc->power_on, 1);
 	spt_modem_wake_lock_timeout(mc, 10*HZ);
-
 	return 0;
+}
+
+void spt_sc8803g_reset(struct spt_modem_ctl *mc)
+{
+#ifdef CONFIG_MX_RECOVERY_KERNEL
+	__spt_sc8803g_reset(mc);
+#else
+	init_completion(&mc->done);
+	mc->cp_flag = 0;
+	mc->cp_user_reset = 1;
+	__spt_sc8803g_reset(mc);
+	wait_for_completion_timeout(&mc->done, 20*HZ);
+	mc->cp_user_reset = 0;
+	spt_modem_notify_event(SPT_MODEM_EVENT_RESET);
+#endif
 }
 
 static irqreturn_t spt_modem_cpcrash_irq(int irq, void *dev_id)
@@ -215,8 +237,12 @@ static irqreturn_t spt_modem_cpcrash_irq(int irq, void *dev_id)
 	val = gpio_get_value(mc->modem_alive);
 	if(!val){
 		spt_modem_wake_lock_timeout(mc, HZ * 30);
-		spt_modem_notify_event(SPT_MODEM_EVENT_RESET);
+		if(!mc->cp_user_reset)
+			spt_modem_notify_event(SPT_MODEM_EVENT_CRASH);
+	}else{
+		complete(&mc->done);
 	}
+	
 	blocking_notifier_call_chain(&mc_notifier_list, val, NULL);
 	pr_info("%s CP_CRASH_INT:%d\n",  __func__, val);
 
@@ -260,13 +286,6 @@ spt_modem_write(struct file *filp, const char __user *buffer, size_t count,
 	}
 
 	if(count >= 5 && !strncmp(buffer, "reset", 5)) {
-		if (down_interruptible(&spt_modem_downlock) == 0) {
-			spt_sc8803g_reset(mc);
-			up(&spt_modem_downlock);
-		}
-	}
-	
-	if(count >= 4 && !strncmp(buffer, "main", 4)) {
 		if (down_interruptible(&spt_modem_downlock) == 0) {
 			spt_sc8803g_reset(mc);
 			up(&spt_modem_downlock);
@@ -369,12 +388,14 @@ static int spt_modem_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	init_completion(&mc->done);
 	init_waitqueue_head(&mc->read_wq);
 	spt_modem_wake_lock_initial(mc);
 
 	mc->power_on = pdata->pwr_on;
 	mc->modem_alive = pdata->salive;
-
+	mc->power_status = pdata->s2m1;
+	mc->cp_user_reset = 0;
 	/*reset irq*/
 	mc->modem_crash_irq = gpio_to_irq(mc->modem_alive);
 	ret = request_threaded_irq(mc->modem_crash_irq, NULL,
@@ -404,6 +425,11 @@ static int spt_modem_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mc);
 
 	spt_modem_global_mc = mc;
+
+#ifndef CONFIG_MX_RECOVERY_KERNEL
+	/*power on modem*/
+	spt_sc8803g_on(mc);
+#endif
 	return 0;
 err4:
 	misc_deregister(&spt_modem_miscdev);

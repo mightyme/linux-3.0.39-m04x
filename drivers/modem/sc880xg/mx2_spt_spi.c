@@ -188,7 +188,7 @@ static const struct attribute_group spt_tty_group = {
 #ifdef CONFIG_HAS_WAKELOCK
 static void spt_spi_wake_lock_initial(struct spt_spi_device *spt_dev)
 {
-	wake_lock_init(&spt_dev->spt_spi_wakelock, WAKE_LOCK_SUSPEND, "modemctl");
+	wake_lock_init(&spt_dev->spt_spi_wakelock, WAKE_LOCK_SUSPEND, "modemspi");
 }
 
 static void spt_spi_wake_lock_destroy(struct spt_spi_device *spt_dev)
@@ -1082,7 +1082,12 @@ static int spt_spi_thread(void *data)
 	while (1) {
 		status = wait_event_interruptible_timeout(spt_dev->mdm_event_wait, \
 						spt_dev->gpio.unack_srdy_int_nb , msecs_to_jiffies(2000));
-		if (test_bit(SPT_SPI_STATE_SUSPEND, &spt_dev->flags) || test_bit(SPT_SPI_STATE_RESET, &spt_dev->flags)) {
+		if (test_bit(SPT_SPI_STATE_SUSPEND, &spt_dev->flags)) {
+			msleep(100);
+			continue;
+		}
+		if (test_bit(SPT_SPI_STATE_RESET, &spt_dev->flags)) {
+			kfifo_reset(&spt_dev->tx_fifo);
 			msleep(100);
 			continue;
 		}
@@ -1259,7 +1264,7 @@ static int spt_spi_reset(struct spt_spi_device *spt_dev)
 	msleep(50);
 	gpio_set_value(spt_dev->gpio.po, 1);
 
-return 0;
+	return 0;
 }
 
 static int spt_spi_notifier_event(struct notifier_block *this,
@@ -1410,9 +1415,6 @@ static int spt_spi_probe(struct spi_device *spi)
 	spt_dev->crash_notifier.notifier_call = spt_spi_notifier_event;
 	register_spt_modem_crash_notifier(&spt_dev->crash_notifier);
 #endif
-	set_bit(SPT_SPI_STATE_RESET, &spt_dev->flags);
-	ret = spt_spi_reset(spt_dev);
-
 	ret = request_irq(gpio_to_irq(spt_dev->gpio.srdy),
 			  spt_spi_srdy_interrupt,
 			  IRQF_TRIGGER_FALLING, DRVNAME,
