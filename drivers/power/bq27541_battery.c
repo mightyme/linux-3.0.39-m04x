@@ -551,7 +551,8 @@ static int __devinit bq27541_probe(struct i2c_client *client,
 	struct bq27541_chip *chip;
 	int ret;
 
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WORD_DATA))
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WORD_DATA)
+			|| !i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 	
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
@@ -637,8 +638,8 @@ static int __devinit bq27541_probe(struct i2c_client *client,
 	do {
 		int ret = 0;
 		int size = 0;
-		char fuelgauge_info[9];
-
+		char fuelgauge_info[9] = {0};
+		
 		ret |= i2c_smbus_write_byte_data(chip->client, bq27541CMD_DFDCNTL, 0x00);
 		ret |= i2c_smbus_write_byte_data(chip->client, bq27541CMD_DFCLS, 58);
 		ret |= i2c_smbus_write_byte_data(chip->client, bq27541CMD_DFBLK, 0x00);
