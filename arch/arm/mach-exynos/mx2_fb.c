@@ -186,65 +186,78 @@ static int lcd_panel_reset(struct lcd_device *ld)
 
 static int lcd_panel_power_vdd(struct lcd_device *ld, int enable)
 {
-	struct regulator_bulk_data supplies[2];
-	int num_consumers = ARRAY_SIZE(supplies);
-	int ret;
+	struct regulator *vdd = regulator_get(&ld->dev, "LCD_2V8");
+	struct regulator *vddio = regulator_get(&ld->dev, "vdd_ldo13");
 
-	supplies[0].supply = "vdd_ldo13";
-	supplies[1].supply = "LCD_2V8";
-
-
-	ret = regulator_bulk_get(&ld->dev, num_consumers, supplies);
-	if (ret) {
-		dev_err(&ld->dev, "regulator bulk lck power vdd get failed\n");
+	if (IS_ERR(vdd) || IS_ERR(vddio)) {
+		dev_err(&ld->dev, "regulator vs get failed\n");
 		return -1;
 	}
 
 	if (enable) {
-		if (regulator_bulk_enable(num_consumers, supplies)) {
+		if (regulator_enable(vdd)) {
 			dev_err(&ld->dev, "enabel lcd5v failure!\n");
 			return -1;
 		}
+		mdelay(1); //must be delayed here, do not move it!
+		if (regulator_enable(vddio)) {
+			dev_err(&ld->dev, "enabel lcd5v failure!\n");
+			return -1;
+		}
+		mdelay(1); //must be delayed here, do not move it!
 	} else {
-		if (regulator_bulk_disable(num_consumers, supplies)) {
+		if (regulator_enable(vddio)) {
+			dev_err(&ld->dev, "enabel lcd5v failure!\n");
+			return -1;
+		}
+		mdelay(100); //must be delayed here, do not move it!
+		if (regulator_enable(vdd)) {
 			dev_err(&ld->dev, "enabel lcd5v failure!\n");
 			return -1;
 		}
 	}
 
-	regulator_bulk_free(num_consumers, supplies);
+	regulator_put(vdd);
+	regulator_put(vddio);
 
 	return 0;
 }
 static int lcd_panel_power_vs(struct lcd_device *ld, int enable)
 {
-	struct regulator_bulk_data supplies[2];
-	int num_consumers = ARRAY_SIZE(supplies);
-	int ret;
+	struct regulator *lcd_n5v = regulator_get(&ld->dev, "LCD_N5V");
+	struct regulator *lcd_5v = regulator_get(&ld->dev, "LCD_5V");
 
-	supplies[0].supply = "LCD_N5V";
-	supplies[1].supply = "LCD_5V";
-
-	ret = regulator_bulk_get(&ld->dev, num_consumers, supplies);
-	if (ret) {
-		dev_err(&ld->dev, "regulator bulk get vs failed\n");
+	if (IS_ERR(lcd_n5v) || IS_ERR(lcd_5v)) {
+		dev_err(&ld->dev, "regulator vs get failed\n");
 		return -1;
 	}
 
 	if (enable) {
-		if (regulator_bulk_enable(num_consumers, supplies)) {
+		if (regulator_enable(lcd_5v)) {
 			dev_err(&ld->dev, "enabel lcd5v failure!\n");
 			return -1;
 		}
+		mdelay(1); //must be delayed here, do not move it!
+		if (regulator_enable(lcd_n5v)) {
+			dev_err(&ld->dev, "enabel lcd5v failure!\n");
+			return -1;
+		}
+		mdelay(1); //must be delayed here, do not move it!
 	} else {
-		if (regulator_bulk_disable(num_consumers, supplies)) {
+		if (regulator_enable(lcd_n5v)) {
 			dev_err(&ld->dev, "enabel lcd5v failure!\n");
 			return -1;
 		}
+		mdelay(1); //must be delayed here, do not move it!
+		if (regulator_enable(lcd_5v)) {
+			dev_err(&ld->dev, "enabel lcd5v failure!\n");
+			return -1;
+		}
+		mdelay(1); //must be delayed here, do not move it!
 	}
 
-	regulator_bulk_free(num_consumers, supplies);
-
+	regulator_put(lcd_n5v);
+	regulator_put(lcd_5v);
 	return 0;
 }
 

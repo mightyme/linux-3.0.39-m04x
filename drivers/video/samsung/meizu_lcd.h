@@ -114,7 +114,7 @@ struct lcd_panel_info {
 };
 /*For Sharp lcd module config.*/
 static const struct lcd_param sharp_slpout_seq[] = {
-	DCS_SHORT(10, MIPI_DCS_EXIT_SLEEP_MODE, 0x0),
+	DCS_SHORT(120, MIPI_DCS_EXIT_SLEEP_MODE, 0x0),
 	LCD_PARAM_DEF_END,
 };
 static const struct lcd_param sharp_slpin_seq[] = {
@@ -122,7 +122,7 @@ static const struct lcd_param sharp_slpin_seq[] = {
 	LCD_PARAM_DEF_END,
 };
 static const struct lcd_param sharp_dspon_seq[] = {
-	DCS_SHORT(10, MIPI_DCS_SET_DISPLAY_ON, 0x0),
+	DCS_SHORT(120, MIPI_DCS_SET_DISPLAY_ON, 0x0),
 	DCS_SHORT_PARAM(MIPI_DCS_BACKLIGHT_ON, 0x24),
 	LCD_PARAM_DEF_END,
 };
@@ -330,7 +330,7 @@ static const struct lcd_param sharp_init_seq_0_7[] = {
 
 /*For JDI lcd module config.*/
 static const struct lcd_param jdi_slpout_seq[] = {
-	DCS_SHORT(10, MIPI_DCS_EXIT_SLEEP_MODE, 0x0),
+	DCS_SHORT(120, MIPI_DCS_EXIT_SLEEP_MODE, 0x0),
 	LCD_PARAM_DEF_END,
 };
 static const struct lcd_param jdi_slpin_seq[] = {
