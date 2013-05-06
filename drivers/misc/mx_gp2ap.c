@@ -321,14 +321,6 @@ static int gp2ap_set_ps_mode(struct gp2ap_data *gp2ap, int mode)
 
 	if (PS_IRQ_MODE == mode) {
 		if (unlikely(gp2ap->reset_threshold_flag)) {
-			if (!strncmp("M040-WTK", gp2ap->idbuf, 8)) {
-				pr_info("the touchscreen is M040-WTK\n");
-				gp2ap->calib_value = 1;
-				gp2ap->near_threshold = 8;
-				gp2ap->far_threshold = 4;
-			} else {
-				pr_info("the touchsreen is M040-TPK\n");
-			}
 			pr_info("calib_value:%d, near_threshold:%d,far_threshold:%d\n",
 					gp2ap->calib_value, gp2ap->near_threshold, gp2ap->far_threshold);
 			get_ps_thresholds(gp2ap);
