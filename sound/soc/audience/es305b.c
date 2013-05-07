@@ -356,7 +356,7 @@ static int es305b_soc_config(enum ES305B_MODE mode)
 			es305b_param = es305b->mode_data[mode].param;
 			size = es305b->mode_data[mode].size;
 		} else {
-			es305b_param = es305b->mode_data[mode].param;
+			es305b_param = es305b->mode_nr_off_data[mode].param;
 			size = es305b->mode_nr_off_data[mode].size;
 		}
 		AUD_INFO("set nr for bt %s \n", es305b->nr_bt ? "On" : "off");
