@@ -898,14 +898,15 @@ static __devinit int max77665_init(struct max77665_charger *charger)
 	union power_supply_propval val;
 	int ret = EINVAL;
 	u8 reg_data = 0;
-	char manufacturer_name[10] = {0};
-
-	if (fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_MANUFACTURER, &val) == 0)
-		strcpy(manufacturer_name, val.strval);
 	
-	if (!strcmp(manufacturer_name, "SWD M04S"))
-		pdata->charger_termination_voltage = MAX77665_CHG_CV_PRM_4350MV;
-
+	if (fuelgauge_ps) {
+		char manufacturer_name[10] = {0};
+		if (fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_MANUFACTURER, &val) == 0)
+			strcpy(manufacturer_name, val.strval);
+		
+		if (!strcmp(manufacturer_name, "SWD M04S"))
+			pdata->charger_termination_voltage = MAX77665_CHG_CV_PRM_4350MV;
+	}
 	/* Unlock protected registers */
 	ret = max77665_write_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_06, 0x0C);
 	if (unlikely(ret)) {
