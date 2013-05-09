@@ -446,23 +446,6 @@ static void spt_spi_end_resend(struct spt_spi_device *spt_dev)
 {
 	spt_spi_mrsd_set(spt_dev, false);
 }
-/**
- *	spt_spi_hangup		-	hang up an SPT device
- *	@spt_dev: our SPI device
- *
- *	Hang up the tty attached to the SPT device if one is currently
- *	open. If not take no action
- */
-static void spt_spi_ttyhangup(struct spt_spi_device *spt_dev)
-{
-	struct tty_port *pport = &spt_dev->tty_port;
-	struct tty_struct *tty = tty_port_tty_get(pport);
-	if (tty) {
-		tty_hangup(tty);
-		tty_kref_put(tty);
-	}
-	MDM_DEBUG("%s\n", __func__);
-}
 
 /**
  *	spt_spi_timeout		-	SPI timeout
@@ -476,7 +459,6 @@ static void spt_spi_timeout(unsigned long arg)
 	struct spt_spi_device *spt_dev = (struct spt_spi_device *)arg;
 
 	dev_warn(&spt_dev->spi_dev->dev, "*** SPI Timeout ***\n");
-	spt_spi_ttyhangup(spt_dev);
 	spt_spi_mrts_set(spt_dev, false);
 	spt_spi_mrdy_set(spt_dev, false);
 	kfifo_reset(&spt_dev->tx_fifo);
@@ -484,61 +466,6 @@ static void spt_spi_timeout(unsigned long arg)
 }
 
 /* char/tty operations */
-
-/**
- *	spt_spi_tiocmget	-	get modem lines
- *	@tty: our tty device
- *	@filp: file handle issuing the request
- *
- *	Map the signal state into Linux modem flags and report the value
- *	in Linux terms
- */
-static int spt_spi_tiocmget(struct tty_struct *tty)
-{
-	unsigned int value;
-	struct spt_spi_device *spt_dev = tty->driver_data;
-
-	value =
-	(test_bit(SPT_SPI_RTS, &spt_dev->signal_state) ? TIOCM_RTS : 0) |
-	(test_bit(SPT_SPI_DTR, &spt_dev->signal_state) ? TIOCM_DTR : 0) |
-	(test_bit(SPT_SPI_CTS, &spt_dev->signal_state) ? TIOCM_CTS : 0) |
-	(test_bit(SPT_SPI_DSR, &spt_dev->signal_state) ? TIOCM_DSR : 0) |
-	(test_bit(SPT_SPI_DCD, &spt_dev->signal_state) ? TIOCM_CAR : 0) |
-	(test_bit(SPT_SPI_RI, &spt_dev->signal_state) ? TIOCM_RNG : 0);
-	MDM_DEBUG("%s: 0x%x\n", __func__, value);
-	return value;
-}
-
-/**
- *	spt_spi_tiocmset	-	set modem bits
- *	@tty: the tty structure
- *	@set: bits to set
- *	@clear: bits to clear
- *
- *	The SPT sc880xg only supports DTR and RTS. Set them accordingly
- *	and flag that an update to the modem is needed.
- *
- *	FIXME: do we need to kick the tranfers when we do this ?
- */
-static int spt_spi_tiocmset(struct tty_struct *tty,
-			    unsigned int set, unsigned int clear)
-{
-	struct spt_spi_device *spt_dev = tty->driver_data;
-
-	MDM_DEBUG("%s: 0x%x\n", __func__, set);
-	if (set & TIOCM_RTS)
-		set_bit(SPT_SPI_RTS, &spt_dev->signal_state);
-	if (set & TIOCM_DTR)
-		set_bit(SPT_SPI_DTR, &spt_dev->signal_state);
-	if (clear & TIOCM_RTS)
-		clear_bit(SPT_SPI_RTS, &spt_dev->signal_state);
-	if (clear & TIOCM_DTR)
-		clear_bit(SPT_SPI_DTR, &spt_dev->signal_state);
-
-	set_bit(SPT_SPI_UPDATE, &spt_dev->signal_state);
-	return 0;
-}
-
 /**
  *	spt_spi_open	-	called on tty open
  *	@tty: our tty device
@@ -741,10 +668,8 @@ static int spt_spi_prepare_tx_buffer(struct spt_spi_device *spt_dev)
 			/* update buffer pointer and data count in message */
 			tx_buffer += temp_count;
 			tx_count += temp_count;
-			if (temp_count == queue_length)
-				/* poke port to get more data */
-				spt_spi_wakeup_serial(spt_dev);
-			else /* more data in port, use next SPI message */
+			if (temp_count != queue_length)
+				/* more data in port, use next SPI message */
 				spt_dev->spi_more = 1;
 		}
 	}
@@ -799,21 +724,6 @@ static int spt_spi_write_room(struct tty_struct *tty)
 }
 
 /**
- *	spt_port_hangup
- *	@port: our tty port
- *
- *	tty port hang up. Called when tty_hangup processing is invoked either
- *	by loss of carrier, or by software (eg vhangup). Serialized against
- *	activate/shutdown by the tty layer.
- */
-static void spt_spi_hangup(struct tty_struct *tty)
-{
-	struct spt_spi_device *spt_dev = tty->driver_data;
-	tty_port_hangup(&spt_dev->tty_port);
-	MDM_DEBUG("%s \n", __func__);
-}
-
-/**
  *	spt_port_activate
  *	@port: our tty port
  *
@@ -832,7 +742,7 @@ static int spt_port_activate(struct tty_port *port, struct tty_struct *tty)
 
 	/* allows flip string push from int context */
 	tty->low_latency = 0; //=1;
-	MDM_DEBUG("%s \n", __func__);
+	MDM_ERR("%s \n", __func__);
 	return 0;
 }
 
@@ -853,7 +763,7 @@ static void spt_port_shutdown(struct tty_port *port)
 	del_timer_sync(&spt_dev->spi_timer);
 	clear_bit(SPT_SPI_STATE_TIMER_PENDING, &spt_dev->flags);
 	kfifo_reset(&spt_dev->tx_fifo);
-	MDM_DEBUG("%s \n", __func__);
+	MDM_ERR("%s \n", __func__);
 }
 
 static const struct tty_port_operations spt_tty_port_ops = {
@@ -865,11 +775,7 @@ static const struct tty_operations spt_spi_serial_ops = {
 	.open = spt_spi_open,
 	.close = spt_spi_close,
 	.write = spt_spi_write,
-	.hangup = spt_spi_hangup,
 	.write_room = spt_spi_write_room,
-//	.chars_in_buffer = spt_spi_chars_in_buffer,
-	.tiocmget = spt_spi_tiocmget,
-	.tiocmset = spt_spi_tiocmset,
 };
 
 /**
@@ -955,26 +861,9 @@ static void spt_spi_setup_massege(struct spt_spi_device *spt_dev, unsigned int l
 }
 static void spt_spi_request_tty_data(struct spt_spi_device *spt_dev)
 {
-	struct tty_struct *tty;
-	struct tty_ldisc *ldisc = NULL;
-	/*
-	 * poke line discipline driver if any for more data
-	 * may or may not get more data to write
-	 * for now, say not busy
-	 */
-	tty = tty_port_tty_get(&spt_dev->tty_port);
-	if (tty) {
-		ldisc = tty_ldisc_ref(tty);
-		if (ldisc) {
-			ldisc->ops->write_wakeup(tty);
-			tty_ldisc_deref(ldisc);
-		}
-		tty_kref_put(tty);
-	}
-
+	spt_spi_wakeup_serial(spt_dev);
 }
 
-#define TTY_MAX_MTU	512
 /**
  *	spt_spi_handle_receive_data	-	SPI transfer completed
  *	@ctx: our SPI device
@@ -1284,10 +1173,6 @@ static int spt_spi_notifier_event(struct notifier_block *this,
 	}else{
 		/* entered reset */
 		set_bit(SPT_SPI_STATE_RESET, &spt_dev->flags);
-		{
-			/* unsolicited reset  */
-			//spt_spi_ttyhangup(spt_dev);
-		}
 	}
 	return rtn;
 }
@@ -1591,8 +1476,12 @@ static int __init spt_spi_init(void)
 	spt_tty_drv->num = 1;
 	spt_tty_drv->type = TTY_DRIVER_TYPE_SERIAL;
 	spt_tty_drv->subtype = SERIAL_TYPE_NORMAL;
-	spt_tty_drv->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
+	spt_tty_drv->flags = TTY_DRIVER_RESET_TERMIOS | TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	spt_tty_drv->init_termios = tty_std_termios;
+	spt_tty_drv->init_termios.c_iflag = 0;
+	spt_tty_drv->init_termios.c_oflag = 0;
+	spt_tty_drv->init_termios.c_cflag = B4000000 | CS8 | CREAD;
+	spt_tty_drv->init_termios.c_lflag = 0;
 
 	tty_set_operations(spt_tty_drv, &spt_spi_serial_ops);
 
