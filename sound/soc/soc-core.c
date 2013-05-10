@@ -704,7 +704,8 @@ static void close_delayed_work(struct work_struct *work)
 	struct snd_soc_pcm_runtime *rtd =
 			container_of(work, struct snd_soc_pcm_runtime, delayed_work.work);
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-
+	struct snd_soc_codec *codec = rtd->codec;
+	
 	mutex_lock(&pcm_mutex);
 
 	pr_debug("pop wq checking: %s status: %s waiting: %s\n",
