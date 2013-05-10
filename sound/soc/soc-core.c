@@ -715,6 +715,13 @@ static void close_delayed_work(struct work_struct *work)
 	/* are we waiting on this codec DAI stream */
 	if (codec_dai->pop_wait == 1) {
 		codec_dai->pop_wait = 0;
+#ifdef CONFIG_WM8958_ALWAYS_ON_SUSPEND		
+		if(!wm8994_isalwayson(codec))
+		{
+			mutex_unlock(&pcm_mutex);
+			return;
+		}
+#endif
 		snd_soc_dapm_stream_event(rtd,
 			codec_dai->driver->playback.stream_name,
 			SND_SOC_DAPM_STREAM_STOP);
