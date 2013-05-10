@@ -719,6 +719,10 @@ static void __init m040_map_io(void)
 
 static void __init m040_machine_init(void)
 {
+#ifdef CONFIG_MX_CMCC_KERNEL
+	system_rev = 0x4416;
+#endif
+
 #ifdef CONFIG_EXYNOS_FIQ_DEBUGGER
 	exynos_serial_debug_init(CONFIG_S3C_LOWLEVEL_UART_PORT, 0);
 #endif

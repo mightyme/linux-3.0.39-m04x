@@ -176,9 +176,14 @@ config MX_OVERSEAS_KERNEL
          Build overseas kernel
 
 config MX_UNICOM_KERNEL
-       bool "Build MX Unicom Kernel"
+       bool "Build MX Unicom custom Kernel"
        help
-         Build Unicom kernel
+         Build Unicom custom kernel
+
+config MX_CMCC_KERNEL
+       bool "Build MX cmcc custom Kernel"
+       help
+         Build cmcc custom kernel
 
 config MX_RECOVERY_KERNEL
        bool "Build MX Recovery Kernel"
