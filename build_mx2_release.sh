@@ -72,7 +72,13 @@ function gen_all_kernel_image()
 	check_kernel_build_result mx2_unicom_defconfig
 	mv arch/arm/boot/zImage output/zImage-unicom
 	save_image $svn_rev mx2_unicom_defconfig
-	
+
+    make mx2_cmcc_defconfig
+    make all -j$CPU_JOB_NUM
+    check_kernel_build_result mx2_cmcc_defconfig
+    mv arch/arm/boot/zImage output/zImage-cmcc
+    save_image $svn_rev mx2_cmcc_defconfig
+
 	make mx2_recovery_defconfig
 	make all -j$CPU_JOB_NUM
 	check_kernel_build_result mx2_recovery_defconfig
