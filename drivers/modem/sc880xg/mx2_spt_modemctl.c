@@ -47,6 +47,8 @@ struct spt_modem_ctl{
 	unsigned short modem_alive;	/* modem-alive gpio */
 
 	unsigned short power_status;		/* modem-off gpio */
+	unsigned short usb_download;		/* usb download enable gpio */
+	
 	int modem_crash_irq;
 	int cp_flag;
 	int cp_user_reset;
@@ -100,6 +102,32 @@ static ssize_t store_spt_modem_debug(struct device *dev,
 }
 static struct device_attribute attr_spt_modem_debug = __ATTR(spt_modem_debug,
 		S_IRUGO | S_IWUSR, show_spt_modem_debug, store_spt_modem_debug);
+
+static ssize_t show_spt_usb_download(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	char *p = buf;
+
+	p += sprintf(buf, "usb_download=%d\n", gpio_get_value(spt_modem_global_mc->usb_download));
+
+	return p - buf;
+}
+static ssize_t store_spt_usb_download(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int error;
+	unsigned long val;
+
+	error = strict_strtoul(buf, 10, &val);
+	if (!error && spt_modem_global_mc){
+		gpio_set_value(spt_modem_global_mc->usb_download, !!val);
+		pr_info("%s: %s usb download\n", __func__, val?"enable":"disable");
+	}
+	return count;
+}
+
+static struct device_attribute attr_spt_usb_download = __ATTR(spt_usb_download,
+		S_IRUGO | S_IWUSR, show_spt_usb_download, store_spt_usb_download);
 
 #ifdef CONFIG_HAS_WAKELOCK
 static void spt_modem_wake_lock_initial(struct spt_modem_ctl *mc)
@@ -269,6 +297,7 @@ spt_modem_write(struct file *filp, const char __user *buffer, size_t count,
 
 	pr_info("%s:%s\n", __func__, buffer);
 
+	/*power off modem*/
 	if(count >= 3 && !strncmp(buffer, "off", 3))
 	{
 		if (down_interruptible(&spt_modem_downlock) == 0) {
@@ -277,7 +306,7 @@ spt_modem_write(struct file *filp, const char __user *buffer, size_t count,
 			up(&spt_modem_downlock);
 		}
 	}
-
+	/*power on modem*/
 	if(count >= 2 && !strncmp(buffer, "on", 2)) {
 		if (down_interruptible(&spt_modem_downlock) == 0) {
 			spt_sc8803g_on(mc);
@@ -285,13 +314,22 @@ spt_modem_write(struct file *filp, const char __user *buffer, size_t count,
 		}
 	}
 
+	/*reset modem*/
 	if(count >= 5 && !strncmp(buffer, "reset", 5)) {
 		if (down_interruptible(&spt_modem_downlock) == 0) {
 			spt_sc8803g_reset(mc);
 			up(&spt_modem_downlock);
 		}
 	}
-	
+
+	/*clean modem flags*/
+	if(count >= 5 && !strncmp(buffer, "clean", 5)) {
+		if (down_interruptible(&spt_modem_downlock) == 0) {
+			mc->cp_flag &= SPT_MODEM_CONNECT_FLAG;
+			up(&spt_modem_downlock);
+		}
+	}
+
 	if(count >= 7 && !strncmp(buffer, "debug=", 6)) {
 		int error;
 		unsigned long val;
@@ -395,6 +433,7 @@ static int spt_modem_probe(struct platform_device *pdev)
 	mc->power_on = pdata->pwr_on;
 	mc->modem_alive = pdata->salive;
 	mc->power_status = pdata->s2m1;
+	mc->usb_download = pdata->m2s1;
 	mc->cp_user_reset = 0;
 	/*reset irq*/
 	mc->modem_crash_irq = gpio_to_irq(mc->modem_alive);
@@ -420,6 +459,12 @@ static int spt_modem_probe(struct platform_device *pdev)
 	ret = device_create_file(spt_modem_miscdev.this_device, &attr_spt_modem_debug);
 	if (ret) {
 		pr_err("failed to create sysfs file:attr_modem_debug!\n");
+		goto err4;
+	}
+
+	ret = device_create_file(spt_modem_miscdev.this_device, &attr_spt_usb_download);
+	if (ret) {
+		pr_err("failed to create sysfs file:attr_spt_usb_download!\n");
 		goto err4;
 	}
 	platform_set_drvdata(pdev, mc);
