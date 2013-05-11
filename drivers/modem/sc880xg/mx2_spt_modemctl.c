@@ -120,8 +120,8 @@ static ssize_t store_spt_usb_download(struct device *dev,
 
 	error = strict_strtoul(buf, 10, &val);
 	if (!error && spt_modem_global_mc){
-		gpio_set_value(spt_modem_global_mc->usb_download, !!val);
-		pr_info("%s: %s usb download\n", __func__, val?"enable":"disable");
+		gpio_set_value(spt_modem_global_mc->usb_download, !val);
+		pr_info("%s: %s usb download\n", __func__, !val?"enable":"disable");
 	}
 	return count;
 }
