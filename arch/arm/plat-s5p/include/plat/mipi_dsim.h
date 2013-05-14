@@ -233,6 +233,7 @@ struct mipi_dsim_device {
 	struct early_suspend mipi_early_suspend;
 	struct early_suspend mipi_earler_suspend;
 #endif
+	struct notifier_block 		reboot_notifier;
 };
 
 /**

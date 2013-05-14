@@ -28,6 +28,8 @@
 #include <linux/kthread.h>
 #include <linux/notifier.h>
 #include <linux/pm_runtime.h>
+#include <linux/notifier.h>
+#include <linux/reboot.h>
 
 #include <asm/mach-types.h>
 
@@ -372,6 +374,20 @@ static int s5p_mipi_setup_clk(struct platform_device *pdev)
 #endif
 	return 0;
 }
+static int s5p_dsim_shutdown_event(struct notifier_block *this,
+		unsigned long code, void *unused)
+{
+	struct mipi_dsim_device *dsim = container_of(this, struct mipi_dsim_device,
+			reboot_notifier);
+
+	s5p_mipi_shutdown_lcd(dsim, SUSPEND_LCD);
+	s5p_mipi_shutdown_lcd(dsim, SHUTDOWN_LCD);
+
+	printk(KERN_INFO "REBOOT Notifier for MIPI DSIM\n");
+	return NOTIFY_DONE;
+}
+
+
 static int s5p_mipi_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -495,6 +511,9 @@ static int s5p_mipi_probe(struct platform_device *pdev)
 	dsim->mipi_earler_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
 	register_early_suspend(&dsim->mipi_earler_suspend);
 #endif
+
+	dsim->reboot_notifier.notifier_call = s5p_dsim_shutdown_event;
+	register_reboot_notifier(&dsim->reboot_notifier);
 
 	dev_info(&pdev->dev, "mipi-dsi driver(%s mode) has been probed.\n",
 		(dsim_config->e_interface == DSIM_COMMAND) ?
