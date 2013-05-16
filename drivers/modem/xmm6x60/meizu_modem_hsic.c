@@ -885,6 +885,16 @@ static void modem_hsic_disconnect(struct usb_interface *intf)
 	if (devdata->disconnected)
 		return;
 
+	devdata->state = STATE_SUSPENDED;
+	devdata->usb_ld->ld.com_state = COM_NONE;
+	devdata->disconnected = 1;
+	devdata->usb_ld->if_usb_connected = 0;
+	devdata->usb_ld->suspended = 0;
+	
+	/* cancel runtime start delayed works */
+	flush_delayed_work_sync(&pm_data->hsic_pm_start);
+	flush_delayed_work_sync(&ld->tx_delayed_work);
+	
 	wake_lock_timeout(&devdata->usb_ld->link_pm_data->l2_wake, \
 			msecs_to_jiffies(1000));
 
@@ -901,20 +911,9 @@ static void modem_hsic_disconnect(struct usb_interface *intf)
 
 	devdata->data_intf = NULL;
 	devdata->usbdev = NULL;
-	devdata->disconnected = 1;
-	devdata->state = STATE_SUSPENDED;
-
-	devdata->usb_ld->ld.com_state = COM_NONE;
 	pm_data->ipc_debug_cnt = 0;
 
-	devdata->usb_ld->if_usb_connected = 0;
-	devdata->usb_ld->suspended = 0;
-
 	usb_set_intfdata(intf, NULL);
-
-	/* cancel runtime start delayed works */
-	cancel_delayed_work(&pm_data->hsic_pm_start);
-	cancel_delayed_work(&ld->tx_delayed_work);
 
 	modem_notify_event(MODEM_EVENT_DISCONN);
 
