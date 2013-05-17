@@ -555,15 +555,6 @@ static void hsic_pm_runtime_start(struct work_struct *work)
 
 	if (pm_data->usb_ld->usbdev && dev->parent) {
 		MIF_DEBUG("rpm_status: %d\n", dev->power.runtime_status);
-		ppdev = dev->parent->parent;
-		hsic_set_autosuspend_delay(usbdev, 200);
-		pm_runtime_forbid(dev);
-		pm_runtime_allow(dev);
-		pm_runtime_forbid(ppdev);
-		pm_runtime_allow(ppdev);
-		pm_data->resume_requested = false;
-		pm_data->resume_retry_cnt = 0;
-		pm_suspend_ignore_children(dev, true);
 		/* retry prvious link tx q */
 		queue_delayed_work(ld->tx_wq, &ld->tx_delayed_work, 0);
 	}
@@ -879,7 +870,6 @@ static void modem_hsic_disconnect(struct usb_interface *intf)
 {
 	struct if_usb_devdata *devdata = usb_get_intfdata(intf);
 	struct link_pm_data *pm_data = devdata->usb_ld->link_pm_data;
-	struct device *dev, *ppdev;
 	struct link_device *ld = &devdata->usb_ld->ld;
 
 	if (devdata->disconnected)
@@ -892,8 +882,8 @@ static void modem_hsic_disconnect(struct usb_interface *intf)
 	devdata->usb_ld->suspended = 0;
 	
 	/* cancel runtime start delayed works */
-	flush_delayed_work_sync(&pm_data->hsic_pm_start);
-	flush_delayed_work_sync(&ld->tx_delayed_work);
+	cancel_delayed_work(&pm_data->hsic_pm_start);
+	cancel_delayed_work(&ld->tx_delayed_work);
 	
 	wake_lock_timeout(&devdata->usb_ld->link_pm_data->l2_wake, \
 			msecs_to_jiffies(1000));
@@ -901,10 +891,6 @@ static void modem_hsic_disconnect(struct usb_interface *intf)
 	usb_driver_release_interface(to_usb_driver(intf->dev.driver), intf);
 
 	usb_kill_urb(devdata->urb);
-
-	dev = &devdata->usb_ld->usbdev->dev;
-	ppdev = dev->parent->parent;
-	pm_runtime_forbid(ppdev);
 
 	MIF_DEBUG("dev 0x%p\n", devdata->usbdev);
 	usb_put_dev(devdata->usbdev);
@@ -1071,10 +1057,12 @@ static int __devinit modem_hsic_probe(struct usb_interface *intf,
 		usb_ld->link_pm_data->state = ACM_READY;
 		usb_ld->if_usb_connected = 1;
 		modem_notify_event(MODEM_EVENT_CONN);
-		if (!work_pending(&usb_ld->link_pm_data->hsic_pm_start.work))
-			queue_delayed_work(usb_ld->link_pm_data->wq,
-				&usb_ld->link_pm_data->hsic_pm_start,
-				msecs_to_jiffies(500));
+
+		hsic_set_autosuspend_delay(usbdev, 200);
+		pm_runtime_allow(&usbdev->dev);
+		pm_runtime_allow(usbdev->dev.parent->parent);
+		pm_suspend_ignore_children(&usbdev->dev, true);
+		
 		skb_queue_purge(&usb_ld->ld.sk_raw_tx_q);
 		usb_ld->ld.com_state = COM_ONLINE;
 	}
