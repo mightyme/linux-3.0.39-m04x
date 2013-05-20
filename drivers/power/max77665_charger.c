@@ -129,6 +129,8 @@ struct max77665_charger
 	bool storage_open;
 	bool rndis_open;
 	int fastcharging;
+	bool adjust_done;
+	int adjust_count;
 };
 
 enum {
@@ -455,6 +457,12 @@ static void max77665_adjust_work(struct work_struct *work)
 	int battery_status;
 
 	pr_info("ENTER %s########\n", __func__);
+
+	if (charger->adjust_done) {
+		charger->adjust_done = false;
+		return;
+	}
+
 	now_current = regulator_get_current_limit(charger->ps);
 	battery_status = max77665_battery_temp_status(charger);
 	if (battery_status == BATTERY_HEALTH_GOOD) {
@@ -763,7 +771,7 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 	if ((!chgin) && (adc_threshold_check(charger))) {
 		charger->adc_flag = true;
 		now_current = regulator_get_current_limit(charger->ps);
-		do{
+		do {
 			if (now_current < CHGIN_USB_CURRENT * MA_TO_UA) 
 				break;
 			now_current -= CURRENT_INCREMENT_STEP * MA_TO_UA;
@@ -774,8 +782,14 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 			max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK,
 					&int_ok);
 			pr_info("current %d\n", now_current);
-			if (int_ok == 0X5d)
+			if (int_ok == 0X5d) {
+				if (charger->adjust_count > 0) {
+					charger->adjust_done = true;
+					charger->adjust_count = 0;
+				}
 				break;
+			}
+		charger->adjust_count++;
 		} while (now_current > CHGIN_USB_CURRENT * MA_TO_UA);
 	}
 
@@ -1080,6 +1094,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	charger->storage_open = false;
 	charger->rndis_open = false;
 	charger->fastcharging = 0;
+	charger->adjust_count = 0;
 	charger->usb_notifer.notifier_call = max77665_charger_event;
 	register_usb_gadget_notifier(&charger->usb_notifer);
 	
