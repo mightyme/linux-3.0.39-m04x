@@ -74,11 +74,8 @@ static int lcd_panel_sharp_init_code(struct lcd_panel_info *lcd)
 		case 1:
 			return write_to_lcd(lcd, sharp_init_seq_0_7);
 		break;
-		case 4:
-			return write_to_lcd(lcd, sharp_init_seq_0);
-		break;
 		default:
-			pr_debug("ID Code(%d) Error! use default gamma settings.\n", lcd_id[ID_CODE3]);
+			pr_info("ID Code(%d)! use default gamma settings.\n", lcd_id[ID_CODE3]);
 			return 0;
 		break;
 	}

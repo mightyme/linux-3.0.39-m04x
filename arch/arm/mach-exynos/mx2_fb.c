@@ -237,23 +237,23 @@ static int lcd_panel_power_vs(struct lcd_device *ld, int enable)
 			dev_err(&ld->dev, "enabel lcd5v failure!\n");
 			return -1;
 		}
-		mdelay(1); //must be delayed here, do not move it!
+		mdelay(5); //must be delayed here, do not move it!
 		if (regulator_enable(lcd_n5v)) {
 			dev_err(&ld->dev, "enabel lcd5v failure!\n");
 			return -1;
 		}
-		mdelay(1); //must be delayed here, do not move it!
+		mdelay(5); //must be delayed here, do not move it!
 	} else {
 		if (regulator_disable(lcd_n5v)) {
 			dev_err(&ld->dev, "enabel lcd5v failure!\n");
 			return -1;
 		}
-		mdelay(1); //must be delayed here, do not move it!
+		mdelay(5); //must be delayed here, do not move it!
 		if (regulator_disable(lcd_5v)) {
 			dev_err(&ld->dev, "enabel lcd5v failure!\n");
 			return -1;
 		}
-		mdelay(1); //must be delayed here, do not move it!
+		mdelay(5); //must be delayed here, do not move it!
 	}
 
 	regulator_put(lcd_n5v);
