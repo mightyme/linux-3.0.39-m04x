@@ -299,7 +299,7 @@ static int max77665_battery_temp_status(struct max77665_charger *charger)
 
 			/*the adjustment programs suitable for ATL battery*/
 			if (!strcmp("SWD M040", battery_manufacturer)
-					|| (!strcmp("SWD M04S",battery_manufacturer))) {
+					|| (!strncmp("M04S",battery_manufacturer, 4))) {
 				if (battery_temp <= BATTERY_TEMP_2) {
 					battery_current = 0;
 					health = BATTERY_HEALTH_COLD;

@@ -84,7 +84,8 @@ struct bat_info {
 
 char SWD[] = "SWD M040";
 char GY[] = "GUANG YU";
-char SWDS[] = "SWD M04S";
+char SWDS[] = "M04S SWD";
+char ATL[] = "M04S ATL";
 
 struct bq27541_chip {
 #define REFRESH_POLL		(60 * HZ)
@@ -659,8 +660,11 @@ static int __devinit bq27541_probe(struct i2c_client *client,
 			pr_info("SWD M040\n");
 			chip->bat_info.manufacturer_name = SWD;
 		} else if (!strcmp(SWDS, fuelgauge_info)) {
-			pr_info("SWD M04S\n");
+			pr_info("M04S SWD\n");
 			chip->bat_info.manufacturer_name = SWDS;
+		} else if (!strcmp(ATL, fuelgauge_info)) {
+			pr_info("M04S ATL\n");
+			chip->bat_info.manufacturer_name = ATL;
 		} else {
 			pr_info("GUANGYU\n");
 			chip->bat_info.manufacturer_name = GY;
