@@ -435,6 +435,8 @@ static void lcd_shutdown(struct mipi_dsim_lcd_device *mipi_dev)
 {
 	struct lcd_panel_info *lcd = dev_get_drvdata(&mipi_dev->dev);
 
+	if (lcd->state == LCD_DISPLAY_POWER_OFF)
+		return;
 	lcd->state = LCD_DISPLAY_POWER_OFF;
 
 	/* lcd power off */
@@ -445,6 +447,9 @@ static void lcd_shutdown(struct mipi_dsim_lcd_device *mipi_dev)
 static int lcd_suspend(struct mipi_dsim_lcd_device *mipi_dev)
 {
 	struct lcd_panel_info *lcd = dev_get_drvdata(&mipi_dev->dev);
+
+	if (lcd->state == LCD_DISPLAY_POWER_OFF)
+		return 0;
 
 	if ((g_lcd_info->id_code[ID_CODE1] & 0x10)) {
 		CHECK_PANEL_RET(lcd_panel_jdi_display_off(lcd));
@@ -466,6 +471,7 @@ static int lcd_resume(struct mipi_dsim_lcd_device *mipi_dev)
 	if (lcd->ddi_pd->power_on)
 		lcd->ddi_pd->power_on(lcd->ld, true);
 
+	lcd->state = LCD_DISPLAY_NORMAL;
 	pr_debug("%s: lcd->state = %d\n", __func__, lcd->state);
 
 	return 0;

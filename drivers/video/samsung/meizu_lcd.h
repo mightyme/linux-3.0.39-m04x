@@ -88,6 +88,7 @@ struct lcd_param {
 };
 
 enum lcd_state {
+	LCD_DISPLAY_NORMAL,
 	LCD_DISPLAY_SLEEP_IN,
 	LCD_DISPLAY_DEEP_STAND_BY,
 	LCD_DISPLAY_POWER_OFF,
