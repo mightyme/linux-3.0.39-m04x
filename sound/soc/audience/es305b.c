@@ -56,7 +56,6 @@
 
 #define _CMD_FIFO_USED_
 #define ENABLE_DIAG_IOCTLS
-#define ES305B_24M_SOC_FW "es305b_24m_soc_fw.bin"
 
 static int es305b_i2c_read(struct i2c_client *client,
 				  int bytes, void *dest);
@@ -160,7 +159,11 @@ static void es305b_cold_reset(void)
 	const char *fw_name;
 
 	AUD_DBG("es305b_cold_reset");
-	fw_name = ES305B_24M_SOC_FW;
+	if (machine_is_m040())
+		fw_name = "es305b_24m_soc_fw.bin";
+	else
+		fw_name = "es305b_24m_soc_fw_td.bin";
+
 
 	err = request_firmware(&fw, fw_name,  es305b->dev);
 	if (err) {
@@ -932,14 +935,14 @@ static long es305b_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		AUD_DBG("%s ES305B_HWRESET_CMD \n", __func__);
 		es305b_hardware_reset();
 		break;
-	case ES305B_COLDRESET_CMD:
-		AUD_DBG("%s ES305B_COLDRESET_CMD \n", __func__);
-		es305b_cold_reset();
-		break;
-	case ES305B_SWRESET_CMD:
-		AUD_DBG("%s ES305B_SWRESET_CMD \n", __func__);
-		es305b_software_reset((A200_msg_Reset << 16) | RESET_IMMEDIATE);
-		break;
+	// case ES305B_COLDRESET_CMD:
+		// AUD_DBG("%s ES305B_COLDRESET_CMD \n", __func__);
+		// es305b_cold_reset();
+		// break;
+	// case ES305B_SWRESET_CMD:
+		// AUD_DBG("%s ES305B_SWRESET_CMD \n", __func__);
+		// es305b_software_reset((A200_msg_Reset << 16) | RESET_IMMEDIATE);
+		// break;
 
 	case ES305B_SLEEP_CMD:
 		AUD_DBG("%s ES305B_SLEEP_CMD \n", __func__);
@@ -1336,7 +1339,11 @@ static int __devinit es305b_i2c_probe(struct i2c_client *client, const struct i2
 		goto err_free_gpio_all;
 	}
 
-	fw_name = ES305B_24M_SOC_FW;
+	if (machine_is_m040())
+		fw_name = "es305b_24m_soc_fw.bin";
+	else
+		fw_name = "es305b_24m_soc_fw_td.bin";
+
 	ret = request_firmware_nowait(THIS_MODULE,
 	        FW_ACTION_HOTPLUG,
 	        fw_name,

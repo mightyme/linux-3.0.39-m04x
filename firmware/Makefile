@@ -146,6 +146,7 @@ fw-shipped-$(CONFIG_YAM) += yam/1200.bin yam/9600.bin
 fw-shipped-$(CONFIG_AUDIENCE_A1028) += a1028_12m_soc_fw.bin\
 					a1028_24m_soc_fw.bin
 fw-shipped-$(CONFIG_AUDIENCE_ES305B) += es305b_24m_soc_fw.bin
+fw-shipped-$(CONFIG_AUDIENCE_ES305B) += es305b_24m_soc_fw_td.bin
 fw-shipped-$(CONFIG_MFD_MXQM) += qm/qm_mx_led.bin 
 fw-shipped-$(CONFIG_RMI4_FWLIB) += rmi4/M040-TPK.img\
 								rmi4/M040-WTK.img
