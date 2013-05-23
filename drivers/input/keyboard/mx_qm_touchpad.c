@@ -293,7 +293,7 @@ static int __devinit mx_qm_touch_probe(struct platform_device *pdev)
 	enable_irq_wake(touch->irq);
 	
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	 touch->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
+	 touch->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 5;
 	 touch->early_suspend.suspend = mx_qm_touch_early_suspend;
 	 touch->early_suspend.resume = mx_qm_touch_late_resume;
 	 register_early_suspend(&touch->early_suspend);
