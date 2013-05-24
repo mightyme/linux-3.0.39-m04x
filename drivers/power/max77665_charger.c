@@ -46,12 +46,14 @@
 #define BATTERY_TEMP_23		230		/*23oC*/
 #define BATTERY_TEMP_27		270		/*27oC*/
 #define BATTERY_TEMP_45		450		/*45oC*/
-#define BATTERY_TEMP_CURRENT_01C	167
-#define BATTERY_TEMP_CURRENT_03C	534 
-#define BATTERY_TEMP_CURRENT_04C	720
-#define BATTERY_TEMP_CURRENT_05C	900 
-#define BATTERY_TEMP_4VOLTAGE   4000
-#define BATTERY_TEMP_42VOLTAGE	4200
+#define BATTERY_430V_CURRENT_01C 167  
+#define BATTERY_430V_CURRENT_03C 534  
+#define BATTERY_430V_CURRENT_04C 720  
+#define BATTERY_430V_CURRENT_05C 900  
+#define BATTERY_435V_CURRENT_03C 566  
+#define BATTERY_435V_CURRENT_05C 933  
+#define BATTERY_TEMP_4VOLTAGE    4000 
+#define BATTERY_TEMP_42VOLTAGE   4200 
 
 #define MAX77665_CHGIN_DTLS       0x60 
 #define MAX77665_CHGIN_DTLS_SHIFT 5    
@@ -300,8 +302,7 @@ static int max77665_battery_temp_status(struct max77665_charger *charger)
 			battery_temp = val.intval;
 
 			/*the adjustment programs suitable for ATL battery*/
-			if (!strcmp("SWD M040", battery_manufacturer)
-					|| (!strncmp("M04S",battery_manufacturer, 4))) {
+			if (!strcmp("SWD M040", battery_manufacturer)) {
 				if (battery_temp <= BATTERY_TEMP_2) {
 					battery_current = 0;
 					health = BATTERY_HEALTH_COLD;
@@ -309,9 +310,21 @@ static int max77665_battery_temp_status(struct max77665_charger *charger)
 					battery_current = 0;
 					health = BATTERY_HEALTH_OVERHEAT;
 				} else if (battery_temp <= BATTERY_TEMP_17) {
-					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_03C);
+					battery_current = min(battery_current, BATTERY_430V_CURRENT_03C);
 				} else {
-					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_05C);
+					battery_current = min(battery_current, BATTERY_430V_CURRENT_05C);
+				}
+			} else if (!strncmp("M04S", battery_manufacturer, 4)) {
+				if (battery_temp <= BATTERY_TEMP_2) {
+					battery_current = 0;
+					health = BATTERY_HEALTH_COLD;
+				} else if (battery_temp > BATTERY_TEMP_45) {
+					battery_current = 0;
+					health = BATTERY_HEALTH_OVERHEAT;
+				} else if (battery_temp <= BATTERY_TEMP_17) {
+					battery_current = min(battery_current, BATTERY_435V_CURRENT_03C);
+				} else {
+					battery_current = min(battery_current, BATTERY_435V_CURRENT_05C);
 				}
 			} else {
 				/*the adjustment programs suitable for Guangyu battery*/
@@ -322,28 +335,28 @@ static int max77665_battery_temp_status(struct max77665_charger *charger)
 					battery_current = 0;
 					health = BATTERY_HEALTH_OVERHEAT;
 				} else if (battery_temp <= BATTERY_TEMP_12) {
-					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_01C);
+					battery_current = min(battery_current, BATTERY_430V_CURRENT_01C);
 				} else if (battery_temp <= BATTERY_TEMP_20) {
 					if (battery_voltage > BATTERY_TEMP_42VOLTAGE * MA_TO_UA) {
-						battery_current = min(battery_current, BATTERY_TEMP_CURRENT_01C);
+						battery_current = min(battery_current, BATTERY_430V_CURRENT_01C);
 					} else {
-						battery_current = min(battery_current, BATTERY_TEMP_CURRENT_03C);
+						battery_current = min(battery_current, BATTERY_430V_CURRENT_03C);
 					}
 				} else if (battery_temp <= BATTERY_TEMP_23) {
 					if (battery_voltage > BATTERY_TEMP_4VOLTAGE * MA_TO_UA) {
-						battery_current = min(battery_current, BATTERY_TEMP_CURRENT_03C);
+						battery_current = min(battery_current, BATTERY_430V_CURRENT_03C);
 					} else {
-						battery_current = min(battery_current, BATTERY_TEMP_CURRENT_05C);
+						battery_current = min(battery_current, BATTERY_430V_CURRENT_05C);
 					}
 				} else if (battery_temp <= BATTERY_TEMP_27) {
-					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_04C);	
+					battery_current = min(battery_current, BATTERY_430V_CURRENT_04C);	
 				} else {
-					battery_current = min(battery_current, BATTERY_TEMP_CURRENT_05C);
+					battery_current = min(battery_current, BATTERY_430V_CURRENT_05C);
 				}
 			}
 		}
 	} else {
-		battery_current = min(battery_current, BATTERY_TEMP_CURRENT_01C);
+		battery_current = min(battery_current, BATTERY_430V_CURRENT_01C);
 	}
 
 	do {
@@ -918,7 +931,7 @@ static __devinit int max77665_init(struct max77665_charger *charger)
 		if (fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_MANUFACTURER, &val) == 0)
 			strcpy(manufacturer_name, val.strval);
 		
-		if (!strcmp(manufacturer_name, "SWD M04S"))
+		if (!strncmp(manufacturer_name, "M04S", 4))
 			pdata->charger_termination_voltage = MAX77665_CHG_CV_PRM_4350MV;
 	}
 	/* Unlock protected registers */
