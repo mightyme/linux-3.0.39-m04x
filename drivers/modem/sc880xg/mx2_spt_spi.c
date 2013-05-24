@@ -661,7 +661,7 @@ static int spt_spi_prepare_tx_buffer(struct spt_spi_device *spt_dev)
 		queue_length = kfifo_len(&spt_dev->tx_fifo);
 		if (queue_length != 0) {
 			/* data to mux -- see if there's room for it */
-			temp_count = min(queue_length, SPT_SPI_PAYLOAD_SIZE);
+			temp_count = min(queue_length, SPT_SPI_TX_PAYLOAD_SIZE);
 			temp_count = kfifo_out_peek(&spt_dev->tx_fifo,
 					tx_buffer, temp_count);
 
