@@ -50,8 +50,8 @@
 #define BATTERY_430V_CURRENT_03C 534  
 #define BATTERY_430V_CURRENT_04C 720  
 #define BATTERY_430V_CURRENT_05C 900  
-#define BATTERY_435V_CURRENT_03C 566  
-#define BATTERY_435V_CURRENT_05C 933  
+#define BATTERY_435V_CURRENT_03C 567 
+#define BATTERY_435V_CURRENT_05C 950  
 #define BATTERY_TEMP_4VOLTAGE    4000 
 #define BATTERY_TEMP_42VOLTAGE   4200 
 
@@ -362,13 +362,11 @@ static int max77665_battery_temp_status(struct max77665_charger *charger)
 	do {
 		int ret;
 		int now_current = regulator_get_current_limit(charger->battery) / 1000;
-		pr_info("%s: now_current = %d, battery_current = %d\n", 
-				__func__, now_current, battery_current);
 		if(!(now_current <= battery_current && battery_current <= now_current + CHG_CC_STEP)) {
 			pr_info("now_current %d current %d\n", now_current, battery_current);
 			ret = regulator_set_current_limit(charger->battery,
-					battery_current*MA_TO_UA,
-					battery_current*MA_TO_UA);
+					battery_current * MA_TO_UA,
+					(battery_current + CHG_CC_STEP) * MA_TO_UA);
 			if (ret) {
 				pr_err("failed to set battery current limit\n");
 			}
@@ -931,8 +929,10 @@ static __devinit int max77665_init(struct max77665_charger *charger)
 		if (fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_MANUFACTURER, &val) == 0)
 			strcpy(manufacturer_name, val.strval);
 		
-		if (!strncmp(manufacturer_name, "M04S", 4))
+		if (!strncmp(manufacturer_name, "M04S", 4)) {
 			pdata->charger_termination_voltage = MAX77665_CHG_CV_PRM_4350MV;
+			pdata->fast_charge_current = 934;
+		}
 	}
 	/* Unlock protected registers */
 	ret = max77665_write_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_06, 0x0C);
@@ -1099,7 +1099,6 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	charger->usb_attach = pdata->usb_attach;
 	charger->chgin_ilim_usb = pdata->chgin_ilim_usb;
 	charger->chgin_ilim_ac = pdata->chgin_ilim_ac;
-	charger->fast_charge_current= pdata->fast_charge_current;
 	charger->chr_pin = pdata->charger_pin;
 	charger->done = false;
 	charger->adc_flag = false;
@@ -1198,6 +1197,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	}
 	
 	ret = max77665_init(charger);
+	charger->fast_charge_current= pdata->fast_charge_current;
 
 	alarm_init(&charger->alarm, ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP,
 				charger_bat_alarm);
