@@ -798,9 +798,9 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 					charger->adjust_done = true;
 					charger->adjust_count = 0;
 				}
+				charger->adjust_count++;
 				break;
 			}
-		charger->adjust_count++;
 		} while (now_current > CHGIN_USB_CURRENT * MA_TO_UA);
 	}
 
@@ -918,22 +918,9 @@ static __devinit int max77665_init(struct max77665_charger *charger)
 	struct max77665_dev *iodev = dev_get_drvdata(charger->dev->parent);
 	struct max77665_platform_data *pdata = dev_get_platdata(iodev->dev);	
 	struct i2c_client *i2c = iodev->i2c;
-	struct power_supply *fuelgauge_ps =
-		power_supply_get_by_name("fuelgauge");
-	union power_supply_propval val;
 	int ret = EINVAL;
 	u8 reg_data = 0;
 	
-	if (fuelgauge_ps) {
-		char manufacturer_name[10] = {0};
-		if (fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_MANUFACTURER, &val) == 0)
-			strcpy(manufacturer_name, val.strval);
-		
-		if (!strncmp(manufacturer_name, "M04S", 4)) {
-			pdata->charger_termination_voltage = MAX77665_CHG_CV_PRM_4350MV;
-			pdata->fast_charge_current = 934;
-		}
-	}
 	/* Unlock protected registers */
 	ret = max77665_write_reg(i2c, MAX77665_CHG_REG_CHG_CNFG_06, 0x0C);
 	if (unlikely(ret)) {
@@ -1086,6 +1073,9 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	struct max77665_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct max77665_platform_data *pdata = dev_get_platdata(iodev->dev);	
 	struct max77665_charger *charger;
+	struct power_supply *fuelgauge_ps =
+		power_supply_get_by_name("fuelgauge");
+	union power_supply_propval val;
 	u8 reg_data;
 	int ret = EINVAL;
 	charger = kzalloc(sizeof(struct max77665_charger), GFP_KERNEL);
@@ -1094,6 +1084,17 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, charger);
 
+	if (fuelgauge_ps) {
+		char manufacturer_name[10] = {0};
+		if (fuelgauge_ps->get_property(fuelgauge_ps, POWER_SUPPLY_PROP_MANUFACTURER, &val) == 0)
+			strcpy(manufacturer_name, val.strval);
+		
+		if (!strncmp(manufacturer_name, "M04S", 4)) {
+			pdata->charger_termination_voltage = MAX77665_CHG_CV_PRM_4350MV;
+			pdata->fast_charge_current = 934;
+			pdata->chgin_ilim_ac = 1000;
+		}
+	}
 	charger->iodev = iodev;
 	charger->dev = &pdev->dev;
 	charger->usb_attach = pdata->usb_attach;
@@ -1197,7 +1198,6 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	}
 	
 	ret = max77665_init(charger);
-	charger->fast_charge_current= pdata->fast_charge_current;
 
 	alarm_init(&charger->alarm, ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP,
 				charger_bat_alarm);
