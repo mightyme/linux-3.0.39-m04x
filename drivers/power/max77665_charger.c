@@ -1100,6 +1100,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 	charger->usb_attach = pdata->usb_attach;
 	charger->chgin_ilim_usb = pdata->chgin_ilim_usb;
 	charger->chgin_ilim_ac = pdata->chgin_ilim_ac;
+	charger->fast_charge_current = pdata->fast_charge_current;
 	charger->chr_pin = pdata->charger_pin;
 	charger->done = false;
 	charger->adc_flag = false;
