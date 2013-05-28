@@ -955,3 +955,4 @@ static const unsigned char boot_logo_grey_bmp[] = {
 };
 
 #endif
+

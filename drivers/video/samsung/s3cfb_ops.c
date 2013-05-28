@@ -36,20 +36,6 @@
 #include <plat/cpu.h>
 #endif
 
-#if defined(CONFIG_FB_MX_MIPI_LCD) || defined(CONFIG_FB_MX2_MIPI_LCD)
-#if defined(CONFIG_MACH_M040) || defined(CONFIG_MACH_M041)
-#if defined(CONFIG_MX_UNICOM_KERNEL)
-	#include "mx2_unicom_logo.h"
-	#define LOGO_BACKGROUND_COLOR		0x00ffffff
-#else
-	#include "mx2_logo.h"
-	#define LOGO_BACKGROUND_COLOR		0x00000000
-#endif
-#else
-	#include "mx_logo.h"
-	#define LOGO_BACKGROUND_COLOR		0x00000000
-#endif
-
 #define NOT_DEFAULT_WINDOW 99
 #define CMA_REGION_FIMD 	"fimd"
 #ifdef CONFIG_EXYNOS4_CONTENT_PATH_PROTECTION
@@ -66,54 +52,96 @@ struct s3c_platform_fb *to_fb_plat(struct device *dev)
 }
 
 #ifndef CONFIG_FRAMEBUFFER_CONSOLE
-int s3cfb_draw_logo(struct fb_info *fb)
-{
+#if defined(CONFIG_MACH_M040) || defined(CONFIG_MACH_M041)
+#if defined(CONFIG_MX_UNICOM_KERNEL)
+	#include "mx2_unicom_logo.h"
+#elif defined(CONFIG_MX_CMCC_KERNEL)
+	#include "mx2_cmcc_logo.h"
+#else
+	#include "mx2_meizu_logo.h"
+#endif//CONFIG_MX_UNICOM_KERNEL
+#else
+	#include "mx_meizu_logo.h"
+#endif//(CONFIG_MACH_M040)
+
 #ifdef CONFIG_FB_S5P_SPLASH_SCREEN
+static struct meizu_cmap *s3cfb_create_cmap(const struct meizu_logo *logo)
+{
+	int i = 0, j=0;
+	struct meizu_cmap *cmap;
+
+	if(logo->type != LINUX_LOGO_CLUT224){
+		pr_err("%s: no support color type!\n", __func__);
+		return NULL;
+	}
+	cmap = kmalloc(sizeof(struct fb_cmap), GFP_KERNEL);
+	if(cmap){
+		cmap->start = 0;
+		cmap->len = logo->clutsize;
+		cmap->red = kmalloc(logo->clutsize, GFP_KERNEL);
+		cmap->green= kmalloc(logo->clutsize, GFP_KERNEL);
+		cmap->blue= kmalloc(logo->clutsize, GFP_KERNEL);
+
+		for(i=0, j=0; i<cmap->len; i++){
+			cmap->red[i] = logo->clut[j++];
+			cmap->green[i] = logo->clut[j++];
+			cmap->blue[i] = logo->clut[j++];
+		}
+	}
+	return cmap;
+}
+
+static int s3cfb_draw_cult224_logo(struct fb_info *fb)
+{
+	struct meizu_cmap *cmap;
 	struct fb_fix_screeninfo *fix = &fb->fix;
 	struct fb_var_screeninfo *var = &fb->var;
-
+	
 	u32 height = var->yres;
 	u32 width = var->xres;
 	u32 line = fix->line_length;
-	u32 pixel_index = 0;
+	u32 pixel_index = 0, cmap_index = 0;
 	char __iomem *screen_base = fb->screen_base;
 	char __iomem *screen_xbase;
 	u32 i, j;
 
-	pr_info("%s\n", __func__);
-	pr_debug("%s: draw mx logo:base=0x%x, yres=%d, xres=%d, height=%d, width=%d\n", __func__, (int)screen_base, var->yres, var->xres, var->height, var->width);
+	pr_info("%s: draw logo:base=0x%x, yres=%d, xres=%d, height=%d, width=%d\n", __func__, (int)screen_base, var->yres, var->xres, var->height, var->width);
 
-	/* Clear the whole screen */
-	for (i = 0; i < (height * width) * 4; i+=4) 
-		*(int*)(screen_base+i) = LOGO_BACKGROUND_COLOR;
+	cmap = s3cfb_create_cmap(&meizu_boot_logo);
+	if(cmap){
+		/* Clear the whole screen */
+		for (i = 0; i < (height * width) * 4; i+=4) 
+			*(int*)(screen_base+i) = meizu_boot_logo.bgd;
+	
+		screen_xbase = screen_base + meizu_boot_logo.yoffset*line;
 
-#ifdef CONFIG_MX_RECOVERY_KERNEL
-	if(!is_display_logo())
-		return 0;
-#endif
-
-	screen_xbase = screen_base + Y_MEIZUMX_LOGO_START * line;
-#if defined(CONFIG_MX_UNICOM_KERNEL)
-	for (i = Y_MEIZUMX_LOGO_START; i < Y_MEIZUMX_LOGO_START + MEIZUMX_LOGO_HEIGHT; i++) {
-		for (j = X_MEIZUMX_LOGO_START; j < X_MEIZUMX_LOGO_START + MEIZUMX_LOGO_WIDTH; j++) {
-			memset(screen_xbase + (j << 2) + 3, 0x00, 1);
-			memset(screen_xbase + (j << 2) + 2, boot_logo_grey_bmp[pixel_index++], 1);
-			memset(screen_xbase + (j << 2) + 1, boot_logo_grey_bmp[pixel_index++], 1);
-			memset(screen_xbase + (j << 2) + 0, boot_logo_grey_bmp[pixel_index++], 1);
+		for (i = meizu_boot_logo.yoffset; i < meizu_boot_logo.yoffset+meizu_boot_logo.height; i++) {
+			for (j = meizu_boot_logo.xoffset; j < meizu_boot_logo.xoffset+meizu_boot_logo.width; j++) {
+				cmap_index = meizu_boot_logo.data[pixel_index]-32;
+				if(cmap_index>cmap->len)
+					return 0;
+				memset(screen_xbase + (j << 2) + 3, 0x00, 1);
+				memset(screen_xbase + (j << 2) + 2, cmap->red[cmap_index], 1);
+				memset(screen_xbase + (j << 2) + 1, cmap->green[cmap_index], 1);
+				memset(screen_xbase + (j << 2) + 0, cmap->blue[cmap_index], 1);
+				pixel_index ++;
+			}
+			screen_xbase += line;
 		}
-		screen_xbase += line;
 	}
+	return 0;
+}
 #else
-	for (i = Y_MEIZUMX_LOGO_START; i < Y_MEIZUMX_LOGO_START + MEIZUMX_LOGO_HEIGHT; i++) {
-		for (j = X_MEIZUMX_LOGO_START; j < X_MEIZUMX_LOGO_START + MEIZUMX_LOGO_WIDTH; j++)
-			memset(screen_xbase + (j << 2), boot_logo_grey_bmp[pixel_index++], 3);
-		screen_xbase += line;
-	}
-#endif
-#else //CONFIG_FB_S5P_M9X_LCD
+static int s3cfb_draw_rgb_logo(struct fb_info *fb)
+{
+	struct fb_fix_screeninfo *fix = &fb->fix;
+	struct fb_var_screeninfo *var = &fb->var;
+
 	u32 height = var->yres / 3;
 	u32 line = fix->line_length;
 	u32 i, j;
+
+	pr_info("%s: draw logo:base=0x%x, yres=%d, xres=%d, height=%d, width=%d\n", __func__, (int)fb->screen_base, var->yres, var->xres, var->height, var->width);
 
 	for (i = 0; i < height; i++) {
 		for (j = 0; j < var->xres; j++) {
@@ -141,12 +169,32 @@ int s3cfb_draw_logo(struct fb_info *fb)
 			memset(fb->screen_base + i * line + j * 4 + 3, 0x00, 1);
 		}
 	}
-#endif
-#endif
-
 	return 0;
 }
+#endif
+int s3cfb_draw_logo(struct fb_info *fb)
+{
+#ifdef CONFIG_FB_S5P_SPLASH_SCREEN
+	pr_info("%s\n", __func__);
+#ifdef CONFIG_MX_RECOVERY_KERNEL
+	if(!is_display_logo())
+		return 0;
+#endif
+	switch(meizu_boot_logo.type){
+	case LINUX_LOGO_CLUT224:
+		s3cfb_draw_cult224_logo(fb);
+		break;
+	default:
+		pr_err("%s: no support color type!\n", __func__);
+		break;
+	}
 #else
+	s3cfb_draw_rgb_logo(fb);
+#endif
+	return 0;
+}
+#endif//CONFIG_FRAMEBUFFER_CONSOLE
+
 int fb_is_primary_device(struct fb_info *fb)
 {
 	struct s3cfb_window *win = fb->par;
@@ -160,7 +208,6 @@ int fb_is_primary_device(struct fb_info *fb)
 	else
 		return 0;
 }
-#endif
 
 int s3cfb_enable_window(struct s3cfb_global *fbdev, int id)
 {
