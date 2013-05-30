@@ -30,9 +30,12 @@
 #define REBOOT_MODE_CHARGE		0x0
 #define REBOOT_MODE_WIPE			0x1
 #define REBOOT_MODE_UPGRADE		0x2
+#define CUSTOM_MASK			0xFF
 
 static void mx2_reboot_internal(const char *cmd)
 {
+	unsigned long custom_val;
+
 	local_irq_disable();
 
 	if(cmd) {
@@ -42,6 +45,15 @@ static void mx2_reboot_internal(const char *cmd)
 			__raw_writel(REBOOT_MODE_WIPE, S5P_INFORM4);
 		else if (strstr(cmd, "upgrade"))
 			__raw_writel(REBOOT_MODE_UPGRADE, S5P_INFORM4);
+		else if (strstr(cmd, "custom")) {
+			if (!strict_strtoul(cmd+7, 10, &custom_val)) {
+				__raw_writel(custom_val & CUSTOM_MASK,
+								S5P_INFORM7);
+				/* notify uboot reboot to recovery */
+				__raw_writel(REBOOT_MODE_UPGRADE, S5P_INFORM4);
+			}
+			/* error cmd reboot to android */
+		}
 	}
 
 	flush_cache_all();
