@@ -517,7 +517,10 @@ static void max77665_work_func(struct work_struct *work)
 			}
 		}
 #else
-		do {
+		if (mx_is_usb_dock_insert()) {
+			pr_info("found dock inserted, treat it as AC\n");
+			cable_status = CABLE_TYPE_AC;
+		}else {
 			u8 reg_data;
 			max77665_read_reg(charger->iodev->muic, MAX77665_MUIC_REG_CDETCTRL1, &reg_data);
 			max77665_write_reg(charger->iodev->muic, MAX77665_MUIC_REG_CDETCTRL1, reg_data | 0x02);
@@ -552,7 +555,7 @@ static void max77665_work_func(struct work_struct *work)
 					} else 
 						cable_status = CABLE_TYPE_AC;
 			}
-		} while(0);
+		}
 		if (!regulator_is_enabled(charger->ps))
 			regulator_enable(charger->ps);
 #endif
@@ -581,7 +584,8 @@ static void max77665_work_func(struct work_struct *work)
 	schedule_delayed_work_on(0, &charger->poll_dwork, 0);
 
 	if (cable_status == CABLE_TYPE_USB) {
-		charger->usb_attach(true);	
+		if (charger->usb_attach)
+			charger->usb_attach(true);	
 		max77665_charger_notifier_call_chain(1);
 	} else {
 		msleep(500);

@@ -45,6 +45,8 @@ enum {
 	ADC_OPEN		= 0x1f
 };
 
+#define USB_DOCK_INSERT_LEVEL 0
+
 struct max77665_muic_info {
 	struct device		*dev;
 	struct max77665_dev	*max77665;
@@ -53,6 +55,10 @@ struct max77665_muic_info {
 	int host_insert;
 	struct regulator *reverse;
 	struct delayed_work dwork;
+
+	int usb_select_gpio;
+	int dock_irq_gpio;
+	int dock_output_gpio;
 };
 
 static struct max77665_muic_info *g_info;
@@ -114,6 +120,30 @@ inline static void echi_pm_runtime(int onoff)
 		pm_runtime_get_sync(&s5p_device_ehci.dev);
 #endif
 }
+inline static int max77665a_is_dock_detect(struct max77665_muic_info *info)
+{
+	return (gpio_get_value(info->dock_irq_gpio) == USB_DOCK_INSERT_LEVEL)?1:0;
+}
+
+int mx_is_usb_dock_insert(void)
+{
+	struct max77665_muic_info *info = g_info;
+	
+	if(info){
+		return (max77665a_is_dock_detect(info) || info->mhl_insert);
+	}
+	return 0;
+}
+
+inline static void max77665a_select_usb_dock(struct max77665_muic_info *info)
+{
+	gpio_set_value(info->usb_select_gpio, 1);
+}
+
+inline static void max77665a_select_usb_device(struct max77665_muic_info *info)
+{
+	gpio_set_value(info->usb_select_gpio, 0);
+}
 
 inline static int max77665a_set_usbid(struct max77665_muic_info *info, int value)
 {
@@ -134,41 +164,47 @@ inline static int max77665a_set_usbid(struct max77665_muic_info *info, int value
 static irqreturn_t max77665_muic_isr(int irq, void *dev_id)
 {
 	struct max77665_muic_info *info = dev_id;
-	u8 adc, adclow ,adcerr, adc1k;
+	u8 adc, adclow ,adcerr, adc1k, dock;
 	u8 status1;
-
+	
 	max77665_read_reg(info->muic, MAX77665_MUIC_REG_STATUS1, &status1);
 	adc = status1 & STATUS1_ADC_MASK;
 	adclow = !!(status1 & STATUS1_ADCLOW_MASK);
 	adcerr = !!(status1 & STATUS1_ADCERR_MASK);
 	adc1k = !!(status1 & STATUS1_ADC1K_MASK);
+	dock = max77665a_is_dock_detect(info);
 
-	pr_info("adc 0x%02x, adclow %d, adcerr %d, adc1k %d\n",
-			adc, adclow, adcerr, adc1k);
-
+	
+	pr_info("adc 0x%02x, adclow %d, adcerr %d, adc1k %d, dock=%d\n",
+			adc, adclow, adcerr, adc1k, dock);
 	if(adc1k) {
 		info->mhl_insert = true;
 		schedule_delayed_work(&info->dwork, 0);
-	} else if (adc == ADC_GND) {
+	} else if (adc == ADC_GND || dock) {
 		if(!info->host_insert) {
 			pr_info("otg connect\n");
 
 			echi_pm_runtime(false);
-			if(!regulator_is_enabled(info->reverse))
-				regulator_enable(info->reverse);
+
+			if(dock){
+				max77665a_select_usb_dock(info);
+			}else{
+				if(!regulator_is_enabled(info->reverse))
+					regulator_enable(info->reverse);
+			}
 			info->host_insert = true;
 		}
-	} else if (adc == ADC_REMOVE || adc == ADC_OPEN) {
+	} else if ((adc == ADC_REMOVE || adc == ADC_OPEN) && !dock) {
 		if (info->host_insert) {
 			pr_info("otg disconnect\n");
+			max77665a_select_usb_device(info);
 
 			echi_pm_runtime(true);
+
 			if(regulator_is_enabled(info->reverse))
 				regulator_disable(info->reverse);
-
 			info->host_insert = false;
 		}
-
 	}
 	return IRQ_HANDLED;
 }
@@ -259,6 +295,8 @@ static DEVICE_ATTR(debug, S_IRUGO|S_IWUSR|S_IWGRP,
 static int __devinit max77665_muic_probe(struct platform_device *pdev)
 {
 	struct max77665_dev *max77665 = dev_get_drvdata(pdev->dev.parent);
+	struct max77665_platform_data *pdata = dev_get_platdata(max77665->dev);
+	struct max77665_muic_platform_data *muic_pdata = pdata->muic_pdata;
 	struct max77665_muic_info *info;
 	int ret = 0;
 	int irq;
@@ -278,6 +316,10 @@ static int __devinit max77665_muic_probe(struct platform_device *pdev)
 	info->max77665 = max77665;
 	info->muic = max77665->muic;
 
+	info->usb_select_gpio = muic_pdata->usb_select_gpio;
+	info->dock_irq_gpio= muic_pdata->dock_irq_gpio;
+	info->dock_output_gpio= muic_pdata->dock_output_gpio;
+
 	info->reverse = regulator_get(NULL, "reverse");
 	if (IS_ERR(info->reverse)) {
 		dev_err(&pdev->dev, "Failed to get reverse regulator\n");
@@ -292,6 +334,10 @@ static int __devinit max77665_muic_probe(struct platform_device *pdev)
 		goto fail1;
 	}
 	INIT_DELAYED_WORK(&info->dwork, muic_mhl_work);
+
+	irq = gpio_to_irq(info->dock_irq_gpio);
+	ret = request_threaded_irq(irq, 0, max77665_muic_isr,
+			IRQF_TRIGGER_RISING |IRQF_TRIGGER_FALLING | IRQF_ONESHOT, "max77665_dock", info);
 
 	irq = max77665->irq_base + MAX77665_MUIC_IRQ_INT1_ADC1K;
 	ret = request_threaded_irq(irq, 0, max77665_muic_isr,
@@ -346,13 +392,17 @@ void max77665_muic_shutdown(struct device *dev)
 #ifdef CONFIG_PM
 static int max77665_muic_suspend(struct device *dev)
 {
-	gpio_set_value(M040_USB_SELECT, 1);
+	struct max77665_muic_info *info = dev_get_drvdata(dev);
+	/*usb d+/d- switch to usb dock host*/
+	max77665a_select_usb_dock(info);
 	return 0;
 }
 
 static int max77665_muic_resume(struct device *dev)
 {
-	gpio_set_value(M040_USB_SELECT, 0);
+	struct max77665_muic_info *info = dev_get_drvdata(dev);
+	/*usb d+/d- switch to usb device*/
+	max77665a_select_usb_device(info);
 	return 0;
 }
 

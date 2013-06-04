@@ -190,6 +190,12 @@ enum max77665_regulator {
 	MAX77665_REG_MAX,
 };
 
+struct max77665_muic_platform_data {
+	unsigned int usb_select_gpio;/*0:device, 1:host*/
+	unsigned int dock_irq_gpio;
+	unsigned int dock_output_gpio;
+};
+
 /**
  *  struct max77665_regulator_data
  *  The number of LED devices for MAX77665 is two
@@ -232,6 +238,9 @@ struct max77665_platform_data {
 
 	/* ---- LED ---- */
 	struct max77665_led_platform_data *led_pdata;
+
+	/* ---- MUIC ---- */
+	struct max77665_muic_platform_data *muic_pdata;
 };
 
 #endif	/* __LINUX_MFD_MAX77665_H */

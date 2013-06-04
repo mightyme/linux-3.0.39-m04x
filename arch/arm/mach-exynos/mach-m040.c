@@ -331,7 +331,13 @@ static struct max77665_haptic_platform_data max77665_haptic_pdata = {
 	.pwm_divisor = MAX77665_PWM_DIVISOR_128
 };
 #endif
-
+#ifdef CONFIG_MAX77665A_MUIC
+static struct max77665_muic_platform_data max77665_muic_pdata = {
+	.usb_select_gpio = M040_USB_SELECT,
+	.dock_irq_gpio = M040_DOCK_IRQ,
+	.dock_output_gpio = M040_DOCK_OUTPUT,
+};
+#endif
 static struct max77665_platform_data __initdata m040_max77665_info = {
 	.irq_base = IRQ_BOARD_START + 20,
 	.wakeup = true,
@@ -359,6 +365,10 @@ static struct max77665_platform_data __initdata m040_max77665_info = {
 	/* haptic */
 #ifdef CONFIG_MOTOR_DRV_MAX77665
 	.haptic_pdata = &max77665_haptic_pdata,
+#endif
+	/*muic*/
+#ifdef CONFIG_MAX77665A_MUIC
+	.muic_pdata = &max77665_muic_pdata,
 #endif
 };
 #endif
