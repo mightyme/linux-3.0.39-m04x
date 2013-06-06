@@ -48,7 +48,7 @@ static ssize_t set_vsync_pulse(struct sysdev_class *class,
 		start_vsync_boost(info);
 	return count; 
 }
-static SYSDEV_CLASS_ATTR(vsync_pulse, 0666, NULL, set_vsync_pulse);
+static SYSDEV_CLASS_ATTR(vsync_pulse, 0644, NULL, set_vsync_pulse);
 
 static void start_touch_boost(struct tb_private_info *info)
 {
@@ -90,7 +90,7 @@ static ssize_t set_touch_pulse(struct sysdev_class *class,
 		start_touch_boost(info);
 	return count; 
 }
-static SYSDEV_CLASS_ATTR(touch_pulse, 0666, NULL, set_touch_pulse);
+static SYSDEV_CLASS_ATTR(touch_pulse, 0644, NULL, set_touch_pulse);
 
 static ssize_t get_boost_cpufreq(struct sysdev_class *class,
 				struct sysdev_class_attribute *attr, char *buf)
@@ -113,7 +113,7 @@ static ssize_t set_boost_cpufreq(struct sysdev_class *class,
 	return count; 
 }
 
-static SYSDEV_CLASS_ATTR(boost_cpufreq, 0666, get_boost_cpufreq, set_boost_cpufreq);
+static SYSDEV_CLASS_ATTR(boost_cpufreq, 0644, get_boost_cpufreq, set_boost_cpufreq);
 
 static ssize_t get_boost_debug(struct sysdev_class *class,
 				struct sysdev_class_attribute *attr, char *buf)
@@ -136,7 +136,7 @@ static ssize_t set_boost_debug(struct sysdev_class *class,
 	return count; 
 }
 
-static SYSDEV_CLASS_ATTR(boost_debug, 0666, get_boost_debug, set_boost_debug);
+static SYSDEV_CLASS_ATTR(boost_debug, 0644, get_boost_debug, set_boost_debug);
 
 static ssize_t get_lock_busfreq(struct sysdev_class *class,
 				struct sysdev_class_attribute *attr, char *buf)
@@ -158,7 +158,7 @@ static ssize_t set_lock_busfreq(struct sysdev_class *class,
 
 	return count; 
 }
-static SYSDEV_CLASS_ATTR(lock_busfreq, 0666, get_lock_busfreq, set_lock_busfreq);
+static SYSDEV_CLASS_ATTR(lock_busfreq, 0644, get_lock_busfreq, set_lock_busfreq);
 
 static ssize_t get_lock_time(struct sysdev_class *class,
 				struct sysdev_class_attribute *attr, char *buf)
@@ -185,7 +185,7 @@ static ssize_t set_lock_time(struct sysdev_class *class,
 	return count; 
 }
 
-static SYSDEV_CLASS_ATTR(lock_time, 0666, get_lock_time, set_lock_time);
+static SYSDEV_CLASS_ATTR(lock_time, 0644, get_lock_time, set_lock_time);
 
 static struct sysdev_class_attribute *tb_sysdev_class_attrs[] = {
 	&attr_boost_debug,
