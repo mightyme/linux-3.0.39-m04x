@@ -578,7 +578,7 @@ static ssize_t es305b_store(struct device *dev,
 
 #define ES305B_ATTR(_name)\
 {\
-    .attr = { .name = #_name, .mode = S_IRUGO | S_IWUGO},\
+    .attr = { .name = #_name, .mode = S_IRUGO | S_IWUSR},\
     .show = es305b_show_property,\
     .store = es305b_store,\
 }
