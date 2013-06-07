@@ -1506,7 +1506,7 @@ static int __init spt_spi_init(void)
 module_init(spt_spi_init);
 module_exit(spt_spi_exit);
 
-MODULE_AUTHOR("Meizu");
+MODULE_AUTHOR("Wenbin Wu <wenbinwu@meizu.com>");
 MODULE_DESCRIPTION("SC880xG spi driver");
 MODULE_LICENSE("GPL");
 MODULE_INFO(Version, "0.1-SC880xG");
