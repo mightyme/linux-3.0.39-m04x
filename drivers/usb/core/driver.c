@@ -1305,12 +1305,28 @@ static void choose_wakeup(struct usb_device *udev, pm_message_t msg)
 	udev->do_remote_wakeup = w;
 }
 
+static int usb_is_hsic_tune_device(struct usb_device *udev )
+{
+	int i;
+	
+	if(udev->quirks & USB_QUIRK_HSIC_TUNE)
+		return 1;
+
+	for(i=0; i<udev->maxchild; i++){
+		if(udev->children[i]){
+			if(usb_is_hsic_tune_device(udev->children[i]))
+				return 1;
+		}
+	}
+	return 0;
+}
+
 /* The device lock is held by the PM core */
 int usb_suspend(struct device *dev, pm_message_t msg)
 {
 	struct usb_device	*udev = to_usb_device(dev);
 
-	if (udev->quirks & USB_QUIRK_HSIC_TUNE){
+	if (usb_is_hsic_tune_device(udev)){
 		dev_dbg(&udev->dev, "%s: msg.event %d\n", __func__, msg.event);
 		return 0;
 	}
@@ -1325,10 +1341,11 @@ int usb_resume(struct device *dev, pm_message_t msg)
 	struct usb_device	*udev = to_usb_device(dev);
 	int			status;
 
-	if (udev->quirks & USB_QUIRK_HSIC_TUNE){
-		dev_dbg(&udev->dev, "%s: msg.event %d\n", __func__, msg.event);
+	if (usb_is_hsic_tune_device(udev)){
+		dev_dbg(&udev->dev, "%s: msg.event %d, skip\n", __func__, msg.event);
 		return 0;
 	}
+
 	/* For PM complete calls, all we do is rebind interfaces */
 	if (msg.event == PM_EVENT_ON) {
 		if (udev->state != USB_STATE_NOTATTACHED)

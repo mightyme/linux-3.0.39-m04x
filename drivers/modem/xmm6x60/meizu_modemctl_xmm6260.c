@@ -51,6 +51,11 @@ int s5p_ehci_port_power(int state){return 0;}
 static struct modem_ctl *global_mc = NULL;
 DEFINE_SEMAPHORE(modem_downlock);
 
+static int xmm6260_ehci_power(struct modem_ctl *mc, int state)
+{
+	s5p_ehci_power(state);
+	return 0;
+}
 static int __init modem_debug_setup(char *args)
 {
 	int error;
@@ -291,7 +296,7 @@ static int xmm6260_main_enum(struct modem_ctl *mc)
 	modem_wake_lock(mc);
 	mc->enum_done = 0;
 	xmm6260_off(mc);
-	s5p_ehci_port_power(0);
+	xmm6260_ehci_power(mc, 0);
 	modem_set_active_state(0);
 	modem_set_slave_wakeup(0);
 	msleep(100);
@@ -302,7 +307,7 @@ static int xmm6260_main_enum(struct modem_ctl *mc)
 	wait_for_completion_timeout(&done, 20*HZ);
 	mc->l2_done = NULL;
 	modem_set_slave_wakeup(1);
-	s5p_ehci_port_power(1);
+	xmm6260_ehci_power(mc, 1);
 	modem_set_active_state(1);
 	mc->enum_done = 1;
 	modem_wake_lock_timeout(mc, 5*HZ);

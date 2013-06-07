@@ -524,6 +524,7 @@ int  s5p_ehci_power(int value)
 		pm_runtime_forbid(&pdev->dev);
 		is_ehci_removed = 1;
 		usb_remove_hcd(hcd);
+		pdata->cp_port_enable = 0;
 		s5p_ehci_phy_off(s5p_dev);
 		s5p_ehci->power_on = 0;
 		msleep(5);
@@ -538,7 +539,7 @@ int  s5p_ehci_power(int value)
 		}
 		s5p_ehci_phy_on(s5p_dev);
 		s5p_ehci_configurate(hcd);
-
+		pdata->cp_port_enable = 1;
 		irq = platform_get_irq(pdev, 0);
 		is_ehci_removed = 0;
 		retval = usb_add_hcd(hcd, irq,
