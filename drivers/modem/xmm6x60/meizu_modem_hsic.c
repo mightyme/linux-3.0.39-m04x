@@ -37,6 +37,9 @@
 #include "modem_utils.h"
 #include "meizu_modem_hsic.h"
 
+#define ACM_CTRL_DTR	0x01
+#define ACM_CTRL_RTS	0x02
+
 extern void pm_runtime_init(struct device *dev);
 #define HSIC_MAX_PIPE_ORDER_NR 3
 
@@ -1004,6 +1007,15 @@ static int __devinit modem_hsic_probe(struct usb_interface *intf,
 	control_interface->needs_remote_wakeup = 0;
 	pm_runtime_set_autosuspend_delay(&root_usbdev->dev, 200); /*200ms*/
 
+	err = usb_control_msg(usbdev, usb_sndctrlpipe(usbdev, 0),
+			USB_CDC_REQ_SET_CONTROL_LINE_STATE,
+			USB_TYPE_CLASS | USB_RECIP_INTERFACE,
+			ACM_CTRL_DTR | ACM_CTRL_RTS,
+			control_interface->altsetting[0].desc.bInterfaceNumber,
+			NULL, 0, 5000);
+	if (err < 0 )
+		MIF_ERR("set RTS/CTS failed\n");
+ 
 	data_intf = usb_ifnum_to_if(usbdev, union_hdr->bSlaveInterface0);
 	if (!data_intf) {
 		MIF_ERR("data_inferface is NULL\n");
