@@ -45,12 +45,24 @@ enum {
 	ADC_OPEN		= 0x1f
 };
 
+enum {
+	ADC_TYPE_NONE	= 0,
+	ADC_TYPE_MHL,
+	ADC_TYPE_DOCK,
+	ADC_TYPE_OTG,
+	ADC_TYPE_DISCONNECT,
+};
+
 #define USB_DOCK_INSERT_LEVEL 0
 
 struct max77665_muic_info {
 	struct device		*dev;
 	struct max77665_dev	*max77665;
 	struct i2c_client	*muic;
+
+	int adc_type;
+	int suspended;
+
 	int mhl_insert;
 	int host_insert;
 	struct regulator *reverse;
@@ -160,12 +172,11 @@ inline static int max77665a_set_usbid(struct max77665_muic_info *info, int value
 
 	return 0;
 }
-
-static irqreturn_t max77665_muic_isr(int irq, void *dev_id)
+static int max77665_muic_get_type(struct max77665_muic_info *info)
 {
-	struct max77665_muic_info *info = dev_id;
 	u8 adc, adclow ,adcerr, adc1k, dock;
 	u8 status1;
+	int type =ADC_TYPE_NONE;
 	
 	max77665_read_reg(info->muic, MAX77665_MUIC_REG_STATUS1, &status1);
 	adc = status1 & STATUS1_ADC_MASK;
@@ -173,38 +184,74 @@ static irqreturn_t max77665_muic_isr(int irq, void *dev_id)
 	adcerr = !!(status1 & STATUS1_ADCERR_MASK);
 	adc1k = !!(status1 & STATUS1_ADC1K_MASK);
 	dock = max77665a_is_dock_detect(info);
-
 	
 	pr_info("adc 0x%02x, adclow %d, adcerr %d, adc1k %d, dock=%d\n",
 			adc, adclow, adcerr, adc1k, dock);
+	
 	if(adc1k) {
-		info->mhl_insert = true;
-		schedule_delayed_work(&info->dwork, 0);
-	} else if (adc == ADC_GND || dock) {
-		if(!info->host_insert) {
-			pr_info("otg connect\n");
-
+		type = ADC_TYPE_MHL;
+	} else if (dock) {
+		type= ADC_TYPE_DOCK;
+	} else if (adc == ADC_GND) {
+		type = ADC_TYPE_OTG;
+	} else if ((adc == ADC_OPEN) && !dock) {
+		type = ADC_TYPE_DISCONNECT;
+	}
+	return type;
+}
+static void max77665_muic_enable_host(struct max77665_muic_info *info)
+{
+	if(!info->host_insert) {
+		pr_info("otg connect\n");
+		switch(info->adc_type){
+		case ADC_TYPE_MHL:
+		case ADC_TYPE_DOCK:
 			echi_pm_runtime(false);
-
-			if(dock){
-				max77665a_select_usb_dock(info);
-			}else{
-				if(!regulator_is_enabled(info->reverse))
+			max77665a_select_usb_dock(info);
+			break;
+		case ADC_TYPE_OTG:
+			echi_pm_runtime(false);
+			if(!regulator_is_enabled(info->reverse))
 					regulator_enable(info->reverse);
-			}
-			info->host_insert = true;
+			break;
 		}
-	} else if ((adc == ADC_REMOVE || adc == ADC_OPEN) && !dock) {
-		if (info->host_insert) {
-			pr_info("otg disconnect\n");
-			max77665a_select_usb_device(info);
+		info->host_insert = true;
+	}
+}
 
-			echi_pm_runtime(true);
+static void max77665_muic_disable_host(struct max77665_muic_info *info)
+{
+	if (info->host_insert) {
+		pr_info("otg disconnect\n");
+		max77665a_select_usb_device(info);
 
-			if(regulator_is_enabled(info->reverse))
-				regulator_disable(info->reverse);
-			info->host_insert = false;
-		}
+		echi_pm_runtime(true);
+
+		if(regulator_is_enabled(info->reverse))
+			regulator_disable(info->reverse);
+		info->host_insert = false;
+	}
+}
+
+static irqreturn_t max77665_muic_isr(int irq, void *dev_id)
+{
+	struct max77665_muic_info *info = dev_id;
+
+	info->adc_type = max77665_muic_get_type(info);
+
+	switch(info->adc_type){
+	case ADC_TYPE_MHL:
+		info->mhl_insert = true;
+		max77665_muic_enable_host(info);
+		schedule_delayed_work(&info->dwork, 0);
+		break;
+	case ADC_TYPE_DOCK:
+	case ADC_TYPE_OTG:
+		max77665_muic_enable_host(info);
+		break;
+	case ADC_TYPE_DISCONNECT:
+		max77665_muic_disable_host(info);
+		break;
 	}
 	return IRQ_HANDLED;
 }
@@ -395,6 +442,7 @@ static int max77665_muic_suspend(struct device *dev)
 	struct max77665_muic_info *info = dev_get_drvdata(dev);
 	/*usb d+/d- switch to usb dock host*/
 	max77665a_select_usb_dock(info);
+	info->suspended = true;
 	return 0;
 }
 
@@ -403,6 +451,7 @@ static int max77665_muic_resume(struct device *dev)
 	struct max77665_muic_info *info = dev_get_drvdata(dev);
 	/*usb d+/d- switch to usb device*/
 	max77665a_select_usb_device(info);
+	info->suspended = false;
 	return 0;
 }
 
