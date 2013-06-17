@@ -111,6 +111,7 @@ struct lcd_panel_info {
 	int ce_mode;
 
 	int id_code[ID_CODEMAX];
+	int panel_manu;
 	int cabc_en;
 };
 /*For Sharp lcd module config.*/
