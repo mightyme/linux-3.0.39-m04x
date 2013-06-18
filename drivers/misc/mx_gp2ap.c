@@ -310,10 +310,22 @@ static int gp2ap_set_ps_mode(struct gp2ap_data *gp2ap, int mode)
 	int ret;
 	u8 buf[4];
 
-	buf[0] = MEASURE_CYCLE_4;
+	buf[0] = MEASURE_CYCLE_4 | ALS_RANGE_X8 | ALS_RESOLUTION_14;
 	buf[1] = INT_TYPE_PULSE | PS_RESOLUTION_10 | PS_RANGE_X4;
-	buf[2] = INTVAL_TIME_16 | LED_CURRENT_110 | INT_SETTING_PS | LED_FREQUENCY_327K; 
+	buf[2] = INTVAL_TIME_0 | LED_CURRENT_110 | INT_SETTING_PS | LED_FREQUENCY_327K; 
 	ret = gp2ap_i2c_write_multibytes(gp2ap->client, REG_COMMAND2, buf, 3);
+	if (ret < 0) {
+		pr_err("%s()->%d: gp2ap_i2c_write_multibytes fail!\n", __func__, __LINE__);
+		return ret;
+	}
+
+	//Set interrupt signal of the ALS so as not to occur.
+	buf[0] = 0x00;	 /* low threshold 0000 */
+	buf[1] = 0x00;
+	buf[2] = 0xFF;	 /* high threshold FFFF */
+	buf[3] = 0xFF;
+
+	ret = gp2ap_i2c_write_multibytes(gp2ap->client, REG_ATS_LLSB, buf, 4);
 	if (ret < 0) {
 		pr_err("%s()->%d: gp2ap_i2c_write_multibytes fail!\n", __func__, __LINE__);
 		return ret;
@@ -333,7 +345,7 @@ static int gp2ap_set_ps_mode(struct gp2ap_data *gp2ap, int mode)
 		}
 	}
 
-	buf[0] = SOFTWARE_OPERATION | OPERATING_MODE_PS;
+	buf[0] = SOFTWARE_OPERATION | OPERATING_MODE_ALL;
 	switch (mode) {
 	case PS_IRQ_MODE:
 		buf[0] |= CONTINUE_OPERATION;
@@ -349,14 +361,6 @@ static int gp2ap_set_ps_mode(struct gp2ap_data *gp2ap, int mode)
 		return ret;
 	}
 
-#if 0
-	if (PS_SHUTDOWN_MODE == mode) {
-		/* 10bit, 4 cycle: 1.56msec × 2 x 8 = 24.96
-		 * wait for mearsuing about > 24.96
-		 */
-		msleep_interruptible(50);
-	}
-#endif
 	return 0;
 }
 
@@ -1258,10 +1262,27 @@ static void gp2ap_ps_handler(struct work_struct *work)
 			struct gp2ap_data, ps_dwork);
 	struct i2c_client *client = gp2ap->client;
 	struct input_dev *idp = gp2ap->input_dev;
-	int ret, ps_data = 0;
+	int ret;
+	int ps_data = gp2ap->ps_data;
+	int clear_data = 0, ir_data = 0;
 	u8 buf[2] = {0}, command1 = 0;
 
-	/*read REG_COMMAND1(0x00) to clear interrupts*/
+	ret = gp2ap_i2c_read_multibytes(client, REG_D0_LSB, buf, 2);
+	if (ret < 0) {
+		pr_err("%s()->%d:read REG_D1_LSB fail!\n",
+			__func__, __LINE__);
+		return;
+	}
+	clear_data = (buf[1] << 8) | buf[0];
+
+	ret = gp2ap_i2c_read_multibytes(client, REG_D1_LSB, buf, 2);
+	if (ret < 0) {
+		pr_err("%s()->%d:read REG_D1_LSB fail!\n",
+			__func__, __LINE__);
+		return;
+	}
+	ir_data = (buf[1] << 8) | buf[0];
+
 	ret = gp2ap_i2c_read_byte(client, REG_COMMAND1, &command1);
 	if (ret < 0) {
 		pr_err("%s()->%d:read command1 reg fail!\n",
@@ -1269,18 +1290,36 @@ static void gp2ap_ps_handler(struct work_struct *work)
 		return;
 	}
 
-	ret = gp2ap_i2c_read_multibytes(client, REG_D2_LSB, buf, 2);
-	if (ret < 0) {
-		pr_err("%s()->%d:read REG_ALS_D2_LSB reg fail!\n",
-			__func__, __LINE__);
-	} else {
-		ps_data = (buf[1] << 8) | buf[0];
-	}
-	if (ps_data <= gp2ap->ps_far_threshold) 
-		ps_data = PS_FAR;
-	if (ps_data >= gp2ap->ps_near_threshold) 
+	pr_debug("clear data %d, ir_data %d\n", clear_data, ir_data);
+
+	/* In the current case, considering the light source color temperature of about 2500K */
+	if ((ir_data * 100 >= clear_data * 80) && (ir_data > 400) && (command1 & 0x08)) { //PROX register CLEAR
+		buf[0] = SOFTWARE_OPERATION | CONTINUE_OPERATION | OPERATING_MODE_ALL;
+		ret = gp2ap_i2c_write_byte(gp2ap->client, REG_COMMAND1, buf[0]);
+		if (ret < 0) {
+			pr_err("%s()->%d: gp2ap_i2c_write_byte fail!\n", __func__, __LINE__);
+			return;
+		}	
+	} else if ((command1 & 0x08)) { //NEAR
 		ps_data = PS_NEAR;
-	
+		pr_debug("###############ps_data %d NEAR\n", ps_data);
+		buf[0] = MEASURE_CYCLE_0 | ALS_RESOLUTION_14 | ALS_RANGE_X8;
+		ret = gp2ap_i2c_write_byte(gp2ap->client, REG_COMMAND2, buf[0]);
+		if (ret < 0) {
+			pr_err("%s()->%d: gp2ap_i2c_write_byte fail!\n", __func__, __LINE__);
+			return;
+		}	
+	} else if (!(command1 & 0x08)) { //FAR
+		ps_data = PS_FAR;
+		pr_debug("###############ps_data %d FAR\n", ps_data);
+		//Mesure cycle 1(once) --> 4 times
+		buf[0] = MEASURE_CYCLE_4 | ALS_RESOLUTION_14 | ALS_RANGE_X8;
+		ret = gp2ap_i2c_write_byte(gp2ap->client, REG_COMMAND2, buf[0]);
+		if (ret < 0) {
+			pr_err("%s()->%d: gp2ap_i2c_write_byte fail!\n", __func__, __LINE__);
+			return;
+		}	
+	}
 	if (gp2ap->ps_data != ps_data) {
 		wake_lock_timeout(&gp2ap->ps_wake_lock, 3*HZ);
 		input_report_abs(idp, ABS_PS, ps_data);
