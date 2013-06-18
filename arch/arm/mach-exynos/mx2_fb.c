@@ -175,7 +175,6 @@ static int lcd_panel_reset_level(struct lcd_device *ld, int level)
 	}
 	gpio_set_value(gpio, level);
 	gpio_free(gpio);
-	msleep(5);
 	return 0;
 }
 
@@ -252,6 +251,7 @@ static int lcd_panel_power(struct lcd_device *ld, int enable, int panel)
 		lcd_panel_power_avee(ld, enable);
 		mdelay(10);
 		lcd_panel_reset_level(ld, 1);
+		mdelay(10);
 	} else {
 		if (panel == 0) {
 			lcd_panel_power_avee(ld, enable);
@@ -262,13 +262,12 @@ static int lcd_panel_power(struct lcd_device *ld, int enable, int panel)
 			mdelay(1);
 			lcd_panel_power_vddio(ld, enable);
 			mdelay(100);
-			lcd_panel_power_avdd(ld, enable);
+			lcd_panel_power_vci(ld, enable);
 		} else {
 			lcd_panel_power_avee(ld, enable);
 			lcd_panel_power_avdd(ld, enable);
+			lcd_panel_power_vci(ld, enable);
 			lcd_panel_power_vddio(ld, enable);
-			lcd_panel_power_avdd(ld, enable);
-			lcd_panel_reset_level(ld, 0);
 		}
 	}
 	return 0;
