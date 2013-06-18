@@ -94,8 +94,11 @@ MODULE_PARM_DESC(param, "Force reflash of RMI4 devices");
  * instead of getting it from the F01 queries.
  */
 static char *tpk_img_name = "M040-TPK";
+static char *tpk_w_img_name = "M040W-TPK";
 static char *wintek_img_name = "M040-WTK";
 module_param(tpk_img_name, charp, S_IRUGO);
+MODULE_PARM_DESC(param, "Name of the TPK RMI4 firmware image");
+module_param(tpk_w_img_name, charp, S_IRUGO);
 MODULE_PARM_DESC(param, "Name of the TPK RMI4 firmware image");
 module_param(wintek_img_name, charp, S_IRUGO );
 MODULE_PARM_DESC(param, "Name of the Wintek RMI4 firmware image");
@@ -263,10 +266,18 @@ static int read_f01_queries(struct reflash_data *data)
 	if( strcmp(tpk_img_name,data->product_id) == 0)	{
 		dev_info(&data->rmi_dev->dev, "Manufacturer TPK\n");
 		pdata->manufacturer_id = MANUFACTURER_TPK;
+	}	
+	else if( strcmp(tpk_w_img_name,data->product_id) == 0)	{
+		dev_info(&data->rmi_dev->dev, "Manufacturer TPK,White\n");
+		pdata->manufacturer_id = MANUFACTURER_TPK_W;
 	}
-	else	{//"s3202_ver5"
+	else if( strcmp(wintek_img_name,data->product_id) == 0)	{
 		dev_info(&data->rmi_dev->dev, "Manufacturer Wintek\n");
 		pdata->manufacturer_id = MANUFACTURER_WINTEK;
+	}
+	else	{//"s3202_ver5"
+		dev_info(&data->rmi_dev->dev, "Unknown manufacturer.\n");
+		pdata->manufacturer_id = MANUFACTURER_UNKNOWN;
 	}
 	
 	return 0;
@@ -689,6 +700,12 @@ void rmi4_fw_update(struct rmi_device *rmi_dev,
 		snprintf(firmware_name, sizeof(firmware_name), "rmi4/%s.img",
 			tpk_img_name ? tpk_img_name : (char*)data.product_id);	
 	}
+	else	if( pdata->manufacturer_id == MANUFACTURER_TPK_W)
+	{
+		snprintf(firmware_name, sizeof(firmware_name), "rmi4/%s.img",
+			tpk_img_name ? tpk_img_name : (char*)data.product_id);	
+			//tpk_w_img_name ? tpk_w_img_name : (char*)data.product_id);	
+	}
 	else	if( pdata->manufacturer_id == MANUFACTURER_WINTEK)
 	{
 		snprintf(firmware_name, sizeof(firmware_name), "rmi4/%s.img",
@@ -732,6 +749,7 @@ void rmi4_fw_update(struct rmi_device *rmi_dev,
 			header.image_size;
 
 	if(( pdata->manufacturer_id == MANUFACTURER_TPK) 
+		|| ( pdata->manufacturer_id == MANUFACTURER_TPK_W)
 		|| ( pdata->manufacturer_id == MANUFACTURER_WINTEK))
 		retval = go_nogo_mx(&data, &header);
 	else

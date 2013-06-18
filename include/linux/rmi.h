@@ -43,8 +43,9 @@
  */
 enum rmi_manufacturer_id {
 	MANUFACTURER_TPK 		= 0,
-	MANUFACTURER_WINTEK 	= 1,
-	MANUFACTURER_UNKNOWN 	= 2,
+	MANUFACTURER_TPK_W		= 1,
+	MANUFACTURER_WINTEK 	= 2,
+	MANUFACTURER_UNKNOWN 	= 3,
 };
 
 /* Permissions for sysfs attributes.  Since the permissions policy will change

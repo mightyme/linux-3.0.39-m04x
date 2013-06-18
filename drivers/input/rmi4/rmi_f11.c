@@ -67,6 +67,13 @@
 #define DEFAULT_MAX_ABS_MT_TRACKING_ID 10
 #define MAX_NAME_LENGTH 256
 
+
+#define	REG_F54_ANALOG_CTRL00	(0x010D)
+#define	REG_F54_ANALOG_CTRL02	(0x010F)
+#define	REG_F54_ANALOG_CTRL13	(0x011D)
+#define	REG_F54_ANALOG_CTRL20	(0x0136)
+#define	REG_F54_ANALOG_CMD00	(0x0172)
+
 static int touch_debug= 0;
 static int touch_adjust= 0;
 
@@ -1500,17 +1507,30 @@ static void f11_set_abs_params(struct rmi_function_container *fc, int index)
 static void set_noise_mitigation_by_vbus(struct f11_data *data)
 {
 	int value,cap_val;
+	static int cap_val_fw =  0xFFFF;
 	struct f11_data *f11 = data;
 	struct rmi_device *rmi_dev = f11->rmi_dev;
 	struct rmi_device_platform_data *pdata = to_rmi_platform_data(rmi_dev);
 
-	if( (pdata->manufacturer_id != MANUFACTURER_TPK)  && (pdata->manufacturer_id != MANUFACTURER_WINTEK))
-		return;
+	if( cap_val_fw == 0xFFFF )
+	{
+		int ret;
+		cap_val = 0;
+		ret = rmi_read_block(rmi_dev,REG_F54_ANALOG_CTRL02,(unsigned char *)&cap_val,2);
+		if( ret < 0) {
+			dev_err(&rmi_dev->dev, "read error %d\n",ret);
+			return;
+		}
+		else	 {
+			cap_val_fw = cap_val;
+		}
+		dev_dbg(&rmi_dev->dev,  "the default saturation capacitance : %d.\n",cap_val_fw);
+	}
 	
 	if(touch_adjust)
-		cap_val = 148;//180@T0018  148@T0019
+		cap_val = cap_val_fw - 75;//148;//180@T0018  148@T0019
 	else
-		cap_val = 223;
+		cap_val = cap_val_fw;//223;
 	
 	value = gpio_get_value(pdata->vbus_gpio) ;
 	
@@ -1522,7 +1542,7 @@ static void set_noise_mitigation_by_vbus(struct f11_data *data)
 	}
 	else	{
 		//rmi_f11_disable_noise_mitigation(f11,true);	
-		rmi_f11_saturation_capacitance(f11,cap_val);//223
+		rmi_f11_saturation_capacitance(f11,cap_val);
 	}	
 }
 
@@ -1655,9 +1675,6 @@ static int rmi_f11_force_reportmode_reduced(struct rmi_function_container *fc)
 	u8 val,deltaxy[2];
 	int rc = 0;
 	struct rmi_device_platform_data *pdata = to_rmi_platform_data(rmi_dev);	
-
-	if( pdata->manufacturer_id != MANUFACTURER_TPK)
-		return rc;
 
 	deltaxy[0] = 1;
 	deltaxy[1] = 1;
@@ -1822,12 +1839,6 @@ static u8 rmi_f11_getfingers(struct f11_2d_sensor *sensor)
 	return finger_pressed_count;
 }
 
-
-#define	REG_F54_ANALOG_CTRL00	0x010D
-#define	REG_F54_ANALOG_CTRL02	0x010F
-#define	REG_F54_ANALOG_CTRL13	0x011D
-#define	REG_F54_ANALOG_CTRL20	0x0136
-#define	REG_F54_ANALOG_CMD00	0x0172
 static int rmi_f11_saturation_capacitance(struct f11_data *data,u16 value)
 {
 	struct rmi_device *rmi_dev =data->rmi_dev;
@@ -1910,9 +1921,6 @@ static int _turn_on_calibration(struct f11_data *data,int bOnOff)
 	int ret;
 	u8 fingers = 0;
 	struct rmi_device_platform_data *pdata = to_rmi_platform_data(rmi_dev);
-
-	if( (pdata->manufacturer_id != MANUFACTURER_TPK)  && (pdata->manufacturer_id != MANUFACTURER_WINTEK))
-		return 0;
 
 	// Enable/Disable Energy Ratio Relaxation
 	ret = rmi_read(rmi_dev,REG_F54_ANALOG_CTRL00,&val);//0x20
