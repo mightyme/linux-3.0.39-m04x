@@ -571,9 +571,9 @@ static DEVICE_ATTR(erase, 0220, NULL, store_erase);
 static DEVICE_ATTR(debug, 0220, NULL, store_debug);
 static DEVICE_ATTR(download_firmware, 0660, 
 	show_download_firmware, store_download_firmware);
-static DEVICE_ATTR(pre_flash_current, 0666, 
+static DEVICE_ATTR(pre_flash_current, 0660, 
 	show_pre_flash_current, store_pre_flash_current);
-static DEVICE_ATTR(full_flash_current, 0666, 
+static DEVICE_ATTR(full_flash_current, 0660, 
 	show_full_flash_current, store_full_flash_current);
 
 static struct attribute *m6mo_attributes[] = {
