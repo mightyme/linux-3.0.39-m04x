@@ -1528,9 +1528,11 @@ static void set_noise_mitigation_by_vbus(struct f11_data *data)
 	}
 	
 	if(touch_adjust)
-		cap_val = cap_val_fw - 75;//148;//180@T0018  148@T0019
-	else
-		cap_val = cap_val_fw;//223;
+		//cap_val = cap_val_fw - 75;
+		cap_val = 148;//148;//180@T0018  148@T0019
+	else	
+		//cap_val = cap_val_fw;
+		cap_val = 223;//223; 
 	
 	value = gpio_get_value(pdata->vbus_gpio) ;
 	
