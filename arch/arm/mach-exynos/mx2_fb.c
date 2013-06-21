@@ -175,6 +175,7 @@ static int lcd_panel_reset_level(struct lcd_device *ld, int level)
 	}
 	gpio_set_value(gpio, level);
 	gpio_free(gpio);
+	msleep(5);
 	return 0;
 }
 
@@ -182,93 +183,101 @@ static int lcd_panel_reset(struct lcd_device *ld)
 {
 	return lcd_panel_reset_level(ld, 0);
 }
-static int lcd_panel_power_vddio(struct lcd_device *ld, int enable)
+
+static int lcd_panel_power_vdd(struct lcd_device *ld, int enable)
 {
+	struct regulator *vdd = regulator_get(&ld->dev, "LCD_2V8");
 	struct regulator *vddio = regulator_get(&ld->dev, "vdd_ldo13");
-	int ret = 0;
 
-	ret = enable ? regulator_enable(vddio) :
-		regulator_disable(vddio);
-	if (ret)
-		dev_err(&ld->dev, "%s vddio failure!\n", enable ? "enable" : "disable");
+	if (IS_ERR(vdd) || IS_ERR(vddio)) {
+		dev_err(&ld->dev, "regulator vs get failed\n");
+		return -1;
+	}
 
+	if (enable) {
+		if (regulator_enable(vdd)) {
+			dev_err(&ld->dev, "enabel lcd5v failure!\n");
+			return -1;
+		}
+		mdelay(1); //must be delayed here, do not move it!
+		if (regulator_enable(vddio)) {
+			dev_err(&ld->dev, "enabel lcd5v failure!\n");
+			return -1;
+		}
+		mdelay(1); //must be delayed here, do not move it!
+	} else {
+		if (regulator_disable(vddio)) {
+			dev_err(&ld->dev, "enabel lcd5v failure!\n");
+			return -1;
+		}
+		mdelay(100); //must be delayed here, do not move it!
+		if (regulator_disable(vdd)) {
+			dev_err(&ld->dev, "enabel lcd5v failure!\n");
+			return -1;
+		}
+	}
+
+	regulator_put(vdd);
 	regulator_put(vddio);
-	return ret;
+
+	return 0;
 }
-static int lcd_panel_power_vci(struct lcd_device *ld, int enable)
-{
-	struct regulator *vci = regulator_get(&ld->dev, "LCD_2V8");
-	int ret = 0;
-
-	ret = enable ? regulator_enable(vci) :
-		regulator_disable(vci);
-	if (ret)
-		dev_err(&ld->dev, "%s vci failure!\n", enable ? "enable" : "disable");
-
-	regulator_put(vci);
-	return ret;
-}
-
-static int lcd_panel_power_avdd(struct lcd_device *ld, int enable)
-{
-	struct regulator *lcd_5v = regulator_get(&ld->dev, "LCD_5V");
-	int ret = 0;
-
-	ret = enable ? regulator_enable(lcd_5v) :
-		regulator_disable(lcd_5v);
-	if (ret)
-		dev_err(&ld->dev, "%s lcd5v failure!\n", enable ? "enable" : "disable");
-
-	regulator_put(lcd_5v);
-	return ret;
-}
-static int lcd_panel_power_avee(struct lcd_device *ld, int enable)
+static int lcd_panel_power_vs(struct lcd_device *ld, int enable)
 {
 	struct regulator *lcd_n5v = regulator_get(&ld->dev, "LCD_N5V");
-	int ret = 0;
+	struct regulator *lcd_5v = regulator_get(&ld->dev, "LCD_5V");
 
-	ret = enable ? regulator_enable(lcd_n5v) :
-		regulator_disable(lcd_n5v);
-	if (ret)
-		dev_err(&ld->dev, "%s lcdn5v failure!\n", enable ? "enable" : "disable");
+	if (IS_ERR(lcd_n5v) || IS_ERR(lcd_5v)) {
+		dev_err(&ld->dev, "regulator vs get failed\n");
+		return -1;
+	}
+
+	if (enable) {
+		if (regulator_enable(lcd_5v)) {
+			dev_err(&ld->dev, "enabel lcd5v failure!\n");
+			return -1;
+		}
+		mdelay(1); //must be delayed here, do not move it!
+		if (regulator_enable(lcd_n5v)) {
+			dev_err(&ld->dev, "enabel lcd5v failure!\n");
+			return -1;
+		}
+		mdelay(1); //must be delayed here, do not move it!
+	} else {
+		if (regulator_disable(lcd_n5v)) {
+			dev_err(&ld->dev, "enabel lcd5v failure!\n");
+			return -1;
+		}
+		mdelay(1); //must be delayed here, do not move it!
+		if (regulator_disable(lcd_5v)) {
+			dev_err(&ld->dev, "enabel lcd5v failure!\n");
+			return -1;
+		}
+		mdelay(1); //must be delayed here, do not move it!
+	}
 
 	regulator_put(lcd_n5v);
-	return ret;
+	regulator_put(lcd_5v);
+	return 0;
 }
 
-static int lcd_panel_power(struct lcd_device *ld, int enable, int panel)
+static int lcd_panel_power(struct lcd_device *ld, int enable)
 {
 	struct lcd_panel_info *lcd =
 		container_of(&ld, struct lcd_panel_info, ld);
 
 	if (enable) {
-		lcd_panel_reset_level(ld, 0);
-		lcd_panel_power_vddio(ld, enable);
-		mdelay(1);
-		lcd_panel_power_vci(ld, enable);
-		lcd_panel_power_avdd(ld, enable);
-		mdelay(1);
-		lcd_panel_power_avee(ld, enable);
-		mdelay(10);
-		lcd_panel_reset_level(ld, 1);
-		mdelay(10);
-	} else {
-		if (panel == 0) {
-			lcd_panel_power_avee(ld, enable);
-			mdelay(1);
-			lcd_panel_power_avdd(ld, enable);
-			mdelay(1);
+		if (lcd->state != LCD_DISPLAY_DEEP_STAND_BY) {
 			lcd_panel_reset_level(ld, 0);
-			mdelay(1);
-			lcd_panel_power_vddio(ld, enable);
-			mdelay(100);
-			lcd_panel_power_vci(ld, enable);
-		} else {
-			lcd_panel_power_avee(ld, enable);
-			lcd_panel_power_avdd(ld, enable);
-			lcd_panel_power_vci(ld, enable);
-			lcd_panel_power_vddio(ld, enable);
+			lcd_panel_power_vdd(ld, enable);
 		}
+		lcd_panel_reset_level(ld, 1);
+		lcd_panel_power_vs(ld, enable);
+	} else {
+		lcd_panel_power_vs(ld, enable);
+		lcd_panel_reset_level(ld, 0);
+		if (lcd->state != LCD_DISPLAY_DEEP_STAND_BY)
+			lcd_panel_power_vdd(ld, enable);
 	}
 	return 0;
 }

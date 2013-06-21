@@ -231,10 +231,6 @@ static int lcd_read_id(struct mipi_dsim_lcd_device *mipi_dev)
 		lcd_id[i] = lcd->id_code[i];
 		pr_info("id code 0X%x value 0x%x\n", 0xDA+i, lcd_id[i]);
 	}
-	if ((lcd->id_code[ID_CODE1] & 0x10))
-		lcd->panel_manu = 1;
-	else
-		lcd->panel_manu = 0;
 	return 0;
 }
 
@@ -270,7 +266,7 @@ static int lcd_remove(struct mipi_dsim_lcd_device *mipi_dev)
 	ddi_pd = lcd->ddi_pd;
 
 	if (ddi_pd->power_on)
-		ddi_pd->power_on(lcd->ld, false, lcd->panel_manu);
+		ddi_pd->power_on(lcd->ld, false);
 
 	kfree(lcd);
 
@@ -281,7 +277,6 @@ int lcd_cabc_opr(unsigned int brightness, unsigned int enable)
 	CHECK_LCD_NULL(); 
 	if ((g_lcd_info->id_code[ID_CODE1] & 0x10)) {
 		pr_info("JDI panel.");
-		return -1;
 	} else {
 		pr_info("Sharp panel.");
 		CHECK_PANEL_RET(lcd_panel_sharp_cabc_switch(g_lcd_info, enable));
@@ -443,7 +438,7 @@ static void lcd_shutdown(struct mipi_dsim_lcd_device *mipi_dev)
 
 	/* lcd power off */
 	if (lcd->ddi_pd->power_on)
-		lcd->ddi_pd->power_on(lcd->ld, false, lcd->panel_manu);
+		lcd->ddi_pd->power_on(lcd->ld, false);
 }
 
 static int lcd_suspend(struct mipi_dsim_lcd_device *mipi_dev)
@@ -471,7 +466,7 @@ static int lcd_resume(struct mipi_dsim_lcd_device *mipi_dev)
 
 	/* lcd power on */
 	if (lcd->ddi_pd->power_on)
-		lcd->ddi_pd->power_on(lcd->ld, true, lcd->panel_manu);
+		lcd->ddi_pd->power_on(lcd->ld, true);
 
 	lcd->state = LCD_DISPLAY_NORMAL;
 	pr_debug("%s: lcd->state = %d\n", __func__, lcd->state);

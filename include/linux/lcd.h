@@ -74,7 +74,7 @@ struct lcd_platform_data {
 	int (*reset)(struct lcd_device *ld);
 	/* on or off to lcd panel. if 'enable' is 0 then
 	   lcd power off and 1, lcd power on. */
-	int (*power_on)(struct lcd_device *ld, int enable, int panel);
+	int (*power_on)(struct lcd_device *ld, int enable);
 
 	/* it indicates whether lcd panel was enabled
 	   from bootloader or not. */
