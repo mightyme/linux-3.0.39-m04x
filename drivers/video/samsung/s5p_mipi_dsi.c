@@ -257,6 +257,7 @@ static void s5p_mipi_update_cfg(struct mipi_dsim_device *dsim)
 
 	/* set display timing */
 	s5p_mipi_dsi_set_display_mode(dsim);
+	msleep(60);
 
 //	s5p_mipi_dsi_init_interrupt(dsim);
 }
@@ -267,6 +268,7 @@ static int s5p_mipi_init_lcd(struct mipi_dsim_device *dsim)
 	struct mipi_dsim_lcd_driver *dsim_lcd_drv = master_to_driver(dsim);
 	struct mipi_dsim_lcd_device *dsim_lcd_dev= master_to_device(dsim);
 	int i, ret = -1;
+	int lcd_id = 0;
 	static bool lcd_read = false;
 
 	for (i=0; i<RETRY_CNT; i++) {/*try 10 times*/
@@ -280,9 +282,26 @@ static int s5p_mipi_init_lcd(struct mipi_dsim_device *dsim)
 
 		if (!lcd_read && dsim_lcd_drv && dsim_lcd_drv->read_id) {
 			s5p_mipi_dsi_set_lpdt_mode(dsim, 1);
-			dsim_lcd_drv->read_id(dsim_lcd_dev);
+			lcd_id = dsim_lcd_drv->read_id(dsim_lcd_dev);
 			s5p_mipi_dsi_set_lpdt_mode(dsim, 0);
 			lcd_read = true;
+		}
+		if (lcd_id) {
+			pr_info("jdi reinitial!\n");
+			if (dsim_lcd_drv->shutdown)
+				dsim_lcd_drv->shutdown(dsim_lcd_dev);
+			s5p_mipi_dsi_disable_link(dsim);
+#if defined(CONFIG_PM_RUNTIME)
+			pm_runtime_put_sync(dsim->dev);
+#endif
+			msleep(10);
+#if defined(CONFIG_PM_RUNTIME)		
+			pm_runtime_get_sync(dsim->dev);
+#endif
+			if (dsim_lcd_drv->resume)
+				ret = dsim_lcd_drv->resume(dsim_lcd_dev);
+
+			s5p_mipi_update_cfg(dsim);
 		}
 		/* initialize mipi-dsi client(lcd panel). */
 		if (dsim_lcd_drv && dsim_lcd_drv->init_lcd)
