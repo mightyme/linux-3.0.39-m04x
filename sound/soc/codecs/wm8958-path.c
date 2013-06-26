@@ -791,6 +791,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetVolume_Mixerin_spk(codec);
 		SetSpkMute(codec,0);
 		SetHpMute(codec,0);
+		SetEQBase(codec, EQ_REC_INCALL);
 		break;
 	case PLAYBACK_SPK_INCALL:
 		SetAIF3_2_AIF2(codec,false);
@@ -805,6 +806,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetVolume_Incall(codec);
 		SetVolume_Mixerin_spk(codec);
 		SetSpkMute(codec,0);
+		SetEQBase(codec, EQ_REC_INCALL);
 		break;
 	case PLAYBACK_HP_INCALL:
 		SetAIF3_2_AIF2(codec,false);
@@ -819,6 +821,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetVolume_Incall(codec);
 		SetVolume_Mixerin_spk(codec);
 		SetHpMute(codec,0);
+		SetEQBase(codec, EQ_REC_INCALL);
 		break;
 	case PLAYBACK_HS_INCALL:
 		SetAIF3_2_AIF2(codec,false);
@@ -833,6 +836,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetVolume_Incall(codec);
 		SetVolume_Mixerin_spk(codec);
 		SetHpMute(codec,0);
+		SetEQBase(codec, EQ_REC_INCALL);
 		break;
 	case PLAYBACK_SPK_HS_INCALL:
 		SetAIF3_2_AIF2(codec,false);
@@ -848,6 +852,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetVolume_Mixerin_spk(codec);
 		SetSpkMute(codec,0);
 		SetHpMute(codec,0);
+		SetEQBase(codec, EQ_REC_INCALL);
 		break;
 	case PLAYBACK_REC_INCALL:
 		SetAIF3_2_AIF2(codec,false);
@@ -862,6 +867,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetVolume_Incall(codec);
 		SetVolume_Mixerin_rec(codec);
 		SetRecMute(codec,0);
+		SetEQBase(codec, EQ_REC_INCALL);
 		break;
 	case PLAYBACK_ANSWER_INCALL:
 		SetAIF3_2_AIF2(codec,false);
@@ -876,6 +882,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 		SetVolume_Incall(codec);
 		SetVolume_Mixerin_rec(codec);
 		SetRecMute(codec,0);
+		SetEQBase(codec, EQ_REC_INCALL);
 		break;
 	case PLAYBACK_BT_INCALL:
 #if defined(CONFIG_MACH_M040) || defined(CONFIG_MACH_M041)
@@ -891,6 +898,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 #ifdef CONFIG_AUDIENCE_A1028
 		a1028_setmode(NULL,A1028_INCALL_BT);
 #endif
+		SetEQBase(codec, EQ_REC_INCALL);
 		break;
 
 	case PLAYBACK_SPK_HP_VOIP:
