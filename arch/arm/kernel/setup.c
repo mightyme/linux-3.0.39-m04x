@@ -1033,7 +1033,6 @@ static const char *hwcap_str[] = {
 };
 
 #if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
-extern unsigned int samsung_rev(void);
 extern unsigned int exynos_result_of_asv;
 #endif
 static int c_show(struct seq_file *m, void *v)
@@ -1087,11 +1086,7 @@ static int c_show(struct seq_file *m, void *v)
 		seq_printf(m, "CPU part\t: 0x%03x\n",
 			   (read_cpuid_id() >> 4) & 0xfff);
 	}
-#if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
-	seq_printf(m, "CPU revision\t: %x.%x\n", samsung_rev()>>4, samsung_rev()&0xf);
-#else
 	seq_printf(m, "CPU revision\t: %d\n", read_cpuid_id() & 15);
-#endif
 	seq_puts(m, "\n");
 
 	seq_printf(m, "Hardware\t: %s\n", machine_name);
