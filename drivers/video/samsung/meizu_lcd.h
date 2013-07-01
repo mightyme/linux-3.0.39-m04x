@@ -25,7 +25,7 @@
   *The value double if esc_clk is 10MHZ
   */
 #define BTA_NONE 0
-#define BTA_TIMEOUT 500
+#define BTA_TIMEOUT 250000
 #define BTA_TIMEOUT_LONG 50000	/* 50ms */
 
 #define lcd_to_master(a)		(a->dsim_dev->master)
@@ -336,7 +336,7 @@ static const struct lcd_param jdi_slpout_seq[] = {
 	LCD_PARAM_DEF_END,
 };
 static const struct lcd_param jdi_slpin_seq[] = {
-	DCS_SHORT(120, MIPI_DCS_ENTER_SLEEP_MODE, 0x0),
+	DCS_SHORT(10, MIPI_DCS_ENTER_SLEEP_MODE, 0x0),
 	LCD_PARAM_DEF_END,
 };
 static const struct lcd_param jdi_dspon_seq[] = {
@@ -347,7 +347,7 @@ static const struct lcd_param jdi_dspon_seq[] = {
 	LCD_PARAM_DEF_END,
 };
 static const struct lcd_param jdi_dspoff_seq[] = {
-	DCS_SHORT(120, MIPI_DCS_SET_DISPLAY_OFF, 0x0),
+	DCS_SHORT(20, MIPI_DCS_SET_DISPLAY_OFF, 0x0),
 	LCD_PARAM_DEF_END,
 };
 

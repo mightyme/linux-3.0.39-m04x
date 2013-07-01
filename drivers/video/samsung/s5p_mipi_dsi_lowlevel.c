@@ -583,22 +583,11 @@ int s5p_mipi_dsi_wait_state(struct mipi_dsim_device *dsim,
 	/*enum dsim_int_src*/int intsrc, unsigned int ntimeout)
 {
 	int ret = -1;
-	int msleep_time = 0;
 
-	msleep_time = (ntimeout >= 1000) ? ntimeout/1000 : 0;
-	if (msleep_time) {
-		while(msleep_time--) {
-			ret = s5p_mipi_is_state(dsim, intsrc);
-			if (unlikely(!ret)) break;
-			msleep(1);
-		}
-	} else {
-		while(ntimeout--) {
-			ret = s5p_mipi_is_state(dsim, intsrc);
-			if (unlikely(!ret)) break;
-			cpu_relax();
-			usleep_range(1, 10);
-		}
+	while(ntimeout--) {
+		ret = s5p_mipi_is_state(dsim, intsrc);
+		if (likely(ret == 0)) break;
+		usleep_range(20, 20);
 	}
 	return ret;
 }

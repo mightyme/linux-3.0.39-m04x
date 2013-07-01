@@ -60,8 +60,10 @@ static int write_to_lcd(struct lcd_panel_info *lcd,
 		ret = param[i].size ?
 			write_data(lcd, param[i].type,  param[i].param, param[i].size, BTA_TIMEOUT) :
 			write_cmd(lcd, param[i].type, param[i].param[0], param[i].param[1], BTA_TIMEOUT);
-		if (param[i].delay)
+		if (param[i].delay && param[i].delay > 20)
 			msleep(param[i].delay);
+		else if (param[i].delay && param[i].delay <= 20)
+			usleep_range(param[i].delay*1000, param[i].delay*1000);
 	} while (!ret && param[++i].size != -1);
 
 	return ret;
