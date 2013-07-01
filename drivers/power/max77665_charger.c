@@ -787,8 +787,18 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 		charger->adc_flag = true;
 		now_current = regulator_get_current_limit(charger->ps);
 		do {
-			if (now_current < CHGIN_USB_CURRENT * MA_TO_UA) 
-				break;
+			if (now_current < CHGIN_USB_CURRENT * MA_TO_UA) {
+				max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK,
+						&int_ok);
+				if (int_ok != 0x5d) {
+					charger->cable_status = CABLE_TYPE_NONE;
+					power_supply_changed(&charger->psy_usb);
+					power_supply_changed(&charger->psy_ac);
+					charger->done = false;
+					charger->adc_flag = false;
+				}
+				return;
+			}
 			now_current -= CURRENT_INCREMENT_STEP * MA_TO_UA;
 			regulator_set_current_limit(charger->ps,
 					now_current,
@@ -803,7 +813,7 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 					charger->adjust_count = 0;
 				}
 				charger->adjust_count++;
-				break;
+				return;
 			}
 		} while (now_current > CHGIN_USB_CURRENT * MA_TO_UA);
 	}
