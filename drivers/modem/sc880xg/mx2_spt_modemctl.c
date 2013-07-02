@@ -52,6 +52,7 @@ struct spt_modem_ctl{
 	int modem_crash_irq;
 	int cp_flag;
 	int cp_user_reset;
+	int cp_usb_download;
 	
 	wait_queue_head_t  read_wq;
 	struct completion done;
@@ -108,7 +109,7 @@ static ssize_t show_spt_usb_download(struct device *dev,
 {
 	char *p = buf;
 
-	p += sprintf(buf, "usb_download=%d\n", gpio_get_value(spt_modem_global_mc->usb_download));
+	p += sprintf(buf, "usb_download=%d\n", spt_modem_global_mc->cp_usb_download);
 
 	return p - buf;
 }
@@ -121,7 +122,8 @@ static ssize_t store_spt_usb_download(struct device *dev,
 	error = strict_strtoul(buf, 10, &val);
 	if (!error && spt_modem_global_mc){
 		gpio_set_value(spt_modem_global_mc->usb_download, !val);
-		pr_info("%s: %s usb download\n", __func__, !val?"enable":"disable");
+		spt_modem_global_mc->cp_usb_download = !!val;
+		pr_info("%s: %s usb download\n", __func__, !!val?"enable":"disable");
 	}
 	return count;
 }
@@ -302,7 +304,6 @@ spt_modem_write(struct file *filp, const char __user *buffer, size_t count,
 	{
 		if (down_interruptible(&spt_modem_downlock) == 0) {
 			spt_sc8803g_off(mc);
-			spt_modem_notify_event(SPT_MODEM_EVENT_POWEROFF);
 			up(&spt_modem_downlock);
 		}
 	}
@@ -317,7 +318,8 @@ spt_modem_write(struct file *filp, const char __user *buffer, size_t count,
 	/*reset modem*/
 	if(count >= 5 && !strncmp(buffer, "reset", 5)) {
 		if (down_interruptible(&spt_modem_downlock) == 0) {
-			spt_sc8803g_reset(mc);
+			if(!mc->cp_usb_download)
+				spt_sc8803g_reset(mc);
 			up(&spt_modem_downlock);
 		}
 	}
@@ -364,8 +366,6 @@ spt_modem_read(struct file *filp, char __user * buffer, size_t count,
 
 long spt_modem_ioctl (struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct spt_modem_ctl *mc = (struct spt_modem_ctl *)filp->private_data;
-
 	pr_info("%s cmd:0x%x, arg:0x%lx\n", __func__, cmd, arg);
 
 	return 0;
@@ -435,6 +435,7 @@ static int spt_modem_probe(struct platform_device *pdev)
 	mc->power_status = pdata->s2m1;
 	mc->usb_download = pdata->m2s1;
 	mc->cp_user_reset = 0;
+	mc->cp_usb_download = 0;
 	/*reset irq*/
 	mc->modem_crash_irq = gpio_to_irq(mc->modem_alive);
 	ret = request_threaded_irq(mc->modem_crash_irq, NULL,
