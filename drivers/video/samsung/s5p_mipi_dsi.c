@@ -288,20 +288,7 @@ static int s5p_mipi_init_lcd(struct mipi_dsim_device *dsim)
 		}
 		if (lcd_id) {
 			pr_info("jdi reinitial!\n");
-			if (dsim_lcd_drv->shutdown)
-				dsim_lcd_drv->shutdown(dsim_lcd_dev);
-			s5p_mipi_dsi_disable_link(dsim);
-#if defined(CONFIG_PM_RUNTIME)
-			pm_runtime_put_sync(dsim->dev);
-#endif
-			msleep(10);
-#if defined(CONFIG_PM_RUNTIME)		
-			pm_runtime_get_sync(dsim->dev);
-#endif
-			if (dsim_lcd_drv->resume)
-				ret = dsim_lcd_drv->resume(dsim_lcd_dev);
-
-			s5p_mipi_update_cfg(dsim);
+			msleep(200);
 		}
 		/* initialize mipi-dsi client(lcd panel). */
 		if (dsim_lcd_drv && dsim_lcd_drv->init_lcd)
