@@ -813,6 +813,7 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 					charger->adjust_count = 0;
 				}
 				charger->adjust_count++;
+				charger->adc_flag = false;
 				return;
 			}
 		} while (now_current > CHGIN_USB_CURRENT * MA_TO_UA);
