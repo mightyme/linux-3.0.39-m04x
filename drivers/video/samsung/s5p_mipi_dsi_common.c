@@ -651,14 +651,15 @@ int s5p_mipi_dsi_init_link(struct mipi_dsim_device *dsim)
 
 	return 0;
 }
+void s5p_mipi_dsi_stop_output(struct mipi_dsim_device *dsim)
+{
+	s5p_mipi_dsi_standby(dsim, false);
+}
 int s5p_mipi_dsi_disable_link(struct mipi_dsim_device *dsim)
 {
-	s5p_mipi_dsi_enable_lane(dsim, DSIM_LANE_CLOCK, 0);
-	s5p_mipi_dsi_enable_lane(dsim, dsim->data_lane, 0);
-
 	/* set clock configuration */
 	s5p_mipi_dsi_set_clock(dsim, dsim->dsim_config->e_byte_clk, 0);
-
+	s5p_mipi_dsi_enable_lane(dsim, DSIM_LANE_CLOCK | dsim->data_lane, 0);
 	return 0;
 }
 int s5p_mipi_dsi_set_hs_enable(struct mipi_dsim_device *dsim)

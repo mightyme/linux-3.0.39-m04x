@@ -18,6 +18,7 @@ int s5p_mipi_dsi_wr_data(struct mipi_dsim_device *dsim, unsigned int data_id,
 int s5p_mipi_dsi_init_dsim(struct mipi_dsim_device *dsim);
 int s5p_mipi_dsi_set_display_mode(struct mipi_dsim_device *dsim);
 int s5p_mipi_dsi_init_link(struct mipi_dsim_device *dsim);
+void s5p_mipi_dsi_stop_output(struct mipi_dsim_device *dsim);
 int s5p_mipi_dsi_disable_link(struct mipi_dsim_device *dsim);
 int s5p_mipi_dsi_set_hs_enable(struct mipi_dsim_device *dsim);
 int s5p_mipi_dsi_set_data_transfer_mode(struct mipi_dsim_device *dsim,
