@@ -367,11 +367,12 @@ static int __init exynos4_core_init(void)
 core_initcall(exynos4_core_init);
 
 #ifdef CONFIG_CACHE_L2X0
+#if defined(CONFIG_PL310_ERRATA_588369) || defined(CONFIG_PL310_ERRATA_727915)
 static void exynos4_l2x0_set_debug(unsigned long val)
 {
 	exynos_smc(SMC_CMD_L2X0DEBUG, val, 0, 0);
 }
-
+#endif
 static int __init exynos4_l2x0_cache_init(void)
 {
 	u32 tag_latency = 0x110;

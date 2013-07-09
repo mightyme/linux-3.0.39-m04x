@@ -70,6 +70,7 @@ struct s3c_sdhci_platdata {
 	unsigned int	max_width;
 	unsigned int	host_caps;
 	unsigned int	host_caps2;
+	unsigned int	pm_caps;
 	enum cd_types	cd_type;
 	enum clk_types	clk_type;
 
@@ -87,9 +88,6 @@ struct s3c_sdhci_platdata {
 			    void __iomem *regbase,
 			    struct mmc_ios *ios,
 				struct mmc_card *card);
-#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
-	void (*set_power)(unsigned int);
-#endif
 };
 
 /**
