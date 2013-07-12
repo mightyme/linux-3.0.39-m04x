@@ -31,7 +31,7 @@ enum {
 	DEBUG_EXPIRE = 1U << 3,
 	DEBUG_WAKE_LOCK = 1U << 4,
 };
-static int debug_mask = DEBUG_EXIT_SUSPEND | DEBUG_WAKEUP | DEBUG_SUSPEND;
+static int debug_mask = DEBUG_EXIT_SUSPEND | DEBUG_WAKEUP;
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 #define WAKE_LOCK_TYPE_MASK              (0x0f)
@@ -121,7 +121,23 @@ static int print_lock_stat(struct seq_file *m, struct wake_lock *lock)
 		     ktime_to_ns(prevent_suspend_time), ktime_to_ns(max_time),
 		     ktime_to_ns(lock->stat.last_time));
 }
+/* Caller must acquire the list_lock spinlock */
+static void wakelock_print_active_locks(struct seq_file *m)
+{
+	struct wake_lock *lock;
+	int type = WAKE_LOCK_SUSPEND;
 
+	list_for_each_entry(lock, &active_wake_locks[type], link) {
+		if (lock->flags & WAKE_LOCK_AUTO_EXPIRE) {
+			long timeout = lock->expires - jiffies;
+			if (timeout > 0)
+				seq_printf(m, "\"%s\"\t%ld\n",
+					lock->name, timeout);
+		} else {
+			seq_printf(m, "\"%s\"\n", lock->name);
+		}
+	}
+}
 static int wakelock_stats_show(struct seq_file *m, void *unused)
 {
 	unsigned long irqflags;
@@ -139,6 +155,9 @@ static int wakelock_stats_show(struct seq_file *m, void *unused)
 		list_for_each_entry(lock, &active_wake_locks[type], link)
 			ret = print_lock_stat(m, lock);
 	}
+	ret = seq_puts(m, "\nactive wakelocks:\n");
+	ret = seq_puts(m, "name\ttime_left\n");
+	wakelock_print_active_locks(m);
 	spin_unlock_irqrestore(&list_lock, irqflags);
 	return 0;
 }
