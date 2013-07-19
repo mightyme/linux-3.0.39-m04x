@@ -1258,8 +1258,8 @@ static void gp2ap_ps_handler(struct work_struct *work)
 			struct gp2ap_data, ps_dwork);
 	struct i2c_client *client = gp2ap->client;
 	struct input_dev *idp = gp2ap->input_dev;
-	int ret, ps_data = 0;
-	u8 buf[2] = {0}, command1 = 0;
+	int ret, ps_data = gp2ap->ps_data;
+	u8 buf[2] = {0}, command1 = 0, command2 = 0;
 
 	/*read REG_COMMAND1(0x00) to clear interrupts*/
 	ret = gp2ap_i2c_read_byte(client, REG_COMMAND1, &command1);
@@ -1269,17 +1269,29 @@ static void gp2ap_ps_handler(struct work_struct *work)
 		return;
 	}
 
-	ret = gp2ap_i2c_read_multibytes(client, REG_D2_LSB, buf, 2);
-	if (ret < 0) {
-		pr_err("%s()->%d:read REG_ALS_D2_LSB reg fail!\n",
-			__func__, __LINE__);
-	} else {
-		ps_data = (buf[1] << 8) | buf[0];
-	}
-	if (ps_data <= gp2ap->ps_far_threshold) 
-		ps_data = PS_FAR;
-	if (ps_data >= gp2ap->ps_near_threshold) 
+	if ((command1 & 0x08)) { //NEAR 
 		ps_data = PS_NEAR;
+		pr_info("###############ps_data %d NEAR\n", ps_data);
+		ret = gp2ap_i2c_read_byte(client, REG_COMMAND2, &command2);
+		buf[0] = MEASURE_CYCLE_0 | (command2 & 0x3F );
+		ret = gp2ap_i2c_write_byte(gp2ap->client, REG_COMMAND2, buf[0]);
+		if (ret < 0) {
+			pr_err("%s()->%d: gp2ap_i2c_write_byte fail!\n", __func__, __LINE__);
+			return;
+		}	
+	} else if (!(command1 & 0x08)) { //FAR
+		ps_data = PS_FAR;
+		pr_info("###############ps_data %d FAR\n", ps_data);
+		ret = gp2ap_i2c_read_byte(client, REG_COMMAND2, &command2);
+		//Mesure cycle 1(once) --> 4 times
+		buf[0] = MEASURE_CYCLE_4 | (command2 & 0x3F );
+		ret = gp2ap_i2c_write_byte(gp2ap->client, REG_COMMAND2, buf[0]);
+		if (ret < 0) {
+			pr_err("%s()->%d: gp2ap_i2c_write_byte fail!\n", __func__, __LINE__);
+			return;
+		}	
+	}
+
 	
 	if (gp2ap->ps_data != ps_data) {
 		wake_lock_timeout(&gp2ap->ps_wake_lock, 3*HZ);
