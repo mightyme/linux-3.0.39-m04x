@@ -884,6 +884,10 @@ void mmc_release_host(struct mmc_host *host)
 
 EXPORT_SYMBOL(mmc_release_host);
 
+#if defined(CONFIG_MMC_SDHCI) && (defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE))
+extern int is_sdhci_host(const struct mmc_host_ops *ops); 
+#endif
+
 /*
  * Internal function that does the actual ios call to the host driver,
  * optionally printing some debug output.
@@ -901,6 +905,12 @@ static inline void mmc_set_ios(struct mmc_host *host)
 	if (ios->clock > 0)
 		mmc_set_ungated(host);
 	host->ops->set_ios(host, ios);
+
+#if defined(CONFIG_MMC_SDHCI) && (defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE))
+	if(is_sdhci_host(host->ops) &&
+	   ios->power_mode == MMC_POWER_UP)
+		msleep_interruptible(200);
+#endif
 }
 
 /*
@@ -1537,7 +1547,10 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 
 	host->detect_change = 1;
 	wake_lock(&host->detect_wake_lock);
-
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+	if (delay)
+		cancel_delayed_work(&host->detect);
+#endif
 	mmc_schedule_delayed_work(&host->detect, delay);
 }
 
@@ -2627,7 +2640,8 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 			host->bus_ops->remove(host);
 
 		mmc_detach_bus(host);
-
+		if (!(host->pm_flags & MMC_PM_IGNORE_SUSPEND_RESUME))
+			mmc_power_off(host);
 		mmc_release_host(host);
 		host->pm_flags = 0;
 		break;
@@ -2644,6 +2658,9 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 		host->rescan_disable = 0;
 		host->power_notify_type = MMC_HOST_PW_NOTIFY_LONG;
 		spin_unlock_irqrestore(&host->lock, flags);
+		if (!(host->pm_flags & MMC_PM_IGNORE_SUSPEND_RESUME))
+			mmc_detect_change(host, 0);
+
 	}
 
 	return 0;

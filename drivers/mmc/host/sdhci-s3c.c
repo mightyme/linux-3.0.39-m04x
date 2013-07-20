@@ -51,6 +51,9 @@ struct sdhci_s3c {
 
 	struct clk		*clk_io;
 	struct clk		*clk_bus[MAX_BUS_CLK];
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+	unsigned char	power_mode;
+#endif	
 };
 
 static inline struct sdhci_s3c *to_s3c(struct sdhci_host *host)
@@ -112,6 +115,64 @@ static unsigned int sdhci_s3c_get_max_clk(struct sdhci_host *host)
 	}
 
 	return max;
+}
+
+static void sdhci_s3c_set_ios(struct sdhci_host *host,
+			      struct mmc_ios *ios)
+{
+	struct sdhci_s3c *ourhost = to_s3c(host);
+	struct s3c_sdhci_platdata *pdata = ourhost->pdata;
+	int width;
+	u8 tmp;
+
+#if defined (CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
+	if(ourhost->power_mode != ios->power_mode) {
+		switch(ios->power_mode){
+			case MMC_POWER_UP:
+				if(pdata->set_power)
+					pdata->set_power(1);
+				break;
+			case MMC_POWER_OFF:
+				if(pdata->set_power)
+					pdata->set_power(0);
+				break;
+			case MMC_POWER_ON:
+				break;
+			default:
+				WARN_ON(1); 
+		}
+		ourhost->power_mode = ios->power_mode;
+	}
+#endif
+
+	sdhci_s3c_check_sclk(host);
+
+	if (ios->power_mode != MMC_POWER_OFF) {
+		switch (ios->bus_width) {
+		case MMC_BUS_WIDTH_8:
+			width = 8;
+			tmp = readb(host->ioaddr + SDHCI_HOST_CONTROL);
+			writeb(tmp | SDHCI_CTRL_8BITBUS,
+				host->ioaddr + SDHCI_HOST_CONTROL);
+			break;
+		case MMC_BUS_WIDTH_4:
+			width = 4;
+			break;
+		case MMC_BUS_WIDTH_1:
+			width = 1;
+			break;
+		default:
+			BUG();
+		}
+
+		if (pdata->cfg_gpio)
+			pdata->cfg_gpio(ourhost->pdev, width);
+	}
+
+	if (pdata->cfg_card) {
+		pdata->cfg_card(ourhost->pdev, host->ioaddr,
+				ios, host->mmc->card);
+	}
 }
 
 /**
@@ -317,6 +378,7 @@ static struct sdhci_ops sdhci_s3c_ops = {
 	.set_clock		= sdhci_s3c_set_clock,
 	.get_min_clock		= sdhci_s3c_get_min_clock,
 	.platform_8bit_width	= sdhci_s3c_platform_8bit_width,
+	.set_ios		= sdhci_s3c_set_ios,
 };
 
 static void sdhci_s3c_notify_change(struct platform_device *dev, int state)
@@ -536,10 +598,9 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 		host->mmc->caps |= pdata->host_caps;
 	if (pdata->host_caps2)
 		host->mmc->caps2 |= pdata->host_caps2;
-	if (pdata->pm_caps) {
-		host->mmc->pm_caps |= pdata->pm_caps;
-		host->mmc->pm_flags = host->mmc->pm_caps;
-	}
+
+	host->mmc->pm_flags |= (MMC_PM_KEEP_POWER | MMC_PM_IGNORE_SUSPEND_RESUME);
+	host->mmc->pm_caps = MMC_PM_KEEP_POWER;
 
 	ret = sdhci_add_host(host);
 	if (ret) {
@@ -621,8 +682,8 @@ static int sdhci_s3c_suspend(struct platform_device *dev, pm_message_t pm)
 {
 	struct sdhci_host *host = platform_get_drvdata(dev);
 
-	if (host->mmc)
-		host->mmc->pm_flags |= host->mmc->pm_caps;
+	if(host->mmc->card && (host->mmc->card->type == MMC_TYPE_SDIO))
+		host->mmc->pm_flags |= MMC_PM_KEEP_POWER;
 
 	sdhci_suspend_host(host, pm);
 	return 0;
