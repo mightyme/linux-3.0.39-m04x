@@ -309,10 +309,16 @@ static int gp2ap_set_ps_mode(struct gp2ap_data *gp2ap, int mode)
 {
 	int ret;
 	u8 buf[4];
-
-	buf[0] = MEASURE_CYCLE_4;
-	buf[1] = INT_TYPE_PULSE | PS_RESOLUTION_10 | PS_RANGE_X4;
-	buf[2] = INTVAL_TIME_16 | LED_CURRENT_110 | INT_SETTING_PS | LED_FREQUENCY_327K; 
+	
+	if (!strncmp(gp2ap->idbuf, "M040W-TPK", 9)) {
+		buf[0] = MEASURE_CYCLE_16 | ALS_RESOLUTION_10 | ALS_RANGE_X8;
+		buf[1] = INT_TYPE_PULSE | PS_RESOLUTION_10 | PS_RANGE_X4;
+		buf[2] = INTVAL_TIME_0 | LED_CURRENT_110 | INT_SETTING_PS | LED_FREQUENCY_327K; 
+	} else {
+		buf[0] = MEASURE_CYCLE_4;
+		buf[1] = INT_TYPE_PULSE | PS_RESOLUTION_10 | PS_RANGE_X4;
+		buf[2] = INTVAL_TIME_16 | LED_CURRENT_110 | INT_SETTING_PS | LED_FREQUENCY_327K; 
+	}
 	ret = gp2ap_i2c_write_multibytes(gp2ap->client, REG_COMMAND2, buf, 3);
 	if (ret < 0) {
 		pr_err("%s()->%d: gp2ap_i2c_write_multibytes fail!\n", __func__, __LINE__);
@@ -332,8 +338,25 @@ static int gp2ap_set_ps_mode(struct gp2ap_data *gp2ap, int mode)
 			return ret;
 		}
 	}
+	
+	if (!strncmp(gp2ap->idbuf, "M040W-TPK", 9)) {
+		//Set interrupt signal of the ALS so as not to occur.
+		buf[0] = 0x00;	 /* low threshold 0000 */
+		buf[1] = 0x00;
+		buf[2] = 0xFF;	 /* high threshold FFFF */
+		buf[3] = 0xFF;
 
-	buf[0] = SOFTWARE_OPERATION | OPERATING_MODE_PS;
+		ret = gp2ap_i2c_write_multibytes(gp2ap->client, REG_ATS_LLSB, buf, 4);
+		if (ret < 0) {
+			pr_err("%s()->%d: gp2ap_i2c_write_multibytes fail!\n", __func__, __LINE__);
+			return ret;
+		}
+	}
+	if (!strncmp(gp2ap->idbuf, "M040W-TPK", 9)) 
+		buf[0] = SOFTWARE_OPERATION | OPERATING_MODE_ALL;
+	else
+		buf[0] = SOFTWARE_OPERATION | OPERATING_MODE_PS;
+
 	switch (mode) {
 	case PS_IRQ_MODE:
 		buf[0] |= CONTINUE_OPERATION;
@@ -919,6 +942,11 @@ static ssize_t touchscreen_productid_store(struct device *dev,
 	
 	strcpy(gp2ap->idbuf, buf);
 
+	if (!strncmp(gp2ap->idbuf, "M040W-TPK", 9)) {
+		gp2ap->near_threshold = 17;
+		gp2ap->far_threshold = 11;
+	}
+
 	pr_info("%s:the touchscreen is %s\n", __func__, gp2ap->idbuf);
 
 	return count;
@@ -1268,31 +1296,43 @@ static void gp2ap_ps_handler(struct work_struct *work)
 			__func__, __LINE__);
 		return;
 	}
+	if (!strncmp(gp2ap->idbuf, "M040W-TPK", 9)) {
+		if ((command1 & 0x08)) { //NEAR 
+			ps_data = PS_NEAR;
+			pr_info("###############ps_data %d NEAR\n", ps_data);
+			ret = gp2ap_i2c_read_byte(client, REG_COMMAND2, &command2);
+			buf[0] = MEASURE_CYCLE_0 | (command2 & 0x3F );
+			ret = gp2ap_i2c_write_byte(gp2ap->client, REG_COMMAND2, buf[0]);
+			if (ret < 0) {
+				pr_err("%s()->%d: gp2ap_i2c_write_byte fail!\n", __func__, __LINE__);
+				return;
+			}	
+		} else if (!(command1 & 0x08)) { //FAR
+			ps_data = PS_FAR;
+			pr_info("###############ps_data %d FAR\n", ps_data);
+			ret = gp2ap_i2c_read_byte(client, REG_COMMAND2, &command2);
+			buf[0] = MEASURE_CYCLE_16 | (command2 & 0x3F );
+			ret = gp2ap_i2c_write_byte(gp2ap->client, REG_COMMAND2, buf[0]);
+			if (ret < 0) {
+				pr_err("%s()->%d: gp2ap_i2c_write_byte fail!\n", __func__, __LINE__);
+				return;
+			}	
+		}
+	} else {
+		ret = gp2ap_i2c_read_multibytes(client, REG_D2_LSB, buf, 2);
+		if (ret < 0) {
+			pr_err("%s()->%d:read REG_ALS_D2_LSB reg fail!\n",
+				__func__, __LINE__);
+		} else {
+			ps_data = (buf[1] << 8) | buf[0];
+		}
 
-	if ((command1 & 0x08)) { //NEAR 
-		ps_data = PS_NEAR;
-		pr_info("###############ps_data %d NEAR\n", ps_data);
-		ret = gp2ap_i2c_read_byte(client, REG_COMMAND2, &command2);
-		buf[0] = MEASURE_CYCLE_0 | (command2 & 0x3F );
-		ret = gp2ap_i2c_write_byte(gp2ap->client, REG_COMMAND2, buf[0]);
-		if (ret < 0) {
-			pr_err("%s()->%d: gp2ap_i2c_write_byte fail!\n", __func__, __LINE__);
-			return;
-		}	
-	} else if (!(command1 & 0x08)) { //FAR
-		ps_data = PS_FAR;
-		pr_info("###############ps_data %d FAR\n", ps_data);
-		ret = gp2ap_i2c_read_byte(client, REG_COMMAND2, &command2);
-		//Mesure cycle 1(once) --> 4 times
-		buf[0] = MEASURE_CYCLE_4 | (command2 & 0x3F );
-		ret = gp2ap_i2c_write_byte(gp2ap->client, REG_COMMAND2, buf[0]);
-		if (ret < 0) {
-			pr_err("%s()->%d: gp2ap_i2c_write_byte fail!\n", __func__, __LINE__);
-			return;
-		}	
+		if (ps_data <= gp2ap->ps_far_threshold) 
+			ps_data = PS_FAR;
+		if (ps_data >= gp2ap->ps_near_threshold) 
+			ps_data = PS_NEAR;
 	}
 
-	
 	if (gp2ap->ps_data != ps_data) {
 		wake_lock_timeout(&gp2ap->ps_wake_lock, 3*HZ);
 		input_report_abs(idp, ABS_PS, ps_data);
