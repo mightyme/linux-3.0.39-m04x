@@ -416,7 +416,7 @@ static int mx_set_capture_path(struct snd_kcontrol *kcontrol,
 	}
 
 	printk(KERN_INFO "%s(): path => %s\n", __func__,capture_path_name[user_value]);
-	if(wm8958->capture_path != user_value) {
+	if(wm8958->capture_path != user_value || wm8958->capture_path == CAPTURE_SECOND_MIC_NORMAL) {
 		ret = set_capture_path(codec,user_value);
 		if(ret >= 0)
 			wm8958->capture_path= user_value;
