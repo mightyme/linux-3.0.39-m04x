@@ -52,7 +52,12 @@
 #define LSEN	(1<<7)	/* Low sys dac enable */
 #define LSDEN	(0<<7)
 #define LSEN_MASK	(1<<7)
+
+#define MOTOR_NORMAL	0
+#define MOTOR_SHUTDOWN	1
+
 //#define __CONFIG_DEBUG_HAPTIC__
+
 
 struct haptic_data {
 	char *name;
@@ -69,6 +74,7 @@ struct haptic_data {
 	struct pwm_device *pwm;
 	u16 duty;
 	u16 period;
+	bool motor_status;
 };
 
 #ifdef __CONFIG_DEBUG_HAPTIC__
@@ -246,7 +252,10 @@ static void haptic_enable(struct timed_output_dev *tdev, int value)
 		container_of(tdev, struct haptic_data, tdev);
 
 	mutex_lock(&chip->haptic_mutex);
-	
+
+	if (chip->motor_status == MOTOR_SHUTDOWN)
+		goto unlock;
+
 #ifdef __CONFIG_DEBUG_HAPTIC__
 	pr_info("%s: vibration time = %d\n", __func__, g_vibrate_count++);
 #endif
@@ -266,7 +275,7 @@ static void haptic_enable(struct timed_output_dev *tdev, int value)
 	pr_info("%s: process: %s, time: %d ms\n", __func__, current->comm, value);
 #endif
 	max77665_haptic_on(chip, !!value);
-
+unlock:
 	mutex_unlock(&chip->haptic_mutex);
 }
 
@@ -292,6 +301,7 @@ static __devinit int max77665_haptic_probe(struct platform_device *pdev)
 	chip->pmic = iodev->i2c;
 	chip->period = pdata->pwm_period;
 	chip->duty = pdata->pwm_duty;
+	chip->motor_status = MOTOR_NORMAL;
 
 	hrtimer_init(&chip->timer, CLOCK_MONOTONIC,
 			HRTIMER_MODE_REL);
@@ -368,6 +378,7 @@ static void max77665_haptic_shutdown(struct platform_device * pdev)
 {
 	struct haptic_data *chip = platform_get_drvdata(pdev);
 
+	chip->motor_status = MOTOR_SHUTDOWN;
 	pr_info("%s disable motor when power off!", __func__);
 	max77665_haptic_disable(chip->client);
 	schedule_delayed_work(&chip->disable_work,msecs_to_jiffies(50));
