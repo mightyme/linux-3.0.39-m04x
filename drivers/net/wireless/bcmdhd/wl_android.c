@@ -770,25 +770,12 @@ void *wifi_get_country_code(char *ccode)
 }
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)) */
 
-#if 0
 static int wifi_set_carddetect(int on)
 {
 	DHD_ERROR(("%s = %d\n", __FUNCTION__, on));
 	if (wifi_control_data && wifi_control_data->set_carddetect) {
 		wifi_control_data->set_carddetect(on);
 	}
-	return 0;
-}
-#endif
-
-int wifi_set_power_carddetect(int on, unsigned long msec)
-{
-	DHD_ERROR(("%s = %d\n", __FUNCTION__, on));
-	if (wifi_control_data && wifi_control_data->set_carddetect) {
-		wifi_control_data->set_carddetect(on);
-	}
-	if (msec)
-		msleep(msec);
 	return 0;
 }
 
@@ -804,9 +791,8 @@ static int wifi_probe(struct platform_device *pdev)
 			IORESOURCE_IRQ, "bcm4329_wlan_irq");
 	wifi_control_data = wifi_ctrl;
 
-	//wifi_set_power(1, 0);	/* Power On */
-	//wifi_set_carddetect(1);	/* CardDetect (0->1) */
-	wifi_set_power_carddetect(1, 0);	/* Power On */
+	wifi_set_power(1, 0);	/* Power On */
+	wifi_set_carddetect(1);	/* CardDetect (0->1) */
 
 	up(&wifi_control_sem);
 	return 0;
@@ -820,9 +806,8 @@ static int wifi_remove(struct platform_device *pdev)
 	DHD_ERROR(("## %s\n", __FUNCTION__));
 	wifi_control_data = wifi_ctrl;
 
-	//wifi_set_power(0, 0);	/* Power Off */
-	//wifi_set_carddetect(0);	/* CardDetect (1->0) */
-	wifi_set_power_carddetect(0, 0);	/* Power Off */
+	wifi_set_power(0, 0);	/* Power Off */
+	wifi_set_carddetect(0);	/* CardDetect (1->0) */
 
 	up(&wifi_control_sem);
 	return 0;
@@ -857,23 +842,10 @@ static struct platform_driver wifi_device = {
 	}
 };
 
-#if 0
-static struct platform_driver wifi_device_legacy = {
-	.probe          = wifi_probe,
-	.remove         = wifi_remove,
-	.suspend        = wifi_suspend,
-	.resume         = wifi_resume,
-	.driver         = {
-	.name   = "bcm4329_wlan",
-	}
-};
-#endif
-
 static int wifi_add_dev(void)
 {
 	DHD_TRACE(("## Calling platform_driver_register\n"));
 	platform_driver_register(&wifi_device);
-	//platform_driver_register(&wifi_device_legacy);
 	return 0;
 }
 
@@ -881,6 +853,5 @@ static void wifi_del_dev(void)
 {
 	DHD_TRACE(("## Unregister platform_driver_register\n"));
 	platform_driver_unregister(&wifi_device);
-	//platform_driver_unregister(&wifi_device_legacy);
 }
 #endif /* defined(CONFIG_WIFI_CONTROL_FUNC) */

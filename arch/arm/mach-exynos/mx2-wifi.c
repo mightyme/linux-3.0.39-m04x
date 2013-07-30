@@ -36,6 +36,7 @@ static int wl_cs;
 static struct wake_lock wifi_wake_lock;
 static DEFINE_MUTEX(wifi_mutex);
 
+void (*wifi_card_notify_func)(struct platform_device *,  int state);
 
 #define PREALLOC_WLAN_SEC_NUM		4
 #define WLAN_STATIC_SCAN_BUF0		5
@@ -168,18 +169,15 @@ void wifi_card_set_power(int onoff)
 
 static int wlan_power_en(int onoff)
 {
-	if (gpio_get_value(wl_cs)) {
-		WARN(1, "WL_WIFICS is HI\n");
+	/* must be mmc card detected pin low */
+	if (onoff) {
+		wifi_card_set_power(1);
+		msleep(200);
 	} else {
-		/* must be mmc card detected pin low */
-		if (onoff) {
-			wifi_card_set_power(1);
-			msleep(200);
-		} else {
-			wifi_card_set_power(0);
-			msleep(500);
-		}
+		wifi_card_set_power(0);
+		msleep(500);
 	}
+
 	return 0;
 }
 
@@ -193,16 +191,9 @@ static int wlan_reset_en(int onoff)
 static int wlan_carddetect_en(int onoff)
 {
 	pr_info("### %s %d\n", __func__, onoff);
-	if(onoff) {
-		exynos4_setup_sdhci3_cfg_gpio(NULL, 4);
-	} else {
-		exynos4_setup_sdhci3_cfg_gpio(NULL, 0);
-	}
-	msleep(10);
 
-	gpio_set_value(wl_cs, !onoff);	
-
-	msleep(400);
+	if(wifi_card_notify_func != NULL)
+		wifi_card_notify_func(&s3c_device_hsmmc3, onoff);	
 	return 0;
 }
 
@@ -380,20 +371,17 @@ static struct platform_device mx2_wifi = {
 
 
 #ifdef CONFIG_S3C_DEV_HSMMC3
-static void sdhci_wifi_set_power(unsigned int power_mode)
+static int	ext_cd_init(void (*notify_func)(struct platform_device *,  int state))
 {
-	if (!gpio_get_value(wl_cs) && power_mode == 1) {
-		wifi_card_set_power(1);
-	} else {
-		wifi_card_set_power(0);
-	}
+	wifi_card_notify_func = notify_func;
+	return 0;
 }
-
 static struct s3c_sdhci_platdata __initdata mx2_hsmmc3_pdata  = {
-	.cd_type		= S3C_SDHCI_CD_INTERNAL,
+	.ext_cd_init	= ext_cd_init,
+	.cd_type		= S3C_SDHCI_CD_EXTERNAL,
 	.clk_type		= S3C_SDHCI_CLK_DIV_EXTERNAL,
 	.host_caps2	= MMC_CAP2_CLOCK_GATING,
-	.set_power	= sdhci_wifi_set_power,
+	.pm_caps	= MMC_PM_KEEP_POWER|MMC_PM_IGNORE_PM_NOTIFY,
 };
 #endif
 
