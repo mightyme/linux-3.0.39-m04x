@@ -253,7 +253,7 @@ void SetRecMute(struct snd_soc_codec *codec,bool bmute)
 	}
 }
 
-#define DEFAULT_VAL_CHARGE_PUMP_1 0x1F25
+#define DEFAULT_VAL_CHARGE_PUMP_1 0x0
 void SetHpMute(struct snd_soc_codec *codec,bool bmute)
 {
 	dprintk ("%s(%d) \n", __func__,bmute);
@@ -269,9 +269,12 @@ void SetHpMute(struct snd_soc_codec *codec,bool bmute)
 	else
 	{
 		snd_soc_write(codec, WM8994_CHARGE_PUMP_1, WM8994_CP_ENA | DEFAULT_VAL_CHARGE_PUMP_1);
+		mdelay(10); /* delay 10ms to wait for Charge Pump */
 		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,(WM8994_HPOUT1L_ENA_MASK |WM8994_HPOUT1R_ENA_MASK ),WM8994_HPOUT1R_ENA	 |WM8994_HPOUT1L_ENA);
-		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME,WM8994_HPOUT1R_MUTE_N_MASK,WM8994_HPOUT1R_MUTE_N);
-		snd_soc_update_bits(codec, WM8994_LEFT_OUTPUT_VOLUME,WM8994_HPOUT1L_MUTE_N_MASK,WM8994_HPOUT1L_MUTE_N);
+		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME,WM8994_HPOUT1R_MUTE_N_MASK | WM8994_HPOUT1_VU_MASK,
+					WM8994_HPOUT1R_MUTE_N | WM8994_HPOUT1_VU);
+		snd_soc_update_bits(codec, WM8994_LEFT_OUTPUT_VOLUME,WM8994_HPOUT1L_MUTE_N_MASK | WM8994_HPOUT1_VU_MASK,
+					WM8994_HPOUT1L_MUTE_N | WM8994_HPOUT1_VU);
 	}
 }
 
