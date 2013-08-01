@@ -57,7 +57,7 @@
 //#define	__CONFIG_RSEN_LOST_PATCH__
 /* #define	__CONFIG_MHL_SWING_LEVEL__ */
 //#define	__CONFIG_SS_FACTORY__
-#define	__CONFIG_MHL_DEBUG__
+//#define	__CONFIG_MHL_DEBUG__
 /* #define	__SII9234_MUTEX_DEBUG__ */
 /*////////////////////////////////////////////////////////////////////////////*/
 /*//////////////////     dependence hader file area     //////////////////////*/

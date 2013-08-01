@@ -129,7 +129,7 @@ static ssize_t store_spt_usb_download(struct device *dev,
 }
 
 static struct device_attribute attr_spt_usb_download = __ATTR(spt_usb_download,
-		S_IRUGO | S_IWUSR, show_spt_usb_download, store_spt_usb_download);
+		S_IRUGO | S_IWUSR | S_IWGRP, show_spt_usb_download, store_spt_usb_download);
 
 #ifdef CONFIG_HAS_WAKELOCK
 static void spt_modem_wake_lock_initial(struct spt_modem_ctl *mc)

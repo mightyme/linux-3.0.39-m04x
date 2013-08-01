@@ -13,7 +13,7 @@
 #include <linux/mx_akm8963.h>
 
 #define AKM8963_DEBUG		0
-#define AKM8963_DEBUG_MSG	1
+#define AKM8963_DEBUG_MSG	0
 #define AKM8963_DEBUG_FUNC	0
 #define AKM8963_DEBUG_DATA	0
 #define MAX_FAILURE_COUNT	3

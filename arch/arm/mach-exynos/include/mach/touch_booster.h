@@ -16,21 +16,25 @@
 #include <linux/sysdev.h>
 #include <linux/input.h>
 
+#define MAX_BOOST_DEVICE		2
+
 struct tb_private_info {
 	struct sysdev_class tb_class;
 #ifdef CONFIG_BUSFREQ_OPP
 	struct device *bus_dev;
-	struct device *dev;
+	struct device dev;
 #endif
 	unsigned int down_time;
 	unsigned int boost_cpufreq;
 	unsigned int lock_busfreq;
 	unsigned int boost_debug;
 
-	struct input_handle handle;
+	struct input_handle handle[MAX_BOOST_DEVICE];
 	struct workqueue_struct *wq;
 	struct work_struct boost_work;
 	atomic_t boost_lock;
+
+	ktime_t key_time;
 };
 #endif
 

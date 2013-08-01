@@ -616,9 +616,9 @@ int s5p_mipi_dsi_init_link(struct mipi_dsim_device *dsim)
 		while (!(s5p_mipi_dsi_is_lane_state(dsim))) {	//???
 			time_out--;
 			if (time_out == 0) {
-				dev_info(dsim->dev,
+				dev_err(dsim->dev,
 					"DSI Master is not stop state.\n");
-				dev_info(dsim->dev,
+				dev_err(dsim->dev,
 					"Check initialization process\n");
 
 				return -EINVAL;
@@ -626,9 +626,9 @@ int s5p_mipi_dsi_init_link(struct mipi_dsim_device *dsim)
 		}
 
 		if (time_out != 0) {
-			dev_info(dsim->dev,
+			dev_dbg(dsim->dev,
 				"DSI Master driver has been completed.\n");
-			dev_info(dsim->dev, "DSI Master state is stop state\n");
+			dev_dbg(dsim->dev, "DSI Master state is stop state\n");
 		}
 
 		dsim->state = DSIM_STATE_STOP;
