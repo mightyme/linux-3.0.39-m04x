@@ -253,7 +253,7 @@ void SetRecMute(struct snd_soc_codec *codec,bool bmute)
 	}
 }
 
-#define DEFAULT_VAL_CHARGE_PUMP_1 0x0
+#define DEFAULT_VAL_CHARGE_PUMP_1 0x1F25
 void SetHpMute(struct snd_soc_codec *codec,bool bmute)
 {
 	dprintk ("%s(%d) \n", __func__,bmute);
