@@ -63,7 +63,7 @@ static bool qm_filter_check_home(struct qm_filter_global_data *global_data, int 
 	
 	delta_total= ktime_sub(ktime_get(), global_data->touch_time);
 	delta_ms = ktime_to_ms(delta_total);	
-	pr_info("qm_filter_check_home = %Lu mS\n", delta_ms);
+
 	if(delta_ms > QM_HOME_WAIT_TIMEOUT){
 		global_data->home_key_drop = 1;
 		return false;

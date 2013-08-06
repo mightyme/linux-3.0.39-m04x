@@ -213,6 +213,10 @@ static void tb_event(struct input_handle *handle,
 		queue_work(info->wq, &info->boost_work);
 	if (code == KEY_POWER && value == 1)
 		queue_work(info->wq, &info->boost_work);
+	if (code == KEY_HOME && value == 1)
+		queue_work(info->wq, &info->boost_work);
+	if (code == KEY_AGAIN && value == 1)
+		queue_work(info->wq, &info->boost_work);
 }
 static bool  tb_match(struct input_handler *handler, struct input_dev *dev)
 {
@@ -221,6 +225,9 @@ static bool  tb_match(struct input_handler *handler, struct input_dev *dev)
 		return true;
 	/* Avoid gpio keyboard */
 	if (test_bit(EV_KEY, dev->evbit) && test_bit(KEY_POWER, dev->keybit) && dev->id.vendor == 0x0001)
+		return true;
+	/* Avoid touchpad */
+	if (test_bit(EV_KEY, dev->evbit) && test_bit(KEY_HOME, dev->keybit) && dev->id.vendor ==0x1111)
 		return true;
 	return false;
 }
@@ -252,7 +259,7 @@ static int tb_connect(struct input_handler *handler,
 		goto err_open;
 	}
 	boost_device_count++;
-	pr_err("Register input handler %s\n", dev_name(&dev->dev));
+	dev_info(&info->dev, "Register input handler for %s\n", dev_name(&dev->dev));
 	return 0;
 
 err_open:
@@ -279,6 +286,10 @@ static const struct input_device_id tb_ids[] = {
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT  | INPUT_DEVICE_ID_MATCH_KEYBIT,
 		.evbit = { BIT_MASK(EV_KEY) },
 		.keybit = {[BIT_WORD(KEY_POWER)] = BIT_MASK(KEY_POWER) },
+	},{
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT  | INPUT_DEVICE_ID_MATCH_KEYBIT,
+		.evbit = { BIT_MASK(EV_KEY) },
+		.keybit = {[BIT_WORD(KEY_HOME)] = BIT_MASK(KEY_HOME) },
 	},
 	{ }	/* Terminating entry */
 };

@@ -16,7 +16,7 @@
 #include <linux/sysdev.h>
 #include <linux/input.h>
 
-#define MAX_BOOST_DEVICE		2
+#define MAX_BOOST_DEVICE		3
 
 struct tb_private_info {
 	struct sysdev_class tb_class;
