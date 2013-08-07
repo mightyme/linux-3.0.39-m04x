@@ -133,6 +133,7 @@ struct max77665_charger
 	int fastcharging;
 	bool adjust_done;
 	int adjust_count;
+	struct alarm adjust_alarm;
 };
 
 enum {
@@ -237,14 +238,28 @@ static int max77665_charger_get_property(struct power_supply *psy,
 	return 0;
 }
 
-static void set_alarm(struct max77665_charger *chg, int seconds)
+static void set_alarm(struct alarm *alarm, int seconds)
 {
 	ktime_t interval = ktime_set(seconds, 0);
 	ktime_t now = alarm_get_elapsed_realtime();
 	ktime_t next = ktime_add(now, interval);
 
 	pr_info("set alarm after %d seconds\n", seconds);
-	alarm_start_range(&chg->alarm, next, next);
+	alarm_start_range(alarm, next, next);
+}
+
+static void adjust_current_alarm(struct alarm *alarm)
+{
+	struct max77665_charger *charger = container_of(alarm, struct max77665_charger,
+			adjust_alarm);
+
+	wake_lock_timeout(&charger->wake_lock, 3 * HZ);
+
+	if (charger->chgin) {
+		if (delayed_work_pending(&charger->adjust_dwork))
+			cancel_delayed_work(&charger->adjust_dwork);
+		schedule_delayed_work_on(0, &charger->adjust_dwork, 0);
+	}
 }
 
 static void charger_bat_alarm(struct alarm *alarm)
@@ -252,7 +267,7 @@ static void charger_bat_alarm(struct alarm *alarm)
 	struct max77665_charger *chg = container_of(alarm, struct max77665_charger, alarm);
 
 	wake_lock_timeout(&chg->wake_lock, 3 * HZ);
-	set_alarm(chg, WAKE_ALARM_INT);
+	set_alarm(&chg->alarm, WAKE_ALARM_INT);
 }
 
 #define CHG_ADC_CHANNEL 2
@@ -384,6 +399,7 @@ static int max77665_adjust_current(struct max77665_charger *charger,
 	int MAX_INPUT_CURRENT = charger->chgin_ilim_ac; 
 
 	expire = msecs_to_jiffies(COMPLETE_TIMEOUT);
+	charger->adc_flag = false;
 	
 	for (ad_current = chgin_ilim; ad_current <= MAX_INPUT_CURRENT;
 			ad_current += CURRENT_INCREMENT_STEP) {
@@ -575,9 +591,7 @@ static void max77665_work_func(struct work_struct *work)
 
 	max77665_charger_types(charger);
 
-	if (delayed_work_pending(&charger->adjust_dwork))
-		cancel_delayed_work(&charger->adjust_dwork);
-	schedule_delayed_work_on(0, &charger->adjust_dwork, HZ/4);
+	set_alarm(&charger->adjust_alarm, WAKE_ALARM_INT);
 
 	if (delayed_work_pending(&charger->poll_dwork))
 		cancel_delayed_work(&charger->poll_dwork);
@@ -732,6 +746,7 @@ static void max77665_second_adjust_current(struct work_struct *work)
 			charger->done = false;
 			charger->adc_flag = false;
 			charger->cable_status = CABLE_TYPE_NONE;
+			charger->chgin = false;
 			power_supply_changed(&charger->psy_usb);
 			power_supply_changed(&charger->psy_ac);
 			return;
@@ -787,18 +802,6 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 		charger->adc_flag = true;
 		now_current = regulator_get_current_limit(charger->ps);
 		do {
-			if (now_current < CHGIN_USB_CURRENT * MA_TO_UA) {
-				max77665_read_reg(i2c, MAX77665_CHG_REG_CHG_INT_OK,
-						&int_ok);
-				if (int_ok != 0x5d) {
-					charger->cable_status = CABLE_TYPE_NONE;
-					power_supply_changed(&charger->psy_usb);
-					power_supply_changed(&charger->psy_ac);
-					charger->done = false;
-					charger->adc_flag = false;
-				}
-				return;
-			}
 			now_current -= CURRENT_INCREMENT_STEP * MA_TO_UA;
 			regulator_set_current_limit(charger->ps,
 					now_current,
@@ -808,12 +811,11 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 					&int_ok);
 			pr_info("current %d\n", now_current);
 			if (int_ok == 0X5d) {
-				if (charger->adjust_count > 0) {
+				if (charger->adjust_count > 6) {
 					charger->adjust_done = true;
 					charger->adjust_count = 0;
 				}
 				charger->adjust_count++;
-				charger->adc_flag = false;
 				return;
 			}
 		} while (now_current > CHGIN_USB_CURRENT * MA_TO_UA);
@@ -822,7 +824,7 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 	if (charger->chgin != chgin) {
 		alarm_cancel(&charger->alarm);
 		if(chgin)
-			set_alarm(charger, WAKE_ALARM_INT);
+			set_alarm(&charger->alarm, WAKE_ALARM_INT);
 		charger->chgin = chgin;	
 		charger->chg_status = CHG_STATUS_FAST;
 	
@@ -874,6 +876,8 @@ static irqreturn_t max77665_bypass_irq(int irq, void *dev_id)
 		pr_info("################## MAX77665_BYP_DTLS3:\n");
 		if (charger->done == true) {
 			now_current = regulator_get_current_limit(charger->ps);
+			if (now_current < CHGIN_USB_CURRENT * MA_TO_UA);
+				break;
 			regulator_set_current_limit(charger->ps,
 					now_current-CURRENT_INCREMENT_STEP*MA_TO_UA,
 					now_current);
@@ -1217,6 +1221,8 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 
 	alarm_init(&charger->alarm, ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP,
 				charger_bat_alarm);
+	alarm_init(&charger->adjust_alarm, ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP,
+				adjust_current_alarm);
 
 	ret = max77665_read_reg(iodev->i2c, MAX77665_CHG_REG_CHG_INT_OK, &reg_data);
 	if (unlikely(ret < 0))
@@ -1231,7 +1237,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 			} else {
 				schedule_delayed_work_on(0, &charger->dwork, 0);
 			}
-			set_alarm(charger, WAKE_ALARM_INT);
+			set_alarm(&charger->alarm, WAKE_ALARM_INT);
 		}
 	}
 
