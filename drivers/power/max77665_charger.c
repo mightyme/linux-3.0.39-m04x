@@ -591,6 +591,7 @@ static void max77665_work_func(struct work_struct *work)
 
 	max77665_charger_types(charger);
 
+	alarm_cancel(&charger->adjust_alarm);
 	set_alarm(&charger->adjust_alarm, WAKE_ALARM_INT);
 
 	if (delayed_work_pending(&charger->poll_dwork))
@@ -803,6 +804,8 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 		now_current = regulator_get_current_limit(charger->ps);
 		do {
 			now_current -= CURRENT_INCREMENT_STEP * MA_TO_UA;
+			if (now_current < CHGIN_USB_CURRENT * MA_TO_UA)
+				break;
 			regulator_set_current_limit(charger->ps,
 					now_current,
 					now_current + CURRENT_INCREMENT_STEP*MA_TO_UA);
@@ -1260,6 +1263,7 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 
 err_unregister2:
 	alarm_cancel(&charger->alarm);
+	alarm_cancel(&charger->adjust_alarm);
 	power_supply_unregister(&charger->psy_ac);
 err_unregister1:	
 	power_supply_unregister(&charger->psy_usb);
@@ -1288,6 +1292,7 @@ static __devexit int max77665_charger_remove(struct platform_device *pdev)
 	struct max77665_charger *charger = platform_get_drvdata(pdev);
 
 	alarm_cancel(&charger->alarm);
+	alarm_cancel(&charger->adjust_alarm);
 	cancel_delayed_work_sync(&charger->poll_dwork);
 
 	free_irq(charger->chgin_irq, charger);
