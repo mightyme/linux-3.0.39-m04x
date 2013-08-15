@@ -397,6 +397,7 @@ static int __init mx2_wifi_init(void)
 	bt_power 	= EXYNOS4_GPF3(5);
 	wl_cs		= EXYNOS4_GPY0(2);
 
+	gpio_set_value(wl_cs, 0);//wl_cs never be used
 #ifdef CONFIG_S3C_DEV_HSMMC3
 	ret  = platform_device_register(&s3c_device_hsmmc3);
 	if (ret)
