@@ -1624,6 +1624,11 @@ static const struct soc_enum aif2dacr_src_enum =
 static const struct snd_kcontrol_new aif2dacr_src_mux =
 	SOC_DAPM_ENUM("AIF2DACR Mux", aif2dacr_src_enum);
 
+static struct snd_kcontrol_new hpout1_switch[] = {
+	SOC_DAPM_PIN_SWITCH("HPOUT1L"),
+	SOC_DAPM_PIN_SWITCH("HPOUT1R"),
+};
+
 static const struct snd_soc_dapm_widget wm8994_lateclk_revd_widgets[] = {
 SND_SOC_DAPM_SUPPLY("AIF1CLK", SND_SOC_NOPM, 0, 0, aif1clk_ev,
 	SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
@@ -3791,6 +3796,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 
 	wm_hubs_add_analogue_routes(codec, 0, 0);
 	snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
+	snd_soc_add_controls(codec, hpout1_switch, ARRAY_SIZE(hpout1_switch));
 
 	switch (control->type) {
 	case WM8994:
