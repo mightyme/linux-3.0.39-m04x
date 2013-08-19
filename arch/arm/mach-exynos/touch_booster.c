@@ -61,12 +61,10 @@ static void start_touch_boost(struct tb_private_info *info)
 	if (policy) {
 		if (policy->cur < info->boost_cpufreq) {
 			ret = cpufreq_driver_target(policy, info->boost_cpufreq, CPUFREQ_RELATION_L);
-			if (!WARN(ret, "ret = %d\n", ret)) {
-				pr_debug("dev_lock\n");
+			pr_debug("dev_lock\n");
 #ifdef CONFIG_BUSFREQ_OPP
-				dev_lock_timeout(info->bus_dev, &info->dev, info->lock_busfreq, info->down_time);
+			dev_lock_timeout(info->bus_dev, &info->dev, info->lock_busfreq, info->down_time);
 #endif
-			}
 		}
 		cpufreq_cpu_put(policy);
 	}
