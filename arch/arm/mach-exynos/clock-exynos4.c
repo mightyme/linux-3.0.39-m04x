@@ -2163,6 +2163,9 @@ void __init_or_cpufreq exynos4_setup_clocks(void)
 	}
 #endif
 
+	if (clk_set_parent(&exynos4_clk_mout_audss.clk, &clk_ext_xtal_mux))
+		printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
+				clk_ext_xtal_mux.name, exynos4_clk_mout_audss.clk.name);
 	if (clk_set_parent(&exynos4_clk_sclk_audio0.clk, &exynos4_clk_mout_epll.clk))
 		printk(KERN_ERR "Unable to set parent %s of clock %s.\n",
 				exynos4_clk_mout_epll.clk.name, exynos4_clk_sclk_audio0.clk.name);

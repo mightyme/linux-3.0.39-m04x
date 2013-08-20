@@ -768,7 +768,7 @@ static int i2s_startup(struct snd_pcm_substream *substream,
 
 	if (!i2s->tx_active && !i2s->rx_active && !other_tx_rx_active
 		&& !srp_active(i2s, IS_OPENED)) {
-		i2s_clk_enable(i2s, true);
+//		i2s_clk_enable(i2s, true);
 
 		if (i2s->reg_saved)
 			i2s_reg_restore(dai);
@@ -824,7 +824,7 @@ static void i2s_shutdown(struct snd_pcm_substream *substream,
 		if (!i2s->reg_saved)
 			i2s_reg_save(dai);
 
-		i2s_clk_enable(i2s, false);
+//		i2s_clk_enable(i2s, false);
 	}
 
 	spin_unlock_irqrestore(&lock, flags);
@@ -1093,7 +1093,7 @@ static int samsung_i2s_dai_probe(struct snd_soc_dai *dai)
 		i2s_set_sysclk(dai, SAMSUNG_I2S_CDCLK,
 				0, SND_SOC_CLOCK_IN);
 
-	i2s_clk_enable(i2s, false);
+//	i2s_clk_enable(i2s, false);
 
 probe_exit:
 	return 0;
