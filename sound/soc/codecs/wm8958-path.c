@@ -253,28 +253,19 @@ void SetRecMute(struct snd_soc_codec *codec,bool bmute)
 	}
 }
 
-#define DEFAULT_VAL_CHARGE_PUMP_1 0x1F25
 void SetHpMute(struct snd_soc_codec *codec,bool bmute)
 {
 	dprintk ("%s(%d) \n", __func__,bmute);
 
 	if(bmute)
 	{
-		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME,WM8994_HPOUT1R_MUTE_N_MASK,0x00);
-		snd_soc_update_bits(codec, WM8994_LEFT_OUTPUT_VOLUME,WM8994_HPOUT1L_MUTE_N_MASK,0x00);
-
-		snd_soc_write(codec,WM8994_CHARGE_PUMP_1 ,DEFAULT_VAL_CHARGE_PUMP_1);
-		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,(WM8994_HPOUT1L_ENA_MASK |WM8994_HPOUT1R_ENA_MASK ),0x00);
+		snd_soc_update_bits(codec, WM8994_LEFT_OUTPUT_VOLUME, WM8994_HPOUT1L_MUTE_N_MASK, 0x0);
+		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME, WM8994_HPOUT1R_MUTE_N_MASK, 0x0);
 	}
 	else
 	{
-		snd_soc_write(codec, WM8994_CHARGE_PUMP_1, WM8994_CP_ENA | DEFAULT_VAL_CHARGE_PUMP_1);
-		mdelay(10); /* delay 10ms to wait for Charge Pump */
-		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,(WM8994_HPOUT1L_ENA_MASK |WM8994_HPOUT1R_ENA_MASK ),WM8994_HPOUT1R_ENA	 |WM8994_HPOUT1L_ENA);
-		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME,WM8994_HPOUT1R_MUTE_N_MASK | WM8994_HPOUT1_VU_MASK,
-					WM8994_HPOUT1R_MUTE_N | WM8994_HPOUT1_VU);
-		snd_soc_update_bits(codec, WM8994_LEFT_OUTPUT_VOLUME,WM8994_HPOUT1L_MUTE_N_MASK | WM8994_HPOUT1_VU_MASK,
-					WM8994_HPOUT1L_MUTE_N | WM8994_HPOUT1_VU);
+		snd_soc_update_bits(codec, WM8994_LEFT_OUTPUT_VOLUME, WM8994_HPOUT1L_MUTE_N_MASK, WM8994_HPOUT1L_MUTE_N);
+		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME, WM8994_HPOUT1R_MUTE_N_MASK, WM8994_HPOUT1R_MUTE_N);
 	}
 }
 
@@ -284,17 +275,15 @@ void playback_analog_mute(struct snd_soc_codec *codec, bool bmute)
 
 	if (bmute) {
 		// headphone
-		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME,WM8994_HPOUT1R_MUTE_N_MASK,0x00);
-		snd_soc_update_bits(codec, WM8994_LEFT_OUTPUT_VOLUME,WM8994_HPOUT1L_MUTE_N_MASK,0x00);
-		snd_soc_write(codec,WM8994_CHARGE_PUMP_1 ,DEFAULT_VAL_CHARGE_PUMP_1);
+		snd_soc_update_bits(codec, WM8994_LEFT_OUTPUT_VOLUME, WM8994_HPOUT1L_MUTE_N_MASK, 0x0);
+		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME, WM8994_HPOUT1R_MUTE_N_MASK, 0x0);
 		// speaker
 		// snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_RIGHT,WM8994_SPKOUTR_MUTE_N_MASK,0x00);
 		// snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_LEFT,WM8994_SPKOUTL_MUTE_N_MASK,0x00);
 	} else {
 		// headphone
-		snd_soc_write(codec, WM8994_CHARGE_PUMP_1, WM8994_CP_ENA | DEFAULT_VAL_CHARGE_PUMP_1);
-		snd_soc_update_bits(codec, WM8994_RIGHT_OUTPUT_VOLUME,WM8994_HPOUT1R_MUTE_N_MASK,WM8994_HPOUT1R_MUTE_N);
-		snd_soc_update_bits(codec, WM8994_LEFT_OUTPUT_VOLUME,WM8994_HPOUT1L_MUTE_N_MASK,WM8994_HPOUT1L_MUTE_N);
+		snd_soc_write(codec, WM8994_LEFT_OUTPUT_VOLUME, snd_soc_read(codec, WM8994_LEFT_OUTPUT_VOLUME) | WM8994_HPOUT1L_MUTE_N);
+		snd_soc_write(codec, WM8994_RIGHT_OUTPUT_VOLUME, snd_soc_read(codec, WM8994_RIGHT_OUTPUT_VOLUME) | WM8994_HPOUT1R_MUTE_N);
 		// speaker
 		// snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_RIGHT,WM8994_SPKOUTR_MUTE_N_MASK,WM8994_SPKOUTR_MUTE_N);
 		// snd_soc_update_bits(codec, WM8994_SPEAKER_VOLUME_LEFT,WM8994_SPKOUTL_MUTE_N_MASK,WM8994_SPKOUTL_MUTE_N);
