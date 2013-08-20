@@ -719,7 +719,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 	{
 	case PLAYBACK_REC_NORMAL:
 		CloseAIF2(codec);
-		SetEQBase(codec,EQ_SPK_NORMAL);
+		SetEQBase(codec,EQ_HP_NORMAL);
 		SetVolume_Normal(codec);
 		SetRecMute(codec,0);
 		break;
@@ -745,7 +745,7 @@ int set_playback_path(struct snd_soc_codec *codec,u8 playback_path)
 
 	case PLAYBACK_REC_RING:
 		CloseAIF2(codec);
-		SetEQBase(codec,EQ_SPK_NORMAL);
+		SetEQBase(codec,EQ_HP_NORMAL);
 		SetVolume_Ring(codec);
 		SetRecMute(codec,0);
 		break;
