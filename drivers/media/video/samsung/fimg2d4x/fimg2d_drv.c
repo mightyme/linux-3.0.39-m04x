@@ -210,6 +210,7 @@ static long fimg2d_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case FIMG2D_BITBLT_BLIT:
 		fimg2d_debug("FIMG2D_BITBLT_BLIT ctx: %p\n", ctx);
 		u.blit = (struct fimg2d_blit *)arg;
+		ctx->mm = get_task_mm(current);
 #ifdef PERF_PROFILE
 		perf_start(ctx, PERF_KERN);
 #endif
@@ -221,6 +222,7 @@ static long fimg2d_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		perf_print(ctx, u.blit->seq_no);
 		perf_clear(ctx);
 #endif
+		mmput(ctx->mm);
 		break;
 
 	case FIMG2D_BITBLT_SYNC:
