@@ -36,8 +36,9 @@
 
 //#ifndef CONFIG_SII9234_RCP
 //#define CONFIG_SII9234_RCP		1
-//#include <linux/input.h>
+#include <linux/input.h>
 //#endif
+
 #include <linux/wakelock.h>
 
 #ifdef CONFIG_SAMSUNG_MHL_9290
@@ -306,6 +307,12 @@
 #define	CBUS_MSC_RAP_CONTENT_ON		0x10
 #define	CBUS_MSC_RAP_CONTENT_OFF	0x11
 
+//MZ_PHONE luxi78: add following lines for SCRATCHPAD supporting
+#define CBUS_REG_SCRATCHPAD_START   0xc0
+#define CBUS_SCRATCHPAD_LEN         0x10 
+#define SOURCE_X                    (800)
+#define SOURCE_Y                    (1280)
+
 /* Register Bits for CBUS_MSC_COMMAND_START_REG */
 #define START_BIT_MSC_RESERVED		(1<<0)
 #define START_BIT_MSC_MSG		    (1<<1)
@@ -557,6 +564,9 @@ struct sii9234_data {
 	bool tmds_state;
 #endif
 	struct mutex  mutex_lock;
+
+    //mz_phone luxi78 add
+    //struct input_dev *scratchpad_dev;
 };
 
 #ifdef __MHL_NEW_CBUS_MSC_CMD__

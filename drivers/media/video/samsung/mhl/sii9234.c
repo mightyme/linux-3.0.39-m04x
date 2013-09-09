@@ -48,6 +48,8 @@
 #include <linux/extcon.h>
 #endif
 
+#include <linux/vmalloc.h>
+
 /*////////////////////////////////////////////////////////////////////////////*/
 /*/////////////////////////	definition area		//////////////////////*/
 /*////////////////////////////////////////////////////////////////////////////*/
@@ -175,8 +177,8 @@ int en_irq;
 
 #ifdef __MHL_NEW_CBUS_MSC_CMD__
 LIST_HEAD(g_msc_packet_list);
-static int g_list_cnt;
-static struct workqueue_struct *sii9234_msc_wq;
+static __maybe_unused int g_list_cnt;
+static __maybe_unused struct workqueue_struct *sii9234_msc_wq;
 #endif
 
 static struct cbus_packet cbus_pkt_buf[CBUS_PKT_BUF_COUNT];
@@ -200,6 +202,165 @@ static bool cbus_command_request(struct sii9234_data *sii9234,
 				 enum cbus_command command, u8 offset, u8 data);
 static void cbus_command_response(struct sii9234_data *sii9234);
 static irqreturn_t sii9234_irq_thread(int irq, void *data);
+
+
+
+static struct input_dev *scratchpad_dev = NULL;
+static u32 scratchpad_x = 0;
+static u32 scratchpad_y = 0;
+static bool portrait = true;
+static struct proc_dir_entry * entry_rotation_dir = NULL;
+static struct proc_dir_entry * entry_rotation_file = NULL;
+
+
+
+static void resetScratchpadDeviceParams(void) {
+    u32 scale_x, scale_y, scale;
+    u32 fact_x, fact_y;
+    u32 source_x, source_y;
+    unsigned int axis_x, axis_y;
+
+    const int MULTIPLE = 10000;
+
+    if (!scratchpad_dev) return;
+
+    if (portrait) {
+        source_x = SOURCE_X;
+        source_y = SOURCE_Y;
+        axis_x = ABS_X;
+        axis_y = ABS_Y;
+    } else {
+        source_x = SOURCE_Y;
+        source_y = SOURCE_X;
+        axis_x = ABS_Y;
+        axis_y = ABS_X;
+    }
+    
+    scale_x = scratchpad_x*MULTIPLE/source_x;
+    scale_y = scratchpad_y*MULTIPLE/source_y;
+    scale = min(scale_x, scale_y);
+    fact_x = (source_x*scale+MULTIPLE/2)/MULTIPLE;
+    fact_y = (source_y*scale+MULTIPLE/2)/MULTIPLE;
+
+    //pr_info("luxeeaaa: fact_x:%d fact_y:%d\n", fact_x, fact_y); //结果是正确的
+
+    if (scale == scale_x) {
+        u32 y_begin, y_end;
+        y_begin = ((scratchpad_y-fact_y)*MULTIPLE/2+MULTIPLE/2)/MULTIPLE;
+        y_end = y_begin + fact_y;
+
+        //pr_info("luxeeaaa: y_begin:%d y_end:%d\n", y_begin, y_end); 
+        input_set_abs_params(scratchpad_dev, axis_x, 0, (int)scratchpad_x, 0, 0);
+        input_set_abs_params(scratchpad_dev, axis_y, (int)y_begin, (int)y_end, 0, 0);
+    } else {
+        u32 x_begin, x_end;
+        x_begin = ((scratchpad_x-fact_x)*MULTIPLE/2+MULTIPLE/2)/MULTIPLE;
+        x_end = x_begin + fact_x;
+
+        //pr_info("luxeeaaa: x_begin:%d x_end:%d\n", x_begin, x_end); 
+        input_set_abs_params(scratchpad_dev, axis_x, (int)x_begin, (int)x_end, 0, 0);
+        input_set_abs_params(scratchpad_dev, axis_y, 0, (int)scratchpad_y, 0, 0);
+    }
+}
+
+static void setScrapthpadDevice(u32 touchpad_x, u32 touchpad_y, bool is_portrait) {
+    int ret;
+
+    pr_info("setScrapthpadDevice()... x=%d y=%d portrait=%s\n", touchpad_x, touchpad_y, is_portrait?"true":"false");
+    scratchpad_x = touchpad_x;
+    scratchpad_y = touchpad_y;
+
+    portrait = is_portrait;
+
+    if(scratchpad_dev) {
+        input_unregister_device(scratchpad_dev);
+        input_free_device(scratchpad_dev);
+        scratchpad_dev = NULL;
+    }
+
+    scratchpad_dev = input_allocate_device();
+    if (!scratchpad_dev) {
+        return;
+    }
+    scratchpad_dev->evbit[0] = BIT(EV_SYN) |  BIT(EV_KEY) | BIT(EV_ABS);
+    scratchpad_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
+
+    resetScratchpadDeviceParams();
+
+    scratchpad_dev->name = "meizu_mhl_ts";
+    scratchpad_dev->id.bustype = BUS_I2C;
+    scratchpad_dev->id.vendor = 0x55aa;
+    scratchpad_dev->id.product = 0xaa55;
+    scratchpad_dev->id.version = 0x0101;
+    ret = input_register_device(scratchpad_dev);
+    if (ret<0) {
+        input_free_device(scratchpad_dev);
+        scratchpad_dev = NULL;
+        return;
+    }
+}
+
+static inline bool proc_file_inited(void) {
+    return entry_rotation_dir != NULL;
+}
+
+static int write_rotation_file(struct file *file, const char __user *buffer, unsigned long count, void *data) {
+    char* source = (char*)vmalloc(count);
+    if (copy_from_user(source, buffer, count) ) return EFAULT; 
+    portrait = (source[0]=='0');
+    vfree(source);
+
+    if (scratchpad_x && scratchpad_y) 
+        setScrapthpadDevice(scratchpad_x, scratchpad_y, portrait);
+
+    return count;
+}
+
+static int read_rotation_file(char *page, char **start, off_t off, int count, int *eof, void *data) {
+    int len;
+    if (off > 0) {
+        *eof = 1;
+        return 0;
+    }
+    len = sprintf(page, "portrait:%s\n", portrait?"true":"false");
+    return len;
+}
+
+static void init_scratchpad(void) {
+    scratchpad_dev = NULL;
+
+    if (proc_file_inited()) return;
+    entry_rotation_dir = proc_mkdir("mhl_touchpad", NULL);
+    if (entry_rotation_dir == NULL) {
+        printk(KERN_INFO " Couldn't create proc entry\n");
+        return;
+    }
+
+    entry_rotation_file = create_proc_entry("rotation", 0600, entry_rotation_dir);
+    if (entry_rotation_file == NULL) {
+        printk(KERN_INFO " Couldn't create proc entry\n");
+        return;
+    }
+
+    entry_rotation_file->uid = 1000;
+    entry_rotation_file->gid = 1000;
+    entry_rotation_file->write_proc = write_rotation_file;
+    entry_rotation_file->read_proc = read_rotation_file;
+}
+
+static void exit_scratchpad(void) {
+    if( scratchpad_dev ) {
+        input_unregister_device(scratchpad_dev);
+        input_free_device(scratchpad_dev);
+        scratchpad_dev = NULL;
+    }
+
+    if ( proc_file_inited() ) { 
+        remove_proc_entry("rotation", entry_rotation_dir);
+        remove_proc_entry("mhl_touchpad", NULL);
+    }
+}
+
 
 static void goto_d3(void);
 
@@ -1053,6 +1214,7 @@ static void cbus_process_rcp_key(struct sii9234_data *sii9234, u8 key)
 }
 #endif
 
+#ifdef CONFIG_SII9234_RCP
 static void cbus_process_rap_key(struct sii9234_data *sii9234, u8 key)
 {
 	if (CBUS_MSC_RAP_CONTENT_ON == key)
@@ -1078,6 +1240,7 @@ static void cbus_process_rap_key(struct sii9234_data *sii9234, u8 key)
  * driver itself.  However, the driver does not have any criteria to which
  * to make this decision.
  */
+
 static void cbus_handle_msc_msg(struct sii9234_data *sii9234)
 {
 	u8 cmd_code, key;
@@ -1127,6 +1290,7 @@ static void cbus_handle_msc_msg(struct sii9234_data *sii9234)
 	}
 	sii9234_cbus_mutex_unlock(&sii9234->cbus_lock);
 }
+#endif
 
 void mhl_path_enable(struct sii9234_data *sii9234, bool path_en)
 {
@@ -1147,9 +1311,74 @@ void mhl_path_enable(struct sii9234_data *sii9234, bool path_en)
 #endif
 }
 
-static void cbus_handle_wrt_burst_recd(struct sii9234_data *sii9234)
-{
-	pr_debug("sii9234: CBUS WRT_BURST_RECD\n");
+//mz_phone luxi78: function for handling scratch pad event
+static void cbus_handle_wrt_burst_recd(struct sii9234_data *sii9234) {
+    char* touch_status;
+    u8 i, data[CBUS_SCRATCHPAD_LEN];
+    u16 x, y;
+    bool touch_event = false;
+
+    for(i=0;i<CBUS_SCRATCHPAD_LEN;++i) 
+        cbus_read_reg(sii9234, CBUS_REG_SCRATCHPAD_START + i, data + i);
+
+    /*
+    //luxi78:下面的代码模拟获取到了触摸屏分辨率，用于临时测试 
+    if (!scratchpad_dev)  {
+        setScrapthpadDevice(960, 540, portrait);
+    }
+    */
+
+    if (data[1]==0x21 && data[0]==0x06 && !strcmp((char*)data+8, "xygala")){
+        x = (u16)(data[2])<<8;
+        x += data[3];
+        y = (u16)(data[4])<<8;
+        y += data[5];
+        if (scratchpad_x!=x || scratchpad_y!=y) {
+            setScrapthpadDevice(x, y, portrait);
+        }
+        pr_info("set scratchpad resolution to x=%d y=%d\n", x, y);
+        return; 
+    }
+
+
+    if ( !scratchpad_dev ) return;
+
+    switch(data[1]) {
+        case 0x61:
+            touch_status = "TOUCH_PRESSED";
+            input_report_key(scratchpad_dev, BTN_TOUCH, 1);
+            touch_event= true;
+            break;
+        case 0xa1:
+            touch_status = "TOUCH_HOLD";
+            input_report_key(scratchpad_dev, BTN_TOUCH, 1);
+            touch_event = true;
+            break;
+        case 0xe1:
+            touch_status = "TOUCH_RELEASE";
+            input_report_key(scratchpad_dev, BTN_TOUCH, 0);
+            touch_event = true;
+            break;
+        default:
+            touch_status = "TOUCH_UNKNOWN";
+    }
+
+    x = (u16)(data[2])<<8;
+    x += data[3];
+    y = (u16)(data[4])<<8;
+    y += data[5];
+    pr_info("%s x=%d y=%d\n", touch_status, x, y);
+
+    if (touch_event ) {
+        if (portrait) {
+            input_report_abs(scratchpad_dev, ABS_X, x);
+            input_report_abs(scratchpad_dev, ABS_Y, y);
+        } else {
+            input_report_abs(scratchpad_dev, ABS_X, scratchpad_y - y); 
+            input_report_abs(scratchpad_dev, ABS_Y, x);
+        }
+        input_sync(scratchpad_dev);
+    }
 }
 
 static void cbus_handle_wrt_stat_recd(struct sii9234_data *sii9234)
@@ -2417,7 +2646,13 @@ static int sii9234_detection_callback(void)
 
 	ret = cbus_write_reg(sii9234,
 			     CBUS_INTR2_ENABLE_REG,
-			     WRT_STAT_RECD_MASK | SET_INT_RECD_MASK);
+			     WRT_STAT_RECD_MASK | SET_INT_RECD_MASK | 
+                 WRT_BURST_RECD_MASK); //mz_phone luxi78: MSC responder received WRITE_BURST interrupt enable for scratchpad
+
+	ret = cbus_write_reg(sii9234,
+            CBUS_MSC_WRITE_BURST_LEN, 
+			   CBUS_SCRATCHPAD_LEN-1 );
+
 	if (ret < 0)
 		goto unhandled_nolock;
 
@@ -2703,7 +2938,7 @@ static void cbus_command_response_dbg_msg(struct sii9234_data *sii9234,
 }
 #endif
 
-static void cbus_command_response_all(struct sii9234_data *sii9234)
+static void __maybe_unused cbus_command_response_all(struct sii9234_data *sii9234)
 {
 	u8 index;
 	struct cbus_packet cbus_pkt_process_buf[CBUS_PKT_BUF_COUNT];
@@ -3357,6 +3592,10 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data)
 
 		if (cbus_intr2 & SET_INT_RECD)
 			cbus_handle_set_int_recd(sii9234);
+
+
+		if (cbus_intr2 & WRT_BURST_RECD)
+            cbus_handle_wrt_burst_recd(sii9234);
 	}
 
  err_exit:
@@ -3754,6 +3993,8 @@ static int __devinit sii9234_mhl_tx_i2c_real_probe(struct i2c_client *client)
 #ifdef CONFIG_SII9234_RCP
 	struct input_dev *input;
 #endif
+
+    //struct input_dev *scratchpad_dev;
 	int ret;
 #if defined(__CONFIG_SS_FACTORY__) || defined(__CONFIG_MHL_SWING_LEVEL__)
 	struct class *sec_mhl;
@@ -3910,6 +4151,7 @@ static int __devinit sii9234_mhl_tx_i2c_real_probe(struct i2c_client *client)
 		goto err_exit2c;
 	}
 #endif
+
 #ifdef CONFIG_SAMSUNG_MHL_9290
 	sii9234->acc_con_nb.notifier_call = sii9234_30pin_callback;
 	acc_register_notifier(&sii9234->acc_con_nb);
@@ -3949,23 +4191,25 @@ static int __devinit sii9234_mhl_tx_i2c_real_probe(struct i2c_client *client)
 err_extcon:
 	extcon_unregister_interest(&sii9234->extcon_dev);
 #endif
- err_exit2c:
+#ifdef CONFIG_SII9234_RCP
+err_exit2c:
+#endif
 #ifdef __CONFIG_MHL_SWING_LEVEL__
 	class_remove_file(sec_mhl, &class_attr_swing);
-#endif
  err_exit2b:
+#endif
 #ifdef __CONFIG_SS_FACTORY__
 	class_remove_file(sec_mhl, &class_attr_test_result);
 #endif
- err_exit2a:
 #if defined(__CONFIG_SS_FACTORY__) || defined(__CONFIG_MHL_SWING_LEVEL__)
+ err_exit2a:
 	class_destroy(sec_mhl);
 #endif
  err_exit1:
 #ifdef CONFIG_SII9234_RCP
 	input_free_device(input);
-#endif
  err_exit0:
+#endif
 	kfree(sii9234);
 	return ret;
 }
@@ -4117,6 +4361,8 @@ static int __init sii9234_init(void)
 {
 	int ret;
 
+    init_scratchpad();
+
 	ret = i2c_add_driver(&sii9234_mhl_tx_i2c_driver);
 	if (ret < 0)
 		return ret;
@@ -4147,6 +4393,8 @@ static int __init sii9234_init(void)
 
 static void __exit sii9234_exit(void)
 {
+    exit_scratchpad();
+
 	i2c_del_driver(&sii9234_cbus_i2c_driver);
 	i2c_del_driver(&sii9234_hdmi_rx_i2c_driver);
 	i2c_del_driver(&sii9234_tpi_i2c_driver);
