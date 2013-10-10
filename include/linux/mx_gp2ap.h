@@ -175,6 +175,8 @@ struct gp2ap_data {
 	int near_threshold;
 	int far_threshold;
 	int cal_type;
+    struct class *sensors_class;
+    struct device *dev;
 };
 #endif
 

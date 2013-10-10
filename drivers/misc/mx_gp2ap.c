@@ -883,7 +883,7 @@ static ssize_t gp2ap_calibration_store(struct device *dev,
 	int calibration = simple_strtoul(buf, NULL, 10);
 	
 	if (calibration) {
-		gp2ap->ps_calib_value = gp2ap_ps_calibration(gp2ap);
+        gp2ap->ps_calib_value = gp2ap_ps_calibration(gp2ap);
 
 		/* after calibration, should set the near and far threshold again */
 		gp2ap->init_threshold_flag = 1;
@@ -1602,12 +1602,21 @@ static int __devinit gp2ap_probe(struct i2c_client *client, const struct i2c_dev
 		goto err_free_irq;
 	}
 
+   gp2ap->sensors_class = class_create(THIS_MODULE, "sensors");
+   gp2ap->dev = device_create(gp2ap->sensors_class, NULL, 0, gp2ap, "gp2ap_dev");
+   ret = sysfs_create_link(&gp2ap->dev->kobj,&client->dev.kobj, "i2c");
+   if (ret < 0) {
+            pr_err("%s()->%d:can not create sysfs link!\n",
+                __func__, __LINE__);
+            goto err_unregister_misc;
+    }
+
 	/* create sysfs attributes */
 	ret = sysfs_create_group(&client->dev.kobj, &gp2ap_attribute_group);
 	if (ret < 0) {
 		pr_err("%s()->%d:can not create sysfs group attributes!\n",
 			__func__, __LINE__);
-		goto err_unregister_misc;
+		goto err_remove_syslink;
 	}
 
 	mutex_init(&gp2ap->lock);
@@ -1646,6 +1655,8 @@ static int __devinit gp2ap_probe(struct i2c_client *client, const struct i2c_dev
 
 	return 0;
 
+err_remove_syslink:
+    sysfs_remove_link(&gp2ap->dev->kobj, "i2c");
 err_unregister_misc:
 	misc_deregister(&gp2ap->misc_device);
 err_free_irq:
