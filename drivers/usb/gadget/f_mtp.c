@@ -325,7 +325,37 @@ struct mtp_device_status {
 	__le16	wLength;
 	__le16	wCode;
 };
+#ifdef CONFIG_MAC_OS_MTP_SUPPORT
+/* Function  : Change config for multi configuration
+ * 	 	0: Windows,Linux
+ *		1: Mac os
+ * Parameter : int conf_num (config number)
+ */
+static int mtp_set_config_desc(int conf_num)
+{
+	switch (conf_num) {
+	case 0:
+		mtp_interface_desc.bInterfaceClass =
+			USB_CLASS_STILL_IMAGE;
+		mtp_interface_desc.bInterfaceSubClass =
+			0x01;
+		mtp_interface_desc.bInterfaceProtocol =
+			0x01;
 
+		break;
+	case 1:
+		mtp_interface_desc.bInterfaceClass =
+			USB_CLASS_VENDOR_SPEC;
+		mtp_interface_desc.bInterfaceSubClass =
+			USB_SUBCLASS_VENDOR_SPEC;
+		mtp_interface_desc.bInterfaceProtocol =
+			0x0;
+		break;
+
+	}
+	return 1;
+}
+#endif
 /* temporary variable used between mtp_open() and mtp_gadget_bind() */
 static struct mtp_dev *_mtp_dev;
 
@@ -1281,7 +1311,9 @@ static int mtp_bind_config(struct usb_configuration *c, bool ptp_config)
 	dev->function.unbind = mtp_function_unbind;
 	dev->function.set_alt = mtp_function_set_alt;
 	dev->function.disable = mtp_function_disable;
-
+#ifdef CONFIG_MAC_OS_MTP_SUPPORT
+	dev->function.set_config_desc = mtp_set_config_desc;
+#endif
 	return usb_add_function(c, &dev->function);
 }
 

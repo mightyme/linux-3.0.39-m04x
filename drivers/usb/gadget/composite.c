@@ -79,6 +79,10 @@ MODULE_PARM_DESC(iSerialNumber, "SerialNumber string");
 
 static char composite_manufacturer[50];
 
+#ifdef CONFIG_MAC_OS_MTP_SUPPORT
+static bool is_mac_os;
+#endif
+
 /*-------------------------------------------------------------------------*/
 /**
  * usb_add_function() - add a function to a configuration
@@ -286,6 +290,12 @@ static int config_buf(struct usb_configuration *config,
 
 		if (!descriptors)
 			continue;
+#ifdef CONFIG_MAC_OS_MTP_SUPPORT
+		pr_info("%s--> is_mac_os: %s\n", __func__, is_mac_os?"Yes":"No");
+
+		if (f->set_config_desc)
+			f->set_config_desc(is_mac_os);
+#endif
 		status = usb_descriptor_fillbuf(next, len,
 			(const struct usb_descriptor_header **) descriptors);
 		if (status < 0)
@@ -1050,6 +1060,11 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 				value = min(w_length, (u16) value);
 			break;
 		case USB_DT_STRING:
+#ifdef CONFIG_MAC_OS_MTP_SUPPORT
+			if (w_length == 2) {
+				is_mac_os = true;
+			}
+#endif
 			value = get_string(cdev, req->buf,
 					w_index, w_value & 0xff);
 			if (value >= 0)
@@ -1261,6 +1276,9 @@ static void composite_disconnect(struct usb_gadget *gadget)
 	 * disconnect callbacks?
 	 */
 	spin_lock_irqsave(&cdev->lock, flags);
+#ifdef CONFIG_MAC_OS_MTP_SUPPORT
+	is_mac_os = false;
+#endif
 	if (cdev->config)
 		reset_config(cdev);
 	if (composite->disconnect)

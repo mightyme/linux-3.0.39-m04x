@@ -153,7 +153,9 @@ struct usb_function {
 	int			(*get_status)(struct usb_function *);
 	int			(*func_suspend)(struct usb_function *,
 						u8 suspend_opt);
-
+#ifdef CONFIG_MAC_OS_MTP_SUPPORT
+	int 			(*set_config_desc)(int conf_num);
+#endif
 	/* private: */
 	/* internals */
 	struct list_head		list;

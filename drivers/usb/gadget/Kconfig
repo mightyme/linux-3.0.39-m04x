@@ -711,6 +711,13 @@ config USB_GADGET_SUPERSPEED
 	depends on USB_GADGET
 	depends on USB_GADGET_DUALSPEED
 
+
+config MAC_OS_MTP_SUPPORT
+	boolean "Mac os MTP support"
+	default y
+	depends on USB_G_ANDROID
+	help
+	  mac os mtp support.
 #
 # USB Gadget Drivers
 #
