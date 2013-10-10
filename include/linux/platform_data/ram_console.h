@@ -24,6 +24,7 @@
 #define BOOT_FROM_LABEL "Boot from: "
 #define BOOT_STAT_LABEL "Boot stat:\n"
 #define BOOT_PARM_LABEL "Boot parm: "
+#define BOOT_CMD_LABEL  "Boot cmd: "
 
 #define RAM_CONSOLE_BOOT_INFO			\
 	CONFIG_DEFAULT_HOSTNAME ", "		\
@@ -33,5 +34,9 @@
 struct ram_console_platform_data {
 	const char *bootinfo;
 };
-
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+extern void record_normal_reboot_reason(const char *cmd);
+#else
+#define record_normal_reboot_reason(cmd) do { } while(0);
+#endif
 #endif /* _INCLUDE_LINUX_PLATFORM_DATA_RAM_CONSOLE_H_ */
