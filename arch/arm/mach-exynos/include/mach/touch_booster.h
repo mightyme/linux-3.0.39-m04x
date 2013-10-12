@@ -19,13 +19,13 @@
 #define MAX_BOOST_DEVICE		3
 
 struct tb_private_info {
-	struct sysdev_class tb_class;
+	struct class tb_class;
 #ifdef CONFIG_BUSFREQ_OPP
 	struct device *bus_dev;
 	struct device dev;
 #endif
 	unsigned int down_time;
-	unsigned int boost_cpufreq;
+	unsigned int boost_cpufreq_level;
 	unsigned int lock_busfreq;
 	unsigned int boost_debug;
 
@@ -37,4 +37,3 @@ struct tb_private_info {
 	ktime_t key_time;
 };
 #endif
-
