@@ -38,4 +38,18 @@ struct pfm_info {
 extern int unregister_pfm_notifier(struct notifier_block *);
 extern int register_pfm_notifier(struct notifier_block *);
 
+#define POWER_MODE_LEN	(16)
+
+struct exynos_power_info {
+	char		*mode_name;
+	unsigned int	cpu_freq_lock;
+	unsigned int	index;
+};
+
+enum exynos_power_mode_idx {
+	POWER_MODE_0,
+	POWER_MODE_1,
+	POWER_MODE_END,
+};
+
 #endif
