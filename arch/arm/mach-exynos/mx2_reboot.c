@@ -26,6 +26,7 @@
 #include <mach/system.h>
 #include <mach/regs-pmu.h>
 #include <mach/gpio.h>
+#include <linux/platform_data/ram_console.h>
 
 #define REBOOT_MODE_CHARGE		0x0
 #define REBOOT_MODE_WIPE			0x1
@@ -38,6 +39,8 @@ static void mx2_reboot_internal(const char *cmd)
 
 	local_irq_disable();
 
+	/*record the normal reboot reason*/
+	record_normal_reboot_reason(cmd);
 	if(cmd) {
 		if (strstr(cmd, "charge"))
 			__raw_writel(REBOOT_MODE_CHARGE, S5P_INFORM4);

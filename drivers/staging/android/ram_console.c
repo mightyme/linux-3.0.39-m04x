@@ -77,9 +77,15 @@ static char boot_reason_str[END_REASON][20] = {
 	"unknow reason",
 };
 
+struct reboot_normal {
+	int flag;
+	char cmd[50];
+};
+
 struct boot_stat {
 	int reason, new_reason;
 	unsigned long long count[END_REASON];
+	struct reboot_normal normal_reboot_info;
 #ifdef CONFIG_AUTOTEST_REBOOT
 	uint32_t reboot_test_sig;		/* Signature */
 	int sysctl_autotest_random;		/* Random or not */
@@ -140,7 +146,27 @@ do {						\
 		__func__, r, boot_reason_str[r], ram_console_buffer->bs.count[r]); \
 } while (0)
 
+static void reset_normal_reboot_reason(void)
+{
+	memset(&ram_console_buffer->bs.normal_reboot_info, 0, sizeof(struct reboot_normal));
+}
+
+void record_normal_reboot_reason(const char *cmd)
+{
+	if (!ram_console_buffer) {
+		pr_info("%s: get the ram console buffer failed. \n", __func__);
+	}
+	if (cmd) {
+		ram_console_buffer->bs.normal_reboot_info.flag = 1;
+		strcpy(ram_console_buffer->bs.normal_reboot_info.cmd, cmd);
+		pr_info("the cmd is %s \n", ram_console_buffer->bs.normal_reboot_info.cmd);
+	} else {
+		reset_normal_reboot_reason();
+	}
+}
+
 #ifdef CONFIG_AUTOTEST_REBOOT
+
 static inline void save_reboot_test(void)
 {
 	if (!ram_console_buffer)
@@ -881,6 +907,10 @@ static int boot_stat_show(struct seq_file *m, void *v)
 	count = get_current_boot_count();
 	pr_debug(BOOT_FROM_LABEL "%d, %s, %llu\n", reason, reason_str, count);
 	seq_printf(m, BOOT_FROM_LABEL "%d, %s, %llu\n", reason, reason_str, count);
+	if (ram_console_buffer->bs.normal_reboot_info.flag == 1) {
+		seq_printf(m, BOOT_CMD_LABEL "reboot %s\n",
+				ram_console_buffer->bs.normal_reboot_info.cmd);
+	}
 	seq_printf(m, BOOT_STAT_LABEL);
 	for (i = FRESH_BOOT; i < END_REASON; i++) {
 		pr_debug("%d, %s, %llu\n", i, get_boot_reason_str(i), get_boot_count(i));
@@ -1004,7 +1034,7 @@ static int __init ram_console_late_init(void)
 	struct proc_dir_entry *entry;
 
 	/* Whenever the old ram buffer exist, provide the boot_stat interface */
-	proc_create("boot_stat", S_IFREG | S_IRUGO, NULL, &proc_boot_stat_operations);
+	proc_create("reset_reason", S_IFREG | S_IRUGO, NULL, &proc_boot_stat_operations);
 
 	if (ram_console_old_log == NULL)
 		return 0;

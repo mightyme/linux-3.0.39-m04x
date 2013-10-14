@@ -703,8 +703,7 @@ void rmi4_fw_update(struct rmi_device *rmi_dev,
 	else	if( pdata->manufacturer_id == MANUFACTURER_TPK_W)
 	{
 		snprintf(firmware_name, sizeof(firmware_name), "rmi4/%s.img",
-			tpk_img_name ? tpk_img_name : (char*)data.product_id);	
-			//tpk_w_img_name ? tpk_w_img_name : (char*)data.product_id);	
+			tpk_w_img_name ? tpk_w_img_name : (char*)data.product_id);	
 	}
 	else	if( pdata->manufacturer_id == MANUFACTURER_WINTEK)
 	{
