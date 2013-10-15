@@ -133,7 +133,7 @@ ifeq ($(CONFIG_MX2_SERIAL_TYPE),y)
 obj-$(CONFIG_BT)			+= mx2-rfkill.o
 obj-$(CONFIG_BCMDHD)			+= mx2-wifi.o
 endif
-obj-$(CONFIG_MX2_SERIAL_TYPE)		+= mx2_mshci.o mx2_cma.o mx2_fb.o mx2_tsp.o mx2_factory.o mx2_ehci.o mx2_leds.o mx2_tvout.o mx2_camera.o mx2_audio.o mx2_keypad.o
+obj-$(CONFIG_MX2_SERIAL_TYPE)		+= mx2_mshci.o mx2_cma.o mx2_fb.o mx2_tsp.o mx2_factory.o mx2_ehci.o mx2_leds.o mx2_tvout.o mx2_camera.o mx2_audio.o mx2_keypad.o mx2_hardware.o
  
 
 obj-$(CONFIG_MX_SERIAL_TYPE)		+= mx_fb.o mx_camera.o mx_cma.o mx_tsp.o mx_mshci.o mx_tvout.o
