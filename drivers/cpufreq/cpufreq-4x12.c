@@ -90,11 +90,24 @@ static int exynos4412_profile_low[] = {
 	L8, L9, L10, L11, L12, L13, L14, L15, L_END
 };
 
+static int exynos4212_profile_all[] = {
+	L1, L2, L3, L4, L5, L6, L7, L8, L9, L10, L11, L12, L13, L14, L_END
+};
+
+static int exynos4412_profile_all[] = {
+	L0, L1, L2, L3, L4, L5, L6, L7, L8, L9, L10, L11, L12, L13, L14, L15, L_END
+};
+
 /*Default for exynos4412*/
 static int *cpufreq_profile_index[] = {
 	exynos4412_profile_high, /*4412 high*/
 	exynos4412_profile_med,
 	exynos4412_profile_low,
+};
+
+
+static int *cpufreq_profile_index_all[] = {
+	exynos4412_profile_all, /*4412 high*/
 };
 
 static struct cpufreq_clkdiv exynos4x12_clkdiv_table[CPUFREQ_LEVEL_END];
@@ -849,12 +862,12 @@ int __init exynos4x12_cpufreq_init(struct exynos_dvfs_info *info)
 	info->full_freq_num = ARRAY_SIZE(exynos4x12_freq_table);
 	
 	if (soc_is_exynos4212())
-		cpufreq_profile_index[0] = exynos4212_profile_high;
+		cpufreq_profile_index[0] = exynos4212_profile_all;
 	else if (soc_is_exynos4412() && samsung_rev() >= EXYNOS4412_REV_2_0)
-		cpufreq_profile_index[0] = exynos4412_v2_profile_high;
+		cpufreq_profile_index[0] = exynos4412_profile_all;
 
-	info->freq_profile_index = cpufreq_profile_index;
-	info->pfm_id = INIT_CPU_PFM;
+	info->freq_profile_index = cpufreq_profile_index_all;
+	info->pfm_id = 0;
 	info->set_freq = exynos4x12_set_frequency;
 	info->need_apll_change = exynos4x12_pms_change;
 

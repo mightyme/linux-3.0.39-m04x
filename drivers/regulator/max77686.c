@@ -878,9 +878,11 @@ static __devinit int max77686_pmic_probe(struct platform_device *pdev)
 	 * This disables GPIO-DVS. Later we may need to implement GPIO-DVS..
 	 * or we do not?
 	 */
-	max77686->buck2_gpiodvs = pdata->buck2_gpiodvs;
-	max77686->buck3_gpiodvs = pdata->buck3_gpiodvs;
-	max77686->buck4_gpiodvs = pdata->buck4_gpiodvs;
+
+	max77686->buck2_gpiodvs = false;
+	max77686->buck3_gpiodvs = false;
+	max77686->buck4_gpiodvs = false;
+
 	for (i = 0; i < 3; i++) {
 		static char buf0[3][16];
 		static char buf1[3][16];
