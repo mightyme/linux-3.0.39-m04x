@@ -1,0 +1,11 @@
+fixdep
+conmakehash
+kallsyms
+conf
+mconf
+lex.zconf.c
+zconf.hash.c
+zconf.tab.c
+elfconfig.h
+mk_elfconfig
+modpost
