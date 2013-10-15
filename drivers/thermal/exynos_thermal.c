@@ -90,7 +90,6 @@ void exynos4_report_trigger(void)
 
 	if (!th_zone || !th_zone->therm_dev)
 		return;
-
 	monitor_temp = th_zone->sensor_conf->trip_data.trip_val[0];
 
 	thermal_zone_device_update(th_zone->therm_dev);
@@ -109,9 +108,16 @@ void exynos4_report_trigger(void)
 static int exynos4_get_trip_type(struct thermal_zone_device *thermal, int trip,
 				 enum thermal_trip_type *type)
 {
+	//pr_info("%s, the trip num is %d\n", __func__ ,trip);
 	switch (trip) {
-		case 0 ... 2:
-			*type = THERMAL_TRIP_STATE_ACTIVE;
+		case 0:
+			*type = THERMAL_TRIP_ACTIVE;
+			break;
+		case 1:
+			*type = THERMAL_TRIP_PASSIVE;
+			break;
+		case 2:
+			*type = THERMAL_TRIP_HOT;
 			break;
 		case 3: 
 			*type = THERMAL_TRIP_CRITICAL;
@@ -140,7 +146,16 @@ static int exynos4_get_trip_temp(struct thermal_zone_device *thermal, int trip,
 				 unsigned long *temp)
 {
 	switch (trip) {
-		case 0 ... 3:
+		case 0:
+			*temp = th_zone->sensor_conf->trip_data.trip_val[trip];
+			break;
+		case 1:
+			*temp = th_zone->sensor_conf->trip_data.trip_val[trip];
+			break;
+		case 2:
+			*temp = th_zone->sensor_conf->trip_data.trip_val[trip];
+			break;
+		case 3:
 			*temp = th_zone->sensor_conf->trip_data.trip_val[trip];
 			break;
 		case 4:
@@ -178,16 +193,21 @@ static int exynos4_get_crit_temp(struct thermal_zone_device *thermal,
 static int exynos4_bind(struct thermal_zone_device *thermal,
 			struct thermal_cooling_device *cdev)
 {
-	int i;
+	int i ;
+	unsigned long stat = 0;
 	/* if the cooling device is the one from exynos4 bind it */
-	if (cdev != th_zone->cool_dev[0])
+	for (i = 0; i < COOLING_DEVICE_NUM; i++) {
+		if (cdev == th_zone->cool_dev[i])
+			break;
+	}
+	if (i == COOLING_DEVICE_NUM)
 		return 0;
-	
-	for (i=0; i<COOLING_DEVICE_NUM; i++) {
-		if (thermal_zone_bind_cooling_device(thermal, i, cdev)) {
-			pr_err("error binding cooling dev\n");
-			return -EINVAL;
-		}
+	cdev->ops->get_max_state(cdev, &stat);
+	pr_info("cdev max state is %ld \n", stat);
+
+	if (thermal_zone_bind_cooling_device(thermal, i, cdev)) {
+		pr_err("error binding cooling dev\n");
+		return -EINVAL;
 	}
 
 	return 0;
@@ -201,7 +221,7 @@ static int exynos4_unbind(struct thermal_zone_device *thermal,
 	if (cdev != th_zone->cool_dev[0])
 		return 0;
 	
-	for (i=0; i<COOLING_DEVICE_NUM; i++) {
+	for (i=0; i< COOLING_DEVICE_NUM; i++) {
 		if (thermal_zone_unbind_cooling_device(thermal, i, cdev)) {
 			pr_err("error unbinding cooling dev\n");
 			return -EINVAL;
@@ -408,10 +428,10 @@ static struct thermal_zone_device_ops exynos4_dev_ops = {
 
 int exynos4_register_thermal(struct thermal_sensor_conf *sensor_conf)
 {
-	int ret, count, tab_size;
+	int ret, count, tab_size, pos = 0;
 	int trip_num = 4;
 
-	struct freq_pctg_table *tab_ptr;
+	struct freq_pctg_table *tab_ptr, *clip_data;
 
 	if (!sensor_conf || !sensor_conf->read_temperature) {
 		pr_err("Temperature sensor not initialised\n");
@@ -425,30 +445,35 @@ int exynos4_register_thermal(struct thermal_sensor_conf *sensor_conf)
 	}
 
 	th_zone->sensor_conf = sensor_conf;
-
 	tab_ptr = (struct freq_pctg_table *)sensor_conf->cooling_data.freq_data;
-	tab_size = sensor_conf->cooling_data.freq_pctg_count;
 
 	/*Register the cpufreq cooling device*/
-	th_zone->cool_dev_size = 1;
-	count = 0;
-	th_zone->cool_dev[count] = cpufreq_cooling_register(
-			(struct freq_pctg_table *)&(tab_ptr[count]),
-			tab_size, cpumask_of(0));
+	for (count = 0; count < COOLING_DEVICE_NUM; count++) {
+		tab_size = sensor_conf->cooling_data.freq_pctg_count[count];
 
-	if (IS_ERR(th_zone->cool_dev[count])) {
-		pr_err("Failed to register cpufreq cooling device\n");
-		ret = -EINVAL;
-		th_zone->cool_dev_size = 0;
-		goto err_unregister;
+		clip_data = (struct freq_pctg_table *)(&tab_ptr[pos]);
+		pr_info("the cool_dev count is %d , clip_data is %p, tab_size is %d \n",
+					count, clip_data, tab_size);
+
+		th_zone->cool_dev[count] = cpufreq_cooling_register(
+						clip_data, tab_size, cpumask_of(0));
+		pos += tab_size;
+
+		if (IS_ERR(th_zone->cool_dev[count])) {
+			pr_err("Failed to register cpufreq cooling device\n");
+			ret = -EINVAL;
+			th_zone->cool_dev_size = count;
+			goto err_unregister;
+		}
 	}
-	
+	th_zone->cool_dev_size = count;
+
 #ifdef CONFIG_EXYNOS_TMU_TC
 	if (soc_is_exynos4212() || soc_is_exynos4412())
 		trip_num = 8;
 #endif
 	th_zone->therm_dev = thermal_zone_device_register(sensor_conf->name,
-				trip_num, NULL, &exynos4_dev_ops, 0, 0, 0, 1000);
+				trip_num, NULL, &exynos4_dev_ops, 1, 1, 200, 1000);
 	if (IS_ERR(th_zone->therm_dev)) {
 		pr_err("Failed to register thermal zone device\n");
 		ret = -EINVAL;

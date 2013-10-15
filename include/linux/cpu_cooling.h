@@ -27,7 +27,7 @@
 #include <linux/thermal.h>
 
 struct freq_pctg_table {
-	unsigned int freq_clip_pctg;
+	unsigned long freq_clip_pctg;
 	unsigned int polling_interval;
 };
 

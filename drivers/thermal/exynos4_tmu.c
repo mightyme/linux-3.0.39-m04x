@@ -82,7 +82,7 @@
 #define EXYNOS4X12_TMU_DEF_CODE_TO_TEMP_OFFSET	25
 #define EXYNOS4X12_TMU_RELOAD		(1 << 0)
 #define EXYNOS4X12_TMU_ACTIME		(1 << 0)
-
+#define COOLING_DEVICE_NUM	3
 
 struct exynos4_tmu_data {
 	struct exynos4_tmu_platform_data *pdata;
@@ -489,8 +489,11 @@ static int __devinit exynos4_tmu_probe(struct platform_device *pdev)
 		exynos4_sensor_conf.trip_data.trip_val[i] =
 			pdata->threshold + pdata->trigger_levels[i];
 
-	exynos4_sensor_conf.cooling_data.freq_pctg_count =
-						pdata->freq_tab_count;
+	for (i = 0; i < COOLING_DEVICE_NUM; i++) {
+		exynos4_sensor_conf.cooling_data.freq_pctg_count[i] =
+						pdata->freq_tab_size[i];
+	}
+
 	for (i = 0; i < pdata->freq_tab_count; i++)
 		exynos4_sensor_conf.cooling_data.freq_data[i].freq_clip_pctg =
 					pdata->freq_tab[i].freq_clip_pctg;

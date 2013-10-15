@@ -718,7 +718,6 @@ static void thermal_zone_device_passive(struct thermal_zone_device *tz,
 
 		trend = (tz->tc1 * (temp - tz->last_temperature)) +
 			(tz->tc2 * (temp - trip_temp));
-
 		/* Heating up? */
 		if (trend > 0) {
 			list_for_each_entry(instance, &tz->cooling_devices,
@@ -728,8 +727,11 @@ static void thermal_zone_device_passive(struct thermal_zone_device *tz,
 				cdev = instance->cdev;
 				cdev->ops->get_cur_state(cdev, &state);
 				cdev->ops->get_max_state(cdev, &max_state);
-				if (state++ < max_state)
+
+				if (state++ < max_state) {
 					cdev->ops->set_cur_state(cdev, state);
+				}
+
 			}
 		} else if (trend < 0) { /* Cooling off? */
 			list_for_each_entry(instance, &tz->cooling_devices,
@@ -842,6 +844,7 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 	}
 	if (!result)
 		list_add_tail(&dev->node, &tz->cooling_devices);
+
 	mutex_unlock(&tz->lock);
 
 	if (!result)
@@ -1069,7 +1072,6 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 	for (count = 0; count < tz->trips; count++) {
 		tz->ops->get_trip_type(tz, count, &trip_type);
 		tz->ops->get_trip_temp(tz, count, &trip_temp);
-
 		switch (trip_type) {
 		case THERMAL_TRIP_CRITICAL:
 			if (temp >= trip_temp) {
@@ -1131,7 +1133,6 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 					    node) {
 				if (instance->trip != count)
 					continue;
-
 				cdev = instance->cdev;
 
 				if (temp >= trip_temp)
@@ -1193,9 +1194,10 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 			}
 			break;
 		case THERMAL_TRIP_PASSIVE:
-			if (temp >= trip_temp || tz->passive)
+			if (temp >= trip_temp || tz->passive) {
 				thermal_zone_device_passive(tz, temp,
 							    trip_temp, count);
+			}
 			break;
 		}
 	}

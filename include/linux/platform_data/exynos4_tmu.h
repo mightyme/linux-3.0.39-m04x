@@ -103,7 +103,8 @@ struct exynos4_tmu_platform_data {
 
 	enum calibration_type cal_type;
 
-	struct freq_pctg_table freq_tab[4];
+	struct freq_pctg_table freq_tab[5];
+	int freq_tab_size[3];
 	unsigned int freq_tab_count;
 
 	/*for EXYNOS4X12*/

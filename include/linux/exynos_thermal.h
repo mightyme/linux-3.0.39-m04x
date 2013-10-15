@@ -35,7 +35,7 @@ struct	thermal_trip_point_conf {
 
 struct	thermal_cooling_conf {
 	struct freq_pctg_table freq_data[MAX_TRIP_COUNT];
-	int freq_pctg_count;
+	int freq_pctg_count[3];
 };
 
 /**

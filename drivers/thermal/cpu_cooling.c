@@ -34,6 +34,8 @@
 #include <linux/exynos-cpufreq.h>
 #endif
 
+#define NOTIFY_INVALID NULL
+static struct freq_pctg_table *notify_table;
 #ifdef CONFIG_CPU_FREQ
 struct cpufreq_cooling_device {
 	int id;
@@ -108,30 +110,27 @@ static bool is_cpufreq_valid(int cpu)
 }
 
 static void cpufreq_update_policy_max(struct cpufreq_cooling_device *cpufreq_device,
+				struct freq_pctg_table *notify_table,
 				struct cpufreq_policy *policy)
 {
-	struct freq_pctg_table *th_table;
-	unsigned int max_freq = 0;
-	unsigned int th_pctg = 0, level;
+	unsigned long max_freq = 0;
 
+#if 0
 	level = cpufreq_device->cpufreq_state;
-
 	if (level > 0) {
 		th_table = 
 			&(cpufreq_device->tab_ptr[level - 1]);
 		th_pctg = th_table->freq_clip_pctg;
 	}
-
 	max_freq = (policy->cpuinfo.max_freq * (100 - th_pctg)) / 100;
 	max_freq = (max_freq / (100*1000)) * (100*1000);
-
+#endif
+	max_freq = notify_table->freq_clip_pctg;
 	pm_qos_update_request(&cpufreq_device->qos_cpu_cool, max_freq);
 
 	/*Fix govenors: may not poll cpufreq request at high load*/
 	cpufreq_driver_target(policy, max_freq, CPUFREQ_RELATION_H);
 
-	pr_info("%s: level:%d, th_pctg:%d, max_freq:%u\n",
-				 __func__, level, th_pctg, max_freq);
 }
 
 #ifdef CONFIG_EXYNOS_CPUFREQ
@@ -177,7 +176,10 @@ static int cpufreq_apply_cooling(struct cpufreq_cooling_device *cpufreq_device,
 				unsigned long cooling_state)
 {
 	struct cpufreq_policy *policy=NULL;
+	struct cpufreq_cooling_device *cpufreq_ptr;
+	struct freq_pctg_table *th_table, *table_ptr;
 	int this_cpu = raw_smp_processor_id();
+	unsigned int state;
 
 	if (!is_cpufreq_valid(this_cpu))
 		return 0;
@@ -189,18 +191,43 @@ static int cpufreq_apply_cooling(struct cpufreq_cooling_device *cpufreq_device,
 	if (cpufreq_device->cpufreq_state == cooling_state)
 		return 0;
 
+	/*pass cooling table info to the cpufreq_thermal_notifier callback*/
+	notify_table = NOTIFY_INVALID;
+	notify_cpufreq = NOTIFY_INVALID;
+	if (cooling_state > 0) {
+		th_table = &(cpufreq_device->tab_ptr[cooling_state - 1]);
+		notify_table = th_table;
+		notify_cpufreq = cpufreq_device;
+	}
+
+	/*check if any lower clip frequency active in other cpufreq_device's*/
+	list_for_each_entry(cpufreq_ptr, &cooling_cpufreq_list, node) {
+
+		state = cpufreq_ptr->cpufreq_state;
+		if (state == 0 || cpufreq_ptr == cpufreq_device)
+			continue;
+
+		table_ptr = &(cpufreq_ptr->tab_ptr[state - 1]);
+		if (notify_table == NULL ||
+				(table_ptr->freq_clip_pctg <
+				notify_table->freq_clip_pctg))
+			notify_table = table_ptr;
+			notify_cpufreq = cpufreq_ptr;
+	}
 	cpufreq_device->cpufreq_state = cooling_state;
 
 	/*cpufreq thermal notifier uses this cpufreq device pointer*/
-	notify_cpufreq = cpufreq_device;
-	policy = cpufreq_cpu_get(0);
-	if (!policy)
-		goto err_policy;
+	if(!notify_cpufreq) {
+		pm_qos_update_request(&cpufreq_device->qos_cpu_cool, 1600 * 1000);
+	} else {
+		policy = cpufreq_cpu_get(0);
 
-	cpufreq_update_policy_max(cpufreq_device, policy);
+		if (!policy)
+			goto err_policy;
 
-	cpufreq_cpu_put(policy);
-
+		cpufreq_update_policy_max(notify_cpufreq, notify_table, policy);
+		cpufreq_cpu_put(policy);
+	}
 	return 0;
 
 err_policy:

@@ -58,7 +58,7 @@ static struct exynos4_tmu_platform_data exynos4210_tmu_data = {
 };
 
 static struct exynos4_tmu_platform_data exynos4x12_tmu_data = {
-	.threshold = 75,
+	.threshold = 55,
 	.trigger_levels[0] = 5,
 	.trigger_levels[1] = 15,
 	.trigger_levels[2] = 25,
@@ -71,15 +71,24 @@ static struct exynos4_tmu_platform_data exynos4x12_tmu_data = {
 	.reference_voltage = 0x10,
 	.cal_type = TYPE_ONE_POINT_TRIMMING,
 	.freq_tab[0] = {
-		.freq_clip_pctg = 10,
+		.freq_clip_pctg = 1400 * 1000 ,
 	},
 	.freq_tab[1] = {
-		.freq_clip_pctg = 30,
+		.freq_clip_pctg = 1200 * 1000,
 	},
 	.freq_tab[2] = {
-		.freq_clip_pctg = 50,
+		.freq_clip_pctg = 800 * 1000,
 	},
-	.freq_tab_count = 3,
+	.freq_tab[3] = {
+		.freq_clip_pctg = 600 * 1000,
+	},
+	.freq_tab[4] = {
+		.freq_clip_pctg = 200 * 1000,
+	},
+	.freq_tab_size[0] = 1,
+	.freq_tab_size[1] = 3,
+	.freq_tab_size[2] = 1,
+	.freq_tab_count = 5,
 	.tc = {
 		/*arm,bus,g3d*/
 		.start_tc = 10,
