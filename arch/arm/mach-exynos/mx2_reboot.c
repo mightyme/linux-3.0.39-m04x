@@ -44,14 +44,25 @@ static void mx2_reboot_internal(const char *cmd)
 	if(cmd) {
 		if (strstr(cmd, "charge"))
 			__raw_writel(REBOOT_MODE_CHARGE, S5P_INFORM4);
+		else if(strstr(cmd, "update_and_wipe"))
+			mx2_reboot_internal("custom_1");
+		else if(strstr(cmd, "wipe_sdcard"))
+			mx2_reboot_internal("custom_2");
+		else if(strstr(cmd, "wipe_userdata"))
+			mx2_reboot_internal("custom_3");
+		else if(strstr(cmd, "wipe_all"))
+			mx2_reboot_internal("custom_4");
+		else if(strstr(cmd, "update_locate"))
+			mx2_reboot_internal("custom_5");
 		else if (strstr(cmd, "wipe"))
 			__raw_writel(REBOOT_MODE_WIPE, S5P_INFORM4);
 		else if (strstr(cmd, "upgrade"))
 			__raw_writel(REBOOT_MODE_UPGRADE, S5P_INFORM4);
+		else if(strstr(cmd, "recovery"))
+			mx2_reboot_internal("custom_8");
 		else if (strstr(cmd, "custom")) {
 			if (!strict_strtoul(cmd+7, 10, &custom_val)) {
-				__raw_writel(custom_val & CUSTOM_MASK,
-								S5P_INFORM7);
+				__raw_writel((custom_val << 8) | CUSTOM_MASK, S5P_INFORM7);
 				/* notify uboot reboot to recovery */
 				__raw_writel(REBOOT_MODE_UPGRADE, S5P_INFORM4);
 			}
