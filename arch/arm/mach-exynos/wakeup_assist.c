@@ -50,6 +50,7 @@ struct wakeup_assist_des assist_des[] = {
 	{MX_MINUS_KEY_WAKE,		KEY_VOLUMEDOWN,		"MX_MINUS_KEY_WAKE"},
 	{MX_PLUS_KEY_WAKE,		KEY_VOLUMEUP,		"MX_PLUS_KEY_WAKE"},
 	{MX_MIC_WAKE,			KEY_RESERVED,		"MX_MIC_WAKE"},
+	{MX_TOUCH_WAKE,		KEY_HOME,			"MX_TOUCH_WAKE"},
 };
 
 static unsigned long mx_get_wakeup_type(void)

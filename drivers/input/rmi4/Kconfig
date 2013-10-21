@@ -127,6 +127,12 @@ config TYPE_B_PROTOCOL
 	  Say Y here to report with the multi-touch protocol type B.
 
 	  kernel drivers use the multi-touch (MT) protocol B  to report details for an arbitrary number of contacts.
+	  
+config RMI4_F11_SWIPE
+	bool "RMI4 F11 Wake-up Gesture Support"
+	depends on RMI4_F11
+	help
+	  Say Y here to add support for gesture wake-up to RMI4 function 11.
 
 config RMI4_F11_PEN
 	bool "RMI4 F11 Pen Support"

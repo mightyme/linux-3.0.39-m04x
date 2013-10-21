@@ -143,6 +143,9 @@ static inline void m040_set_wakeup_type(mx_int_type group, int mask)
 		if (mask & (1 << 0)) {
 			mx_set_wakeup_type(MX_KEY_POWER_WAKE);
 		}
+		if (mask & (1 << 1)) {
+			mx_set_wakeup_type(MX_TOUCH_WAKE);
+		}
 		if (mask & (1 << 2)) {
 			mx_set_wakeup_type(MX_USB_WAKE);
 		}

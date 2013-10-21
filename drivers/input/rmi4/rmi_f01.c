@@ -1251,6 +1251,11 @@ static int rmi_f01_suspend(struct rmi_function_container *fc)
 	struct rmi_driver_data *driver_data = rmi_get_driverdata(rmi_dev);
 	struct f01_data *data = driver_data->f01_container->data;
 	int retval = 0;
+	
+#ifdef	CONFIG_RMI4_F11_SWIPE
+	if(driver_data->gesture_mode)
+		return 0;
+#endif
 
 	if (data->suspended)
 		return 0;
@@ -1258,7 +1263,7 @@ static int rmi_f01_suspend(struct rmi_function_container *fc)
 	data->old_nosleep = data->device_control.ctrl0.nosleep;
 	data->device_control.ctrl0.nosleep = 0;
 	data->device_control.ctrl0.sleep_mode = RMI_SLEEP_MODE_SENSOR_SLEEP;
-
+	
 	retval = rmi_write_block(rmi_dev,
 			driver_data->f01_container->fd.control_base_addr,
 			(u8 *)&data->device_control.ctrl0,

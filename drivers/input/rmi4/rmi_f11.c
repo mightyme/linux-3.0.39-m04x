@@ -30,7 +30,13 @@
 #include <linux/input/mt.h>
 
 #define VBUS_IRQ_EN (1)
-//#define F11_REPORTMODE_REDUCED	(1)	// 000:Continuous, when finger present  001: Reduced reporting mode		
+//#define F11_REPORTMODE_REDUCED	(1)	// 000:Continuous, when finger present  001: Reduced reporting mode
+
+#define F11_REPORT_MODE_CONTINUOUS	(0)	// 000:Continuous, when finger present  001: Reduced reporting mode	
+#define F11_REPORT_MODE_REDUCED		(1)	// 000:Continuous, when finger present  001: Reduced reporting mode	
+#define F11_REPORT_MODE_IDLE			(4)	// 100:save power mode	
+#define F11_REPORT_MODE_NOCHANGE		(0xFF)
+
 #define RESUME_REZERO (1 && defined(CONFIG_PM))
 #if RESUME_REZERO
 #include <linux/delay.h>
@@ -67,12 +73,23 @@
 #define DEFAULT_MAX_ABS_MT_TRACKING_ID 10
 #define MAX_NAME_LENGTH 256
 
+#define KEY_UNLOCK		KEY_POWER //KEY_UP
+#define KEY_SLIDE			KEY_POWER//KEY_DOWN	
 
 #define	REG_F54_ANALOG_CTRL00	(0x010D)
 #define	REG_F54_ANALOG_CTRL02	(0x010F)
 #define	REG_F54_ANALOG_CTRL13	(0x011D)
 #define	REG_F54_ANALOG_CTRL20	(0x0136)
 #define	REG_F54_ANALOG_CMD00	(0x0172)
+
+// Wake-up Gesture Control
+#define	REG_F11_2D_CTRL92	(0x009e)
+// Wake-up Gesture Status
+#define	REG_F11_2D_DATA38	(0x0058)
+
+#define GESTURE_DOUBLETAP	(1 << 0)
+#define GESTURE_SWIPE		(1 << 1)
+#define GESTURE_MASK			0x03
 
 static int touch_debug= 0;
 static int touch_adjust= 0;
@@ -2021,10 +2038,67 @@ static ssize_t rmi_turn_on_calibration_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(mxt_toc, RMI_RW_ATTR, NULL, rmi_turn_on_calibration_store);
+#ifdef	CONFIG_RMI4_F11_SWIPE
+static int f11_wakeup_gesture_mode_set(struct f11_data *data,unsigned char mode)
+{
+	struct f11_data *f11 = data;
+	struct rmi_device *rmi_dev =f11->rmi_dev;
+	struct rmi_driver_data *driver_data= rmi_get_driverdata(rmi_dev);
+	int retval;
+	
+	if (mode & ~GESTURE_MASK)
+		return -EINVAL;
+
+	// Ctrl 92
+	retval = rmi_write(rmi_dev,REG_F11_2D_CTRL92,mode);	
+	if(retval == 0)
+		driver_data->gesture_mode = mode;
+
+	return retval;
+}
+
+static ssize_t f11_wakeup_gesture_mode_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct f11_data *f11 = dev_get_drvdata(dev);
+	struct rmi_device *rmi_dev =f11->rmi_dev;
+	struct rmi_driver_data *driver_data= rmi_get_driverdata(rmi_dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d \n",driver_data->gesture_mode);
+}
+
+static ssize_t f11_wakeup_gesture_mode_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf,
+				    size_t count)
+{
+	struct f11_data *f11 = dev_get_drvdata(dev);
+	int value;
+	unsigned char mode;
+
+	if (sscanf(buf, "%d", &value) != 1)
+		return -EINVAL;
+	if (value & 0xFC)
+		return -EINVAL;
+
+	mode = value & GESTURE_MASK;
+	f11_wakeup_gesture_mode_set(f11,mode);
+
+	return count;
+}
+#endif
+
+static DEVICE_ATTR(mxt_toc, RMI_WO_ATTR, NULL, rmi_turn_on_calibration_store);
+#ifdef	CONFIG_RMI4_F11_SWIPE
+static DEVICE_ATTR(gesture_mode, RMI_RW_ATTR, f11_wakeup_gesture_mode_show, f11_wakeup_gesture_mode_store);
+#endif	
 
 static struct attribute *mxt_attrs[] = {
 	&dev_attr_mxt_toc.attr,
+#ifdef	CONFIG_RMI4_F11_SWIPE
+	&dev_attr_gesture_mode.attr,
+#endif	
 	NULL
 };
 
@@ -2134,6 +2208,10 @@ static int rmi_f11_register_devices(struct rmi_function_container *fc)
 		set_bit(EV_KEY, input_dev->evbit);
 		set_bit(EV_ABS, input_dev->evbit);
 		//set_bit(BTN_TOUCH, input_dev->keybit);		
+#ifdef	CONFIG_RMI4_F11_SWIPE
+		set_bit(KEY_SLIDE, input_dev->keybit);
+		set_bit(KEY_UNLOCK, input_dev->keybit);
+#endif		
 #ifdef INPUT_PROP_DIRECT
 		set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
 #endif
@@ -2256,6 +2334,10 @@ static int rmi_f11_register_devices(struct rmi_function_container *fc)
 			}
 		}
 	}
+	
+#ifdef	CONFIG_RMI4_F11_SWIPE
+	//f11_wakeup_gesture_mode_set(f11,GESTURE_SWIPE);
+#endif
 
 	return 0;
 
@@ -2375,6 +2457,29 @@ int rmi_f11_attention(struct rmi_function_container *fc, u8 *irq_bits)
 	int error;
 	int i;
 
+#ifdef	CONFIG_RMI4_F11_SWIPE
+	u8 val;
+	error = rmi_read(rmi_dev,REG_F11_2D_DATA38,&val);
+	if( error < 0)
+		dev_err(&fc->dev,  "read error %d\n",error);
+	else
+	{
+		if(touch_debug)
+			dev_info(&fc->dev,  "LPWG atatus  0x%.2X\n",val);
+		if(val&0x03)
+		{			
+			if(f11->sensors[0].input)
+			{
+				input_report_key(f11->sensors[0].input, KEY_SLIDE,1);	 
+				input_sync(f11->sensors[0].input); /* sync after groups of events */
+				
+				input_report_key(f11->sensors[0].input, KEY_SLIDE,0);	 
+				input_sync(f11->sensors[0].input); /* sync after groups of events */
+			}
+		}		
+	}
+#endif
+
 	for (i = 0; i < f11->dev_query.nbr_of_sensors + 1; i++) {
 		error = rmi_read_block(rmi_dev,
 				data_base_addr + data_base_addr_offset,
@@ -2390,6 +2495,47 @@ int rmi_f11_attention(struct rmi_function_container *fc, u8 *irq_bits)
 }
 
 #if RESUME_REZERO
+
+#ifdef	CONFIG_RMI4_F11_SWIPE
+static int rmi_f11_enter_wakeup_gesture(struct rmi_function_container *fc,bool enable)
+{	
+	int retval = 0;
+	int wake_irq;
+	u16 control_base_addr;
+	u8 val,mode;
+	
+	struct rmi_device *rmi_dev = fc->rmi_dev;
+	struct rmi_device_platform_data *pdata = to_rmi_platform_data(rmi_dev);
+	
+	control_base_addr = fc->fd.control_base_addr;
+	
+	wake_irq = gpio_to_irq(pdata->attn_gpio);
+
+	if(enable)
+		mode = F11_REPORT_MODE_IDLE;
+	else
+		mode = F11_REPORT_MODE_REDUCED;
+	
+	// 2D Report Mode
+	retval = rmi_read(rmi_dev,control_base_addr,&val);
+	if( retval < 0)
+		dev_err(&fc->dev,  "read error %d\n",retval);
+	
+	val = (val & 0xF8 ) | mode;
+	retval = rmi_write(rmi_dev,control_base_addr,val);	
+	if( retval < 0)		
+		dev_err(&fc->dev, "set 2D report mode error %d\n",retval);	
+	
+	if(enable)
+		enable_irq_wake(wake_irq);
+	else
+		disable_irq_wake(wake_irq);
+	
+	return retval;
+}
+#endif
+
+
 static int rmi_f11_resume(struct rmi_function_container *fc)
 {
 	struct rmi_device *rmi_dev = fc->rmi_dev;
@@ -2397,6 +2543,10 @@ static int rmi_f11_resume(struct rmi_function_container *fc)
 	/* Command register always reads as 0, so we can just use a local. */
 	union f11_2d_commands commands = {};
 	int retval = 0;
+	
+#ifdef	CONFIG_RMI4_F11_SWIPE
+	struct rmi_driver_data *driver_data = rmi_get_driverdata(rmi_dev);
+#endif
 
 	dev_dbg(&fc->dev, "Resuming...\n");
 	if (!data->rezero_on_resume)
@@ -2413,7 +2563,12 @@ static int rmi_f11_resume(struct rmi_function_container *fc)
 			__func__, retval);
 		return retval;
 	}
-	
+		
+#ifdef	CONFIG_RMI4_F11_SWIPE
+	if(driver_data->gesture_mode)
+		rmi_f11_enter_wakeup_gesture(fc,false);	
+#endif
+
 exit:	
 #ifdef	VBUS_IRQ_EN
 	set_noise_mitigation_by_vbus(data);
@@ -2430,16 +2585,23 @@ exit:
 #endif			
 	return retval;
 }
-#endif /* RESUME_REZERO */
 
 static int rmi_f11_suspund(struct rmi_function_container *fc)
 {
 	int retval = 0;
+#ifdef	CONFIG_RMI4_F11_SWIPE
+	struct rmi_device *rmi_dev = fc->rmi_dev;
+	struct rmi_driver_data *driver_data = rmi_get_driverdata(rmi_dev);	
+	
+	if(driver_data->gesture_mode)
+		rmi_f11_enter_wakeup_gesture(fc,true);	
+#endif
 
 	dev_dbg(&fc->dev, "Suspend...\n");
 	
 	return retval;
 }
+#endif /* RESUME_REZERO */
 
 static void rmi_f11_remove(struct rmi_function_container *fc)
 {
@@ -2506,12 +2668,7 @@ static ssize_t f11_touch_debug_store(struct device *dev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
-	struct rmi_function_container *fc = NULL;
-	struct f11_data *data;	
 	int value;
-
-	fc = to_rmi_function_container(dev);
-	data = fc->data;
 	
 	if (sscanf(buf, "%d ", &value) != 1)
 		return -EINVAL;
@@ -2524,14 +2681,8 @@ static ssize_t f11_touch_debug_store(struct device *dev,
 static ssize_t f11_touch_debug_show(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf)
-{
-	struct rmi_function_container *fc = NULL;
-	struct f11_data *data;	
-	
-	fc = to_rmi_function_container(dev);
-	data = fc->data;
-	
-	return sprintf(buf,"%d\n", touch_debug);;
+{	
+	return sprintf(buf,"%d\n", touch_debug);
 }
 
 static ssize_t f11_touch_adjust_store(struct device *dev,
@@ -2558,14 +2709,8 @@ static ssize_t f11_touch_adjust_store(struct device *dev,
 static ssize_t f11_touch_adjust_show(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf)
-{
-	struct rmi_function_container *fc = NULL;
-	struct f11_data *data;	
-	
-	fc = to_rmi_function_container(dev);
-	data = fc->data;
-	
-	return sprintf(buf,"%d\n", touch_adjust);;
+{	
+	return sprintf(buf,"%d\n", touch_adjust);
 }
 
 

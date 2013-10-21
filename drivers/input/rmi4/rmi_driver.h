@@ -379,6 +379,9 @@ struct rmi_driver_data {
 #endif
 
 	void *data;
+#ifdef	CONFIG_RMI4_F11_SWIPE
+	unsigned char gesture_mode;	
+#endif
 };
 
 int rmi_driver_f01_init(struct rmi_device *rmi_dev);

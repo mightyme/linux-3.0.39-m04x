@@ -1274,8 +1274,13 @@ static int standard_suspend(struct rmi_device *rmi_dev)
 			goto exit;
 	}
 #endif  /* !CONFIG_HAS_EARLYSUSPEND */
-
+	
+#ifdef	CONFIG_RMI4_F11_SWIPE
+	if(!data->gesture_mode)
+		disable_sensor(rmi_dev);
+#else
 	disable_sensor(rmi_dev);
+#endif
 
 	list_for_each_entry(entry, &data->rmi_functions.list, list)
 		if (entry->fh && entry->fh->suspend) {
@@ -1286,8 +1291,13 @@ static int standard_suspend(struct rmi_device *rmi_dev)
 
 
 	if (data->f01_container && data->f01_container->fh
-				&& data->f01_container->fh->suspend) {				
+				&& data->f01_container->fh->suspend) {	
+#ifdef	CONFIG_RMI4_F11_SWIPE
+	if(!data->gesture_mode)
 		rmi_driver_irq_save(rmi_dev,data->f01_container->irq_mask);
+#else	
+		rmi_driver_irq_save(rmi_dev,data->f01_container->irq_mask);
+#endif
 		retval = data->f01_container->fh->suspend(data->f01_container);
 		if (retval < 0)
 			goto exit;
