@@ -494,4 +494,21 @@ config INPUT_XEN_KBDDEV_FRONTEND
 	  To compile this driver as a module, choose M here: the
 	  module will be called xen-kbdfront.
 
+config INPUT_LSM330DLC
+	tristate "STM MEMS Combo Accelerometer Gyroscope LSM330DLC"
+	depends on I2C && SYSFS
+    default n
+	help
+	 If you say yes here you get support for the
+	 STM LSM330DLC Combo 3D Accelerometer / Gyroscope on I2C bus.
+	 This driver can also be built as a module (choose M).
+	 If so, you will get 2 modules called: lsm330dlc_acc and lsm330dlc_gyr.
+config SENSORS_AK8963
+	tristate "AK8963 compass support"
+	default n
+	depends on I2C
+	help
+	  If you say yes here you get support for Asahi Kasei's
+	  orientation sensor AK8963.
+
 endif

@@ -144,3 +144,4 @@ obj-$(CONFIG_MX_SERIAL_TYPE) += rsa.o sha.o meizu_security.o
 
 obj-$(CONFIG_MEIZU_M03X_MODEM) += board-m03x-modems.o
 obj-$(CONFIG_MEIZU_M04X_MODEM) += board-m04x-modems.o board-m040-modems.o board-m041-modems.o
+obj-$(CONFIG_INPUT_LSM330DLC)		+= board-mx2-sensors.o

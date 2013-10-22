@@ -87,7 +87,7 @@
 #include <mach/exynos_fiq_debugger.h>
 
 extern void __init m040_reserve_mem(void);
-
+extern void __init mx2_sensors_init(void);
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define M040_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
 				 S3C2410_UCON_RXILEVEL |	\
@@ -824,6 +824,9 @@ static void __init m040_machine_init(void)
 
 #ifdef CONFIG_SENSORS_EXYNOS4_TMU
 	exynos4_tmu_set_platdata();
+#endif
+#ifdef CONFIG_INPUT_LSM330DLC
+	mx2_sensors_init();
 #endif
 
 	platform_add_devices(m040_devices, ARRAY_SIZE(m040_devices));
