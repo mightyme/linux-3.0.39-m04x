@@ -214,6 +214,7 @@ struct lsm330dlc_acc_status {
 	/* hw_working=-1 means not tested yet */
 	int hw_working;
 	atomic_t enabled;
+	int on_before_suspend;
 
 	u8 sensitivity;
 
@@ -495,6 +496,7 @@ static int lsm330dlc_acc_update_odr(struct lsm330dlc_acc_status *stat,
 
 	/* If device is currently enabled, we need to write new
 	 *  configuration out to it */
+	pr_info("%s atomic_read(&stat->enabled) = %d\n", __func__, atomic_read(&stat->enabled));
 	if (atomic_read(&stat->enabled)) {
 		config[0] = CTRL_REG1;
 		err = lsm330dlc_acc_i2c_write(stat, config, 1);
@@ -655,6 +657,8 @@ static int lsm330dlc_acc_enable(struct lsm330dlc_acc_status *stat)
 	int err;
 
 	//	pr_info("%s called\n", __func__);
+	pr_info("before atomic_read(&enabled) = %d\n", atomic_read(&stat->enabled));
+	pr_info("%s  !atomic_cmpxchg(&stat->enabled, 0, 1)\n", __func__);
 	if (!atomic_cmpxchg(&stat->enabled, 0, 1)) {
 		err = lsm330dlc_acc_device_power_on(stat);
 		if (err < 0) {
@@ -663,6 +667,7 @@ static int lsm330dlc_acc_enable(struct lsm330dlc_acc_status *stat)
 		}
 		schedule_delayed_work(&stat->input_work, msecs_to_jiffies(stat->pdata->poll_interval));
 	}
+	pr_info("after atomic_read(&enabled) = %d\n", atomic_read(&stat->enabled));
 
 	return 0;
 }
@@ -670,9 +675,13 @@ static int lsm330dlc_acc_enable(struct lsm330dlc_acc_status *stat)
 static int lsm330dlc_acc_disable(struct lsm330dlc_acc_status *stat)
 {
 	//	pr_info("%s called\n", __func__);
+	pr_info("before atomic_read(&enabled) = %d\n", atomic_read(&stat->enabled));
+	pr_info("%s  !atomic_cmpxchg(&stat->enabled, 0, 1)\n", __func__);
 	if (atomic_cmpxchg(&stat->enabled, 1, 0)) {
+		cancel_delayed_work_sync(&stat->input_work);
 		lsm330dlc_acc_device_power_off(stat);
 	}
+	pr_info("after atomic_read(&enabled) = %d\n", atomic_read(&stat->enabled));
 
 	return 0;
 }
@@ -832,11 +841,13 @@ static ssize_t attr_set_enable(struct device *dev,
 	if (strict_strtoul(buf, 10, &val))
 		return -EINVAL;
 
-	//	pr_info("accelerometer enable = %ld from sysfs\n", val);
-	if (val)
+	if (val){
+		pr_info("accelerometer enable from func %s\n", __func__);
 		lsm330dlc_acc_enable(stat);
-	else
+	}else{
+		pr_info("accelerometer disable from func %s\n", __func__);
 		lsm330dlc_acc_disable(stat);
+	}
 
 	return size;
 }
@@ -1463,6 +1474,7 @@ static void lsm330dlc_acc_input_work_func(struct work_struct *work)
 	stat = container_of((struct delayed_work *)work,
 			struct lsm330dlc_acc_status, input_work);
 
+	pr_info("atomic_read(&enabled) = %d in func %s", atomic_read(&stat->enabled), __func__);
 	if(!atomic_read(&stat->enabled)){
 		pr_info("%s disabled\n", __func__);
 		return;
@@ -1484,6 +1496,7 @@ int lsm330dlc_acc_input_open(struct input_dev *input)
 	struct lsm330dlc_acc_status *stat = input_get_drvdata(input);
 
 	dev_dbg(&stat->client->dev,"%s called\n", __func__);
+	pr_info("accelerometer enable from func %s\n", __func__);
 	return lsm330dlc_acc_enable(stat);
 }
 
@@ -1492,6 +1505,7 @@ void lsm330dlc_acc_input_close(struct input_dev *dev)
 	struct lsm330dlc_acc_status *stat = input_get_drvdata(dev);
 
 	dev_dbg(&stat->client->dev,"%s called\n", __func__);
+	pr_info("accelerometer disable from func %s\n",__func__);
 	lsm330dlc_acc_disable(stat);
 }
 
@@ -1590,7 +1604,10 @@ static int lsm330dlc_acc_resume(struct i2c_client *client)
 	struct lsm330dlc_acc_status *stat = i2c_get_clientdata(client);
 
 	dev_dbg(&client->dev,"%s called\n", __func__);
-	return lsm330dlc_acc_enable(stat);
+	pr_info("accelerometer enable from func %s\n",__func__);
+	if (stat->on_before_suspend)
+		return lsm330dlc_acc_enable(stat);
+	return 0;
 }
 
 static int lsm330dlc_acc_suspend(struct i2c_client *client, pm_message_t mesg)
@@ -1598,6 +1615,8 @@ static int lsm330dlc_acc_suspend(struct i2c_client *client, pm_message_t mesg)
 	struct lsm330dlc_acc_status *stat = i2c_get_clientdata(client);
 
 	dev_dbg(&client->dev,"%s called\n", __func__);
+	pr_info("accelerometer disable from func %s\n",__func__);
+	stat->on_before_suspend = atomic_read(&stat->enabled);
 	return lsm330dlc_acc_disable(stat);
 }
 #else
@@ -1695,6 +1714,7 @@ static int lsm330dlc_acc_probe(struct i2c_client *client,
 		goto exit_kfree_pdata;
 	}
 
+	pr_info("atomic_set enabled = 1 in func %s", __func__);
 	atomic_set(&stat->enabled, 1);
 	dev_dbg(&client->dev, "device enabled\n");
 
@@ -1726,6 +1746,7 @@ static int lsm330dlc_acc_probe(struct i2c_client *client,
 	lsm330dlc_acc_device_power_off(stat);
 
 	/* As default, do not report information */
+	pr_info("atomic_set enabled = 0 in func %s", __func__);
 	atomic_set(&stat->enabled, 0);
 /*
 #ifdef CONFIG_HAS_EARLYSUSPEND

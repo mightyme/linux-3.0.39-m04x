@@ -445,6 +445,7 @@ static int lsm330dlc_gyr_enable(struct lsm330dlc_gyr_status *stat)
 static int lsm330dlc_gyr_disable(struct lsm330dlc_gyr_status *stat)
 {
 	if (atomic_cmpxchg(&stat->enabled, 1, 0)) {
+		cancel_delayed_work_sync(&stat->input_work);
 		lsm330dlc_gyr_device_power_off(stat);
 	}
 
@@ -1090,7 +1091,6 @@ static int lsm330dlc_gyr_input_init(struct lsm330dlc_gyr_status *stat)
 //	stat->input_dev->open = lsm330dlc_gyr_input_open;
 	stat->input_dev->close = lsm330dlc_gyr_input_close;
 	stat->input_dev->name = LSM330DLC_GYR_DEV_NAME;
-	/* stat->input_dev->name = "accelerometer"; */
 	stat->input_dev->id.bustype = BUS_I2C;
 	stat->input_dev->dev.parent = &stat->client->dev;
 
