@@ -1480,6 +1480,7 @@ static int akm8963_i2c_check_device(
 		return err;
 
 	/* Check read data */
+	pr_info("akm->sense_info[0] = %d, AKM_WIA_VALE = %d\n", akm->sense_info[0], AKM_WIA_VALE);
 	if (akm->sense_info[0] != AKM_WIA_VALE) {
 		dev_err(&client->dev,
 			"%s: The device is not AKM Compass.", __func__);
@@ -1554,12 +1555,10 @@ int akm_compass_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	s_akm->i2c = client;
 	/* set client data */
 	i2c_set_clientdata(client, s_akm);
-#ifdef CONFIG_MEIZU_M65_V3
 	/* check connection */
 	err = akm8963_i2c_check_device(client);
 	if (err < 0)
 		goto exit2;
-#endif
 
 	/***** input *****/
 	err = akm_compass_input_init(&s_akm->input);
