@@ -1474,7 +1474,7 @@ static void lsm330dlc_acc_input_work_func(struct work_struct *work)
 	stat = container_of((struct delayed_work *)work,
 			struct lsm330dlc_acc_status, input_work);
 
-	pr_info("atomic_read(&enabled) = %d in func %s", atomic_read(&stat->enabled), __func__);
+//	pr_info("atomic_read(&enabled) = %d in func %s", atomic_read(&stat->enabled), __func__);
 	if(!atomic_read(&stat->enabled)){
 		pr_info("%s disabled\n", __func__);
 		return;
