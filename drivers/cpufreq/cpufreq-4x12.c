@@ -95,7 +95,7 @@ static int exynos4212_profile_all[] = {
 };
 
 static int exynos4412_profile_all[] = {
-	L0, L1, L2, L3, L4, L5, L6, L7, L8, L9, L10, L11, L12, L13, L14, L15, L_END
+	L0, L1, L2, L3, L4, L5, L6, L7, L8, L9, L10, L11, L12, L13, L14, L_END
 };
 
 /*Default for exynos4412*/
