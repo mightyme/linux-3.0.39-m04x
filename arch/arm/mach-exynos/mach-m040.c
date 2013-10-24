@@ -743,8 +743,11 @@ static void __init m040_machine_init(void)
 	i2c_register_board_info(6, i2c_devs6, ARRAY_SIZE(i2c_devs6));
 	/* lis3dh */
 	i2c_register_board_info(9, i2c_devs9, ARRAY_SIZE(i2c_devs9));
+
+#ifdef CONFIG_SENSORS_AKM8963N
 	/* akm8975 */
 	i2c_register_board_info(10, i2c_devs10, ARRAY_SIZE(i2c_devs10));
+#endif
 	/* l3g4200d */
 #if defined(CONFIG_SENSORS_L3G4200D) || defined(CONFIG_SENSORS_L3GD20) || defined(CONFIG_SENSORS_GP2AP020A00F)
 	i2c_register_board_info(11, i2c_devs11, ARRAY_SIZE(i2c_devs11));

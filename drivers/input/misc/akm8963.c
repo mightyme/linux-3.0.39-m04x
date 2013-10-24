@@ -686,8 +686,9 @@ static const struct file_operations AKECS_fops = {
 	.unlocked_ioctl = AKECS_ioctl,
 };
 
+#define AKM_MISC_MINOR 239
 static struct miscdevice akm_compass_dev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.minor = MISC_DYNAMIC_MINOR/*AKM_MISC_MINOR*/,
 	.name = AKM_MISCDEV_NAME,
 	.fops = &AKECS_fops,
 };

@@ -261,7 +261,7 @@ static const struct file_operations fimg2d_fops = {
 
 /* miscdev */
 static struct miscdevice fimg2d_dev = {
-	.minor		= FIMG2D_MINOR,
+	.minor		= MISC_DYNAMIC_MINOR/*FIMG2D_MINOR*/,
 	.name		= "fimg2d",
 	.fops		= &fimg2d_fops,
 };
