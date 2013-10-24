@@ -827,7 +827,7 @@ static ssize_t qm_store(struct device *dev,
 		if (sscanf(buf, "%d\n", &value) == 1) {	
 			int ret;
 			dev_info(dev, "V:0x%.2X \n", value);
-			if( value < 3 )
+			if( value < 4 )
 			{
 				ret = mx_qm_writebyte(qm->client,QM_REG_WAKEUP_TYPE,value);
 				if (ret < 0)

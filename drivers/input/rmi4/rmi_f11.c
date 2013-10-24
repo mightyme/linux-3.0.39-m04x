@@ -2336,7 +2336,7 @@ static int rmi_f11_register_devices(struct rmi_function_container *fc)
 	}
 	
 #ifdef	CONFIG_RMI4_F11_SWIPE
-	//f11_wakeup_gesture_mode_set(f11,GESTURE_SWIPE);
+	f11_wakeup_gesture_mode_set(f11,GESTURE_SWIPE);
 #endif
 
 	return 0;
