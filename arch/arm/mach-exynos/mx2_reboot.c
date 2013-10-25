@@ -54,6 +54,8 @@ static void mx2_reboot_internal(const char *cmd)
 			mx2_reboot_internal("custom_4");
 		else if(strstr(cmd, "update_locate"))
 			mx2_reboot_internal("custom_5");
+		else if(strstr(cmd, "stage_2"))
+			mx2_reboot_internal("custom_6");
 		else if (strstr(cmd, "wipe"))
 			__raw_writel(REBOOT_MODE_WIPE, S5P_INFORM4);
 		else if (strstr(cmd, "upgrade"))
