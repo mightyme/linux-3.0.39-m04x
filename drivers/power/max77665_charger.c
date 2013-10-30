@@ -790,6 +790,7 @@ static void max77665_chgin_irq_handler(struct work_struct *work)
 				__func__, charger->irq_reg,
 				prev_int_ok, int_ok);
 		wake_unlock(&charger->wake_lock);
+        chgin = charger->chgin;
 	} else {
 		chgin = !!(int_ok & 0x40);
 	}
