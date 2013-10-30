@@ -146,6 +146,7 @@ enum {
 	BATTERY_HEALTH_COLD,
 };
 extern struct class *power_supply_class;
+static struct class *charging;
 
 #ifdef CONFIG_USB_GADGET 
 extern int register_usb_gadget_notifier(struct notifier_block *nb);
@@ -1176,11 +1177,9 @@ static __devinit int max77665_charger_probe(struct platform_device *pdev)
 		ret = PTR_ERR(charger->adc);
 		goto err_put;
 	}
-	
-	if (!power_supply_class) 
-		return -ENXIO;
 
-	charger->dev = device_create(power_supply_class, charger->dev->parent, 
+    charging = class_create(THIS_MODULE, "charging");
+	charger->dev = device_create(charging, charger->dev->parent,
 			0, charger, "charging-switch");
 	ret = device_create_file(charger->dev, &dev_attr_fastcharging);
 
