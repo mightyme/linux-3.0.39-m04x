@@ -325,7 +325,7 @@ static ssize_t lm3530_mode_set(struct device *dev, struct device_attribute
 
 	if (err != 0) {
 		dev_err(dev, "set mode fail!\n");
-		return 0;
+		return size;
 	}
 	drvdata->mode = mode;
 
