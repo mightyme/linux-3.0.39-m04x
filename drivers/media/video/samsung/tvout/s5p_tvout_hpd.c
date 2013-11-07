@@ -18,6 +18,7 @@
 #include <plat/tvout.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
+#include <linux/switch.h>
 
 #include "s5p_tvout_common_lib.h"
 #include "hw_if/hw_if.h"
@@ -79,6 +80,9 @@ static struct miscdevice hpd_misc_device = {
 	"HPD",
 	&hpd_fops,
 };
+static struct switch_dev switch_hdmi_detection = {
+	.name = "hdmi",
+};
 
 static void s5p_hpd_kobject_uevent(void)
 {
@@ -118,6 +122,8 @@ static void s5p_hpd_kobject_uevent(void)
 			envp[env_offset] = NULL;
 			HPDIFPRINTK("online event\n");
 			kobject_uevent_env(&(hpd_misc_device.this_device->kobj), KOBJ_CHANGE, envp);
+			kobject_uevent_env(&(switch_hdmi_detection.dev->kobj), KOBJ_CHANGE, envp);
+			switch_set_state(&switch_hdmi_detection, 1);
 			on_start_process = true;
 		}
 		last_uevent_state = HPD_HI;
@@ -128,6 +134,8 @@ static void s5p_hpd_kobject_uevent(void)
 			envp[env_offset] = NULL;
 			HPDIFPRINTK("offline event\n");
 			kobject_uevent_env(&(hpd_misc_device.this_device->kobj), KOBJ_CHANGE, envp);
+			kobject_uevent_env(&(switch_hdmi_detection.dev->kobj), KOBJ_CHANGE, envp);
+			switch_set_state(&switch_hdmi_detection, 0);
 			on_stop_process = true;
 		}
 		last_uevent_state = HPD_LO;
@@ -398,6 +406,12 @@ static int s5p_hpd_probe(struct platform_device *pdev)
 			HPD_MINOR);
 
 		return -EBUSY;
+	}
+
+	ret = switch_dev_register(&switch_hdmi_detection);
+	if (ret < 0) {
+		pr_err("Failed to register hdmi switch detection!\n");
+		return -ENOENT;
 	}
 
 	init_waitqueue_head(&hpd_struct.waitq);
