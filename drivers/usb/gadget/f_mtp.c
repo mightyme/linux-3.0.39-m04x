@@ -34,6 +34,7 @@
 #include <linux/usb.h>
 #include <linux/usb_usual.h>
 #include <linux/usb/ch9.h>
+#include <linux/wakelock.h>
 #include <linux/usb/f_mtp.h>
 
 #define MTP_BULK_BUFFER_SIZE       16384
@@ -68,6 +69,7 @@
 #define MTP_RESPONSE_DEVICE_BUSY    0x2019
 
 static const char mtp_shortname[] = "mtp_usb";
+static struct wake_lock mtp_wake_lock;
 
 struct mtp_dev {
 	struct usb_function function;
@@ -1040,6 +1042,12 @@ static int mtp_open(struct inode *ip, struct file *fp)
 		_mtp_dev->state = STATE_READY;
 
 	fp->private_data = _mtp_dev;
+    
+    if (!wake_lock_active(&mtp_wake_lock)) {
+        pr_info("mtp wake lock\n");
+        wake_lock(&mtp_wake_lock);
+    }
+
 	return 0;
 }
 
@@ -1047,7 +1055,13 @@ static int mtp_release(struct inode *ip, struct file *fp)
 {
 	printk(KERN_INFO "mtp_release\n");
 
+    if (wake_lock_active(&mtp_wake_lock)) {
+        pr_info("mtp wake unlock\n");
+        wake_unlock(&mtp_wake_lock);
+    }
+
 	mtp_unlock(&_mtp_dev->open_excl);
+
 	return 0;
 }
 
@@ -1344,6 +1358,8 @@ static int mtp_setup(void)
 	INIT_WORK(&dev->receive_file_work, receive_file_work);
 
 	_mtp_dev = dev;
+
+    wake_lock_init(&mtp_wake_lock, WAKE_LOCK_SUSPEND, "mtp");
 
 	ret = misc_register(&mtp_device);
 	if (ret)
