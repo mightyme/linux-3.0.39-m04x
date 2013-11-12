@@ -31,7 +31,7 @@
 #include <linux/bq27541-private.h>
 
 #define MAX_AC_CURRENT          1000  
-#define CHGIN_USB_CURRENT	450
+#define CHGIN_USB_CURRENT	200
 #define TEMP_CHECK_DELAY        (60*HZ) 
 #define WAKE_ALARM_INT          (60) 
 #define CURRENT_INCREMENT_STEP  100   /*mA*/ 
@@ -290,15 +290,6 @@ static int adc_threshold_check(struct max77665_charger *charger)
 	}
 }
 
-static void max77665_usb_charger(struct max77665_charger *charger)
-{
-	if (!regulator_is_enabled(charger->ps))
-		regulator_enable(charger->ps);
-
-	regulator_set_current_limit(charger->ps, CHGIN_USB_CURRENT * MA_TO_UA,
-			MAX_AC_CURRENT * MA_TO_UA);
-}
-
 static int max77665_battery_temp_status(struct max77665_charger *charger)
 {
 	struct power_supply *fuelgauge_ps
@@ -447,23 +438,14 @@ static int max77665_charger_types(struct max77665_charger *charger)
 			|| battery_status == BATTERY_HEALTH_LOW3)) {
 		switch (cable_status) {
 		case CABLE_TYPE_USB:
-			if (!charger->fastcharging) {
+            if (charger->adb_open || charger->storage_open || charger->rndis_open || !charger->fastcharging)
 				regulator_set_current_limit(charger->ps, chgin_ilim * MA_TO_UA, 
 						MAX_AC_CURRENT * MA_TO_UA);
 				break;
-			}
 		case CABLE_TYPE_AC:	
 			if (false == charger-> done) {
 				pr_info("we want to adjust the input current now\n");
-				if (charger->cable_status == CABLE_TYPE_USB) {
-					if (charger->adb_open || charger->storage_open
-							|| charger->rndis_open) 
-						max77665_usb_charger(charger);
-					else 
-						max77665_adjust_current(charger, chgin_ilim);
-				} else {
 					max77665_adjust_current(charger, chgin_ilim);
-				}
 				charger->done = true;
 			} else {
 				pr_info("we have adjusted already\n");
@@ -496,11 +478,6 @@ static void max77665_adjust_work(struct work_struct *work)
 	if (battery_status == BATTERY_HEALTH_GOOD) {
 		if ((charger->chgin)
 				&& now_current != charger->chgin_ilim_ac) {
-			if (charger->cable_status == CABLE_TYPE_USB) {
-				if (charger->adb_open || charger->storage_open
-					|| charger->rndis_open)  
-					return;	
-			} 
 			if (charger->adc_flag == true)
 				charger->adc_flag = false;
 			charger->done = false;
@@ -592,8 +569,10 @@ static void max77665_work_func(struct work_struct *work)
 
 	max77665_charger_types(charger);
 
-	alarm_cancel(&charger->adjust_alarm);
-	set_alarm(&charger->adjust_alarm, WAKE_ALARM_INT);
+    if (charger->cable_status == CABLE_TYPE_AC) {
+        alarm_cancel(&charger->adjust_alarm);
+        set_alarm(&charger->adjust_alarm, WAKE_ALARM_INT);
+    }
 
 	if (delayed_work_pending(&charger->poll_dwork))
 		cancel_delayed_work(&charger->poll_dwork);
@@ -685,7 +664,7 @@ static void max77665_poll_work_func(struct work_struct *work)
 			regulator_disable(charger->ps);
 		}
 	}
-	pr_debug("###########the current = %d\n",regulator_get_current_limit(charger->ps));
+	pr_info("###########the current = %d\n",regulator_get_current_limit(charger->ps));
 	charger->battery_health = battery_health;
 	mutex_unlock(&charger->mutex_t);
 }
@@ -911,7 +890,10 @@ static ssize_t usb_fastcharging_store(struct device *dev,
 {	
 	struct max77665_charger *charger = dev_get_drvdata(dev);
 
+    charger->fastcharging = 0;
+#if 0
 	charger->fastcharging = simple_strtol(buf, NULL, 10);
+   
 	if ((charger->chgin) && 
 			(charger->cable_status == CABLE_TYPE_USB) ) {
 		if (charger->fastcharging) {
@@ -921,7 +903,7 @@ static ssize_t usb_fastcharging_store(struct device *dev,
 		max77665_charger_types(charger);
 	}
 	pr_info("%s:fastcharging = %d\n", __func__, charger->fastcharging);
-	
+	#endif
 	return count;
 }
 
