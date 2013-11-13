@@ -934,8 +934,12 @@ static long mtp_ioctl(struct file *fp, unsigned code, unsigned long value)
 	struct file *filp = NULL;
 	int ret = -EINVAL;
 
-	if (mtp_lock(&dev->ioctl_excl))
-		return -EBUSY;
+	if (code != MTP_SEND_EVENT) {
+		if (mtp_lock(&dev->ioctl_excl)) {
+			ERROR(dev->cdev, "mtp_ioctl busy!\n");
+			return -EBUSY;
+		}
+	}
 
 	switch (code) {
 	case MTP_SEND_FILE:
@@ -1026,8 +1030,10 @@ fail:
 		dev->state = STATE_READY;
 	spin_unlock_irq(&dev->lock);
 out:
-	mtp_unlock(&dev->ioctl_excl);
-	DBG(dev->cdev, "ioctl returning %d\n", ret);
+	if (code != MTP_SEND_EVENT)
+		mtp_unlock(&dev->ioctl_excl);
+	if (ret < 0)
+		ERROR(dev->cdev, "ioctl returning %d\n", ret);
 	return ret;
 }
 
