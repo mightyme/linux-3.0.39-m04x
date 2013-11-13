@@ -98,7 +98,7 @@ static ssize_t show_power_mode(struct kobject *kobj, struct attribute *attr, cha
 {
 	int ret;
 
-	ret = snprintf(buf, POWER_MODE_LEN, "%s\n", cur_power_mode->mode_name);
+	ret = snprintf(buf, POWER_MODE_LEN, "%s\n", cur_power_mode?cur_power_mode->mode_name:"unkown");
 	return ret;
 }
 
