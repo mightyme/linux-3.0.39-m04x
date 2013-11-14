@@ -233,20 +233,33 @@ static void modem_hsic_pm_config_gpio(void)
 	printk(KERN_INFO "modem_hsic_pm_config_gpio done\n");
 }
 
-int m040_modem_device_init(void)
+int modem_early_power(void)
 {
-	int ret = 0;
-
 	pr_info("[MODEM_IF] init_modem for wm\n");
+
 	umts_modem_data = umts_modem_data_m040;
 
 	umts_modem_cfg_gpio();
 	modem_hsic_pm_config_gpio();
+#ifndef CONFIG_MX_RECOVERY_KERNEL
+	gpio_direction_output(umts_modem_data.gpio_cp_reset, 1);
+	mdelay(1);
+	gpio_direction_output(umts_modem_data.gpio_reset_req_n, 1);
+	mdelay(2);
+	gpio_direction_output(umts_modem_data.gpio_cp_on, 1);
+	udelay(80);
+	gpio_direction_output(umts_modem_data.gpio_cp_on, 0);
+#endif
+	return 0;
+}
+
+int m040_modem_device_init(void)
+{
+	int ret = 0;
 
 	ret = platform_device_register(&umts_modem_m040);
 
 	pr_info("[MODEM_IF] init_modem device over, ret=%d.\n", ret);
 
 	return ret;
-
 }
