@@ -215,7 +215,7 @@ static void complete_rx(struct s3c_udc *dev, u8 ep_num)
 		xfer_size = (ep_tsr & 0x7fff);
 
 	dma_sync_single_for_device(&dev->dev->dev, (dma_addr_t)req->req.dma,
-				req->req.length, DMA_FROM_DEVICE);
+                               req->req.length, DMA_FROM_DEVICE);
 	xfer_length = req->req.length - xfer_size;
 	req->req.actual += min(xfer_length, req->req.length - req->req.actual);
 	is_short = (xfer_length < ep->ep.maxpacket);
@@ -507,7 +507,6 @@ static irqreturn_t s3c_udc_irq(int irq, void *_dev)
 			if (reset_available) {
 				DEBUG_ISR("\t\tOTG core got reset (%d)!!\n",
 					reset_available);
-				stop_activity(dev, dev->driver);
 				reset_usbd();
 				dev->ep0state = WAIT_FOR_SETUP;
 				reset_available = 0;
@@ -523,7 +522,6 @@ static irqreturn_t s3c_udc_irq(int irq, void *_dev)
 				dev->driver->disconnect(&dev->gadget);
 				spin_lock(&dev->lock);
 			}
-
 #if defined(CONFIG_BATTERY_SAMSUNG)
 			s3c_udc_cable_disconnect(dev);
 #endif
@@ -808,7 +806,7 @@ static int s3c_udc_get_status(struct s3c_udc *dev,
 		break;
 
 	case USB_RECIP_DEVICE:
-		g_status = 0x1; /* Self powered */
+		g_status = 0x0;
 		DEBUG_SETUP("\tGET_STATUS: USB_RECIP_DEVICE,"
 			"g_stauts = %d\n", g_status);
 		break;
@@ -1050,6 +1048,9 @@ static int s3c_udc_clear_feature(struct usb_ep *_ep)
 				"USB_DEVICE_TEST_MODE\n");
 			/** @todo Add CLEAR_FEATURE for TEST modes. */
 			break;
+		default:
+			s3c_udc_ep0_set_stall(ep);
+			return 1;
 		}
 
 		s3c_udc_ep0_zlp(ep->dev);
@@ -1202,6 +1203,9 @@ static int s3c_udc_set_feature(struct usb_ep *_ep)
 			DEBUG_SETUP("\tSET_FEATURE:"
 					"USB_DEVICE_A_ALT_HNP_SUPPORT\n");
 			break;
+		default:
+			s3c_udc_ep0_set_stall(ep);
+			return 1;
 		}
 
 		s3c_udc_ep0_zlp(ep->dev);
@@ -1369,7 +1373,6 @@ static void s3c_ep0_setup(struct s3c_udc *dev)
 			if (dev->req_config) {
 				DEBUG_SETUP("\tconfig change 0x%02x fail %d?\n",
 					(u32)usb_ctrl->bRequest, i);
-				return;
 			}
 
 			/* setup processing failed, force stall */
