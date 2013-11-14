@@ -684,6 +684,9 @@ static int __devinit s5p_ehci_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to add USB HCD\n");
 		goto fail;
 	}
+	(void) ehci_hub_control(hcd, ClearPortFeature,
+				USB_PORT_FEAT_POWER, 2, NULL, 0);
+	ehci_readl(ehci, &ehci->regs->command);
 
 	platform_set_drvdata(pdev, s5p_ehci);
 	s5p_wake_lock_init();

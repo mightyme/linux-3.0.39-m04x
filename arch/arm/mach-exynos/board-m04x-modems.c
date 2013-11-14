@@ -20,6 +20,7 @@
 
 #ifdef CONFIG_MACH_M040
 extern int m040_modem_device_init(void);
+extern int modem_early_power(void);
 #endif
 #ifdef CONFIG_MACH_M041
 extern int m041_modem_device_init(void);
@@ -37,7 +38,16 @@ static int __init modem_device_init(void)
 #endif
 	return 0;
 }
+static int __init modem_reset_init(void)
+{
+#ifdef CONFIG_MACH_M040
+	if(machine_is_m040())
+		return modem_early_power();
+#endif
+	return 0;
+}
 
+device_initcall(modem_reset_init);
 late_initcall(modem_device_init);
 
 MODULE_LICENSE("GPL");
