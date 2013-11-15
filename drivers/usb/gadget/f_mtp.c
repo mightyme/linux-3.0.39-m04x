@@ -99,6 +99,7 @@ struct mtp_dev {
 	/* for processing MTP_SEND_FILE, MTP_RECEIVE_FILE and
 	 * MTP_SEND_FILE_WITH_HEADER ioctls on a work queue
 	 */
+	struct completion done;
 	struct workqueue_struct *wq;
 	struct work_struct send_file_work;
 	struct work_struct receive_file_work;
@@ -814,6 +815,7 @@ static void send_file_work(struct work_struct *data) {
 	/* write the result */
 	dev->xfer_result = r;
 	smp_wmb();
+	complete(&dev->done);
 }
 
 /* read from USB and write to a local file */
@@ -896,6 +898,7 @@ static void receive_file_work(struct work_struct *data)
 	/* write the result */
 	dev->xfer_result = r;
 	smp_wmb();
+	complete(&dev->done);
 }
 
 static int mtp_send_event(struct mtp_dev *dev, struct mtp_event *event)
@@ -998,9 +1001,10 @@ static long mtp_ioctl(struct file *fp, unsigned code, unsigned long value)
 		 * in kernel context, which is necessary for vfs_read and
 		 * vfs_write to use our buffers in the kernel address space.
 		 */
+		init_completion(&dev->done);
 		queue_work(dev->wq, work);
 		/* wait for operation to complete */
-		flush_workqueue(dev->wq);
+		wait_for_completion_interruptible(&dev->done);
 		fput(filp);
 
 		/* read the result */
