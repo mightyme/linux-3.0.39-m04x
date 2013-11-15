@@ -78,6 +78,9 @@ static void start_touch_boost(struct tb_private_info *info)
 		if (cur < target) {
 			boost_time = info->down_time * boost_time_multi[target_level];
 			pm_qos_update_request_timeout(&boost_cpu_qos, target, boost_time);
+#ifdef CONFIG_BUSFREQ_OPP
+			dev_lock_timeout(info->bus_dev, &info->dev, info->lock_busfreq, boost_time / 1000);
+#endif
 			if (info->boost_debug)
 				pr_info("%s: request %d cpu freq for %d msecs\n", __func__, target, boost_time);
 		}
