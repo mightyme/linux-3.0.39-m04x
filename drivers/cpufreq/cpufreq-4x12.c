@@ -42,7 +42,7 @@ static int arm_bias = 0;	//sub 0.1v all level voltage
 module_param_named(arm_bias, arm_bias, int, 0644);
 
 /* Full freq table */
-struct cpufreq_frequency_table exynos4x12_freq_table[] = {
+static struct cpufreq_frequency_table exynos4x12_freq_table[] = {
 	{L0, 1600*1000},
 	{L1, 1500*1000},
 	{L2, 1400*1000},
@@ -61,7 +61,6 @@ struct cpufreq_frequency_table exynos4x12_freq_table[] = {
 	{L15, 100*1000},
 	{0, CPUFREQ_TABLE_END},
 };
-EXPORT_SYMBOL(exynos4x12_freq_table);
 
 #define CPUFREQ_LEVEL_END	(L15 + 1)
 

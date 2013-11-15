@@ -22,10 +22,6 @@
 #include <linux/notifier.h>
 #include <asm/cputime.h>
 
-#ifdef CONFIG_EXYNOS4X12_CPUFREQ
-extern struct cpufreq_frequency_table exynos4x12_freq_table[];
-#endif
-
 static spinlock_t cpufreq_stats_lock;
 
 #define CPUFREQ_STATDEVICE_ATTR(_name, _mode, _show) \
@@ -221,21 +217,13 @@ static int cpufreq_stats_create_table(struct cpufreq_policy *policy,
 	stat->cpu = cpu;
 	per_cpu(cpufreq_stats_table, cpu) = stat;
 
-#ifdef CONFIG_EXYNOS4X12_CPUFREQ
-	for (i = 0; exynos4x12_freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		unsigned int freq = exynos4x12_freq_table[i].frequency;
-		if (freq == CPUFREQ_ENTRY_INVALID)
-			continue;
-		count++;
-	}
-#else
 	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
 		unsigned int freq = table[i].frequency;
 		if (freq == CPUFREQ_ENTRY_INVALID)
 			continue;
 		count++;
 	}
-#endif
+
 	alloc_size = count * sizeof(int) + count * sizeof(cputime64_t);
 
 #ifdef CONFIG_CPU_FREQ_STAT_DETAILS
@@ -253,15 +241,6 @@ static int cpufreq_stats_create_table(struct cpufreq_policy *policy,
 	stat->trans_table = stat->freq_table + count;
 #endif
 	j = 0;
-#ifdef CONFIG_EXYNOS4X12_CPUFREQ
-	for (i = 0; exynos4x12_freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		unsigned int freq = exynos4x12_freq_table[i].frequency;
-		if (freq == CPUFREQ_ENTRY_INVALID)
-			continue;
-		if (freq_table_get_index(stat, freq) == -1)
-			stat->freq_table[j++] = freq;
-	}
-#else
 	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
 		unsigned int freq = table[i].frequency;
 		if (freq == CPUFREQ_ENTRY_INVALID)
@@ -269,7 +248,6 @@ static int cpufreq_stats_create_table(struct cpufreq_policy *policy,
 		if (freq_table_get_index(stat, freq) == -1)
 			stat->freq_table[j++] = freq;
 	}
-#endif
 	stat->state_num = j;
 	spin_lock(&cpufreq_stats_lock);
 	stat->last_time = get_jiffies_64();
@@ -423,7 +401,6 @@ static int __init cpufreq_stats_init(void)
 	for_each_online_cpu(cpu) {
 		cpufreq_update_policy(cpu);
 	}
-
 	return 0;
 }
 static void __exit cpufreq_stats_exit(void)
