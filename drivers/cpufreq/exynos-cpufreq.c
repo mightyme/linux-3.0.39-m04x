@@ -502,7 +502,7 @@ static int exynos_qos_min_notifier_call(struct notifier_block *nb,
 			list_entry(nb, struct exynos_dvfs_info, qos_min_nb);
 	
 	cpu_info->qos_min_freq = value;
-	pr_info("%s: qos_min_freq: %ld\n", __func__, value);
+	pr_debug("%s: qos_min_freq: %ld\n", __func__, value);
 	
 	return NOTIFY_OK;
 }
@@ -514,7 +514,7 @@ static int exynos_qos_max_notifier_call(struct notifier_block *nb,
 			list_entry(nb, struct exynos_dvfs_info, qos_max_nb);
 	
 	cpu_info->qos_max_freq = value;
-	pr_info("%s: qos_max_freq: %ld\n", __func__, value);
+	pr_debug("%s: qos_max_freq: %ld\n", __func__, value);
 
 	return NOTIFY_OK;
 }
@@ -633,14 +633,14 @@ static int __devinit exynos_cpufreq_probe(struct platform_device *pdev)
 		pr_err("failed to register_pm_notifier\n");
 		goto err_notifier2;
 	}
-
+	/*
 	cpu_info->pfm_notifier.notifier_call = exynos_cpufreq_pfm;
 	ret = register_pfm_notifier(&cpu_info->pfm_notifier);
 	if (ret) {
 		pr_err("failed to register_pfm_notifier\n");
 		goto err_notifier3;
 	}
-
+	*/
 	/*Add cpufreq qos min notifier*/
 	cpu_info->qos_min_freq = PM_QOS_CPUFREQ_MIN_DEFAULT_VALUE;
 	cpu_info->qos_min_nb.notifier_call = exynos_qos_min_notifier_call;

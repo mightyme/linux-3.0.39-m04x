@@ -27,6 +27,7 @@
 #include "base.h"
 
 static struct exynos_power_info *cur_power_mode;
+struct pm_qos_request power_mode_qos;
 
 struct exynos_power_info exynos_power_mode[POWER_MODE_END] = {
 /* power_mode, cpu_lock, index */
@@ -98,7 +99,7 @@ static ssize_t show_power_mode(struct kobject *kobj, struct attribute *attr, cha
 {
 	int ret;
 
-	ret = snprintf(buf, POWER_MODE_LEN, "%s\n", cur_power_mode->mode_name);
+	ret = snprintf(buf, POWER_MODE_LEN, "%s\n", cur_power_mode?cur_power_mode->mode_name:"unkown");
 	return ret;
 }
 
@@ -140,13 +141,18 @@ static ssize_t __ref store_power_mode(struct kobject *kobj, struct attribute *at
 	}
 
 	pr_info("store_power_mode: %s\t%d\t%d\n", str_power_mode, cpu_lock, number);
-	/* notify the client */
+
+	if (pm_qos_request_active(&power_mode_qos))
+		pm_qos_update_request(&power_mode_qos, cpu_lock);
+	else
+		pm_qos_add_request(&power_mode_qos, PM_QOS_CPUFREQ_MAX, cpu_lock);
+	/*
 	ret = blocking_notifier_call_chain(&pfm_notifier_list, number, str_power_mode);
 	if (NOTIFY_BAD == ret) {
 		pr_err("set_cpufreq_profile fail!\n");
 		return -EINVAL;
 	}
-
+	*/
 	return count;
 }
 

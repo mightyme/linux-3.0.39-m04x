@@ -15,12 +15,12 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 
-#define DEFUALT_BOOST_FREETIME		1000	/*1000ms*/
+#define DEFUALT_BOOST_FREETIME		500000	/*500ms*/
 #define DEFUALT_BOOST_4210_BUSFREQ	267000
 #define DEFUALT_BOOST_4412_BUSFREQ	267200
 #define DEFUALT_LAUNCH_BOOST_CPUFREQ    1200000	/* 1.2GHz */
-#define DEFUALT_FIRST_BOOST_CPUFREQ	800000	/* 800Mhz */
-#define DEFUALT_SECOND_BOOST_CPUFREQ	600000	/* 600Mhz */
+#define DEFUALT_FIRST_BOOST_CPUFREQ	600000	/* 600Mhz */
+#define DEFUALT_SECOND_BOOST_CPUFREQ	400000	/* 400Mhz */
 #define TABLE_SIZE			3
 
 static int boost_time_multi[TABLE_SIZE] = {2, 1, 1};
@@ -78,6 +78,9 @@ static void start_touch_boost(struct tb_private_info *info)
 		if (cur < target) {
 			boost_time = info->down_time * boost_time_multi[target_level];
 			pm_qos_update_request_timeout(&boost_cpu_qos, target, boost_time);
+#ifdef CONFIG_BUSFREQ_OPP
+			dev_lock_timeout(info->bus_dev, &info->dev, info->lock_busfreq, boost_time / 1000);
+#endif
 			if (info->boost_debug)
 				pr_info("%s: request %d cpu freq for %d msecs\n", __func__, target, boost_time);
 		}
