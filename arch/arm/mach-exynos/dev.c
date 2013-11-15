@@ -72,6 +72,7 @@ found:
 	mutex_unlock(&domains_mutex);
 	return domain->device;
 }
+EXPORT_SYMBOL_GPL(dev_get);
 
 void dev_put(const char *name)
 {
@@ -174,6 +175,7 @@ out:
 	exynos_request_apply(freq, dev);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(dev_lock);
 
 int dev_unlock(struct device *device, struct device *dev)
 {
@@ -200,6 +202,8 @@ int dev_unlock(struct device *device, struct device *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(dev_unlock);
+
 int dev_lock_max(struct device *device, struct device *dev, unsigned long freq)
 {
 	struct device_domain *domain;

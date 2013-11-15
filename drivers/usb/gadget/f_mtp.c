@@ -36,6 +36,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/wakelock.h>
 #include <linux/usb/f_mtp.h>
+#include <linux/pm_qos.h>
 
 #define MTP_BULK_BUFFER_SIZE       16384
 #define INTR_BUFFER_SIZE           28
@@ -68,8 +69,16 @@
 #define MTP_RESPONSE_OK             0x2001
 #define MTP_RESPONSE_DEVICE_BUSY    0x2019
 
+#define MTP_CPU_QOS_FREQ_HIGH		(800000)
+#define MTP_MIF_QOS_FREQ_HIGH		(267200)
+
+extern int dev_lock(struct device *device, struct device *dev, unsigned long freq); 
+extern int dev_unlock(struct device *device, struct device *dev); 
+extern struct device *dev_get(const char *name);
+
 static const char mtp_shortname[] = "mtp_usb";
 static struct wake_lock mtp_wake_lock;
+static struct pm_qos_request mtp_cpu_qos;
 
 struct mtp_dev {
 	struct usb_function function;
@@ -110,6 +119,7 @@ struct mtp_dev {
 	uint16_t xfer_command;
 	uint32_t xfer_transaction_id;
 	int xfer_result;
+    struct device *mtp_dev_qos;
 };
 
 static struct usb_interface_descriptor mtp_interface_desc = {
@@ -738,6 +748,9 @@ static void send_file_work(struct work_struct *data) {
 
 	DBG(cdev, "send_file_work(%lld %lld)\n", offset, count);
 
+    pm_qos_update_request(&mtp_cpu_qos, MTP_CPU_QOS_FREQ_HIGH);
+    dev_lock(dev->mtp_dev_qos, &dev->mtp_busdev, MTP_MIF_QOS_FREQ_HIGH);
+
 	if (dev->xfer_send_header) {
 		hdr_size = sizeof(struct mtp_data_header);
 		count += hdr_size;
@@ -811,6 +824,9 @@ static void send_file_work(struct work_struct *data) {
 	if (req)
 		mtp_req_put(dev, &dev->tx_idle, req);
 
+    pm_qos_update_request(&mtp_cpu_qos, 0);
+    dev_unlock(dev->mtp_dev_qos, &dev->mtp_busdev);
+
 	DBG(cdev, "send_file_work returning %d\n", r);
 	/* write the result */
 	dev->xfer_result = r;
@@ -837,6 +853,9 @@ static void receive_file_work(struct work_struct *data)
 	count = dev->xfer_file_length;
 
 	DBG(cdev, "receive_file_work(%lld)\n", count);
+
+    pm_qos_update_request(&mtp_cpu_qos, MTP_CPU_QOS_FREQ_HIGH);
+    dev_lock(dev->mtp_dev_qos, &dev->mtp_busdev, MTP_MIF_QOS_FREQ_HIGH);
 
 	while (count > 0 || write_req) {
 		if (count > 0) {
@@ -893,6 +912,9 @@ static void receive_file_work(struct work_struct *data)
 			read_req = NULL;
 		}
 	}
+
+    pm_qos_update_request(&mtp_cpu_qos, 0);
+    dev_unlock(dev->mtp_dev_qos, &dev->mtp_busdev);
 
 	DBG(cdev, "receive_file_work returning %d\n", r);
 	/* write the result */
@@ -1375,9 +1397,13 @@ static int mtp_setup(void)
 	if (ret)
 		goto err2;
 
+    dev->mtp_dev_qos = dev_get("exynos-busfreq");
+    pm_qos_add_request(&mtp_cpu_qos, PM_QOS_CPUFREQ_MIN, 0);
+
 	return 0;
 
 err2:
+    pm_qos_remove_request(&mtp_cpu_qos);
 	destroy_workqueue(dev->wq);
 err1:
 	_mtp_dev = NULL;
