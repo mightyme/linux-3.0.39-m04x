@@ -30,6 +30,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/composite.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/android_composite.h>
 
 #include "gadget_chips.h"
 
@@ -82,11 +83,6 @@ struct android_usb_function {
 	int (*init)(struct android_usb_function *, struct usb_composite_dev *);
 	/* Optional: cleanup during gadget unbind */
 	void (*cleanup)(struct android_usb_function *);
-	/* Optional: called when the function is added the list of
-	 *		enabled functions */
-	void (*enable)(struct android_usb_function *);
-	/* Optional: called when it is removed */
-	void (*disable)(struct android_usb_function *);
 
 	int (*bind_config)(struct android_usb_function *, struct usb_configuration *);
 
@@ -105,7 +101,6 @@ struct android_dev {
 	struct device *dev;
 
 	bool enabled;
-	int disable_depth;
 	struct mutex mutex;
 	bool connected;
 	bool sw_connected;
@@ -160,7 +155,7 @@ static struct usb_configuration android_config_driver = {
 	.unbind		= android_unbind_config,
 	.bConfigurationValue = 1,
 	.bmAttributes	= USB_CONFIG_ATT_ONE | USB_CONFIG_ATT_SELFPOWER,
-	.bMaxPower	= 0xFA, /* 500ma */
+	.bMaxPower	= 0x30, /* 96ma */
 };
 
 #if defined(CONFIG_MX_SERIAL_TYPE) || defined(CONFIG_MX2_SERIAL_TYPE)
@@ -241,126 +236,32 @@ static void android_work(struct work_struct *data)
 			 dev->connected, dev->sw_connected, cdev->config);
 	}
 }
- 
-static void android_enable(struct android_dev *dev)
-{
-	struct usb_composite_dev *cdev = dev->cdev;
 
-	BUG_ON(!mutex_is_locked(&dev->mutex));
-	BUG_ON(!dev->disable_depth);
-
-	if (--dev->disable_depth == 0) {
-		usb_add_config(cdev, &android_config_driver,
-					android_bind_config);
-		usb_gadget_connect(cdev->gadget);
-	}
-}
-
-static void android_disable(struct android_dev *dev)
-{
-	struct usb_composite_dev *cdev = dev->cdev;
-
-	BUG_ON(!mutex_is_locked(&dev->mutex));
-
-	if (dev->disable_depth++ == 0) {
-		usb_gadget_disconnect(cdev->gadget);
-		/* Cancel pending control requests */
-		usb_ep_dequeue(cdev->gadget->ep0, cdev->req);
-		usb_remove_config(cdev, &android_config_driver);
-	}
-}
 
 /*-------------------------------------------------------------------------*/
 /* Supported functions initialization */
- 
-struct adb_data {
-	bool opened;
-	bool enabled;
-};
 
 static int adb_function_init(struct android_usb_function *f, struct usb_composite_dev *cdev)
 {
-	f->config = kzalloc(sizeof(struct adb_data), GFP_KERNEL);
-	if (!f->config)
-		return -ENOMEM;
-
 	return adb_setup();
 }
 
 static void adb_function_cleanup(struct android_usb_function *f)
 {
 	adb_cleanup();
-	kfree(f->config);
 }
 
 static int adb_function_bind_config(struct android_usb_function *f, struct usb_configuration *c)
 {
 	return adb_bind_config(c);
 }
- 
-static void adb_android_function_enable(struct android_usb_function *f)
-{
-	struct android_dev *dev = _android_dev;
-	struct adb_data *data = f->config;
-
-	data->enabled = true;
-
-	/* Disable the gadget until adbd is ready */
-	if (!data->opened)
-		android_disable(dev);
-}
-
-static void adb_android_function_disable(struct android_usb_function *f)
-{
-	struct android_dev *dev = _android_dev;
-	struct adb_data *data = f->config;
-
-	data->enabled = false;
-
-	/* Balance the disable that was called in closed_callback */
-	if (!data->opened)
-		android_enable(dev);
-}
 
 static struct android_usb_function adb_function = {
 	.name		= "adb",
-	.enable		= adb_android_function_enable,
-	.disable	= adb_android_function_disable,
 	.init		= adb_function_init,
 	.cleanup	= adb_function_cleanup,
 	.bind_config	= adb_function_bind_config,
 };
- 
-static void adb_ready_callback(void)
-{
-	struct android_dev *dev = _android_dev;
-	struct adb_data *data = adb_function.config;
-
-	mutex_lock(&dev->mutex);
-
-	data->opened = true;
-
-	if (data->enabled)
-		android_enable(dev);
-
-	mutex_unlock(&dev->mutex);
-}
-
-static void adb_closed_callback(void)
-{
-	struct android_dev *dev = _android_dev;
-	struct adb_data *data = adb_function.config;
-
-	mutex_lock(&dev->mutex);
-
-	data->opened = false;
-
-	if (data->enabled)
-		android_disable(dev);
-
-	mutex_unlock(&dev->mutex);
-}
-
 
 #define MAX_ACM_INSTANCES 4
 struct acm_function_config {
@@ -369,11 +270,15 @@ struct acm_function_config {
 
 static int acm_function_init(struct android_usb_function *f, struct usb_composite_dev *cdev)
 {
+	int ret;
+
 	f->config = kzalloc(sizeof(struct acm_function_config), GFP_KERNEL);
 	if (!f->config)
 		return -ENOMEM;
 
-	return gserial_setup(cdev->gadget, MAX_ACM_INSTANCES);
+	ret = gserial_setup(cdev->gadget, MAX_ACM_INSTANCES);
+
+	return ret;
 }
 
 static void acm_function_cleanup(struct android_usb_function *f)
@@ -521,10 +426,6 @@ static int rndis_function_bind_config(struct android_usb_function *f,
 		return -1;
 	}
 
-	pr_info("%s MAC: %02X:%02X:%02X:%02X:%02X:%02X\n", __func__,
-		rndis->ethaddr[0], rndis->ethaddr[1], rndis->ethaddr[2],
-		rndis->ethaddr[3], rndis->ethaddr[4], rndis->ethaddr[5]);
-
 	ret = gether_setup_name(c->cdev->gadget, rndis->ethaddr, "rndis");
 	if (ret) {
 		pr_err("%s: gether_setup failed\n", __func__);
@@ -621,9 +522,11 @@ static ssize_t rndis_ethaddr_store(struct device *dev,
 	if (sscanf(buf, "%02x:%02x:%02x:%02x:%02x:%02x\n",
 		    (int *)&rndis->ethaddr[0], (int *)&rndis->ethaddr[1],
 		    (int *)&rndis->ethaddr[2], (int *)&rndis->ethaddr[3],
-		    (int *)&rndis->ethaddr[4], (int *)&rndis->ethaddr[5]) == 6)
+		    (int *)&rndis->ethaddr[4],
+		    (int *)&rndis->ethaddr[5]) == 6)
 		return size;
 	return -EINVAL;
+
 }
 
 static DEVICE_ATTR(ethaddr, S_IRUGO | S_IWUSR, rndis_ethaddr_show,
@@ -689,6 +592,9 @@ static int mass_storage_function_init(struct android_usb_function *f,
 	if (!config)
 		return -ENOMEM;
 
+	/* original mainline code */
+	printk(KERN_DEBUG "usb: %s pdata is not available. nluns=1\n",
+			__func__);
 	config->fsg.nluns = 1;
 	config->fsg.luns[0].removable = 1;
 
@@ -699,8 +605,8 @@ static int mass_storage_function_init(struct android_usb_function *f,
 	}
 
 	err = sysfs_create_link(&f->dev->kobj,
-				&common->luns[0].dev.kobj,
-				"lun");
+			&common->luns[0].dev.kobj,
+			"lun");
 	if (err) {
 		kfree(config);
 		return err;
@@ -748,6 +654,7 @@ static DEVICE_ATTR(inquiry_string, S_IRUGO | S_IWUSR,
 					mass_storage_inquiry_show,
 					mass_storage_inquiry_store);
 
+
 static struct device_attribute *mass_storage_function_attributes[] = {
 	&dev_attr_inquiry_string,
 	NULL
@@ -794,7 +701,6 @@ static struct android_usb_function accessory_function = {
 	.ctrlrequest	= accessory_function_ctrlrequest,
 };
 
-
 static struct android_usb_function *supported_functions[] = {
 	&adb_function,
 	&acm_function,
@@ -814,7 +720,7 @@ static int android_init_functions(struct android_usb_function **functions,
 	struct android_usb_function *f;
 	struct device_attribute **attrs;
 	struct device_attribute *attr;
-	int err;
+	int err = 0;
 	int index = 0;
 
 	for (; (f = *functions++); index++) {
@@ -985,7 +891,6 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 {
 	struct android_dev *dev = dev_get_drvdata(pdev);
 	struct usb_composite_dev *cdev = dev->cdev;
-	struct android_usb_function *f;
 	int enabled = 0;
 
 	mutex_lock(&dev->mutex);
@@ -1000,19 +905,26 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 		cdev->desc.bDeviceClass = device_desc.bDeviceClass;
 		cdev->desc.bDeviceSubClass = device_desc.bDeviceSubClass;
 		cdev->desc.bDeviceProtocol = device_desc.bDeviceProtocol;
-		list_for_each_entry(f, &dev->enabled_functions, enabled_list) {
-			if (f->enable)
-				f->enable(f);
-		}
-		android_enable(dev);
+		printk(KERN_DEBUG "usb: %s vendor=%x,product=%x,bcdDevice=%x",
+				__func__, cdev->desc.idVendor,
+				cdev->desc.idProduct, cdev->desc.bcdDevice);
+		printk(KERN_DEBUG ",Class=%x,SubClass=%x,Protocol=%x\n",
+				cdev->desc.bDeviceClass,
+				cdev->desc.bDeviceSubClass,
+				cdev->desc.bDeviceProtocol);
+		printk(KERN_DEBUG "usb: %s next cmd : usb_add_config\n",
+				__func__);
+		usb_add_config(cdev, &android_config_driver,
+					android_bind_config);
+		usb_gadget_connect(cdev->gadget);
 		dev->enabled = true;
 	} else if (!enabled && dev->enabled) {
-		android_disable(dev);
-		list_for_each_entry(f, &dev->enabled_functions, enabled_list) {
-			if (f->disable)
-				f->disable(f);
-		}
+		usb_gadget_disconnect(cdev->gadget);
+		/* Cancel pending control requests */
+		usb_ep_dequeue(cdev->gadget->ep0, cdev->req);
+		usb_remove_config(cdev, &android_config_driver);
 		dev->enabled = false;
+		mdelay(5);
 	} else if (!enabled) {
 		usb_gadget_disconnect(cdev->gadget);
 		dev->enabled = false;
@@ -1191,7 +1103,6 @@ static int android_bind(struct usb_composite_dev *cdev)
 			longname, gadget->name);
 		device_desc.bcdDevice = __constant_cpu_to_le16(0x9999);
 	}
-
 	usb_gadget_set_selfpowered(gadget);
 	dev->cdev = cdev;
 
@@ -1237,6 +1148,7 @@ android_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *c)
 		}
 	}
 
+
 	/* Special case the accessory function.
 	 * It needs to handle control requests before it is enabled.
 	 */
@@ -1247,6 +1159,7 @@ android_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *c)
 		value = composite_setup(gadget, c);
 
 	spin_lock_irqsave(&cdev->lock, flags);
+
 	if (!dev->connected) {
 		dev->connected = 1;
 		schedule_work(&dev->work);
@@ -1269,6 +1182,7 @@ static void android_disconnect(struct usb_gadget *gadget)
 
 	spin_lock_irqsave(&cdev->lock, flags);
 	dev->connected = 0;
+
 	schedule_work(&dev->work);
 	spin_unlock_irqrestore(&cdev->lock, flags);
 }
@@ -1296,7 +1210,6 @@ static int android_create_device(struct android_dev *dev)
 	return 0;
 }
 
-
 static int __init init(void)
 {
 	struct android_dev *dev;
@@ -1310,7 +1223,6 @@ static int __init init(void)
 	if (!dev)
 		return -ENOMEM;
 
-	dev->disable_depth = 1;
 	dev->functions = supported_functions;
 	INIT_LIST_HEAD(&dev->enabled_functions);
 	INIT_WORK(&dev->work, android_work);
