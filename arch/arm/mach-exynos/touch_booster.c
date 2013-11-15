@@ -23,7 +23,7 @@
 #define DEFUALT_SECOND_BOOST_CPUFREQ	600000	/* 600Mhz */
 #define TABLE_SIZE			3
 
-static int boost_time_multi[TABLE_SIZE] = {2000, 1000, 1000};
+static int boost_time_multi[TABLE_SIZE] = {2, 1, 1};
 static int boost_freq_table[TABLE_SIZE] = {DEFUALT_LAUNCH_BOOST_CPUFREQ, DEFUALT_FIRST_BOOST_CPUFREQ, DEFUALT_SECOND_BOOST_CPUFREQ};
 static struct pm_qos_request boost_cpu_qos;
 static int boost_device_count = 0;
