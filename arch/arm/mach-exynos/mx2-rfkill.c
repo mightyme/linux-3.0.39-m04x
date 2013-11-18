@@ -302,7 +302,7 @@ static int bcm4330_bluetooth_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	rfkill_init_sw_state(bt_rfkill, 0);
+	rfkill_init_sw_state(bt_rfkill, 1);
 
 	rc = rfkill_register(bt_rfkill);
 
@@ -311,8 +311,6 @@ static int bcm4330_bluetooth_probe(struct platform_device *pdev)
 		rfkill_destroy(bt_rfkill);
 		return -1;
 	}
-
-	rfkill_set_sw_state(bt_rfkill, true);
 
 #ifdef BT_LPM_ENABLE
 	ret = bcm_bt_lpm_init(pdev);
