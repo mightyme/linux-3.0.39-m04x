@@ -749,7 +749,7 @@ static void send_file_work(struct work_struct *data) {
 	DBG(cdev, "send_file_work(%lld %lld)\n", offset, count);
 
     pm_qos_update_request(&mtp_cpu_qos, MTP_CPU_QOS_FREQ_HIGH);
-    dev_lock(dev->mtp_dev_qos, &dev->mtp_busdev, MTP_MIF_QOS_FREQ_HIGH);
+    dev_lock(dev->mtp_dev_qos, dev->mtp_dev_qos, MTP_MIF_QOS_FREQ_HIGH);
 
 	if (dev->xfer_send_header) {
 		hdr_size = sizeof(struct mtp_data_header);
@@ -825,7 +825,7 @@ static void send_file_work(struct work_struct *data) {
 		mtp_req_put(dev, &dev->tx_idle, req);
 
     pm_qos_update_request(&mtp_cpu_qos, 0);
-    dev_unlock(dev->mtp_dev_qos, &dev->mtp_busdev);
+    dev_unlock(dev->mtp_dev_qos, dev->mtp_dev_qos);
 
 	DBG(cdev, "send_file_work returning %d\n", r);
 	/* write the result */
@@ -855,7 +855,7 @@ static void receive_file_work(struct work_struct *data)
 	DBG(cdev, "receive_file_work(%lld)\n", count);
 
     pm_qos_update_request(&mtp_cpu_qos, MTP_CPU_QOS_FREQ_HIGH);
-    dev_lock(dev->mtp_dev_qos, &dev->mtp_busdev, MTP_MIF_QOS_FREQ_HIGH);
+    dev_lock(dev->mtp_dev_qos, dev->mtp_dev_qos, MTP_MIF_QOS_FREQ_HIGH);
 
 	while (count > 0 || write_req) {
 		if (count > 0) {
@@ -914,7 +914,7 @@ static void receive_file_work(struct work_struct *data)
 	}
 
     pm_qos_update_request(&mtp_cpu_qos, 0);
-    dev_unlock(dev->mtp_dev_qos, &dev->mtp_busdev);
+    dev_unlock(dev->mtp_dev_qos, dev->mtp_dev_qos);
 
 	DBG(cdev, "receive_file_work returning %d\n", r);
 	/* write the result */
