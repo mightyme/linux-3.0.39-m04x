@@ -28,45 +28,13 @@
 #define	MODE_SHOWTYPE		0x03
 #define	MODE_STATE			0x04
 
-#define DEVICE_MODE_OFF          0x00
-#define DEVICE_MODE_OFF_1        0x01
-#define DEVICE_MODE_ON_PWM0      0x02
-#define DEVICE_MODE_ON_PWM1      0x03
-#define DEVICE_MODE_ON_FULL      0x04
-#define DEVICE_MODE_ON_BRHT       0x05
-#define DEVICE_MODE_ON_BANK0      0x06
-#define DEVICE_MODE_ON_BANK1      0x07
-#define DEVICE_MODE_MAX      0x08
-
 #define	DEVICE_STATE_IDLE		(0)
 #define	DEVICE_STATE_NORMAL	(1)
 #define	DEVICE_STATE_SLEEP	(2)
 #define	DEVICE_STATE_SHUTDOWN	(3)
 
 #define	GET_MODE(x)	((x>>8)&0x0F)
-//////////////////////////////////////////////////////////////////
-union LEDType                       // LED show byte 
-{
-    unsigned char byte;
-    struct
-    {
-        unsigned char led1:1;      
-        unsigned char led2:1;      
-        unsigned char led3:1;      
-        unsigned char led4:1;      
-        unsigned char led0:1;      //Cycle LED
-        unsigned char delay_cnt:3; 
-    };
-}; 
-unsigned char   ledarra0[] = {0xFF}; 
-unsigned char   ledarra1[] = {((2<<5)|(1<<0)),((2<<5)|(1<<1)),((2<<5)|(1<<2)),((2<<5)|(1<<3)),((2<<5)|(1<<3)),((2<<5)|(1<<2)),((2<<5)|(1<<1)),((2<<5)|(1<<0)),0xFF}; 
-unsigned char   ledarra2[] = {((4<<5)|0x01),((4<<5)|0x03),((4<<5)|0x06),((4<<5)|0x0C),((4<<5)|0x08),0xFF}; 
-unsigned char   ledarra3[] = {((2<<5)|(1<<3)),((2<<5)|(1<<2)),((2<<5)|(1<<1)),((2<<5)|(1<<0)),0xFF}; 
-unsigned char   ledarra4[] = {0x2F,0x20,0x2F,0x20,0xFF}; 
-unsigned char   ledarra5[] = {((1<<5)|0x08),((1<<5)|0x0C),((1<<5)|0x0E),((3<<5)|0x0F),0xFF}; 
-unsigned char   ledarra6[] = {((1<<5)|0x01),((1<<5)|0x03),((1<<5)|0x07),((3<<5)|0x0F),0xFF}; 
-unsigned char   ledarra7[] = {((4<<5)|0x01),((4<<5)|0x02),((4<<5)|0x04),((4<<5)|0x08),((6<<5)|0x00),((6<<5)|0x00),((6<<5)|0x00),(0xFF-3)}; 
-////////////////////////////////////////////////////////////////// 
+
 
  /*led private data*/
 struct mx_qm_led {
@@ -79,7 +47,7 @@ struct mx_qm_led {
 #endif
 };
 static int gSlope = 0;
-static int gPWM = 0;
+static int gPWM = (2<<2);
  
  static int mx_qm_set_led_current(struct led_classdev *led_cdev, int cur)
  {
@@ -134,72 +102,6 @@ static int mx_qm_set_led_slope(struct led_classdev *led_cdev, int enable)
 	//if(enable)
 	//	ret = mx->i2c_writebyte(mx->client,LED_REG_CUR0,0xCF);	  
 	ret = mx->i2c_writebyte(mx->client,LED_REG_SLOPE,enable);	  
-
-	return ret;
-}  
-
-static int mx_qm_set_led_mode(struct led_classdev *led_cdev, int mode)
-{
-	struct mx_qm_led *led =
-		 container_of(led_cdev, struct mx_qm_led, led_cdev);
-	struct mx_qm_data *mx = led->data;
-	int ret = 0;
-	unsigned char * pLedarr;
-	unsigned char Ledsize;
-	
-	dev_dbg(led_cdev->dev, "%d\n",mode);
-
-	//ret = mx->i2c_writebyte(mx->client,LED_REG_LEDMAUTO,mode);
-	
-	switch(mode	)
-	{
-		case 0:
-			pLedarr = (unsigned char * )ledarra0;
-			Ledsize = sizeof(ledarra0);
-			break;
-			
-		case 1:
-			pLedarr = (unsigned char * )ledarra1;
-			Ledsize = sizeof(ledarra1);
-			break;
-			
-		case 2:
-			pLedarr = (unsigned char * )ledarra2;
-			Ledsize = sizeof(ledarra2);
-			break;
-			
-		case 3:
-			pLedarr = (unsigned char * )ledarra3;
-			Ledsize = sizeof(ledarra3);
-			break;
-			
-		case 4:
-			pLedarr = (unsigned char * )ledarra4;
-			Ledsize = sizeof(ledarra4);
-			break;
-			
-		case 5:
-			pLedarr = (unsigned char * )ledarra5;
-			Ledsize = sizeof(ledarra5);
-			break;
-			
-		case 6:
-			pLedarr = (unsigned char * )ledarra6;
-			Ledsize = sizeof(ledarra6);
-			break;
-			
-		case 7:
-			pLedarr = (unsigned char * )ledarra7;
-			Ledsize = sizeof(ledarra7);
-			break;
-
-		default:
-			pLedarr = (unsigned char * )ledarra0;
-			Ledsize = sizeof(ledarra0);
-			break;
-
-	}
-	ret = mx->i2c_writebuf(mx->client,LED_REG_LEDMAUTO,Ledsize,pLedarr);
 
 	return ret;
 }  
@@ -268,10 +170,6 @@ static void mx_qm_led_brightness_set(struct led_classdev *led_cdev,
 	case MODE_SLOPE:
 		ret = mx_qm_set_led_slope(led_cdev,data);
 		break;
-		
-	case MODE_SHOWTYPE:
-		ret = mx_qm_set_led_mode(led_cdev,data);	
-		break;
 
 	case MODE_STATE:
 		ret = mx_qm_set_led_state(led_cdev,data);	
@@ -291,31 +189,24 @@ static void mx_qm_led_brightness_set(struct led_classdev *led_cdev,
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void mx_qm_led_early_suspend(struct early_suspend *h)
 {
-/*
 	 struct mx_qm_led *led =
 			 container_of(h, struct mx_qm_led, early_suspend);
-	struct mx_qm_data *mx = led->data;
  
 	 if( led->id == 0)
-	 {		 
-		 if( mx->LedVer == LED_VERSION1)
-		 	tca6507_set_led_pwm(&led->led_cdev,0x1FF);
-		 else
-		 	bu26507_set_led_pwm(&led->led_cdev,0x1FF);
+	 {
+	 	int PWM = gPWM;
+		led->led_cdev.brightness_set(&led->led_cdev,((MODE_PWM<<8) | 0)); 	
+		gPWM = PWM;
 	 }
-*/	 
 }
  
 static void mx_qm_led_late_resume(struct early_suspend *h)
 {
-/*
 	 struct mx_qm_led *led =
 			 container_of(h, struct mx_qm_led, early_suspend);
  
-	 //led->led_cdev.brightness_set(&led->led_cdev,LED_OFF);
 	 if( led->id == 0)
 		led->led_cdev.brightness_set(&led->led_cdev,((MODE_PWM<<8) | gPWM)); 	
-*/		
 }
 #endif
  
