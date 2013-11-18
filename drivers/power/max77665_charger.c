@@ -664,7 +664,7 @@ static void max77665_poll_work_func(struct work_struct *work)
 			regulator_disable(charger->ps);
 		}
 	}
-	pr_info("###########the current = %d\n",regulator_get_current_limit(charger->ps));
+	pr_debug("###########the current = %d\n",regulator_get_current_limit(charger->ps));
 	charger->battery_health = battery_health;
 	mutex_unlock(&charger->mutex_t);
 }
