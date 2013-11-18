@@ -72,9 +72,11 @@
 #define MTP_CPU_QOS_FREQ_HIGH		(800000)
 #define MTP_MIF_QOS_FREQ_HIGH		(267200)
 
+#ifdef CONFIG_BUSFREQ_OPP
 extern int dev_lock(struct device *device, struct device *dev, unsigned long freq); 
 extern int dev_unlock(struct device *device, struct device *dev); 
 extern struct device *dev_get(const char *name);
+#endif
 
 static const char mtp_shortname[] = "mtp_usb";
 static struct wake_lock mtp_wake_lock;
@@ -749,8 +751,9 @@ static void send_file_work(struct work_struct *data) {
 	DBG(cdev, "send_file_work(%lld %lld)\n", offset, count);
 
     pm_qos_update_request(&mtp_cpu_qos, MTP_CPU_QOS_FREQ_HIGH);
-    dev_lock(dev->mtp_dev_qos, dev->mtp_dev_qos, MTP_MIF_QOS_FREQ_HIGH);
-
+#ifdef CONFIG_BUSFREQ_OPP
+	dev_lock(dev->mtp_dev_qos, dev->mtp_dev_qos, MTP_MIF_QOS_FREQ_HIGH);
+#endif
 	if (dev->xfer_send_header) {
 		hdr_size = sizeof(struct mtp_data_header);
 		count += hdr_size;
@@ -825,8 +828,9 @@ static void send_file_work(struct work_struct *data) {
 		mtp_req_put(dev, &dev->tx_idle, req);
 
     pm_qos_update_request(&mtp_cpu_qos, 0);
-    dev_unlock(dev->mtp_dev_qos, dev->mtp_dev_qos);
-
+#ifdef CONFIG_BUSFREQ_OPP
+	dev_unlock(dev->mtp_dev_qos, dev->mtp_dev_qos);
+#endif
 	DBG(cdev, "send_file_work returning %d\n", r);
 	/* write the result */
 	dev->xfer_result = r;
@@ -855,8 +859,9 @@ static void receive_file_work(struct work_struct *data)
 	DBG(cdev, "receive_file_work(%lld)\n", count);
 
     pm_qos_update_request(&mtp_cpu_qos, MTP_CPU_QOS_FREQ_HIGH);
-    dev_lock(dev->mtp_dev_qos, dev->mtp_dev_qos, MTP_MIF_QOS_FREQ_HIGH);
-
+#ifdef CONFIG_BUSFREQ_OPP
+	dev_lock(dev->mtp_dev_qos, dev->mtp_dev_qos, MTP_MIF_QOS_FREQ_HIGH);
+#endif
 	while (count > 0 || write_req) {
 		if (count > 0) {
 			/* queue a request */
@@ -914,8 +919,9 @@ static void receive_file_work(struct work_struct *data)
 	}
 
     pm_qos_update_request(&mtp_cpu_qos, 0);
-    dev_unlock(dev->mtp_dev_qos, dev->mtp_dev_qos);
-
+#ifdef CONFIG_BUSFREQ_OPP
+	dev_unlock(dev->mtp_dev_qos, dev->mtp_dev_qos);
+#endif
 	DBG(cdev, "receive_file_work returning %d\n", r);
 	/* write the result */
 	dev->xfer_result = r;
@@ -1396,8 +1402,9 @@ static int mtp_setup(void)
 	ret = misc_register(&mtp_device);
 	if (ret)
 		goto err2;
-
+#ifdef CONFIG_BUSFREQ_OPP
     dev->mtp_dev_qos = dev_get("exynos-busfreq");
+#endif
     pm_qos_add_request(&mtp_cpu_qos, PM_QOS_CPUFREQ_MIN, 0);
 
 	return 0;
