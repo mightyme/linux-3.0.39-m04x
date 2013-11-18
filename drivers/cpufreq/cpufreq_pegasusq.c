@@ -37,8 +37,11 @@
 #endif
 
 #include <plat/cpu.h>
+#include <mach/touch_booster.h>
 
 #define EARLYSUSPEND_HOTPLUGLOCK 1
+#define BOOST_ADJUST_UPRATE	30
+#define BOOST_ADJUST_DOWNDIFF	40
 
 /*
  * runqueue average
@@ -193,6 +196,7 @@ static int policy_freq[][4] = {
 	{600000, 92, 17, 400000},
 	{800000, 95, 15, 500000},
 	{1000000, 98, 8, 300000},
+	{1200000, 99, 9, 400000},
 	{1300000, 100, 5, 300000},
 };
 
@@ -1113,6 +1117,12 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		this_dbs_info->rate_mult = 1;
 	}
 
+	if (DEFUALT_LAUNCH_BOOST_CPUFREQ == policy->cur && app_into == 0) {
+		dbs_tuners_ins.up_threshold = policy_uprate - BOOST_ADJUST_UPRATE;
+		dbs_tuners_ins.down_differential = policy_downrate + BOOST_ADJUST_DOWNDIFF;
+		this_dbs_info->rate_mult = 4;
+	}
+
 	hotplug_history->usage[num_hist].freq = policy->cur;
 	hotplug_history->usage[num_hist].rq_avg = get_nr_run_avg();
 	++hotplug_history->num_hist;
@@ -1200,8 +1210,6 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 
 	if (max_load_freq >= up_threshold * policy->cur) {
 		int target = min(policy->max, policy->cur + inc);
-		this_dbs_info->rate_mult = 1;
-
 		/* If switching to max speed, apply sampling_down_factor */
 		if (policy->cur < policy->max && target == policy->max)
 			this_dbs_info->rate_mult = dbs_tuners_ins.sampling_down_factor;

@@ -17,6 +17,13 @@
 #include <linux/input.h>
 
 #define MAX_BOOST_DEVICE		3
+#define DEFUALT_BOOST_FREETIME		200000	/*200ms*/
+#define DEFUALT_BOOST_4210_BUSFREQ	267000
+#define DEFUALT_BOOST_4412_BUSFREQ	267200
+#define DEFUALT_LAUNCH_BOOST_CPUFREQ    1200000	/* 1.2GHz */
+#define DEFUALT_FIRST_BOOST_CPUFREQ	600000	/* 600Mhz */
+#define DEFUALT_SECOND_BOOST_CPUFREQ	400000	/* 400Mhz */
+#define TABLE_SIZE			3
 
 struct tb_private_info {
 	struct class tb_class;
@@ -36,4 +43,6 @@ struct tb_private_info {
 
 	ktime_t key_time;
 };
+
+extern unsigned int app_into;
 #endif

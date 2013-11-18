@@ -15,18 +15,11 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 
-#define DEFUALT_BOOST_FREETIME		500000	/*500ms*/
-#define DEFUALT_BOOST_4210_BUSFREQ	267000
-#define DEFUALT_BOOST_4412_BUSFREQ	267200
-#define DEFUALT_LAUNCH_BOOST_CPUFREQ    1200000	/* 1.2GHz */
-#define DEFUALT_FIRST_BOOST_CPUFREQ	600000	/* 600Mhz */
-#define DEFUALT_SECOND_BOOST_CPUFREQ	400000	/* 400Mhz */
-#define TABLE_SIZE			3
-
 static int boost_time_multi[TABLE_SIZE] = {2, 1, 1};
 static int boost_freq_table[TABLE_SIZE] = {DEFUALT_LAUNCH_BOOST_CPUFREQ, DEFUALT_FIRST_BOOST_CPUFREQ, DEFUALT_SECOND_BOOST_CPUFREQ};
 static struct pm_qos_request boost_cpu_qos;
 static int boost_device_count = 0;
+unsigned int app_into = 0;
 
 static void start_vsync_boost(struct tb_private_info *info)
 {
@@ -73,6 +66,7 @@ static void start_touch_boost(struct tb_private_info *info)
 			pr_info("%s ... current freq = %d\n", __func__, policy->cur);
 
 		target_level = info->boost_cpufreq_level;
+		app_into = info->boost_cpufreq_level;
 		target = boost_freq_table[target_level];
 
 		if (cur < target) {
@@ -122,8 +116,10 @@ static ssize_t set_boost_level(struct class *class,
 	unsigned int cpurate = 0;
 
 	sscanf(buf, "%u", &cpurate);
-	if (cpurate < TABLE_SIZE)
+	if (cpurate < TABLE_SIZE) {
 		info->boost_cpufreq_level = cpurate;
+		app_into = info->boost_cpufreq_level;
+	}
 	else
 		pr_info("level not in range (0~2)\n");
 
@@ -340,7 +336,7 @@ static int __init tb_init(void)
 	info->key_time= ktime_get();
 	info->down_time = DEFUALT_BOOST_FREETIME;//ms
 	info->boost_cpufreq_level = 0;
-
+	app_into = 0;
 #ifdef CONFIG_BUSFREQ_OPP
 	if (soc_is_exynos4210())
 		info->lock_busfreq = DEFUALT_BOOST_4210_BUSFREQ;
