@@ -491,6 +491,7 @@ static void max77665_work_func(struct work_struct *work)
 	struct max77665_charger *charger =
 		container_of(work, struct max77665_charger, dwork.work);
 	enum cable_status_t cable_status = CABLE_TYPE_NONE;
+    u8 reg_data, cdetctrl1;
 
 	mutex_lock(&charger->mutex_t);
 	
@@ -515,41 +516,34 @@ static void max77665_work_func(struct work_struct *work)
 			pr_info("found dock inserted, treat it as AC\n");
 			cable_status = CABLE_TYPE_AC;
 		}else {
-			u8 reg_data;
-			max77665_read_reg(charger->iodev->muic, MAX77665_MUIC_REG_CDETCTRL1, &reg_data);
-			max77665_write_reg(charger->iodev->muic, MAX77665_MUIC_REG_CDETCTRL1, reg_data | 0x02);
-			pr_info("#############usb start detect\n");
-			msleep(500);
+            pr_info("#######usb start detect\n");
+            do {
+                max77665_read_reg(charger->iodev->muic, MAX77665_MUIC_REG_STATUS2, 
+                        &reg_data);
+            } while (reg_data & 0x08);
+            pr_info("########usb end detect (0x%02x)\n", reg_data);
 
-			max77665_read_reg(charger->iodev->muic, MAX77665_MUIC_REG_STATUS2, &reg_data);
-			pr_info("#############usb end detect (0x%02x)\n", reg_data);
-			if (reg_data & 0x08) {
-				pr_info("wait, running#####\n");
-				max77665_read_reg(charger->iodev->muic, MAX77665_MUIC_REG_CDETCTRL1, 
-						&reg_data);
-				max77665_write_reg(charger->iodev->muic, MAX77665_MUIC_REG_CDETCTRL1,
-						reg_data | 0x02);
-				pr_info("#############usb start detect again\n");
-				msleep(500);
-				max77665_read_reg(charger->iodev->muic, MAX77665_MUIC_REG_STATUS2, 
-						&reg_data);
-				pr_info("#############usb end detect (0x%02x)\n", reg_data);
-				if (reg_data & 0x08) {
-					pr_info("muic detect usb is error\n");
-					cable_status = CABLE_TYPE_USB;
-				} else {
-					if ((reg_data & 0x07) == 0x01) {
-						cable_status = CABLE_TYPE_USB;
-					} else 
-						cable_status = CABLE_TYPE_AC;
-				}
-			} else {
-				if ((reg_data & 0x07) == 0x01) {
-						cable_status = CABLE_TYPE_USB;
-					} else 
-						cable_status = CABLE_TYPE_AC;
-			}
-		}
+            if ((reg_data & 0x07) == 0x01) {
+                cable_status = CABLE_TYPE_USB;
+            } else if ((reg_data & 0x07) == 0x00) {
+                pr_info("%s:regdata 0x00, nothing attached, we consider it as misjudgment\n", __func__);
+                max77665_read_reg(charger->iodev->muic, MAX77665_MUIC_REG_CDETCTRL1, &cdetctrl1);
+                max77665_write_reg(charger->iodev->muic, MAX77665_MUIC_REG_CDETCTRL1, cdetctrl1 | 0x02);
+                pr_info("usb start detect again\n");
+                do {
+                    msleep(100);
+                    max77665_read_reg(charger->iodev->muic, MAX77665_MUIC_REG_STATUS2, &reg_data);
+                } while (reg_data & 0x08);
+                pr_info("usb end detect (0x%02x)\n", reg_data);
+                if (((reg_data & 0x07) == 0x01) || ((reg_data & 0x07) == 0x00)) {
+                    cable_status = CABLE_TYPE_USB;
+                } else {
+                    cable_status = CABLE_TYPE_AC;
+                }
+            } else {
+                cable_status = CABLE_TYPE_AC;
+            }
+        }
 		if (!regulator_is_enabled(charger->ps))
 			regulator_enable(charger->ps);
 #endif
