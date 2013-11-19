@@ -318,22 +318,19 @@ static int s5p_mipi_shutdown_lcd(struct mipi_dsim_device *dsim, enum lcd_shutdow
 	switch(state)
 	{
 	case SUSPEND_LCD:
-		/*stop output video data*/
-		s5p_mipi_dsi_stop_output(dsim);
-		
 		if (dsim_lcd_drv->suspend)
 			dsim_lcd_drv->suspend(dsim_lcd_dev);
-
-		/* dsi configuration */
-		s5p_mipi_dsi_disable_link(dsim);
-
-#if defined(CONFIG_PM_RUNTIME)
-		pm_runtime_put_sync(&pdev->dev);
-#endif
 		break;
 	case SHUTDOWN_LCD:
 		if (dsim_lcd_drv->shutdown)
 			dsim_lcd_drv->shutdown(dsim_lcd_dev);
+
+		/* dsi configuration */
+		s5p_mipi_dsi_disable_link(dsim);
+		
+#if defined(CONFIG_PM_RUNTIME)
+		pm_runtime_put_sync(&pdev->dev);
+#endif
 		break;
 	}
 	return 0;
@@ -513,7 +510,7 @@ static int s5p_mipi_probe(struct platform_device *pdev)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	dsim->mipi_early_suspend.suspend = s5p_dsim_early_suspend;
 	dsim->mipi_early_suspend.resume = s5p_dsim_late_resume;
-	dsim->mipi_early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB-5;
+	dsim->mipi_early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB+10;
 	register_early_suspend(&dsim->mipi_early_suspend);
 
 	dsim->mipi_earler_suspend.suspend = s5p_dsim_earler_suspend;
