@@ -276,8 +276,8 @@ static int read_f01_queries(struct reflash_data *data)
 		pdata->manufacturer_id = MANUFACTURER_WINTEK;
 	}
 	else	{//"s3202_ver5"
-		dev_info(&data->rmi_dev->dev, "Unknown manufacturer.\n");
-		pdata->manufacturer_id = MANUFACTURER_UNKNOWN;
+		dev_info(&data->rmi_dev->dev, "Unknown manufacturer default set to wintek.\n");
+		pdata->manufacturer_id = MANUFACTURER_WINTEK;
 	}
 	
 	return 0;
