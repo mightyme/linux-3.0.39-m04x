@@ -36,13 +36,19 @@
 #include <plat/fimc.h>
 #include <plat/clock.h>
 #include <mach/regs-pmu.h>
-
+#include <linux/pm_qos.h>
 #include "fimc.h"
 
 char buf[32];
 struct fimc_global *fimc_dev;
 
 static int wakeup_preview_flag = 0;
+
+/*
+* This is the cpu frequency on flyme 2 when camera is running.
+*/
+#define FLITE_CPU_QOS_FREQ_MIN		(600000)
+static struct pm_qos_request fimc_cpufreq_qos;
 
 void s3c_fimc_irq_work(struct work_struct *work)
 {
@@ -1199,6 +1205,17 @@ static int fimc_open(struct file *filp)
 
 	filp->private_data = prv_data;
 
+	/*
+	* Lock CPU frequency since frequency schedule strategy has
+	* been modified on FLYME 3.
+	*/
+	if (FIMC0 == ctrl->id) {
+		pr_info("%s(), lock cpu freq min to %d\n", __func__,
+			FLITE_CPU_QOS_FREQ_MIN);
+		pm_qos_add_request(&fimc_cpufreq_qos, PM_QOS_CPUFREQ_MIN,
+			FLITE_CPU_QOS_FREQ_MIN);
+	}
+
 	mutex_unlock(&ctrl->lock);
 
 	return 0;
@@ -1358,6 +1375,11 @@ static int fimc_release(struct file *filp)
 		}
 
 		ctrl->fb.is_enable = 0;
+	}
+
+	if (FIMC0 == ctrl->id) {
+		pr_info("%s(), remove cpu frequency lock\n", __func__);
+		pm_qos_remove_request(&fimc_cpufreq_qos);
 	}
 
 	fimc_warn("FIMC%d %d released.\n",
