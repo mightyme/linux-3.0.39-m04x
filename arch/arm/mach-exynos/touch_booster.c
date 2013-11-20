@@ -49,15 +49,11 @@ static ssize_t set_vsync_pulse(struct class *class,
 
 static void start_touch_boost(struct tb_private_info *info)
 {
-	int ret = 0;
-	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
-	ktime_t delta_total, rettime_total;
-	long long delta_us = 0;
+
 	unsigned int cur, target, target_level;
 	unsigned int boost_time;
 
-	if(info->boost_debug)
-		rettime_total = ktime_get();
+	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
 	if (policy) {
 		cur = policy->cur;
 		cpufreq_cpu_put(policy);
@@ -71,19 +67,13 @@ static void start_touch_boost(struct tb_private_info *info)
 
 		if (cur < target) {
 			boost_time = info->down_time * boost_time_multi[target_level];
-			pm_qos_update_request_timeout(&boost_cpu_qos, target, boost_time);
+			cpufreq_driver_target(policy, target, CPUFREQ_RELATION_L);
 #ifdef CONFIG_BUSFREQ_OPP
 			dev_lock_timeout(info->bus_dev, &info->dev, info->lock_busfreq, boost_time / 1000);
 #endif
 			if (info->boost_debug)
 				pr_info("%s: request %d cpu freq for %d msecs\n", __func__, target, boost_time);
 		}
-	}
-
-	if(info->boost_debug){
-		delta_total= ktime_sub(ktime_get(),rettime_total);
-		delta_us = ktime_to_us(delta_total);
-		pr_info("start_touch_boost time = %Lu uS, ret = %d\n", delta_us, ret);
 	}
 }
 static ssize_t set_touch_pulse(struct class *class,

@@ -40,7 +40,7 @@
 #include <mach/touch_booster.h>
 
 #define EARLYSUSPEND_HOTPLUGLOCK 1
-#define BOOST_ADJUST_UPRATE	30
+#define BOOST_ADJUST_UPRATE	39
 #define BOOST_ADJUST_DOWNDIFF	40
 
 /*
