@@ -20,6 +20,7 @@ static int boost_freq_table[TABLE_SIZE] = {DEFUALT_LAUNCH_BOOST_CPUFREQ, DEFUALT
 static struct pm_qos_request boost_cpu_qos;
 static int boost_device_count = 0;
 unsigned int app_into = 0;
+static struct pm_qos_request booster_cpu_qos;
 
 static void start_vsync_boost(struct tb_private_info *info)
 {
@@ -67,6 +68,7 @@ static void start_touch_boost(struct tb_private_info *info)
 
 		if (cur < target) {
 			boost_time = info->down_time * boost_time_multi[target_level];
+			pm_qos_update_request_timeout(&booster_cpu_qos, target, boost_time);
 			cpufreq_driver_target(policy, target, CPUFREQ_RELATION_L);
 #ifdef CONFIG_BUSFREQ_OPP
 			dev_lock_timeout(info->bus_dev, &info->dev, info->lock_busfreq, boost_time / 1000);
@@ -162,7 +164,7 @@ static ssize_t get_lock_time(struct class *class,
 				struct class_attribute *attr, char *buf)
 {
 	struct tb_private_info *info = list_entry(class, struct tb_private_info, tb_class);
-	return sprintf(buf,"%d ms\n", info->down_time);
+	return sprintf(buf,"%d us\n", info->down_time);
 }
 
 static ssize_t set_lock_time(struct class *class,
@@ -214,6 +216,8 @@ static void tb_event(struct input_handle *handle,
 		queue_work(info->wq, &info->boost_work);
 	if (code == KEY_AGAIN && value == 1)
 		queue_work(info->wq, &info->boost_work);
+	if (code == ABS_DISTANCE && value == 2)
+		queue_work(info->wq, &info->boost_work);
 }
 static bool  tb_match(struct input_handler *handler, struct input_dev *dev)
 {
@@ -225,6 +229,9 @@ static bool  tb_match(struct input_handler *handler, struct input_dev *dev)
 		return true;
 	/* Avoid touchpad */
 	if (test_bit(EV_KEY, dev->evbit) && test_bit(KEY_HOME, dev->keybit) && dev->id.vendor ==0x1111)
+		return true;
+	/* Avoid ir input */
+	if (test_bit(EV_ABS, dev->evbit) && test_bit(ABS_DISTANCE, dev->absbit))
 		return true;
 	return false;
 }
@@ -284,6 +291,10 @@ static const struct input_device_id tb_ids[] = {
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT | INPUT_DEVICE_ID_MATCH_KEYBIT,
 		.evbit = { BIT_MASK(EV_ABS) },
 		.keybit = {[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
+	},{
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT | INPUT_DEVICE_ID_MATCH_KEYBIT,
+		.evbit = { BIT_MASK(EV_ABS) },
+		.absbit = {[BIT_WORD(ABS_DISTANCE)] = BIT_MASK(ABS_DISTANCE) },
 	},{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT  | INPUT_DEVICE_ID_MATCH_KEYBIT,
 		.evbit = { BIT_MASK(EV_KEY) },
@@ -359,7 +370,7 @@ static int __init tb_init(void)
 			ret);
 		goto err_handler;
 	}
-
+	pm_qos_add_request(&booster_cpu_qos, PM_QOS_CPUFREQ_MIN, 0);
 	return 0;
 err_handler:
 	input_unregister_handler(&tb_handler);
@@ -378,6 +389,7 @@ static void __exit tb_exit(void)
 {
 	struct tb_private_info *info = tb_handler.private;
 
+	pm_qos_remove_request(&booster_cpu_qos);
 	input_unregister_handler(&tb_handler);
 #ifdef CONFIG_BUSFREQ_OPP
 	device_del(&info->dev);

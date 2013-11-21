@@ -16,8 +16,8 @@
 #include <linux/sysdev.h>
 #include <linux/input.h>
 
-#define MAX_BOOST_DEVICE		3
-#define DEFUALT_BOOST_FREETIME		200000	/*200ms*/
+#define MAX_BOOST_DEVICE		4
+#define DEFUALT_BOOST_FREETIME		400000	/*400ms*/
 #define DEFUALT_BOOST_4210_BUSFREQ	267000
 #define DEFUALT_BOOST_4412_BUSFREQ	267200
 #define DEFUALT_LAUNCH_BOOST_CPUFREQ    1200000	/* 1.2GHz */
