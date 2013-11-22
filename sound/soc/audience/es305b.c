@@ -1193,9 +1193,6 @@ static void es305b_soc_firmware_handler(const struct firmware *fw, void *context
 	/* waiting es305b initialize done */
 	msleep(120);
 
-	ret = es305b_setmode(ES305B_SUSPEND);
-	if (!ret)
-
 error_fw:
 	release_firmware(fw);
 }
@@ -1351,6 +1348,13 @@ static int __devinit es305b_i2c_probe(struct i2c_client *client, const struct i2
 	        GFP_KERNEL | __GFP_ZERO,
 	        es305b,
 	        es305b_soc_firmware_handler);
+
+	ret = es305b_setmode(ES305B_SUSPEND);
+	if (!ret) {
+		/* If set failed, don't return error, just print error info. Set mode will reset chip later */
+		AUD_ERR("%s: set es305b mode suspend error %d \n", __func__, ret);
+	}
+
 
 	es305b_create_attrs(es305b->dev);
 
