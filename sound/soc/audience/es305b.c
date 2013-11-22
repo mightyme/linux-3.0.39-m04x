@@ -1350,7 +1350,7 @@ static int __devinit es305b_i2c_probe(struct i2c_client *client, const struct i2
 	        es305b_soc_firmware_handler);
 
 	ret = es305b_setmode(ES305B_SUSPEND);
-	if (!ret) {
+	if (ret < 0) {
 		/* If set failed, don't return error, just print error info. Set mode will reset chip later */
 		AUD_ERR("%s: set es305b mode suspend error %d \n", __func__, ret);
 	}
