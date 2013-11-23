@@ -38,7 +38,7 @@
 #include <linux/usb/f_mtp.h>
 #include <linux/pm_qos.h>
 
-#define MTP_BULK_BUFFER_SIZE       16384
+#define MTP_BULK_BUFFER_SIZE       32768
 #define INTR_BUFFER_SIZE           28
 
 /* String IDs */
@@ -129,9 +129,15 @@ static struct usb_interface_descriptor mtp_interface_desc = {
 	.bDescriptorType        = USB_DT_INTERFACE,
 	.bInterfaceNumber       = 0,
 	.bNumEndpoints          = 3,
+#if 0	/*orig*/
 	.bInterfaceClass        = USB_CLASS_VENDOR_SPEC,
 	.bInterfaceSubClass     = USB_SUBCLASS_VENDOR_SPEC,
 	.bInterfaceProtocol     = 0,
+#else
+	.bInterfaceClass        = USB_CLASS_STILL_IMAGE,
+	.bInterfaceSubClass     = 1,
+	.bInterfaceProtocol     = 1,
+#endif
 };
 
 static struct usb_interface_descriptor ptp_interface_desc = {
@@ -451,7 +457,7 @@ static void mtp_complete_in(struct usb_ep *ep, struct usb_request *req)
 {
 	struct mtp_dev *dev = _mtp_dev;
 
-	if (req->status != 0)
+	if (req->status != 0 && dev->state != STATE_CANCELED)
 		dev->state = STATE_ERROR;
 
 	mtp_req_put(dev, &dev->tx_idle, req);
@@ -464,7 +470,7 @@ static void mtp_complete_out(struct usb_ep *ep, struct usb_request *req)
 	struct mtp_dev *dev = _mtp_dev;
 
 	dev->rx_done = 1;
-	if (req->status != 0)
+	if (req->status != 0 && dev->state != STATE_CANCELED)
 		dev->state = STATE_ERROR;
 
 	wake_up(&dev->read_wq);
@@ -474,7 +480,7 @@ static void mtp_complete_intr(struct usb_ep *ep, struct usb_request *req)
 {
 	struct mtp_dev *dev = _mtp_dev;
 
-	if (req->status != 0)
+	if (req->status != 0 && dev->state != STATE_CANCELED)
 		dev->state = STATE_ERROR;
 
 	mtp_req_put(dev, &dev->intr_idle, req);
@@ -502,15 +508,6 @@ static int mtp_create_bulk_endpoints(struct mtp_dev *dev,
 	DBG(cdev, "usb_ep_autoconfig for ep_in got %s\n", ep->name);
 	ep->driver_data = dev;		/* claim the endpoint */
 	dev->ep_in = ep;
-
-	ep = usb_ep_autoconfig(cdev->gadget, out_desc);
-	if (!ep) {
-		DBG(cdev, "usb_ep_autoconfig for ep_out failed\n");
-		return -ENODEV;
-	}
-	DBG(cdev, "usb_ep_autoconfig for mtp ep_out got %s\n", ep->name);
-	ep->driver_data = dev;		/* claim the endpoint */
-	dev->ep_out = ep;
 
 	ep = usb_ep_autoconfig(cdev->gadget, out_desc);
 	if (!ep) {
@@ -723,6 +720,7 @@ static ssize_t mtp_write(struct file *fp, const char __user *buf,
 		r = -ECANCELED;
 	else if (dev->state != STATE_OFFLINE)
 		dev->state = STATE_READY;
+
 	spin_unlock_irq(&dev->lock);
 
 	DBG(cdev, "mtp_write returning %d\n", r);
@@ -750,7 +748,7 @@ static void send_file_work(struct work_struct *data) {
 
 	DBG(cdev, "send_file_work(%lld %lld)\n", offset, count);
 
-    pm_qos_update_request(&mtp_cpu_qos, MTP_CPU_QOS_FREQ_HIGH);
+	pm_qos_update_request(&mtp_cpu_qos, MTP_CPU_QOS_FREQ_HIGH);
 #ifdef CONFIG_BUSFREQ_OPP
 	dev_lock(dev->mtp_dev_qos, dev->mtp_dev_qos, MTP_MIF_QOS_FREQ_HIGH);
 #endif
@@ -827,7 +825,7 @@ static void send_file_work(struct work_struct *data) {
 	if (req)
 		mtp_req_put(dev, &dev->tx_idle, req);
 
-    pm_qos_update_request(&mtp_cpu_qos, 0);
+	pm_qos_update_request(&mtp_cpu_qos, 0);
 #ifdef CONFIG_BUSFREQ_OPP
 	dev_unlock(dev->mtp_dev_qos, dev->mtp_dev_qos);
 #endif
@@ -918,7 +916,7 @@ static void receive_file_work(struct work_struct *data)
 		}
 	}
 
-    pm_qos_update_request(&mtp_cpu_qos, 0);
+	pm_qos_update_request(&mtp_cpu_qos, 0);
 #ifdef CONFIG_BUSFREQ_OPP
 	dev_unlock(dev->mtp_dev_qos, dev->mtp_dev_qos);
 #endif
@@ -1162,7 +1160,7 @@ static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 		if (ctrl->bRequest == MTP_REQ_CANCEL && w_index == 0
 				&& w_value == 0) {
 			DBG(cdev, "MTP_REQ_CANCEL\n");
-
+			mdelay(10);//wait 10ms until bulk_out data received.
 			spin_lock_irqsave(&dev->lock, flags);
 			if (dev->state == STATE_BUSY) {
 				dev->state = STATE_CANCELED;
@@ -1182,11 +1180,12 @@ static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 			status->wLength =
 				__constant_cpu_to_le16(sizeof(*status));
 
-			DBG(cdev, "MTP_REQ_GET_DEVICE_STATUS\n");
+			DBG(cdev, "MTP_REQ_GET_DEVICE_STATUS: %d\n", dev->state);
 			spin_lock_irqsave(&dev->lock, flags);
 			/* device status is "busy" until we report
 			 * the cancelation to userspace
 			 */
+
 			if (dev->state == STATE_CANCELED)
 				status->wCode =
 					__cpu_to_le16(MTP_RESPONSE_DEVICE_BUSY);
@@ -1397,20 +1396,20 @@ static int mtp_setup(void)
 
 	_mtp_dev = dev;
 
-    wake_lock_init(&mtp_wake_lock, WAKE_LOCK_SUSPEND, "mtp");
+	wake_lock_init(&mtp_wake_lock, WAKE_LOCK_SUSPEND, "mtp");
 
 	ret = misc_register(&mtp_device);
 	if (ret)
 		goto err2;
 #ifdef CONFIG_BUSFREQ_OPP
-    dev->mtp_dev_qos = dev_get("exynos-busfreq");
+	dev->mtp_dev_qos = dev_get("exynos-busfreq");
 #endif
-    pm_qos_add_request(&mtp_cpu_qos, PM_QOS_CPUFREQ_MIN, 0);
+	pm_qos_add_request(&mtp_cpu_qos, PM_QOS_CPUFREQ_MIN, 0);
 
 	return 0;
 
 err2:
-    pm_qos_remove_request(&mtp_cpu_qos);
+	pm_qos_remove_request(&mtp_cpu_qos);
 	destroy_workqueue(dev->wq);
 err1:
 	_mtp_dev = NULL;
