@@ -110,6 +110,7 @@ struct mtp_dev {
 	/* for processing MTP_SEND_FILE, MTP_RECEIVE_FILE and
 	 * MTP_SEND_FILE_WITH_HEADER ioctls on a work queue
 	 */
+
 	struct completion done;
 	struct workqueue_struct *wq;
 	struct work_struct send_file_work;
@@ -927,6 +928,29 @@ static void receive_file_work(struct work_struct *data)
 	complete(&dev->done);
 }
 
+static void
+mtp_complete_cancel(struct usb_ep *ep, struct usb_request *req)
+{
+	struct mtp_dev *dev = _mtp_dev;
+
+	if (req->status != 0) {
+		DBG(dev->cdev, "send cancel request response fail, status=%d\n", req->status);
+		return;
+	}
+
+	if (req->actual != 6) {
+		usb_ep_set_halt(ep);
+		mdelay(20);
+		usb_ep_clear_halt(ep);
+		DBG(dev->cdev, "send cancel request response fail, reset ep\n");
+	} else {
+		if (dev->state == STATE_BUSY) {
+			dev->state = STATE_CANCELED;
+			wake_up(&dev->read_wq);
+			wake_up(&dev->write_wq);
+		}
+	}
+}
 static int mtp_send_event(struct mtp_dev *dev, struct mtp_event *event)
 {
 	struct usb_request *req= NULL;
@@ -1160,20 +1184,12 @@ static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 		if (ctrl->bRequest == MTP_REQ_CANCEL && w_index == 0
 				&& w_value == 0) {
 			DBG(cdev, "MTP_REQ_CANCEL\n");
-			mdelay(10);//wait 10ms until bulk_out data received.
-			spin_lock_irqsave(&dev->lock, flags);
-			if (dev->state == STATE_BUSY) {
-				dev->state = STATE_CANCELED;
-				wake_up(&dev->read_wq);
-				wake_up(&dev->write_wq);
-			}
-			spin_unlock_irqrestore(&dev->lock, flags);
-
 			/* We need to queue a request to read the remaining
 			 *  bytes, but we don't actually need to look at
 			 * the contents.
 			 */
 			value = w_length;
+			cdev->req->complete = mtp_complete_cancel;
 		} else if (ctrl->bRequest == MTP_REQ_GET_DEVICE_STATUS
 				&& w_index == 0 && w_value == 0) {
 			struct mtp_device_status *status = cdev->req->buf;
