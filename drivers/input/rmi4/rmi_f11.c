@@ -2551,7 +2551,7 @@ static int rmi_f11_resume(struct rmi_function_container *fc)
 	dev_dbg(&fc->dev, "Resuming...\n");
 	if (!data->rezero_on_resume)
 		goto exit;
-
+#if 0
 	if (data->rezero_wait_ms)
 		mdelay(data->rezero_wait_ms);
 
@@ -2563,7 +2563,7 @@ static int rmi_f11_resume(struct rmi_function_container *fc)
 			__func__, retval);
 		return retval;
 	}
-		
+#endif	
 #ifdef	CONFIG_RMI4_F11_SWIPE
 	if(driver_data->gesture_mode)
 		rmi_f11_enter_wakeup_gesture(fc,false);	
