@@ -677,6 +677,20 @@ static int m6mo_set_face_detection_direction(struct v4l2_subdev *sd,
 	return m6mo_w8(sd, FACE_DETECT_DIRECTION_REG, ctrl->value);
 }
 
+static int m6mo_set_jpeg_quality(struct v4l2_subdev *sd,
+	struct v4l2_control *ctrl)
+{
+	int ret = 0;
+	pr_info("%s(), ctrl->value is %d\n", __func__, ctrl->value);
+	if (ctrl->value < HIGHEST_COMPRESS_RATIO|| ctrl->value > LOWEST_COMPRESS_RATIO) {
+		pr_err("%s(), unsupported compress ratio\n", __func__);
+		return -EINVAL;
+	}
+	ret = m6mo_w8(sd, JPEG_RATIO_REG, ctrl->value);
+	CHECK_ERR(ret);
+	return ret;
+}
+
 static int m6mo_get_jpeg_mem_size(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	ctrl->value = MAX_JPEG_SIZE;
@@ -1479,6 +1493,10 @@ int m6mo_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		break;
 	case V4L2_CID_CAMERA_FACE_DETECTION_DIRECTION:
 		ret = m6mo_set_face_detection_direction(sd, ctrl);
+		break;
+
+	case V4L2_CID_CAM_JPEG_QUALITY:
+		ret = m6mo_set_jpeg_quality(sd, ctrl);
 		break;
 		
 	default:

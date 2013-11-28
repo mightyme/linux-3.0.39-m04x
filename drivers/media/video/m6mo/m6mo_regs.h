@@ -320,6 +320,10 @@ enum main_image_size {
 #define THUMB_ROTATION_REG	0x0b0e
 
 #define JPEG_RATIO_REG			0x0b17  /* JPEG ratio control, 8 bit */
+enum jpeg_compress_ratio {
+	HIGHEST_COMPRESS_RATIO = 0x01,
+	LOWEST_COMPRESS_RATIO = 0x64,
+};
 
 #define LED_FLASH_CONTROL_REG	 0x0b1f
 enum led_flash_control {
