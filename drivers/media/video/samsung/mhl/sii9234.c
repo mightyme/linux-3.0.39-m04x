@@ -189,6 +189,7 @@ static int cbus_command_abort_state;
 #ifdef __CONFIG_TMDS_OFFON_WORKAROUND__
 static struct workqueue_struct *sii9234_tmds_offon_wq;
 #endif
+static DEFINE_MUTEX(input_mutex);
 
 /*////////////////////////////////////////////////////////////////////////////*/
 /*/////////////////     function declaration  area     ///////////////////////*/
@@ -267,6 +268,7 @@ static void setScrapthpadDevice(u32 touchpad_x, u32 touchpad_y, bool is_portrait
     int ret;
 
     pr_info("setScrapthpadDevice()... x=%d y=%d portrait=%s\n", touchpad_x, touchpad_y, is_portrait?"true":"false");
+    mutex_lock(&input_mutex);
     scratchpad_x = touchpad_x;
     scratchpad_y = touchpad_y;
 
@@ -280,6 +282,7 @@ static void setScrapthpadDevice(u32 touchpad_x, u32 touchpad_y, bool is_portrait
 
     scratchpad_dev = input_allocate_device();
     if (!scratchpad_dev) {
+        mutex_unlock(&input_mutex);
         return;
     }
     scratchpad_dev->evbit[0] = BIT(EV_SYN) |  BIT(EV_KEY) | BIT(EV_ABS);
@@ -296,8 +299,10 @@ static void setScrapthpadDevice(u32 touchpad_x, u32 touchpad_y, bool is_portrait
     if (ret<0) {
         input_free_device(scratchpad_dev);
         scratchpad_dev = NULL;
+        mutex_unlock(&input_mutex);
         return;
     }
+    mutex_unlock(&input_mutex);
 }
 
 static inline bool proc_file_inited(void) {
