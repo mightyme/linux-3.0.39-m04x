@@ -375,6 +375,7 @@ static void lm3530_late_resume(struct early_suspend *h)
 
 	mutex_lock(&drvdata->mutex_lock);
 	atomic_set(&drvdata->suspended, 0);
+	dev_info(&drvdata->client->dev, "%s brightness %d\n", __func__, drvdata->brightness);
 	if (drvdata->brightness == 0)
 		goto out;
 	if (!drvdata->enable) {
