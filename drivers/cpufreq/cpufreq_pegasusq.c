@@ -40,9 +40,10 @@
 #include <mach/touch_booster.h>
 
 #define EARLYSUSPEND_HOTPLUGLOCK 1
-#define BOOST_ADJUST_UPRATE	39
-#define BOOST_ADJUST_DOWNDIFF	40
-
+#define BOOST_ADJUST_UPRATE	38
+#define BOOST_ADJUST_DOWNDIFF	12
+#define HIGH_FREQ		1200000
+#define DOWN_STEP		600000
 /*
  * runqueue average
  */
@@ -182,22 +183,21 @@ static int hotplug_rq[4][2] = {
 };
 
 static int hotplug_freq[4][2] = {
-	{0, 500000},
-	{200000, 600000},
+	{0, 600000},
 	{300000, 600000},
-	{400000, 0}
+	{300000, 800000},
+	{300000, 0}
 };
 
 static int policy_freq[][4] = {
-	{200000, 50, 30, 300000},
-	{300000, 65, 35, 300000},
-	{400000, 80, 30, 200000},
-	{500000, 90, 20, 300000},
-	{600000, 92, 17, 400000},
-	{800000, 95, 15, 500000},
-	{1000000, 98, 8, 300000},
-	{1200000, 99, 9, 400000},
-	{1300000, 100, 5, 300000},
+	{300000, 50, 50, 300000},
+	{400000, 70, 30, 400000},
+	{500000, 75, 25, 300000},
+	{600000, 80, 40, 400000},
+	{700000, 85, 35, 300000},
+	{800000, 90, 30, 400000},
+	{1000000, 95, 15, 600000},
+	{1200000, 98, 8, 400000},
 };
 
 static unsigned int policy_uprate = 10;
@@ -962,11 +962,6 @@ static void cpu_down_work(struct work_struct *work)
 
 static void dbs_freq_increase(struct cpufreq_policy *p, unsigned int freq)
 {
-	if (p->cur == p->max)
-		return;
-
-	if (dbs_tuners_ins.gov_debug)
-		pr_info("++++dbs_freq_increase: from %d to %d , max_load %d \n", p->cur, freq, max_load);
 	__cpufreq_driver_target(p, freq, CPUFREQ_RELATION_L);
 }
 
@@ -1108,13 +1103,12 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	int max_hotplug_rate = max(dbs_tuners_ins.cpu_up_rate,
 				   dbs_tuners_ins.cpu_down_rate);
 	int up_threshold = dbs_tuners_ins.up_threshold;
-	this_dbs_info->rate_mult = 2;
+
 
 	policy = this_dbs_info->cur_policy;
 	if (pre_freq != policy->cur && get_freq_data(policy->cur)) {
 		dbs_tuners_ins.up_threshold = policy_uprate;
 		dbs_tuners_ins.down_differential = policy_downrate;
-		this_dbs_info->rate_mult = 1;
 	}
 
 	if (DEFUALT_LAUNCH_BOOST_CPUFREQ == policy->cur && app_into == 0) {
@@ -1210,12 +1204,16 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 
 	if (max_load_freq >= up_threshold * policy->cur) {
 		int target = min(policy->max, policy->cur + inc);
-		/* If switching to max speed, apply sampling_down_factor */
-		if (policy->cur < policy->max && target == policy->max)
-			this_dbs_info->rate_mult = dbs_tuners_ins.sampling_down_factor;
 
-		if (policy->cur == pre_freq)
-			this_dbs_info->rate_mult = 2;
+		/* fast rise cpufreq to high cpufreq using this_dbs_info->rate_mult = 1 */
+		if (policy->cur < HIGH_FREQ)
+			this_dbs_info->rate_mult = 1;
+
+		if (policy->cur == policy->max)
+			return;
+
+		if (dbs_tuners_ins.gov_debug)
+			pr_info("++++dbs_freq_increase: from %d to %d , max_load %d rate %d \n", policy->cur, target, max_load, this_dbs_info->rate_mult);
 
 		dbs_freq_increase(policy, target);
 		return;
@@ -1241,23 +1239,24 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 			(dbs_tuners_ins.up_threshold -
 			 dbs_tuners_ins.down_differential);
 
-		/* No longer fully busy, reset rate_mult */
-		this_dbs_info->rate_mult = 1;
-
 		if (freq_next < policy->min)
 			freq_next = policy->min;
 
 		if (policy->cur == freq_next) {
-			this_dbs_info->rate_mult = 2;
+			this_dbs_info->rate_mult = 4;
 			return;
 		}
 
-		if (policy->cur == pre_freq) {
+		/*when app start or game in mode, need down to 600M for fast cpufreq go up, because 600M hard to decrease if app open*/
+		if (policy->cur > DOWN_STEP && freq_next < DOWN_STEP)
+			freq_next = DOWN_STEP;
+
+		/*when rate_mult = 4 decrease cpufreq need modify to 2 */
+		if (policy->cur < HIGH_FREQ)
 			this_dbs_info->rate_mult = 2;
-		}
 
 		if (dbs_tuners_ins.gov_debug)
-			pr_info("----dbs_freq_decrease: from %d to %d, max_load %d \n", policy->cur, freq_next, max_load);
+			pr_info("----dbs_freq_decrease: from %d to %d, max_load %d rate %d\n", policy->cur, freq_next, max_load, this_dbs_info->rate_mult);
 
 		__cpufreq_driver_target(policy, freq_next, CPUFREQ_RELATION_L);
 	}
@@ -1432,7 +1431,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			}
 		}
 		this_dbs_info->cpu = cpu;
-		this_dbs_info->rate_mult = 1;
+		this_dbs_info->rate_mult = 2;
 		/*
 		 * Start the timerschedule work, when this governor
 		 * is used for first time
