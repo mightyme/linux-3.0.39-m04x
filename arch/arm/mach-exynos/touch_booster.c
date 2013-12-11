@@ -216,8 +216,6 @@ static void tb_event(struct input_handle *handle,
 		queue_work(info->wq, &info->boost_work);
 	if (code == KEY_AGAIN && value == 1)
 		queue_work(info->wq, &info->boost_work);
-	if (code == ABS_DISTANCE && value == 2)
-		queue_work(info->wq, &info->boost_work);
 }
 static bool  tb_match(struct input_handler *handler, struct input_dev *dev)
 {
@@ -229,9 +227,6 @@ static bool  tb_match(struct input_handler *handler, struct input_dev *dev)
 		return true;
 	/* Avoid touchpad */
 	if (test_bit(EV_KEY, dev->evbit) && test_bit(KEY_HOME, dev->keybit) && dev->id.vendor ==0x1111)
-		return true;
-	/* Avoid ir input */
-	if (test_bit(EV_ABS, dev->evbit) && test_bit(ABS_DISTANCE, dev->absbit))
 		return true;
 	return false;
 }
@@ -291,10 +286,6 @@ static const struct input_device_id tb_ids[] = {
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT | INPUT_DEVICE_ID_MATCH_KEYBIT,
 		.evbit = { BIT_MASK(EV_ABS) },
 		.keybit = {[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
-	},{
-		.flags = INPUT_DEVICE_ID_MATCH_EVBIT | INPUT_DEVICE_ID_MATCH_KEYBIT,
-		.evbit = { BIT_MASK(EV_ABS) },
-		.absbit = {[BIT_WORD(ABS_DISTANCE)] = BIT_MASK(ABS_DISTANCE) },
 	},{
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT  | INPUT_DEVICE_ID_MATCH_KEYBIT,
 		.evbit = { BIT_MASK(EV_KEY) },
