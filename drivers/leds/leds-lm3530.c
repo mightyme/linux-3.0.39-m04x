@@ -127,7 +127,6 @@ static const u8 lm3530_reg[LM3530_REG_MAX] = {
 	LM3530_ALS_ZONE_REG,
 	LM3530_ALS_IMP_SELECT,
 	LM3530_BRT_CTRL_REG,
-	LM3530_GEN_CONFIG,
 	LM3530_ALS_ZB0_REG,
 	LM3530_ALS_ZB1_REG,
 	LM3530_ALS_ZB2_REG,
@@ -137,6 +136,7 @@ static const u8 lm3530_reg[LM3530_REG_MAX] = {
 	LM3530_ALS_Z2T_REG,
 	LM3530_ALS_Z3T_REG,
 	LM3530_ALS_Z4T_REG,
+	LM3530_GEN_CONFIG,
 };
 
 static int lm3530_get_mode_from_str(const char *str)
@@ -204,16 +204,16 @@ static int lm3530_init_registers(struct lm3530_data *drvdata)
 	reg_val[2] = 0x00;              /* LM3530_ALS_ZONE_REG */
 	reg_val[3] = als_imp_sel;       /* LM3530_ALS_IMP_SELECT */
 	reg_val[4] = brightness >> 1;   /* LM3530_BRT_CTRL_REG */
-	reg_val[5] = gen_config;        /* LM3530_GEN_CONFIG */
-	reg_val[6] = LM3530_DEF_ZB_0;	/* LM3530_ALS_ZB0_REG */
-	reg_val[7] = LM3530_DEF_ZB_1;	/* LM3530_ALS_ZB1_REG */
-	reg_val[8] = LM3530_DEF_ZB_2;	/* LM3530_ALS_ZB2_REG */
-	reg_val[9] = LM3530_DEF_ZB_3;	/* LM3530_ALS_ZB3_REG */
-	reg_val[10] = LM3530_DEF_ZT_0;	/* LM3530_ALS_Z0T_REG */
-	reg_val[11] = LM3530_DEF_ZT_1;	/* LM3530_ALS_Z1T_REG */
-	reg_val[12] = LM3530_DEF_ZT_2;	/* LM3530_ALS_Z2T_REG */
-	reg_val[13] = LM3530_DEF_ZT_3;	/* LM3530_ALS_Z3T_REG */
-	reg_val[14] = LM3530_DEF_ZT_4;	/* LM3530_ALS_Z4T_REG */
+	reg_val[5] = LM3530_DEF_ZB_0;	/* LM3530_ALS_ZB0_REG */
+	reg_val[6] = LM3530_DEF_ZB_1;	/* LM3530_ALS_ZB1_REG */
+	reg_val[7] = LM3530_DEF_ZB_2;	/* LM3530_ALS_ZB2_REG */
+	reg_val[8] = LM3530_DEF_ZB_3;	/* LM3530_ALS_ZB3_REG */
+	reg_val[9] = LM3530_DEF_ZT_0;	/* LM3530_ALS_Z0T_REG */
+	reg_val[10] = LM3530_DEF_ZT_1;	/* LM3530_ALS_Z1T_REG */
+	reg_val[11] = LM3530_DEF_ZT_2;	/* LM3530_ALS_Z2T_REG */
+	reg_val[12] = LM3530_DEF_ZT_3;	/* LM3530_ALS_Z3T_REG */
+	reg_val[13] = LM3530_DEF_ZT_4;	/* LM3530_ALS_Z4T_REG */
+	reg_val[14] = gen_config;        /* LM3530_GEN_CONFIG */
 
 	if (!drvdata->enable) {
 		ret = regulator_enable(drvdata->regulator);
@@ -242,10 +242,11 @@ static void lm3530_brightness_set(struct led_classdev *led_cdev,
 	struct lm3530_data *drvdata =
 	    container_of(led_cdev, struct lm3530_data, led_dev);
 
-	/*pr_info("set brt %d mode %d\n", brt_val, drvdata->mode);*/
+	pr_info("set brt %d mode %d\n", brt_val, drvdata->mode);
 	mutex_lock(&drvdata->mutex_lock);
 	if (atomic_read(&drvdata->suspended)) {
 		drvdata->brightness = brt_val;
+		pr_info("now in suspend! but save brightness %d\n", brt_val);
 		mutex_unlock(&drvdata->mutex_lock);
 		return;
 	}
