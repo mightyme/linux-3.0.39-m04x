@@ -71,11 +71,11 @@ static struct cpufreq_frequency_table exynos4x12_freq_table[] = {
 */
 
 static int exynos4212_profile_high[] = {
-	L1, L2, L4, L6, L8, L10, L12, L14, L_END
+	L1, L2, L4, L6, L8, L10, L12, L_END
 };
 
 static int exynos4412_v2_profile_high[] = {
- 	L0, L2, L4, L6, L8, L10, L12, L14, L_END
+ 	L0, L2, L4, L6, L8, L10, L12, L_END
 };
 
 static int exynos4412_profile_high[] = {
@@ -91,11 +91,11 @@ static int exynos4412_profile_low[] = {
 };
 
 static int exynos4212_profile_all[] = {
-	L1, L2, L3, L4, L5, L6, L7, L8, L9, L10, L11, L12, L13, L14, L_END
+	L1, L2, L3, L4, L5, L6, L7, L8, L9, L10, L11, L12, L13, L_END
 };
 
 static int exynos4412_profile_all[] = {
-	L0, L1, L2, L3, L4, L5, L6, L7, L8, L9, L10, L11, L12, L13, L14, L_END
+	L0, L1, L2, L3, L4, L5, L6, L7, L8, L9, L10, L11, L12, L13, L_END
 };
 
 /*Default for exynos4412*/
