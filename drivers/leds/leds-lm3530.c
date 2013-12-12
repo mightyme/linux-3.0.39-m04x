@@ -122,11 +122,11 @@ struct lm3530_data {
 };
 
 static const u8 lm3530_reg[LM3530_REG_MAX] = {
-	LM3530_ALS_CONFIG,
+	LM3530_BRT_CTRL_REG,
 	LM3530_BRT_RAMP_RATE,
 	LM3530_ALS_ZONE_REG,
 	LM3530_ALS_IMP_SELECT,
-	LM3530_BRT_CTRL_REG,
+	LM3530_ALS_CONFIG,
 	LM3530_ALS_ZB0_REG,
 	LM3530_ALS_ZB1_REG,
 	LM3530_ALS_ZB2_REG,
@@ -199,11 +199,11 @@ static int lm3530_init_registers(struct lm3530_data *drvdata)
 	else
 		brightness = drvdata->brightness = pltfm->brt_val;
 
-	reg_val[0] = als_config;        /* LM3530_ALS_CONFIG */
+	reg_val[4] = als_config;        /* LM3530_ALS_CONFIG */
 	reg_val[1] = brt_ramp;          /* LM3530_BRT_RAMP_RATE */
 	reg_val[2] = 0x00;              /* LM3530_ALS_ZONE_REG */
 	reg_val[3] = als_imp_sel;       /* LM3530_ALS_IMP_SELECT */
-	reg_val[4] = brightness >> 1;   /* LM3530_BRT_CTRL_REG */
+	reg_val[0] = brightness >> 1;   /* LM3530_BRT_CTRL_REG */
 	reg_val[5] = LM3530_DEF_ZB_0;	/* LM3530_ALS_ZB0_REG */
 	reg_val[6] = LM3530_DEF_ZB_1;	/* LM3530_ALS_ZB1_REG */
 	reg_val[7] = LM3530_DEF_ZB_2;	/* LM3530_ALS_ZB2_REG */
@@ -242,7 +242,7 @@ static void lm3530_brightness_set(struct led_classdev *led_cdev,
 	struct lm3530_data *drvdata =
 	    container_of(led_cdev, struct lm3530_data, led_dev);
 
-	pr_info("set brt %d mode %d\n", brt_val, drvdata->mode);
+	/*pr_info("set brt %d mode %d\n", brt_val, drvdata->mode);*/
 	mutex_lock(&drvdata->mutex_lock);
 	if (atomic_read(&drvdata->suspended)) {
 		drvdata->brightness = brt_val;
