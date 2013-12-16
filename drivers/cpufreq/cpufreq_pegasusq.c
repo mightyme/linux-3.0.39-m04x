@@ -40,8 +40,8 @@
 #include <mach/touch_booster.h>
 
 #define EARLYSUSPEND_HOTPLUGLOCK 1
-#define BOOST_ADJUST_UPRATE	38
-#define BOOST_ADJUST_DOWNDIFF	12
+#define BOOST_ADJUST_UPRATE	39
+#define BOOST_ADJUST_DOWNDIFF	16
 #define HIGH_FREQ		1200000
 #define DOWN_STEP		600000
 /*
@@ -190,14 +190,15 @@ static int hotplug_freq[4][2] = {
 };
 
 static int policy_freq[][4] = {
-	{300000, 50, 50, 300000},
+	{300000, 60, 40, 300000},
 	{400000, 70, 30, 400000},
 	{500000, 75, 25, 300000},
-	{600000, 80, 40, 400000},
-	{700000, 85, 35, 300000},
-	{800000, 90, 30, 400000},
-	{1000000, 95, 15, 600000},
-	{1200000, 98, 8, 400000},
+	{600000, 85, 45, 400000},
+	{700000, 90, 20, 300000},
+	{800000, 95, 15, 400000},
+	{900000, 97, 12, 300000},
+	{1000000, 98, 8, 600000},
+	{1200000, 99, 4, 400000},
 };
 
 static unsigned int policy_uprate = 10;
