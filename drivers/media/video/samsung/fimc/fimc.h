@@ -38,6 +38,8 @@
 #include <linux/pm_runtime.h>
 #endif
 
+#include <linux/wakelock.h>
+
 #define FIMC_NAME		"s3c-fimc"
 #define FIMC_CMA_NAME		"fimc"
 
@@ -459,6 +461,7 @@ struct fimc_control {
 	enum fimc_power_status		power_status;
 	char 				cma_name[16];
 	bool				restart;
+	struct wake_lock wakelock;
 };
 
 /* global */

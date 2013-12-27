@@ -31,7 +31,6 @@
 #include <linux/videodev2_samsung.h>
 #include <linux/delay.h>
 #include <linux/cma.h>
-#include <linux/wakelock.h>
 
 #include <plat/fimc.h>
 #include <plat/clock.h>
@@ -753,6 +752,10 @@ static struct fimc_control *fimc_register_controller(struct platform_device *pde
 	fimc_hwset_reset(ctrl);
 #endif
 
+	if (FIMC0 == ctrl->id) {
+		wake_lock_init(&ctrl->wakelock, WAKE_LOCK_SUSPEND, ctrl->name);
+	}
+
 	return ctrl;
 }
 
@@ -773,6 +776,9 @@ static int fimc_unregister_controller(struct platform_device *pdev)
 		pdata->clk_off(pdev, &ctrl->clk);
 
 	iounmap(ctrl->regs);
+	if (FIMC0 == ctrl->id) {
+		wake_lock_destroy(&ctrl->wakelock);
+	}
 	memset(ctrl, 0, sizeof(*ctrl));
 
 	return 0;
@@ -1134,6 +1140,19 @@ static int fimc_open(struct file *filp)
 	ctrl = video_get_drvdata(video_devdata(filp));
 	pdata = to_fimc_plat(ctrl->dev);
 
+	/*
+	* Lock CPU frequency since frequency schedule strategy has
+	* been modified on FLYME 3.
+	*/
+	if (FIMC0 == ctrl->id) {
+		pr_info("%s(), lock wakelock\n", __func__);
+		wake_lock(&ctrl->wakelock);
+		pr_info("%s(), lock cpu freq min to %d\n", __func__,
+			FLITE_CPU_QOS_FREQ_MIN);
+		pm_qos_add_request(&fimc_cpufreq_qos, PM_QOS_CPUFREQ_MIN,
+			FLITE_CPU_QOS_FREQ_MIN);
+	}
+
 	mutex_lock(&ctrl->lock);
 
 	in_use = atomic_read(&ctrl->in_use);
@@ -1204,17 +1223,6 @@ static int fimc_open(struct file *filp)
 	}
 
 	filp->private_data = prv_data;
-
-	/*
-	* Lock CPU frequency since frequency schedule strategy has
-	* been modified on FLYME 3.
-	*/
-	if (FIMC0 == ctrl->id) {
-		pr_info("%s(), lock cpu freq min to %d\n", __func__,
-			FLITE_CPU_QOS_FREQ_MIN);
-		pm_qos_add_request(&fimc_cpufreq_qos, PM_QOS_CPUFREQ_MIN,
-			FLITE_CPU_QOS_FREQ_MIN);
-	}
 
 	mutex_unlock(&ctrl->lock);
 
@@ -1378,6 +1386,8 @@ static int fimc_release(struct file *filp)
 	}
 
 	if (FIMC0 == ctrl->id) {
+		pr_info("%s(), unlock wakelock\n", __func__);
+		wake_unlock(&ctrl->wakelock);
 		pr_info("%s(), remove cpu frequency lock\n", __func__);
 		pm_qos_remove_request(&fimc_cpufreq_qos);
 	}
@@ -1781,6 +1791,7 @@ static int fimc_remove(struct platform_device *pdev)
 #if (defined(CONFIG_EXYNOS_DEV_PD) && defined(CONFIG_PM_RUNTIME))
 	pm_runtime_disable(&pdev->dev);
 #endif
+
 	return 0;
 }
 
