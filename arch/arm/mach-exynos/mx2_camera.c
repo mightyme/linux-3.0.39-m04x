@@ -200,6 +200,39 @@ exit_clkget_cam:
 	return ret;
 }
 
+static int mx2_mipi_power(unsigned int enable)
+{
+	int ret = 0;
+	struct regulator_bulk_data supplies[2];
+	int num_consumers = ARRAY_SIZE(supplies);
+
+	pr_info("%s(), ++++++++++, enable:%d\n", __func__, enable);
+	supplies[0].supply = "vdd_ldo8";
+	supplies[1].supply = "vdd_ldo10";
+
+	ret = regulator_bulk_get(NULL, num_consumers, supplies);
+	if (ret) {
+		pr_err("%s(), regulator_bulk_get failed\n", __func__);
+		return ret;
+	}
+
+	if (enable)
+		ret = regulator_bulk_enable(num_consumers, supplies);
+	else
+		ret = regulator_bulk_disable(num_consumers, supplies);
+
+	if (ret) {
+		pr_err("%s(), regulator_bulk_%sable failed\n", __func__,
+				enable ? "en" : "dis");
+		return ret;
+	}
+
+	regulator_bulk_free(num_consumers, supplies);
+
+	return 0;
+}
+
+
 static int m6mo_set_isp_power(bool enable)
 {
 	struct regulator_bulk_data supplies[2];
@@ -253,6 +286,8 @@ static int m6mo_set_sensor_power(int cam_id, bool enable)
 	int num_consumers = 0, ret;
 
 	pr_info("%s():camera id = %d, enable = %d\n", __FUNCTION__, cam_id, enable);
+
+	mx2_mipi_power(enable);
 
 	if (cam_id == 0) {  /* IMX175 */
 		supplies[num_consumers++].supply = "cam_back_1.2v";

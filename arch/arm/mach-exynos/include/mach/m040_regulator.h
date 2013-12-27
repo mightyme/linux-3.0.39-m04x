@@ -67,14 +67,14 @@ static struct regulator_consumer_supply __initdata max77686_ldo7 =
 	REGULATOR_SUPPLY("vdd_ldo7", NULL);
 
 static struct regulator_consumer_supply __initdata max77686_ldo8 = /*mipi 1.0v */
-	REGULATOR_SUPPLY("vdd_ldo8", "s5p-mipi-dsim.0");
+	REGULATOR_SUPPLY("vdd_ldo8", NULL);
 
 /* front camera core 1.5v */
 static struct regulator_consumer_supply __initdata max77686_ldo9 =
 	REGULATOR_SUPPLY("cam_front_1.5v", NULL);
 
 static struct regulator_consumer_supply __initdata max77686_ldo10 = /*mipi 1.8v */
-	REGULATOR_SUPPLY("vdd_ldo10", "s5p-mipi-dsim.0");
+	REGULATOR_SUPPLY("vdd_ldo10", NULL);
 
 static struct regulator_consumer_supply __initdata max77686_ldo11 =
 	REGULATOR_SUPPLY("vdd_ldo11", NULL);
