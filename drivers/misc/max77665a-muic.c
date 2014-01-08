@@ -185,7 +185,7 @@ static int max77665_muic_get_type(struct max77665_muic_info *info)
 	adc1k = !!(status1 & STATUS1_ADC1K_MASK);
 	dock = max77665a_is_dock_detect(info);
 	
-	pr_info("adc 0x%02x, adclow %d, adcerr %d, adc1k %d, dock=%d\n",
+	pr_info("adc 0x%02x, adclow %d, adcerr %d, adc1k %d, dock pin=%d\n",
 			adc, adclow, adcerr, adc1k, dock);
 	
 	if(adc1k) {
@@ -194,7 +194,7 @@ static int max77665_muic_get_type(struct max77665_muic_info *info)
 		type= ADC_TYPE_DOCK;
 	} else if (adc == ADC_GND) {
 		type = ADC_TYPE_OTG;
-	} else if ((adc == ADC_OPEN) && !dock) {
+	} else if (adc == ADC_OPEN) {
 		type = ADC_TYPE_DISCONNECT;
 	}
 	return type;
@@ -250,7 +250,12 @@ static irqreturn_t max77665_muic_isr(int irq, void *dev_id)
 		max77665_muic_enable_host(info);
 		break;
 	case ADC_TYPE_DISCONNECT:
+	case ADC_TYPE_NONE:
 		max77665_muic_disable_host(info);
+		if(info->mhl_insert){
+			info->mhl_insert = false;
+			//schedule_delayed_work(&info->dwork, 0);
+		}
 		break;
 	}
 	return IRQ_HANDLED;
