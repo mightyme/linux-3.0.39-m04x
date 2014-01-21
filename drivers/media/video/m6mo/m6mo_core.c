@@ -61,6 +61,9 @@ static struct m6mo_reg m6mo_fmt_yuv422[] = {
 static struct m6mo_reg m6mo_fmt_jpeg[] = {
 	{I2C_8BIT, YUVOUT_MAIN_REG, MAIN_OUTPUT_JPEG_422},
 };
+static struct m6mo_reg m6mo_fmt_raw10unpack[] = {
+	{I2C_8BIT, YUVOUT_MAIN_REG, MAIN_RAW10_UNPACK},
+};
 
 /* capture size regs */
 static struct m6mo_reg m6mo_cap_vga[] = {
@@ -144,6 +147,15 @@ static struct m6mo_format_struct m6mo_cap_formats[] = {
 		.bpp = 0,
 		.regs = m6mo_fmt_jpeg,
 		.size = ARRAY_SIZE(m6mo_fmt_jpeg),
+	},
+	{
+		.desc = "raw10 unpack",
+		.pixelformat = V4L2_PIX_FMT_SGRBG10,
+		.mbus_code = V4L2_MBUS_FMT_SGRBG10_1X10,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.bpp = 0,
+		.regs = m6mo_fmt_raw10unpack,
+		.size = ARRAY_SIZE(m6mo_fmt_raw10unpack),
 	},
 };
 
@@ -990,8 +1002,10 @@ int m6mo_set_capture_format(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 
-	if (state->cap_fmt.mbus_code == fmt->code)
+	if (state->cap_fmt.mbus_code == fmt->code) {
+		pr_warn("%s(), the same with previous, not set reg!\n", __func__);
 		return 0;
+	}
 
 	state->cap_fmt = formats[i];
 	
@@ -1289,6 +1303,7 @@ static int m6mo_init(struct v4l2_subdev *sd, u32 cam_id)
 	state->userset.mirror = M6MO_NO_MIRROR;
 	state->userset.reverse = M6MO_NO_REVERSE;
 	state->userset.af_mode = M6MO_FOCUS_AUTO;
+	state->raw_image_flag = 0;
 	
 	v4l_info(client, "%s: camera initialization finished\n", __func__);
 

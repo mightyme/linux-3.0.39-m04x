@@ -36,6 +36,9 @@
 	} while (0);
 	
 #define MAX_JPEG_SIZE (5 * 1024 * 1024)   /* 5 M */
+#define DEFAULT_JPEG_MEM_SIZE	5*1024*1024//5M
+#define DEFAULT_RAW_MEM_SIZE	20*1024*1024//10M
+
 #define MAX_SMILE_PERCENT 100
 
 static u8 m6mo_wb_regs[M6MO_WB_MAX] = {
@@ -677,6 +680,24 @@ static int m6mo_set_face_detection_direction(struct v4l2_subdev *sd,
 	return m6mo_w8(sd, FACE_DETECT_DIRECTION_REG, ctrl->value);
 }
 
+static int m6mo_set_raw_image_flag(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	struct m6mo_state *state = to_state(sd);
+
+	pr_info("%s(), ctrl->value is %d\n", __func__, ctrl->value);
+	if (state->raw_image_flag == ctrl->value)
+		return 0;
+
+	if (ctrl->value)
+		state->raw_image_flag = 1;
+	else
+		state->raw_image_flag = 0;
+
+	pr_info("%s(), set state->raw_image_flag to %d\n",
+		__func__, state->raw_image_flag);
+	return 0;
+}
+
 static int m6mo_set_jpeg_quality(struct v4l2_subdev *sd,
 	struct v4l2_control *ctrl)
 {
@@ -693,9 +714,24 @@ static int m6mo_set_jpeg_quality(struct v4l2_subdev *sd,
 
 static int m6mo_get_jpeg_mem_size(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
+#if 0
 	ctrl->value = MAX_JPEG_SIZE;
 	
 	return 0;
+#else
+	struct m6mo_state *state = to_state(sd);
+
+	if (state->raw_image_flag)
+		ctrl->value = DEFAULT_RAW_MEM_SIZE;
+	else
+		ctrl->value = DEFAULT_JPEG_MEM_SIZE;
+
+	pr_info("%s(), flag raw_image_flag is %d,"
+		"set ctrl->value to:%d\n", __func__,
+		state->raw_image_flag, ctrl->value);
+
+	return 0;
+#endif
 }
 
 static void m6mo_get_af_touch_coordinate(int val, int *x, int *y)
@@ -1025,12 +1061,18 @@ static int m6mo_get_auto_focus_result(struct v4l2_subdev *sd, struct v4l2_contro
 static int m6mo_transfer_capture_data(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	int ret = 0;
+	struct m6mo_state *state = to_state(sd);
 	pr_info("%s(), ctr->value is %d\n", __func__, ctrl->value);
 
 	switch (ctrl->value) {
 	case 0:
 		break;
 	case 1:
+		if (state->raw_image_flag) {
+			pr_info("%s(), raw image flag is set, mani sel\n", __func__);
+			ret = m6mo_w8(sd, CAP_SEL_FRAME_MAIN_REG, 1);
+			CHECK_ERR(ret);
+		}
 		m6mo_prepare_wait(sd);
 
 		ret = m6mo_w8(sd, CAP_TRANSFER_START_REG, CAP_TRANSFER_MAIN);
@@ -1102,6 +1144,20 @@ static int m6mo_set_mirror(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	return 0;
 }
 
+static int m6mo_set_raw_image_index(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	if (ctrl->value == 1) {
+		pr_info("%s(), write 0x0013 = 0x01\n", __func__);
+		return m6mo_w8(sd, RAWDATA_PART_INDEX, 0x01);
+	} else if (ctrl->value == 0) {
+		pr_info("%s(), write 0x0013 = 0x00\n", __func__);
+		return m6mo_w8(sd, RAWDATA_PART_INDEX, 0x00);
+	}	else {
+		pr_err("%s(), Err!Invalid ctrl->value:%d\n", __func__, ctrl->value);
+		return -1;
+	}
+}
+
 static int m6mo_set_colorbar(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	return m6mo_w8(sd, COLOR_BAR_REG, ENABLE_COLOR_BAR);
@@ -1110,15 +1166,25 @@ static int m6mo_set_colorbar(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 static int m6mo_s_cap_format(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	struct v4l2_mbus_framefmt fmt;
+	struct m6mo_state *state = to_state(sd);
 
 	switch (ctrl->value) {
 	case V4L2_PIX_FMT_YUYV:
+		pr_info("%s(), set cap format to YUYV\n", __func__);
 		fmt.code = V4L2_MBUS_FMT_VYUY8_2X8;
 		break;
 	case V4L2_PIX_FMT_JPEG:
+		pr_info("%s(), set cap format to JPEG\n", __func__);
 		fmt.code = V4L2_MBUS_FMT_JPEG_1X8;
+		if (state->raw_image_flag) {
+			pr_info("%s(), state->raw_image_flag set, set cap format to RAW10\n", __func__);
+			fmt.code = V4L2_MBUS_FMT_SGRBG10_1X10;
+		} else {
+			pr_info("%s(), state->raw_image_flag not set\n", __func__);
+		}
 		break;
 	default:
+		pr_err("%s(), !!!ERR: unkown cap format\n!!!", __func__);
 		return -EINVAL;
 	}
 
@@ -1448,6 +1514,14 @@ int m6mo_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	case V4L2_CID_CAMERA_ISP_MIRROR:
 		ret = m6mo_set_mirror(sd, ctrl);
 		break;
+
+	case V4L2_CID_CAMERA_RAW_IMAGE_FLAG:
+		ret = m6mo_set_raw_image_flag(sd, ctrl);
+		break;
+	case V4L2_CID_CAMERA_RAW_IMAGE_INDEX:
+		ret = m6mo_set_raw_image_index(sd, ctrl);
+		break;
+
 	case V4L2_CID_CAMERA_COLORBAR:
 		ret = m6mo_set_colorbar(sd, ctrl);
 		break;
@@ -1498,7 +1572,7 @@ int m6mo_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	case V4L2_CID_CAM_JPEG_QUALITY:
 		ret = m6mo_set_jpeg_quality(sd, ctrl);
 		break;
-		
+
 	default:
 		pr_err("%s: no such control, ctrl->id=%x\n", __func__,ctrl->id);
 		return -EINVAL;

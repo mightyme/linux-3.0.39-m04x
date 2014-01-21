@@ -232,6 +232,7 @@ struct m6mo_state {
 	struct completion completion;
 	struct mutex mutex;
 
+	int raw_image_flag;
 	int fw_version;
 	enum firmware_status fw_status;
 	u8 *fw_buffer;

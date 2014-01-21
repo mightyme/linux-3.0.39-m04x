@@ -14,6 +14,7 @@ enum sys_mode {
 
 #define INT_ENABLE_REG					0x0010   /* interrupt enable */
 #define INT_ROOR_ENABLE_REG			0x0012   /* root interrupt enable */
+#define RAWDATA_PART_INDEX 0x0013 /* indicate rawdata section*/
 #define FIRMWARE_MINOR_VER_REG 		0x0015   /* firmware version, 16 bit */
 
 #define INT_FACTOR_REG					0x001c   /*interrupt status*/
