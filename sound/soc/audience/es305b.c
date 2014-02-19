@@ -62,6 +62,7 @@ static int es305b_i2c_read(struct i2c_client *client,
 static int es305b_i2c_write(struct i2c_client *client,
 				int bytes, const void *src);
 static int es305b_execute_cmdmsg(unsigned int msg);
+static void es305b_soc_firmware_download(const struct firmware *fw,void *context);
 static void es305b_soc_firmware_handler(const struct firmware *fw,void *context);
 static int es305b_wakeup(void);
 
@@ -1107,7 +1108,7 @@ static struct miscdevice es305b_device = {
 	.fops = &es305b_fileops,
 };
 
-static void es305b_soc_firmware_handler(const struct firmware *fw, void *context)
+static void es305b_soc_firmware_download(const struct firmware *fw, void *context)
 {
 	struct es305b_soc *es305b = context;
 	short cmds;
@@ -1195,6 +1196,17 @@ static void es305b_soc_firmware_handler(const struct firmware *fw, void *context
 
 error_fw:
 	release_firmware(fw);
+}
+
+static void es305b_soc_firmware_handler(const struct firmware *fw, void *context)
+{
+	int ret;
+
+	es305b_soc_firmware_download(fw, context);
+	ret = es305b_setmode(ES305B_SUSPEND);
+	if (ret < 0) {
+		AUD_ERR("%s: set mode error %d\n", __func__, ret);
+	}
 }
 
 static void e305b_initial_mode_data(struct es305b_soc *es305b)
@@ -1301,6 +1313,7 @@ static int __devinit es305b_i2c_probe(struct i2c_client *client, const struct i2
 	es305b->gpio_es305b_wake = pdata->gpio_es305b_wake;
 	es305b->gpio_es305b_reset = pdata->gpio_es305b_reset;
 	es305b->client = client;
+	es305b->mode = ES305B_INVALID;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		AUD_ERR("i2c check functionality error\n");
@@ -1348,13 +1361,6 @@ static int __devinit es305b_i2c_probe(struct i2c_client *client, const struct i2
 	        GFP_KERNEL | __GFP_ZERO,
 	        es305b,
 	        es305b_soc_firmware_handler);
-
-	ret = es305b_setmode(ES305B_SUSPEND);
-	if (ret < 0) {
-		/* If set failed, don't return error, just print error info. Set mode will reset chip later */
-		AUD_ERR("%s: set es305b mode suspend error %d \n", __func__, ret);
-	}
-
 
 	es305b_create_attrs(es305b->dev);
 
