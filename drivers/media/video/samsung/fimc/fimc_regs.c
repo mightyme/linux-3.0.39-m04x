@@ -150,6 +150,10 @@ int fimc_hwset_camera_source(struct fimc_control *ctrl)
 		cfg |= S3C_CISRCFMT_SOURCEVSIZE(cam->height);
 	}
 
+	#if 1
+	pr_info("%s(), cam->width&cam->height: %d*%d\n", __func__,
+		cam->width, cam->height);
+	#endif
 	writel(cfg, ctrl->regs + S3C_CISRCFMT);
 
 	return 0;

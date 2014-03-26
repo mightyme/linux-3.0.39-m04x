@@ -33,6 +33,11 @@
 
 static struct pm_qos_request bus_qos_pm_qos_req;
 
+#ifdef USING_AP_ZOOM
+#define MAX_DIGITAL_ZOOM_LEVEL		32
+#define MAX_DIGITAL_ZOOM_SCALE		4
+#endif
+
 static const struct v4l2_fmtdesc capture_fmts[] = {
 	{
 		.index		= 0,
@@ -212,7 +217,9 @@ static int fimc_cal_camera_output_size(struct fimc_control *ctrl)
 {
 	struct v4l2_pix_format fmt=ctrl->cap->fmt;
 	int left, top, width, height;
-	/*int maxlevel;*/
+	#ifdef USING_AP_ZOOM
+	int maxlevel;
+	#endif
 	int o_rate, i_rate;
 	int r_offset=0, b_offset=0;
 	
@@ -237,18 +244,20 @@ static int fimc_cal_camera_output_size(struct fimc_control *ctrl)
 		}while(o_rate > i_rate);
 		b_offset = ctrl->cam->height - height;
 	}
-/*	
+
+	#ifdef USING_AP_ZOOM
 	maxlevel = MAX_DIGITAL_ZOOM_LEVEL - MAX_DIGITAL_ZOOM_LEVEL/MAX_DIGITAL_ZOOM_SCALE;
 	if(ctrl->cam->zoom_level > maxlevel)
 		ctrl->cam->zoom_level = maxlevel;
+	pr_info("%s(), zoom_level is %d\n", __func__, ctrl->cam->zoom_level);
 	//multiple of 16
 	width = ((ctrl->cam->width - r_offset) * (MAX_DIGITAL_ZOOM_LEVEL-ctrl->cam->zoom_level)/MAX_DIGITAL_ZOOM_LEVEL) & ~0xF;
 	//multiple of 2
 	height = ((ctrl->cam->height - b_offset)  * (MAX_DIGITAL_ZOOM_LEVEL-ctrl->cam->zoom_level) /MAX_DIGITAL_ZOOM_LEVEL) & ~0x1;
-*/
+	#else
 	width = (ctrl->cam->width - r_offset) & ~0xF;
 	height = (ctrl->cam->height - b_offset) & ~0x1;
-	
+	#endif
 	left = ((ctrl->cam->width - width)/2) & (~0x1);
 	top = ((ctrl->cam->height - height)/2) & (~0x1);
 	
@@ -396,6 +405,7 @@ static int fimc_capture_scaler_info(struct fimc_control *ctrl)
 	rot = fimc_mapping_rot_flip(ctrl->cap->rotate, ctrl->cap->flip);
 
 	if (rot & FIMC_ROT) {
+		pr_info("%s(), rot is set!exchange widht and height\n", __func__);
 		tx = ctrl->cap->fmt.height;
 		ty = ctrl->cap->fmt.width;
 	} else {
@@ -403,7 +413,7 @@ static int fimc_capture_scaler_info(struct fimc_control *ctrl)
 		ty = ctrl->cap->fmt.height;
 	}
 
-	fimc_dbg("%s: CamOut (%d, %d), TargetOut (%d, %d)\n",
+	fimc_err("%s: CamOut (%d, %d), TargetOut (%d, %d)\n",
 			__func__, sx, sy, tx, ty);
 
 	if (sx <= 0 || sy <= 0) {
@@ -917,6 +927,9 @@ static int fimc_init_mx_camera(struct fimc_control *ctrl)
 		goto error;
 	} else {
 		cam->initialized = 1;
+		#ifdef USING_AP_ZOOM
+		cam->zoom_level = 0;
+		#endif
 	}
 
 	return 0;
@@ -2052,6 +2065,21 @@ int fimc_s_ctrl_capture(void *fh, struct v4l2_control *c)
 		ctrl->fe.pat_cr = c->value & 0xFF;
 		ret = 0;
 		break;
+	/*
+	* Added by qudao for zoom on ap side.
+	*/
+	#ifdef USING_AP_ZOOM
+	case V4L2_CID_ZOOM_ABSOLUTE:
+		pr_info("%s(), id is zoom absolute, value:%d\n", __func__, c->value);
+		ctrl->cam->zoom_level= c->value & 0xFF;
+		fimc_cal_camera_output_size(ctrl);
+		fimc_hwset_camera_source(ctrl);
+		fimc_hwset_camera_offset(ctrl);
+		fimc_capture_scaler_info(ctrl);
+		fimc_hwset_prescaler(ctrl, &ctrl->sc);
+		fimc_hwset_scaler(ctrl, &ctrl->sc);
+		break;
+	#endif
 
 	case V4L2_CID_IS_LOAD_FW:
 		if (ctrl->is.sd && fimc_cam_use)
