@@ -43,6 +43,9 @@ struct fimc_global *fimc_dev;
 
 static int wakeup_preview_flag = 0;
 
+extern bool zoom_level_flag;
+extern void fimc_set_zoom_level(struct fimc_control *ctrl);
+
 /*
 * This is the cpu frequency on flyme 2 when camera is running.
 */
@@ -492,6 +495,18 @@ static inline void fimc_irq_cap(struct fimc_control *ctrl)
 		before_time.tv_usec = curr_time.tv_usec;
 	}
 #endif
+
+	#ifdef USING_AP_ZOOM
+	spin_lock(&ctrl->zoom_lock);
+	if (zoom_level_flag) {
+		pr_info("%s(), zoom_level_flag is true\n", __func__);
+		zoom_level_flag = false;
+		fimc_set_zoom_level(ctrl);
+		ctrl->cam->zoom_level = 0;
+	}
+	spin_unlock(&ctrl->zoom_lock);	
+	#endif
+
 	fimc_hwset_clear_irq(ctrl);
 	if (fimc_hwget_overflow_state(ctrl))
 		return;
@@ -688,6 +703,9 @@ static struct fimc_control *fimc_register_controller(struct platform_device *pde
 	mutex_init(&ctrl->lock);
 	mutex_init(&ctrl->v4l2_lock);
 	spin_lock_init(&ctrl->outq_lock);
+	#ifdef USING_AP_ZOOM
+	spin_lock_init(&ctrl->zoom_lock);
+	#endif
 	init_waitqueue_head(&ctrl->wq);
 
 	/* get resource for io memory */
@@ -779,6 +797,7 @@ static int fimc_unregister_controller(struct platform_device *pdev)
 	if (FIMC0 == ctrl->id) {
 		wake_lock_destroy(&ctrl->wakelock);
 	}
+
 	memset(ctrl, 0, sizeof(*ctrl));
 
 	return 0;

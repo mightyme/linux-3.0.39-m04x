@@ -35,7 +35,8 @@ static struct pm_qos_request bus_qos_pm_qos_req;
 
 #ifdef USING_AP_ZOOM
 #define MAX_DIGITAL_ZOOM_LEVEL		32
-#define MAX_DIGITAL_ZOOM_SCALE		4
+#define MAX_DIGITAL_ZOOM_SCALE		2
+bool zoom_level_flag = false;
 #endif
 
 static const struct v4l2_fmtdesc capture_fmts[] = {
@@ -226,6 +227,11 @@ static int fimc_cal_camera_output_size(struct fimc_control *ctrl)
 	/*compare camera & camif output size*/
 	o_rate = fmt.width*1000/fmt.height;
 	i_rate = ctrl->cam->width*1000/ctrl->cam->height;
+
+	pr_info("%s(), fmt.width * fmt.height(%d*%d), o_rate:%d\n"
+		"\tcam->width * cam->height (%d*%d), i_rate:%d\n", __func__,
+		fmt.width, fmt.height, o_rate, ctrl->cam->width, ctrl->cam->height, i_rate);
+
 	
 	if(o_rate < i_rate)
 	{
@@ -247,9 +253,15 @@ static int fimc_cal_camera_output_size(struct fimc_control *ctrl)
 
 	#ifdef USING_AP_ZOOM
 	maxlevel = MAX_DIGITAL_ZOOM_LEVEL - MAX_DIGITAL_ZOOM_LEVEL/MAX_DIGITAL_ZOOM_SCALE;
+
+	//pr_info("%s(), set maxlevel to %d\n", __func__, maxlevel);
+	maxlevel = 24;
+	pr_info("%s(), user want zoom:%d, set maxlevel to %d\n", __func__,
+		ctrl->cam->zoom_level, maxlevel);
+
 	if(ctrl->cam->zoom_level > maxlevel)
 		ctrl->cam->zoom_level = maxlevel;
-	pr_info("%s(), zoom_level is %d\n", __func__, ctrl->cam->zoom_level);
+	pr_info("%s(), will apply zoom_level is %d\n", __func__, ctrl->cam->zoom_level);
 	//multiple of 16
 	width = ((ctrl->cam->width - r_offset) * (MAX_DIGITAL_ZOOM_LEVEL-ctrl->cam->zoom_level)/MAX_DIGITAL_ZOOM_LEVEL) & ~0xF;
 	//multiple of 2
@@ -429,8 +441,17 @@ static int fimc_capture_scaler_info(struct fimc_control *ctrl)
 	fimc_get_scaler_factor(sx, tx, &sc->pre_hratio, &sc->hfactor);
 	fimc_get_scaler_factor(sy, ty, &sc->pre_vratio, &sc->vfactor);
 
+	pr_info("%s(), sx*sy(%d*%d), tx*ty(%d*%d)\n"
+		"\t pre_hratio:%d,hfactor:%d; pre_vratio:%d, vfactor:%d\n",
+		__func__, sx, sy, tx, ty,
+		sc->pre_hratio, sc->hfactor,
+		sc->pre_vratio, sc->vfactor);
+
 	sc->pre_dst_width = sx / sc->pre_hratio;
 	sc->pre_dst_height = sy / sc->pre_vratio;
+
+	pr_info("sc->pre_dst_width*sc->pre_dst_height:(%d*%d)\n",
+		sc->pre_dst_width, sc->pre_dst_height);
 
 	if (pdata->hw_ver >= 0x50) {
 		sc->main_hratio = (sx << 14) / (tx << sc->hfactor);
@@ -442,7 +463,8 @@ static int fimc_capture_scaler_info(struct fimc_control *ctrl)
 
 	sc->scaleup_h = (tx >= sx) ? 1 : 0;
 	sc->scaleup_v = (ty >= sy) ? 1 : 0;
-
+	pr_info("%s(), sc->scaleup_h:%d, s->scaleup_v:%d\n", __func__,
+		sc->scaleup_h, sc->scaleup_v);
 	return 0;
 }
 
@@ -929,6 +951,7 @@ static int fimc_init_mx_camera(struct fimc_control *ctrl)
 		cam->initialized = 1;
 		#ifdef USING_AP_ZOOM
 		cam->zoom_level = 0;
+		zoom_level_flag = false;
 		#endif
 	}
 
@@ -1474,6 +1497,9 @@ int fimc_s_fmt_vid_capture(struct file *file, void *fh, struct v4l2_format *f)
 	mbus_fmt->width = cap->fmt.width;
 	mbus_fmt->height = cap->fmt.height;
 	mbus_fmt->reserved[0] = cap->fmt.priv;/*camera mode value*/
+
+	pr_info("%s(), cap->fmt resol(%d*%d)\n", __func__,
+		cap->fmt.width, cap->fmt.height);
 	/*
 	 * Note that expecting format only can be with
 	 * available output format from FIMC
@@ -1517,7 +1543,7 @@ int fimc_s_fmt_vid_capture(struct file *file, void *fh, struct v4l2_format *f)
 		cap->lastirq = 0;
 	}
 
-	fimc_info1("s_fmt width = %d, height = %d\n", \
+	fimc_err("s_fmt width = %d, height = %d\n", \
 				cap->fmt.width, cap->fmt.height);
 
 	/* WriteBack doesn't have subdev_call */
@@ -1991,11 +2017,23 @@ int fimc_g_ctrl_capture(void *fh, struct v4l2_control *c)
 	return ret;
 }
 
+void fimc_set_zoom_level(struct fimc_control *ctrl)
+{
+	fimc_cal_camera_output_size(ctrl);	
+	fimc_hwset_camera_source(ctrl);
+	fimc_hwset_camera_offset(ctrl);
+
+	fimc_capture_scaler_info(ctrl);
+	fimc_hwset_prescaler(ctrl, &ctrl->sc);
+	fimc_hwset_scaler(ctrl, &ctrl->sc);
+}
+
 int fimc_s_ctrl_capture(void *fh, struct v4l2_control *c)
 {
 	struct fimc_control *ctrl = fh;
 	struct s3c_platform_fimc *pdata = to_fimc_plat(ctrl->dev);
 	int ret = 0;
+	unsigned long flags;
 
 	fimc_dbg("%s\n", __func__);
 
@@ -2071,13 +2109,11 @@ int fimc_s_ctrl_capture(void *fh, struct v4l2_control *c)
 	#ifdef USING_AP_ZOOM
 	case V4L2_CID_ZOOM_ABSOLUTE:
 		pr_info("%s(), id is zoom absolute, value:%d\n", __func__, c->value);
+		spin_lock_irqsave(&ctrl->zoom_lock, flags);
 		ctrl->cam->zoom_level= c->value & 0xFF;
-		fimc_cal_camera_output_size(ctrl);
-		fimc_hwset_camera_source(ctrl);
-		fimc_hwset_camera_offset(ctrl);
-		fimc_capture_scaler_info(ctrl);
-		fimc_hwset_prescaler(ctrl, &ctrl->sc);
-		fimc_hwset_scaler(ctrl, &ctrl->sc);
+		zoom_level_flag = true;
+		ret = 0;
+		spin_unlock_irqrestore(&ctrl->zoom_lock, flags);
 		break;
 	#endif
 
