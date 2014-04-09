@@ -14,6 +14,7 @@
 
 #include <linux/videodev2.h>
 
+#define USING_AP_ZOOM
 #define FIMC_SRC_MAX_W		4224
 #define FIMC_SRC_MAX_H		4224
 #define FLITE_MAX_NUM		2
@@ -102,6 +103,9 @@ struct s3c_platform_camera {
 	/* The cam needs reset before start streaming   */
 	int				reset_camera;
 
+	#ifdef USING_AP_ZOOM
+	int				zoom_level;
+	#endif
 	/* Board specific power pin control */
 	int				(*cam_power)(int onoff);
 	enum flite_index		flite_id;

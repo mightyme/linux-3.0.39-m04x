@@ -430,6 +430,9 @@ struct fimc_control {
 	struct mutex			lock;		/* controller lock */
 	struct mutex			v4l2_lock;
 	spinlock_t			outq_lock;
+	#ifdef USING_AP_ZOOM
+	spinlock_t zoom_lock;
+	#endif
 	wait_queue_head_t		wq;
 	struct device			*dev;
 #ifdef CONFIG_BUSFREQ_OPP

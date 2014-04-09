@@ -150,6 +150,10 @@ int fimc_hwset_camera_source(struct fimc_control *ctrl)
 		cfg |= S3C_CISRCFMT_SOURCEVSIZE(cam->height);
 	}
 
+	#if 1
+	pr_info("%s(), cam->width&cam->height: %d*%d\n", __func__,
+		cam->width, cam->height);
+	#endif
 	writel(cfg, ctrl->regs + S3C_CISRCFMT);
 
 	return 0;
@@ -368,6 +372,13 @@ int fimc_hwset_camera_offset(struct fimc_control *ctrl)
 	h2 = cam->width - rect->width - rect->left;
 	v1 = rect->top;
 	v2 = cam->height - rect->height - rect->top;
+
+	pr_info("%s(), cam->width*cam->height(%d*%d)\n"
+		"\trec:(left:%d,top:%d, widht*height:%d*%d)\n", __func__,
+		cam->width, cam->height, rect->left, rect->top, rect->width, rect->height);
+
+	pr_info("%s(), h1:%d, h2:%d, v1:%d, v2:%d\n", __func__,
+		h1, h2, v1, v2);
 
 	cfg = readl(ctrl->regs + S3C_CIWDOFST);
 	cfg &= ~(S3C_CIWDOFST_WINHOROFST_MASK | S3C_CIWDOFST_WINVEROFST_MASK);
@@ -752,12 +763,16 @@ int fimc_hwset_prescaler(struct fimc_control *ctrl, struct fimc_scaler *sc)
 	cfg |= S3C_CISCPRERATIO_PREHORRATIO(sc->pre_hratio);
 	cfg |= S3C_CISCPRERATIO_PREVERRATIO(sc->pre_vratio);
 
+	pr_info("%s(), shfactor:%d, sc->pre_hratio:%d, sc->pre_vratio:%d\n",
+		__func__, shfactor, sc->pre_hratio, sc->pre_vratio);
 	writel(cfg, ctrl->regs + S3C_CISCPRERATIO);
 
 	cfg = 0;
 	cfg |= S3C_CISCPREDST_PREDSTWIDTH(sc->pre_dst_width);
 	cfg |= S3C_CISCPREDST_PREDSTHEIGHT(sc->pre_dst_height);
 
+	pr_info("%s(), sc->pre_dst_width:%d, sc->pre_dst_height:%d\n",
+		__func__, sc->pre_dst_width, sc->pre_dst_height);
 	writel(cfg, ctrl->regs + S3C_CISCPREDST);
 
 	return 0;
@@ -980,6 +995,8 @@ int fimc50_hwset_scaler(struct fimc_control *ctrl, struct fimc_scaler *sc)
 	cfg |= S3C_CISCCTRL_MAINHORRATIO((sc->main_hratio >> 6));
 	cfg |= S3C_CISCCTRL_MAINVERRATIO((sc->main_vratio >> 6));
 
+	pr_info("%s(), ctrl->range:%d, sc->bypass:%d, sc->scaleup_h:%d, sc->scaleup_v:%d\n",
+		__func__, ctrl->range, sc->bypass, sc->scaleup_h, sc->scaleup_v);
 	writel(cfg, ctrl->regs + S3C_CISCCTRL);
 
 	cfg_ext &= ~S3C_CIEXTEN_MAINHORRATIO_EXT_MASK;
@@ -988,6 +1005,8 @@ int fimc50_hwset_scaler(struct fimc_control *ctrl, struct fimc_scaler *sc)
 	cfg_ext |= S3C_CIEXTEN_MAINHORRATIO_EXT(sc->main_hratio);
 	cfg_ext |= S3C_CIEXTEN_MAINVERRATIO_EXT(sc->main_vratio);
 
+	pr_info("%s(), sc->main_hratio:%d, sc->main_vratio:%d\n", __func__,
+		sc->main_hratio, sc->main_vratio);
 	writel(cfg_ext, ctrl->regs + S3C_CIEXTEN);
 
 	return 0;
